@@ -6236,7 +6236,7 @@ async function runAutoRankUpgrade() {
 // ══════════════════════════════════════════════════
 let _livePriceEnabled = false;
 let _livePriceTimer   = null;
-let _cachedDedraRate  = null;
+// _cachedDedraRate 는 line 3983에서 이미 선언됨 (중복 제거)
 
 // Firestore에서 설정 로드 (pairAddress, liveEnabled, manualPrice)
 const DEEDRA_PAIR_ADDRESS = 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c'; // Raydium DDRA/SOL pair
