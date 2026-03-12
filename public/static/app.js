@@ -102,7 +102,7 @@ const SFX = (() => {
 const TRANSLATIONS = {
   ko: {
     // 로그인/회원가입
-    authTagline: '🔐 안전하고 스마트한 가상자산 투자',
+    authTagline: '🔐 안전하고 스마트한 가상자산 FREEZE',
     loginTab: '로그인',
     registerTab: '회원가입',
     labelEmail: '이메일',
@@ -122,34 +122,34 @@ const TRANSLATIONS = {
     greeting: '안녕하세요 👋',
     totalAssetLabel: '총 자산 (USDT 환산)',
     assetLocked: 'USDT 원금 (잠금)',
-    assetInvesting: '투자 중',
+    assetInvesting: '❄️ FREEZE 중',
     assetInterest: '수익 잔액 (출금 가능)',
     btnDeposit: 'USDT 입금',
     btnWithdraw: 'DDRA 출금',
     deedraPrice: 'DDRA 현재 시세',
     recentUpdated: '최근 업데이트: ',
-    investingNow: '📈 진행 중인 투자',
-    investAmount: '투자금',
+    investingNow: '❄️ 진행 중인 FREEZE',
+    investAmount: 'FREEZE 금액',
     expectedReturn: '예상 수익',
     remaining: '남은 기간',
     announcements: '📢 공지사항',
     seeAll: '전체보기',
     recentTx: '💳 최근 거래',
     // 투자
-    pageInvest: '📈 투자',
+    pageInvest: '❄️ FREEZE',
     activeInvest: '활성 투자',
     totalInvest: '총 투자금',
     expectedReturnLabel: '예상 수익',
-    simTitle: '투자 수익 시뮬레이터',
+    simTitle: '❄️ FREEZE 수익 시뮬레이터',
     simSelectProduct: '상품 선택',
     simUsdtAmount: 'USDT 금액',
-    simInvestAmount: '투자 금액',
+    simInvestAmount: 'FREEZE 금액',
     simPeriod: '기간',
     simRoi: '수익률',
     simEarning: '일 수익 (USDT)',
     simEarningUsd: '총 수익 (USDT)',
     productListTitle: '💼 투자 상품',
-    myInvestTitle: '📋 내 투자 현황',
+    myInvestTitle: '📋 내 FREEZE 현황',
     // 네트워크
     pageNetwork: '🌐 네트워크',
     directRef: '직접 추천',
@@ -218,7 +218,7 @@ const TRANSLATIONS = {
     txAll: '전체',
     txDeposit: '입금',
     txWithdraw: '출금',
-    txInvest: '투자',
+    txInvest: 'FREEZE',
     moreAnnouncements: '📢 공지사항',
     accountMgmt: '⚙️ 계정 관리',
     profileEdit: '프로필 수정',
@@ -251,9 +251,9 @@ const TRANSLATIONS = {
     withdrawPinLabel: '출금 PIN (6자리)',
     withdrawWarning: '⚠️ 출금 신청 후 관리자 승인까지 1~3 영업일 소요됩니다.',
     btnSubmitWithdraw: '출금 신청',
-    modalInvest: '📈 투자 신청',
-    investAmountLabel: '투자 금액 (USDT)',
-    btnSubmitInvest: '투자 신청',
+    modalInvest: '❄️ FREEZE 신청',
+    investAmountLabel: 'FREEZE 금액 (USDT)',
+    btnSubmitInvest: 'FREEZE 신청',
     modalCharge: '🎮 게임 지갑 충전',
     chargeInfoLabel: 'DDRA 잔액에서 게임 지갑으로 이동',
     chargeHolding: '보유: ',
@@ -288,7 +288,7 @@ const TRANSLATIONS = {
     toastInviteLinkCopied: '초대 링크 복사 완료!',
     toastDepositDone: '입금 신청 완료! 관리자 승인을 기다려주세요.',
     toastWithdrawDone: '출금 신청 완료! 처리까지 1~3 영업일 소요됩니다.',
-    toastInvestDone: '투자 신청 완료! 🎉',
+    toastInvestDone: 'FREEZE 신청 완료! ❄️🎉',
     toastChargeDone: ' DDRA 충전 완료!',
     toastGameChargeFirst: '게임 지갑을 먼저 충전해주세요.',
     toastNoBalance: '잔액 부족',
@@ -314,9 +314,9 @@ const TRANSLATIONS = {
     toastEnterPin: '출금 PIN 6자리를 입력하세요.',
     toastInsufficientBal: '잔액이 부족합니다.',
     toastWrongPin: '출금 PIN이 올바르지 않습니다.',
-    toastEnterInvAmt: '투자 금액을 입력하세요.',
-    toastMinInvest: '최소 투자금은 $',
-    toastMaxInvest: '최대 투자금은 $',
+    toastEnterInvAmt: 'FREEZE 금액을 입력하세요.',
+    toastMinInvest: '최소 FREEZE 금액은 $',
+    toastMaxInvest: '최대 FREEZE 금액은 $',
     toastInsufficientUsdt: 'USDT 잔액이 부족합니다.',
     toastEnterChargeAmt: '충전 금액을 입력하세요.',
     toastEnterTicket: '제목과 내용을 입력하세요.',
@@ -328,7 +328,7 @@ const TRANSLATIONS = {
     units: '건',
   },
   en: {
-    authTagline: '🔐 Safe and Smart Crypto Investment',
+    authTagline: '🔐 Safe and Smart Crypto FREEZE',
     loginTab: 'Login',
     registerTab: 'Register',
     labelEmail: 'Email',
@@ -347,33 +347,33 @@ const TRANSLATIONS = {
     greeting: 'Hello 👋',
     totalAssetLabel: 'Total Assets (USDT)',
     assetLocked: 'USDT Principal (Locked)',
-    assetInvesting: 'Investing',
+    assetInvesting: '❄️ Freezing',
     assetInterest: 'Earnings (Withdrawable)',
     btnDeposit: 'Deposit USDT',
     btnWithdraw: 'Withdraw DDRA',
     deedraPrice: 'DDRA Current Price',
     recentUpdated: 'Updated: ',
-    investingNow: '📈 Active Investment',
-    investAmount: 'Invested',
+    investingNow: '❄️ Active FREEZE',
+    investAmount: 'Frozen',
     expectedReturn: 'Expected Return',
     remaining: 'Remaining',
     announcements: '📢 Announcements',
     seeAll: 'See All',
     recentTx: '💳 Recent Transactions',
-    pageInvest: '📈 Invest',
+    pageInvest: '❄️ FREEZE',
     activeInvest: 'Active',
     totalInvest: 'Total Invested',
     expectedReturnLabel: 'Expected Return',
-    simTitle: 'Investment Simulator',
+    simTitle: '❄️ FREEZE Simulator',
     simSelectProduct: 'Select Product',
     simUsdtAmount: 'USDT Amount',
-    simInvestAmount: 'Investment Amount',
+    simInvestAmount: 'FREEZE Amount',
     simPeriod: 'Period',
     simRoi: 'ROI',
     simEarning: 'Earnings (USDT)',
     simEarningUsd: 'Total Earnings (USDT)',
     productListTitle: '💼 Investment Products',
-    myInvestTitle: '📋 My Investments',
+    myInvestTitle: '📋 My FREEZE',
     pageNetwork: '🌐 Network',
     directRef: 'Direct Refs',
     totalDownline: 'Total Downline',
@@ -439,7 +439,7 @@ const TRANSLATIONS = {
     txAll: 'All',
     txDeposit: 'Deposit',
     txWithdraw: 'Withdraw',
-    txInvest: 'Invest',
+    txInvest: 'FREEZE',
     moreAnnouncements: '📢 Announcements',
     accountMgmt: '⚙️ Account',
     profileEdit: 'Edit Profile',
@@ -471,9 +471,9 @@ const TRANSLATIONS = {
     withdrawPinLabel: 'Withdrawal PIN (6 digits)',
     withdrawWarning: '⚠️ Admin approval takes 1-3 business days after submission.',
     btnSubmitWithdraw: 'Submit Withdrawal',
-    modalInvest: '📈 Investment Request',
-    investAmountLabel: 'Investment Amount (USDT)',
-    btnSubmitInvest: 'Submit Investment',
+    modalInvest: '❄️ FREEZE Request',
+    investAmountLabel: 'FREEZE Amount (USDT)',
+    btnSubmitInvest: 'FREEZE',
     modalCharge: '🎮 Charge Game Wallet',
     chargeInfoLabel: 'Transfer from DDRA balance to game wallet',
     chargeHolding: 'Balance: ',
@@ -507,7 +507,7 @@ const TRANSLATIONS = {
     toastInviteLinkCopied: 'Invite link copied!',
     toastDepositDone: 'Deposit request submitted! Waiting for admin approval.',
     toastWithdrawDone: 'Withdrawal request submitted! Processing takes 1-3 business days.',
-    toastInvestDone: 'Investment request submitted! 🎉',
+    toastInvestDone: 'FREEZE submitted! ❄️🎉',
     toastChargeDone: ' DDRA charged!',
     toastGameChargeFirst: 'Please charge your game wallet first.',
     toastNoBalance: 'Insufficient balance',
@@ -534,8 +534,8 @@ const TRANSLATIONS = {
     toastInsufficientBal: 'Insufficient balance.',
     toastWrongPin: 'Incorrect withdrawal PIN.',
     toastEnterInvAmt: 'Please enter investment amount.',
-    toastMinInvest: 'Minimum investment is $',
-    toastMaxInvest: 'Maximum investment is $',
+    toastMinInvest: 'Minimum FREEZE is $',
+    toastMaxInvest: 'Maximum FREEZE is $',
     toastInsufficientUsdt: 'Insufficient USDT balance.',
     toastEnterChargeAmt: 'Please enter charge amount.',
     toastEnterTicket: 'Please enter title and content.',
@@ -2103,7 +2103,7 @@ async function loadProducts() {
       .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
 
     if (!productsCache.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i>투자 상품이 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>FREEZE 플랜이 없습니다</div>';
       return;
     }
 
@@ -2142,11 +2142,11 @@ async function loadProducts() {
           <div class="product-meta-item">최대: <strong>${fmt(p.maxAmount)} USDT</strong></div>
         </div>
         <div class="product-conversion">
-          💡 ${fmt(p.minAmount)} USDT 투자 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
-          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 원금 계약만기 후 출금
+          ❄️ ${fmt(p.minAmount)} USDT FREEZE 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
+          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 만기 후 언프리즈 가능
         </div>
         <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name || ''}',${roi},${days},${p.minAmount||0},${p.maxAmount||9999})">
-          투자하기
+          ❄️ FREEZE
         </button>
       </div>`;
     }).join('');
@@ -2302,7 +2302,7 @@ async function loadMyInvestments() {
           <span class="invest-item-amount">$${fmt(inv.amount)}</span>
         </div>
         <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
-          <span>📈 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
+          <span>❄️ 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
           <span>잔여 ${remainDays}일</span>
         </div>
         <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
@@ -2357,14 +2357,14 @@ window.updateInvestPreview = function() {
     📌 일 수익: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
     💡 DDRA 환산: ≈ ${fmt(earningDdra)} DDRA/일 (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
     📅 만기일: ${getDaysLaterStr(selectedProduct.days)}<br>
-    🔒 원금은 계약 기간 종료 후 출금 가능합니다.`;
+    🔒 원금은 만기 후 언프리즈 가능합니다.`;
 };
 
 window.submitInvest = async function() {
   if (!selectedProduct) return;
   const amount = parseFloat(document.getElementById('investAmount').value);
 
-  if (!amount || amount <= 0) { showToast('투자 금액을 입력하세요.', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast('FREEZE 금액을 입력하세요.', 'warning'); return; }
   if (amount < selectedProduct.minAmt) { showToast(t('toastMinInvest') + selectedProduct.minAmt, 'warning'); return; }
   if (amount > selectedProduct.maxAmt) { showToast(t('toastMaxInvest') + selectedProduct.maxAmt, 'warning'); return; }
   if ((walletData?.usdtBalance || 0) < amount) { showToast('USDT 잔액이 부족합니다.', 'error'); return; }

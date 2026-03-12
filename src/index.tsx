@@ -203,7 +203,7 @@ const HTML = () => `<!DOCTYPE html>
                 <div class="asset-split-icon">🔒</div>
                 <div class="asset-split-label" data-i18n="assetLocked">USDT 원금</div>
                 <div class="asset-split-value" id="splitUsdt">0.00 USDT</div>
-                <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;">투자 중 잠금</div>
+                <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;">FREEZE 중</div>
               </div>
               <div class="asset-split-item" style="border-left:1px solid rgba(255,255,255,0.08);">
                 <div class="asset-split-icon">💎</div>
@@ -249,7 +249,7 @@ const HTML = () => `<!DOCTYPE html>
           <!-- D-Day 투자 현황 -->
           <div id="ddayCard" class="dday-card hidden">
             <div class="dday-header">
-              <div class="dday-title" data-i18n="investingNow">📈 진행 중인 투자</div>
+              <div class="dday-title" data-i18n="investingNow">❄️ 진행 중인 FREEZE</div>
               <div class="dday-badge" id="ddayBadge">D-0</div>
             </div>
             <div class="dday-name" id="ddayName">-</div>
@@ -304,16 +304,16 @@ const HTML = () => `<!DOCTYPE html>
       <!-- ======== INVEST 페이지 ======== -->
       <div id="investPage" class="page">
         <div class="page-scroll">
-          <div class="page-title" data-i18n="pageInvest">📈 투자</div>
+          <div class="page-title" data-i18n="pageInvest">❄️ FREEZE</div>
 
           <!-- 투자 현황 요약 -->
           <div class="invest-summary">
             <div class="invest-sum-item">
-              <div class="invest-sum-label" data-i18n="activeInvest">활성 투자</div>
+              <div class="invest-sum-label" data-i18n="activeInvest">활성 FREEZE</div>
               <div class="invest-sum-value" id="activeInvestCount">0건</div>
             </div>
             <div class="invest-sum-item">
-              <div class="invest-sum-label" data-i18n="totalInvest">총 투자금</div>
+              <div class="invest-sum-label" data-i18n="totalInvest">전체 FREEZE</div>
               <div class="invest-sum-value" id="totalInvestAmount">$0</div>
             </div>
             <div class="invest-sum-item">
@@ -325,7 +325,7 @@ const HTML = () => `<!DOCTYPE html>
           <!-- 투자 시뮬레이터 -->
           <div class="simulator-card">
             <div class="simulator-title">
-              <i class="fas fa-calculator"></i> <span data-i18n="simTitle">투자 수익 시뮬레이터</span>
+              <i class="fas fa-calculator"></i> <span data-i18n="simTitle">❄️ FREEZE 시뮬레이터</span>
             </div>
             <div class="simulator-inputs">
               <select class="sim-select" id="simProduct" onchange="runSimulator()">
@@ -336,7 +336,7 @@ const HTML = () => `<!DOCTYPE html>
             </div>
             <div class="simulator-result" id="simResult">
               <div class="sim-row">
-                <span class="sim-label" data-i18n="simInvestAmount">투자 금액</span>
+                <span class="sim-label" data-i18n="simInvestAmount">FREEZE 금액</span>
                 <span class="sim-value" id="simInputAmount">-</span>
               </div>
               <div class="sim-row">
@@ -360,16 +360,16 @@ const HTML = () => `<!DOCTYPE html>
 
           <!-- 투자 상품 목록 -->
           <div class="section-header">
-            <span class="section-title" data-i18n="productListTitle">💼 투자 상품</span>
+            <span class="section-title" data-i18n="productListTitle">❄️ FREEZE 플랜</span>
           </div>
           <div id="productList" class="product-list">
             <div class="skeleton-item tall"></div>
             <div class="skeleton-item tall"></div>
           </div>
 
-          <!-- 내 투자 현황 -->
+          <!-- 내 FREEZE 현황 -->
           <div class="section-header mt-16">
-            <span class="section-title" data-i18n="myInvestTitle">📋 내 투자 현황</span>
+            <span class="section-title" data-i18n="myInvestTitle">📋 내 FREEZE 현황</span>
           </div>
           <div id="myInvestList" class="invest-list">
             <div class="skeleton-item"></div>
@@ -915,7 +915,7 @@ const HTML = () => `<!DOCTYPE html>
               <button class="tx-tab active" onclick="switchTxTab('all', this)" data-i18n="txAll">전체</button>
               <button class="tx-tab" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
               <button class="tx-tab" onclick="switchTxTab('withdrawal', this)" data-i18n="txWithdraw">출금</button>
-              <button class="tx-tab" onclick="switchTxTab('invest', this)" data-i18n="txInvest">투자</button>
+              <button class="tx-tab" onclick="switchTxTab('invest', this)" data-i18n="txInvest">FREEZE</button>
               <button class="tx-tab" onclick="switchTxTab('roi', this)">ROI 수익</button>
             </div>
             <div id="txHistoryList" class="tx-list">
@@ -1020,7 +1020,7 @@ const HTML = () => `<!DOCTYPE html>
       </button>
       <button class="nav-item" id="nav-invest" onclick="switchPage('invest')">
         <i class="fas fa-chart-line"></i>
-        <span>Invest</span>
+        <span>FREEZE</span>
       </button>
       <button class="nav-item" id="nav-network" onclick="switchPage('network')">
         <i class="fas fa-sitemap"></i>
@@ -1096,7 +1096,7 @@ const HTML = () => `<!DOCTYPE html>
       </div>
       <!-- 원금 잠금 안내 -->
       <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text2);">
-        🔒 <strong style="color:#818cf8">투자 원금</strong>은 계약 기간 동안 잠금·&nbsp;
+        🔒 <strong style="color:#818cf8">FREEZE 원금</strong>은 만기까지 잠금·&nbsp;
         <strong style="color:#f59e0b">수익(ROI·보너스)</strong>은 언제든지 출금 가능
       </div>
       <div class="form-group">
@@ -1125,16 +1125,16 @@ const HTML = () => `<!DOCTYPE html>
   </div>
 </div>
 
-<!-- 투자 신청 모달 -->
+<!-- FREEZE 신청 모달 -->
 <div id="investModal" class="modal hidden">
   <div class="modal-overlay" onclick="closeModal('investModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title" data-i18n="modalInvest">📈 투자 신청</div>
+    <div class="modal-title" data-i18n="modalInvest">❄️ FREEZE 신청</div>
     <div class="modal-body">
       <div class="invest-product-summary" id="investProductSummary"></div>
       <div class="form-group">
-        <label class="form-label" data-i18n="investAmountLabel">투자 금액 (USDT)</label>
+        <label class="form-label" data-i18n="investAmountLabel">FREEZE 금액 (USDT)</label>
         <input type="number" id="investAmount" class="form-input" placeholder="0.00" oninput="updateInvestPreview()" />
         <div class="input-hint" id="investAmountHint"></div>
       </div>
@@ -1142,7 +1142,7 @@ const HTML = () => `<!DOCTYPE html>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('investModal')" style="flex:1" data-i18n="btnCancel">취소</button>
-      <button class="btn btn-primary" onclick="submitInvest()" style="flex:2" data-i18n="btnSubmitInvest">투자 신청</button>
+      <button class="btn btn-primary" onclick="submitInvest()" style="flex:2" data-i18n="btnSubmitInvest">FREEZE 신청</button>
     </div>
   </div>
 </div>
