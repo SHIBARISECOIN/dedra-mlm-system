@@ -107,6 +107,17 @@ export class DedraAPI {
       //   그 상품에서 매일 발생하는 ROI(D)를 기준으로 지급됩니다.
       //   → runDailyROISettlement() 를 통해 일별 정산 시 처리됩니다.
 
+      // ── enableAutoPromotion: 입금 승인 시 자동 직급 승진 체크 ──────────────
+      try {
+        const settingsR = await this.getRankPromotionSettings();
+        if (settingsR.success && settingsR.data.enableAutoPromotion) {
+          await this._checkAndPromoteSingleUser(tx.userId, settingsR.data, adminId);
+        }
+      } catch (promoErr) {
+        // 자동 승진 실패해도 입금 승인은 성공으로 처리
+        console.warn('[AutoPromotion] 자동 직급 체크 실패:', promoErr);
+      }
+
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -152,11 +163,25 @@ export class DedraAPI {
       batch.update(doc(db, 'transactions', txId), {
         status: 'rejected', rejectedAt: serverTimestamp(), rejectedBy: adminId, rejectReason: reason
       });
-      // 잔액 복구
-      const walletQ = query(collection(db, 'wallets'), where('userId', '==', tx.userId));
-      const wSnap = await getDocs(walletQ);
-      if (!wSnap.empty) {
-        batch.update(wSnap.docs[0].ref, { dedraBalance: increment(tx.amount || 0) });
+      // dedra 잔액 복구 (출금 신청 시 차감했으므로 되돌림)
+      // wallets/{userId} 직접 접근 (doc ID = userId 구조)
+      const walletRef = doc(db, 'wallets', tx.userId);
+      const wSnap = await getDoc(walletRef);
+      if (wSnap.exists()) {
+        batch.update(walletRef, {
+          dedraBalance: increment(tx.amount || 0),
+          totalWithdrawal: increment(-(tx.amount || 0)),
+        });
+      } else {
+        // 레거시: query 방식으로 fallback
+        const walletQ = query(collection(db, 'wallets'), where('userId', '==', tx.userId));
+        const wsSnap = await getDocs(walletQ);
+        if (!wsSnap.empty) {
+          batch.update(wsSnap.docs[0].ref, {
+            dedraBalance: increment(tx.amount || 0),
+            totalWithdrawal: increment(-(tx.amount || 0)),
+          });
+        }
       }
       await batch.commit();
       await this._auditLog(adminId, 'withdrawal', `출금 거부: ${reason}`, { txId });
@@ -928,6 +953,103 @@ export class DedraAPI {
 
       return ok({ selfInvest, networkSales, networkMembers, downlineIds: downline });
     } catch(e) { return err(e); }
+  }
+
+  /**
+   * 단일 회원 직급 승진 체크 (입금 승인 시 자동 트리거)
+   * enableAutoPromotion = true 일 때 approveDeposit() 에서 호출됨
+   * @param {string} userId
+   * @param {object} settings  getRankPromotionSettings 결과
+   * @param {string} adminId
+   */
+  async _checkAndPromoteSingleUser(userId, settings, adminId) {
+    const db = this.db;
+    const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+    const criteria  = settings.criteria || {};
+    const mode      = settings.promotionMode || 'all';
+    const preventDowngrade = settings.preventDowngrade !== false;
+    const countOnlyDirect  = settings.countOnlyDirectReferrals === true;
+    const depth = countOnlyDirect ? 1 : (settings.networkDepth || 3);
+
+    // 회원 정보 가져오기
+    const userSnap = await getDoc(doc(db, 'users', userId));
+    if (!userSnap.exists()) return;
+    const member = { id: userSnap.id, ...userSnap.data() };
+    if (member.role === 'admin') return;
+
+    const curRank = member.rank || 'G0';
+    const curIdx  = RANK_ORDER.indexOf(curRank);
+    if (curIdx < 0) return;
+
+    // 전체 유저 로드 (BFS용)
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const allUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // 산하 계산
+    const downline = [];
+    let lvl = [userId];
+    for (let d = 0; d < depth; d++) {
+      const next = allUsers.filter(u => lvl.includes(u.referredBy)).map(u => u.id);
+      downline.push(...next);
+      lvl = next;
+      if (!next.length) break;
+    }
+
+    // 본인 활성 투자액
+    const selfInvSnap = await getDocs(query(
+      collection(db, 'investments'),
+      where('userId', '==', userId),
+      where('status', '==', 'active')
+    ));
+    const selfInvest = selfInvSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+
+    // 산하 네트워크 매출
+    let networkSales = 0;
+    if (downline.length > 0) {
+      const chunks = [];
+      for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
+      for (const chunk of chunks) {
+        const txSnap = await getDocs(query(
+          collection(db, 'transactions'),
+          where('userId', 'in', chunk),
+          where('type', '==', 'deposit'),
+          where('status', '==', 'approved')
+        ));
+        networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+      }
+    }
+    const networkMembers = downline.length;
+
+    // G10부터 G1까지 역순으로 달성 가능한 최고 직급 탐색
+    let bestRank = preventDowngrade ? curRank : 'G0';
+    let bestIdx  = RANK_ORDER.indexOf(bestRank);
+
+    for (let i = RANK_ORDER.length - 1; i >= 1; i--) {
+      const rankKey = RANK_ORDER[i];
+      const c = criteria[rankKey];
+      if (!c) continue;
+
+      const meetsInvest  = selfInvest     >= (c.minSelfInvest     || 0);
+      const meetsSales   = networkSales   >= (c.minNetworkSales   || 0);
+      const meetsMembers = networkMembers >= (c.minNetworkMembers || 0);
+
+      const passes = mode === 'any'
+        ? (meetsInvest || meetsSales || meetsMembers)
+        : (meetsInvest && meetsSales && meetsMembers);
+
+      if (passes) {
+        if (i > bestIdx) { bestRank = rankKey; bestIdx = i; }
+        break;
+      }
+    }
+
+    if (bestRank !== curRank) {
+      await updateDoc(doc(db, 'users', userId), { rank: bestRank, updatedAt: serverTimestamp() });
+      await this._auditLog(adminId, 'rank',
+        `[자동승진] ${member.name || userId}: ${curRank} → ${bestRank} (입금 승인 트리거)`,
+        { userId, oldRank: curRank, newRank: bestRank, trigger: 'deposit_approval' }
+      );
+    }
   }
 
   /**

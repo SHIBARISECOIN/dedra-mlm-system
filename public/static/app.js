@@ -1684,27 +1684,71 @@ window.submitWithdraw = async function() {
   const address = document.getElementById('withdrawAddress').value.trim();
   const pin = document.getElementById('withdrawPin').value;
 
-  if (!amount || amount <= 0) { showToast('출금 금액을 입력하세요.', 'warning'); return; }
-  if (!address) { showToast('출금 주소를 입력하세요.', 'warning'); return; }
-  if (!pin || pin.length !== 6) { showToast('출금 PIN 6자리를 입력하세요.', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
+  if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
+  if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
   if ((walletData?.dedraBalance || 0) < amount) { showToast('잔액이 부족합니다.', 'error'); return; }
-  if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast('출금 PIN이 올바르지 않습니다.', 'error'); return; }
+  if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
   const btn = event.target;
   btn.disabled = true; btn.textContent = '처리중...';
 
   try {
-    const { addDoc, collection, db, serverTimestamp } = window.FB;
-    await addDoc(collection(db, 'transactions'), {
+    const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
+
+    // ── VIP 할인율 적용 수수료 계산 ──────────────────────────────────
+    let feeRate = 0; // 기본 수수료율 0%
+    let feeAmount = 0;
+    try {
+      const ratesSnap = await getDoc(doc(db, 'settings', 'rates'));
+      if (ratesSnap.exists()) {
+        const rates = ratesSnap.data();
+        const baseWithdrawFee = rates.withdrawFeeRate || 0;  // 기본 출금 수수료 %
+        const vipDiscounts = rates.vipDiscounts || {};
+        const vipLevel = userData?.vipLevel || 'bronze';     // 회원 VIP 등급
+        const discount = vipDiscounts[vipLevel] || 0;        // VIP 할인율 %
+        feeRate = Math.max(0, baseWithdrawFee - discount);   // 최소 0%
+        feeAmount = amount * feeRate / 100;
+      }
+    } catch(e) { console.warn('[VIP Fee] 수수료 계산 실패, 기본 0% 적용:', e); }
+
+    const netAmount = amount - feeAmount; // 실 지급액
+
+    // ── 원자적 처리: 출금 신청 생성 + dedra 잔액 차감 ─────────────
+    const batch = writeBatch(db);
+
+    const txRef = doc(collection(db, 'transactions'));
+    batch.set(txRef, {
       userId: currentUser.uid, userEmail: currentUser.email,
       type: 'withdrawal', amount, currency: 'DEEDRA', walletAddress: address,
+      feeRate, feeAmount, netAmount,
       status: 'pending', createdAt: serverTimestamp(),
     });
+
+    // dedra 잔액 차감 (신청 즉시 보류)
+    const walletRef = doc(db, 'wallets', currentUser.uid);
+    batch.update(walletRef, {
+      dedraBalance: increment(-amount),
+      totalWithdrawal: increment(amount),
+    });
+
+    await batch.commit();
+
+    // 로컬 walletData 즉시 반영
+    if (walletData) {
+      walletData.dedraBalance = (walletData.dedraBalance || 0) - amount;
+      walletData.totalWithdrawal = (walletData.totalWithdrawal || 0) + amount;
+    }
+
     closeModal('withdrawModal');
-    showToast('출금 신청 완료! 처리까지 1~3 영업일 소요됩니다.', 'success');
+    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} DEEDRA 포함)` : '';
+    showToast(t('toastWithdrawDone') + feeMsg, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
+    // 지갑 UI 갱신
+    updateWalletUI();
+    loadTransactions();
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
@@ -1928,12 +1972,17 @@ window.submitInvest = async function() {
   btn.disabled = true; btn.textContent = '처리중...';
 
   try {
-    const { addDoc, collection, db, serverTimestamp } = window.FB;
+    const { addDoc, collection, db, serverTimestamp, doc, updateDoc, increment, writeBatch } = window.FB;
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + selectedProduct.days * 86400000);
     const expectedReturn = (amount * selectedProduct.roi / 100) / deedraPrice;
 
-    await addDoc(collection(db, 'investments'), {
+    // 원자적 처리: 투자 도큐먼트 생성 + 지갑 USDT 차감
+    const batch = writeBatch(db);
+
+    // 1) investments 컬렉션에 투자 도큐먼트 추가 (addDoc 대신 batch에서 setDoc 사용)
+    const invRef = doc(collection(db, 'investments'));
+    batch.set(invRef, {
       userId: currentUser.uid, productId: selectedProduct.id,
       productName: selectedProduct.name, amount,
       roiPercent: selectedProduct.roi, durationDays: selectedProduct.days,
@@ -1942,9 +1991,27 @@ window.submitInvest = async function() {
       createdAt: serverTimestamp(),
     });
 
+    // 2) 지갑 USDT 차감 + 총 투자액 증가
+    const walletRef = doc(db, 'wallets', currentUser.uid);
+    batch.update(walletRef, {
+      usdtBalance: increment(-amount),
+      totalInvest: increment(amount),
+    });
+
+    await batch.commit();
+
+    // 로컬 walletData도 즉시 반영 (UI 즉시 업데이트)
+    if (walletData) {
+      walletData.usdtBalance = (walletData.usdtBalance || 0) - amount;
+      walletData.totalInvest = (walletData.totalInvest || 0) + amount;
+    }
+
     closeModal('investModal');
     showToast(t('toastInvestDone'), 'success');
     loadMyInvestments();
+    // 지갑 UI 즉시 갱신
+    updateWalletUI();
+    loadTransactions();
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
