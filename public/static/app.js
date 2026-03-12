@@ -1275,7 +1275,7 @@ async function loadWalletData() {
 // ===== DEEDRA 실시간 가격 시스템 =====
 let _livePrice_timer    = null;
 let _livePrice_enabled  = false;
-let _livePrice_mint     = '';
+let _livePrice_mint     = 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu'; // DEEDRA 기본 민트 주소
 
 // Firestore에서 설정 로드 + 실시간이면 폴링 시작
 async function loadDeedraPrice() {
@@ -1286,7 +1286,7 @@ async function loadDeedraPrice() {
       const d = snap.data();
       deedraPrice        = d.price || 0.50;
       _livePrice_enabled = d.liveEnabled || false;
-      _livePrice_mint    = d.mintAddress || '';
+      _livePrice_mint    = d.mintAddress || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
       updatePriceTicker(deedraPrice, d.updatedAt, d.source, d.priceChange24h, _livePrice_enabled);
       // 실시간 ON + 토큰 주소 있으면 폴링 시작
       if (_livePrice_enabled && _livePrice_mint) {
