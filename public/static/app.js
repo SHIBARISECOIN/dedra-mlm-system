@@ -109,7 +109,7 @@ const TRANSLATIONS = {
     labelPassword: '비밀번호',
     placeholderEmail: '이메일을 입력하세요',
     placeholderPassword: '비밀번호를 입력하세요',
-    placeholderPasswordMin: '8자리 이상 입력하세요',
+    placeholderPasswordMin: '4자리 이상 입력하세요',
     btnLogin: '로그인',
     forgotPassword: '비밀번호를 잊으셨나요?',
     labelName: '이름',
@@ -303,7 +303,7 @@ const TRANSLATIONS = {
     toastInitFail: '초기화 실패. 다시 시도해주세요.',
     toastEnterEmail: '이메일과 비밀번호를 입력하세요.',
     toastFillAll: '모든 필드를 입력해주세요.',
-    toastPwMin: '비밀번호는 8자 이상이어야 합니다.',
+    toastPwMin: '비밀번호는 4자리 이상이어야 합니다.',
     toastInvalidRef: '유효하지 않은 추천인 코드입니다.',
     toastRegDone: '회원가입 완료! 환영합니다 🎉',
     toastEmailFirst: '이메일을 먼저 입력하세요.',
@@ -321,6 +321,8 @@ const TRANSLATIONS = {
     toastEnterChargeAmt: '충전 금액을 입력하세요.',
     toastEnterTicket: '제목과 내용을 입력하세요.',
     logoutConfirm: '로그아웃 하시겠습니까?',
+    cancel: '취소',
+    confirm: '확인',
     failPrefix: '신청 실패: ',
     saveFail: '저장 실패: ',
     regFail: '등록 실패: ',
@@ -335,7 +337,7 @@ const TRANSLATIONS = {
     labelPassword: 'Password',
     placeholderEmail: 'Enter your email',
     placeholderPassword: 'Enter your password',
-    placeholderPasswordMin: 'At least 8 characters',
+    placeholderPasswordMin: 'At least 4 characters',
     btnLogin: 'Login',
     forgotPassword: 'Forgot your password?',
     labelName: 'Name',
@@ -522,7 +524,7 @@ const TRANSLATIONS = {
     toastInitFail: 'Initialization failed. Please try again.',
     toastEnterEmail: 'Please enter email and password.',
     toastFillAll: 'Please fill all fields.',
-    toastPwMin: 'Password must be at least 8 characters.',
+    toastPwMin: 'Password must be at least 4 characters.',
     toastInvalidRef: 'Invalid referral code.',
     toastRegDone: 'Registration complete! Welcome 🎉',
     toastEmailFirst: 'Please enter your email first.',
@@ -540,6 +542,8 @@ const TRANSLATIONS = {
     toastEnterChargeAmt: 'Please enter charge amount.',
     toastEnterTicket: 'Please enter title and content.',
     logoutConfirm: 'Are you sure you want to logout?',
+    cancel: 'Cancel',
+    confirm: 'OK',
     failPrefix: 'Failed: ',
     saveFail: 'Save failed: ',
     regFail: 'Registration failed: ',
@@ -554,7 +558,7 @@ const TRANSLATIONS = {
     labelPassword: 'Mật khẩu',
     placeholderEmail: 'Nhập email của bạn',
     placeholderPassword: 'Nhập mật khẩu',
-    placeholderPasswordMin: 'Tối thiểu 8 ký tự',
+    placeholderPasswordMin: 'Tối thiểu 4 ký tự',
     btnLogin: 'Đăng nhập',
     forgotPassword: 'Quên mật khẩu?',
     labelName: 'Họ tên',
@@ -741,7 +745,7 @@ const TRANSLATIONS = {
     toastInitFail: 'Khởi tạo thất bại. Vui lòng thử lại.',
     toastEnterEmail: 'Vui lòng nhập email và mật khẩu.',
     toastFillAll: 'Vui lòng điền tất cả các trường.',
-    toastPwMin: 'Mật khẩu phải ít nhất 8 ký tự.',
+    toastPwMin: 'Mật khẩu phải ít nhất 4 ký tự.',
     toastInvalidRef: 'Mã giới thiệu không hợp lệ.',
     toastRegDone: 'Đăng ký thành công! Chào mừng 🎉',
     toastEmailFirst: 'Vui lòng nhập email trước.',
@@ -759,6 +763,8 @@ const TRANSLATIONS = {
     toastEnterChargeAmt: 'Vui lòng nhập số tiền nạp.',
     toastEnterTicket: 'Vui lòng nhập tiêu đề và nội dung.',
     logoutConfirm: 'Bạn có chắc muốn đăng xuất?',
+    cancel: 'Hủy',
+    confirm: 'Xác nhận',
     failPrefix: 'Thất bại: ',
     saveFail: 'Lưu thất bại: ',
     regFail: 'Đăng ký thất bại: ',
@@ -773,7 +779,7 @@ const TRANSLATIONS = {
     labelPassword: 'รหัสผ่าน',
     placeholderEmail: 'กรอกอีเมลของคุณ',
     placeholderPassword: 'กรอกรหัสผ่าน',
-    placeholderPasswordMin: 'อย่างน้อย 8 ตัวอักษร',
+    placeholderPasswordMin: 'อย่างน้อย 4 ตัวอักษร',
     btnLogin: 'เข้าสู่ระบบ',
     forgotPassword: 'ลืมรหัสผ่าน?',
     labelName: 'ชื่อ',
@@ -960,7 +966,7 @@ const TRANSLATIONS = {
     toastInitFail: 'เริ่มต้นล้มเหลว กรุณาลองใหม่',
     toastEnterEmail: 'กรุณากรอกอีเมลและรหัสผ่าน',
     toastFillAll: 'กรุณากรอกข้อมูลทุกช่อง',
-    toastPwMin: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+    toastPwMin: 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร',
     toastInvalidRef: 'รหัสแนะนำไม่ถูกต้อง',
     toastRegDone: 'สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ 🎉',
     toastEmailFirst: 'กรุณากรอกอีเมลก่อน',
@@ -978,6 +984,8 @@ const TRANSLATIONS = {
     toastEnterChargeAmt: 'กรุณากรอกจำนวนเงินเติม',
     toastEnterTicket: 'กรุณากรอกหัวข้อและเนื้อหา',
     logoutConfirm: 'คุณแน่ใจว่าต้องการออกจากระบบ?',
+    cancel: 'ยกเลิก',
+    confirm: 'ยืนยัน',
     failPrefix: 'ล้มเหลว: ',
     saveFail: 'บันทึกล้มเหลว: ',
     regFail: 'ลงทะเบียนล้มเหลว: ',
@@ -1539,9 +1547,39 @@ window.handleForgotPassword = async function() {
   }
 };
 
+// ===== 커스텀 확인 다이얼로그 =====
+function showConfirm(msg, icon = '⚠️') {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    const msgEl  = document.getElementById('confirmModalMsg');
+    const iconEl = document.getElementById('confirmModalIcon');
+    const okBtn  = document.getElementById('confirmModalOk');
+    const cancelBtn = document.getElementById('confirmModalCancel');
+    if (!modal) { resolve(window.confirm(msg)); return; }
+
+    msgEl.textContent  = msg;
+    iconEl.textContent = icon;
+    modal.style.display = 'flex';
+
+    // 취소 버튼 텍스트도 현재 언어에 맞게
+    cancelBtn.textContent = t('cancel') || '취소';
+    okBtn.textContent     = t('confirm') || '확인';
+
+    const cleanup = () => { modal.style.display = 'none'; };
+    const onOk = () => { cleanup(); okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); resolve(true); };
+    const onCancel = () => { cleanup(); okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); resolve(false); };
+    const onBg = (e) => { if (e.target === modal) { onCancel(); modal.removeEventListener('click', onBg); } };
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBg);
+  });
+}
+
 // ===== 로그아웃 =====
 window.handleLogout = async function() {
-  if (!confirm(t('logoutConfirm'))) return;
+  const confirmed = await showConfirm(t('logoutConfirm'), '👋');
+  if (!confirmed) return;
   const { signOut, auth } = window.FB;
   await signOut(auth);
   localStorage.removeItem('deedra_session');
@@ -4092,6 +4130,9 @@ window.addEventListener('appinstalled', () => {
     if (input) {
       input.value = ref.toUpperCase();
       input.dispatchEvent(new Event('input'));
+      // X 버튼 표시
+      const clearBtn = document.getElementById('refCodeClearBtn');
+      if (clearBtn) clearBtn.style.display = 'flex';
       // 추천인 탭으로 자동 이동
       const registerTab = document.getElementById('registerTab');
       if (registerTab && !registerTab.classList.contains('active')) {
@@ -4131,6 +4172,19 @@ async function showRefCodeHint(code) {
   }
 }
 
+// 추천인 코드 지우기 버튼
+window.clearRefCode = function() {
+  const input = document.getElementById('regReferral');
+  const hintEl = document.getElementById('refCodeHint');
+  const statusEl = document.getElementById('refCodeStatus');
+  const clearBtn = document.getElementById('refCodeClearBtn');
+  if (input) input.value = '';
+  if (hintEl) hintEl.textContent = '';
+  if (statusEl) statusEl.textContent = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (input) input.focus();
+};
+
 // 추천인 코드 실시간 검증
 document.addEventListener('DOMContentLoaded', () => {
   const refInput = document.getElementById('regReferral');
@@ -4141,6 +4195,9 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = val;
     const hintEl = document.getElementById('refCodeHint');
     const statusEl = document.getElementById('refCodeStatus');
+    const clearBtn = document.getElementById('refCodeClearBtn');
+    // X 버튼 표시/숨김
+    if (clearBtn) clearBtn.style.display = val ? 'flex' : 'none';
     if (!val) { if(hintEl) hintEl.textContent=''; if(statusEl) statusEl.textContent=''; return; }
     if (val.length < 6) return;
     clearTimeout(refTimer);

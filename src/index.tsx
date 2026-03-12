@@ -202,8 +202,9 @@ const HTML = () => `<!DOCTYPE html>
             <div style="position:relative;">
               <input type="text" id="regReferral" class="form-input" placeholder="추천인 코드를 입력하세요"
                 data-i18n="placeholderReferral" data-i18n-attr="placeholder"
-                style="text-transform:uppercase;letter-spacing:2px;font-weight:700;" />
-              <div id="refCodeStatus" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;"></div>
+                style="text-transform:uppercase;letter-spacing:2px;font-weight:700;padding-right:68px;" />
+              <div id="refCodeStatus" style="position:absolute;right:38px;top:50%;transform:translateY(-50%);font-size:12px;"></div>
+              <button type="button" id="refCodeClearBtn" onclick="clearRefCode()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:#94a3b8;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;padding:0;align-items:center;justify-content:center;" title="지우기">✕</button>
             </div>
             <div id="refCodeHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
           </div>
@@ -1361,6 +1362,18 @@ const HTML = () => `<!DOCTYPE html>
 
 <!-- Toast -->
 <div id="toast" class="toast"></div>
+
+<!-- Confirm Dialog Modal -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border-radius:18px;padding:28px 24px 20px;width:88%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.08);text-align:center;">
+    <div id="confirmModalIcon" style="font-size:36px;margin-bottom:12px;">⚠️</div>
+    <div id="confirmModalMsg" style="color:#f1f5f9;font-size:15px;font-weight:600;margin-bottom:20px;line-height:1.5;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="confirmModalCancel" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#94a3b8;font-size:14px;font-weight:600;cursor:pointer;">취소</button>
+      <button id="confirmModalOk" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">확인</button>
+    </div>
+  </div>
+</div>
 
 <!-- Firebase SDK -->
 <script type="module" src="/static/firebase.js?v=${Date.now()}"></script>
