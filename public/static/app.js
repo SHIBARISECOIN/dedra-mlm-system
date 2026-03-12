@@ -4501,7 +4501,7 @@ function _activateNepTab(tab) {
 /** 요약 카드 데이터 로드 */
 async function _loadNepSummary() {
   if (!currentUser) return;
-  const { collection, query, where, getDocs, db, orderBy, limit } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
 
   try {
     // 전체 사용자 로드 (캐시)
@@ -4525,14 +4525,15 @@ async function _loadNepSummary() {
     // 오늘 날짜
     const today = new Date().toISOString().slice(0, 10);
 
-    // 당일 보너스 (내가 받은 것: unilevel_bonus, direct_bonus, rank_gap_bonus)
+    // 당일 보너스: userId == 나 단일 where → JS로 날짜 필터
     const bonusQ = query(
       collection(db, 'bonuses'),
-      where('userId', '==', currentUser.uid),
-      where('settlementDate', '==', today)
+      where('userId', '==', currentUser.uid)
     );
     const bonusSnap = await getDocs(bonusQ);
-    const todayEarning = bonusSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+    const todayEarning = bonusSnap.docs
+      .filter(d => d.data().settlementDate === today)
+      .reduce((s, d) => s + (d.data().amount || 0), 0);
 
     // 총 누적 수익
     const totalEarning = walletData?.totalEarnings || 0;
@@ -4616,7 +4617,8 @@ async function _loadNepTxTab(contentEl) {
       </div>`;
     }).join('');
   } catch(e) {
-    contentEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    console.error('[NEP] tx tab error:', e);
+    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">오류: ${e.message || '불러오기 실패'}</div>`;
   }
 }
 
@@ -4659,30 +4661,29 @@ async function _loadNepGenTab(contentEl, gen) {
     for (let i = 0; i < memberIds.length; i += 10) chunks.push(memberIds.slice(i, i + 10));
 
     for (const chunk of chunks) {
-      // 오늘 ROI
+      // 오늘 내가 받은 보너스: fromUserId in chunk (단일 where) → JS로 userId·날짜 필터
       const bq = query(
         collection(db, 'bonuses'),
-        where('fromUserId', 'in', chunk),
-        where('userId', '==', currentUser.uid),
-        where('settlementDate', '==', today)
+        where('fromUserId', 'in', chunk)
       );
       const bs = await getDocs(bq);
       bs.docs.forEach(d => {
         const data = d.data();
+        if (data.userId !== currentUser.uid) return;       // 내 보너스만
+        if (data.settlementDate !== today) return;          // 오늘 것만
         const uid = data.fromUserId;
         todayMap[uid] = (todayMap[uid] || 0) + (data.amount || 0);
       });
 
-      // 해당 멤버들 입금 총액 (투자매출)
+      // 해당 멤버들 입금 총액: userId in chunk 단일 where → JS로 type·status 필터
       const txq = query(
         collection(db, 'transactions'),
-        where('userId', 'in', chunk),
-        where('type', '==', 'deposit'),
-        where('status', '==', 'approved')
+        where('userId', 'in', chunk)
       );
       const txs = await getDocs(txq);
       txs.docs.forEach(d => {
         const data = d.data();
+        if (data.type !== 'deposit' || data.status !== 'approved') return;
         totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
       });
     }
@@ -4750,8 +4751,8 @@ async function _loadNepGenTab(contentEl, gen) {
 
     contentEl.innerHTML = headerHtml + listHtml;
   } catch(e) {
-    console.warn('[NEP] gen tab error:', e);
-    contentEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    console.error('[NEP] gen tab error:', e);
+    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">오류: ${e.message || '불러오기 실패'}</div>`;
   }
 }
 
@@ -4815,21 +4816,25 @@ async function _loadNepDeepTab(contentEl) {
       const chunks = [];
       for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
       for (const chunk of chunks) {
-        // 매출
+        // 매출: userId in chunk 단일 where → JS 필터
         const txq = query(collection(db, 'transactions'),
-          where('userId', 'in', chunk),
-          where('type', '==', 'deposit'),
-          where('status', '==', 'approved'));
+          where('userId', 'in', chunk));
         const txs = await getDocs(txq);
-        txs.docs.forEach(d => { genSales[g] += (d.data().amount || 0); });
+        txs.docs.forEach(d => {
+          const data = d.data();
+          if (data.type === 'deposit' && data.status === 'approved')
+            genSales[g] += (data.amount || 0);
+        });
 
-        // 당일 내가 받은 보너스
+        // 당일 내가 받은 보너스: fromUserId in chunk 단일 where → JS 필터
         const bq = query(collection(db, 'bonuses'),
-          where('fromUserId', 'in', chunk),
-          where('userId', '==', currentUser.uid),
-          where('settlementDate', '==', today));
+          where('fromUserId', 'in', chunk));
         const bs = await getDocs(bq);
-        bs.docs.forEach(d => { genTodayEarn[g] += (d.data().amount || 0); });
+        bs.docs.forEach(d => {
+          const data = d.data();
+          if (data.userId === currentUser.uid && data.settlementDate === today)
+            genTodayEarn[g] += (data.amount || 0);
+        });
       }
     }
 
@@ -4885,8 +4890,8 @@ async function _loadNepDeepTab(contentEl) {
 
     contentEl.innerHTML = html;
   } catch(e) {
-    console.warn('[NEP] deep tab error:', e);
-    contentEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    console.error('[NEP] deep tab error:', e);
+    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">오류: ${e.message || '불러오기 실패'}</div>`;
   }
 }
 
