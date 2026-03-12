@@ -102,6 +102,16 @@ export class DedraAPI {
       await batch.commit();
       await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
 
+      // ── 관리자 알림: 수동 입금 승인 (SYSTEM 자동승인이 아닌 경우만) ──
+      if (adminId !== 'SYSTEM_AUTO_APPROVE') {
+        await this._sendAdminNotification(
+          'deposit_success',
+          '✅ 입금 수동 승인 완료',
+          `${tx.userEmail || tx.userId} 님의 ${tx.amount} USDT 입금을 수동 승인했습니다.`,
+          { txId, userId: tx.userId, amount: tx.amount }
+        );
+      }
+
       // ── 직급차 풀 보너스: 입금 승인 즉시 실시간 처리 ──────────────
       // enableRankGapBonus + realtimeOnDeposit 둘 다 true 일 때만 실행
       // 기준 금액 = 입금액(tx.amount) 자체를 D 로 사용
@@ -259,12 +269,26 @@ export class DedraAPI {
         await updateDoc(doc(db, 'transactions', txId), {
           autoApproved: true, autoApprovedAt: serverTimestamp()
         });
+        // ── 관리자 알림: 자동 승인 성공 ──────────────────────────
+        await this._sendAdminNotification(
+          'deposit_success',
+          '✅ 입금 자동 승인 완료',
+          `${userEmail} 님의 ${amount} USDT 입금이 온체인 검증 후 자동 승인되었습니다.`,
+          { txId, userId, userEmail, amount, signature }
+        );
         return ok({ txId, autoApproved: true, signature });
       } else {
         // 검증 실패 → pending 유지 (관리자 수동 확인)
         await updateDoc(doc(db, 'transactions', txId), {
           verifyFailed: true, verifyError, verifyAttemptedAt: serverTimestamp()
         });
+        // ── 관리자 알림: 자동 승인 실패 → 수동 확인 필요 ────────
+        await this._sendAdminNotification(
+          'deposit_failed',
+          '⚠️ 입금 수동 확인 필요',
+          `${userEmail} 님의 ${amount} USDT 입금 온체인 검증 실패. 수동 승인이 필요합니다. (사유: ${verifyError || '확인 불가'})`,
+          { txId, userId, userEmail, amount, signature, verifyError }
+        );
         return ok({ txId, autoApproved: false, signature, verifyError });
       }
     } catch(e) { return err(e); }
@@ -287,6 +311,13 @@ export class DedraAPI {
         txid: txid || ''
       });
       await this._auditLog(adminId, 'withdrawal', `출금 승인 ${tx.amountUsdt || tx.amount} USDT → ${tx.amount} DDRA (TXID: ${txid})`, { txId, userId: tx.userId });
+      // ── 관리자 알림: 출금 승인 ────────────────────────────────
+      await this._sendAdminNotification(
+        'withdrawal',
+        '💸 출금 승인 완료',
+        `${tx.userEmail || tx.userId} 님의 ${tx.amountUsdt || tx.amount} USDT 출금 신청이 승인되었습니다.`,
+        { txId, userId: tx.userId, amount: tx.amountUsdt || tx.amount }
+      );
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -322,6 +353,13 @@ export class DedraAPI {
       }
       await batch.commit();
       await this._auditLog(adminId, 'withdrawal', `출금 거부: ${reason}`, { txId });
+      // ── 관리자 알림: 출금 거부 ────────────────────────────────
+      await this._sendAdminNotification(
+        'withdrawal',
+        '❌ 출금 거부 처리',
+        `${tx.userEmail || tx.userId} 님의 출금 신청이 거부되었습니다. (사유: ${reason})`,
+        { txId, userId: tx.userId, reason }
+      );
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -1854,6 +1892,14 @@ export class DedraAPI {
         `[자동승진] ${member.name || userId}: ${curRank} → ${bestRank} (입금 승인 트리거)`,
         { userId, oldRank: curRank, newRank: bestRank, trigger: 'deposit_approval' }
       );
+      // ── 관리자 알림: 직급 승진 ─────────────────────────────────
+      const isUpgrade = RANK_ORDER.indexOf(bestRank) > curIdx;
+      await this._sendAdminNotification(
+        'rank_up',
+        isUpgrade ? '🏆 직급 승진 알림' : '📉 직급 변경 알림',
+        `${member.name || userId} 님이 ${curRank} → ${bestRank} 로 ${isUpgrade ? '승진' : '변경'}했습니다. (입금 승인 트리거)`,
+        { userId, userName: member.name, oldRank: curRank, newRank: bestRank }
+      );
     }
   }
 
@@ -2343,6 +2389,66 @@ export class DedraAPI {
   async deleteAutoRule(adminId, id) {
     try {
       await deleteDoc(doc(this.db, 'autoRules', id));
+      return ok(true);
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
+  // 관리자 알림 저장
+  // ─────────────────────────────────────────────────
+  /**
+   * Firestore adminNotifications 컬렉션에 관리자용 알림을 저장합니다.
+   * @param {string} type  - 'deposit_failed' | 'deposit_success' | 'rank_up' | 'withdrawal' | 'system'
+   * @param {string} title - 알림 제목
+   * @param {string} body  - 알림 내용
+   * @param {object} meta  - 추가 데이터 (userId, txId 등)
+   */
+  async _sendAdminNotification(type, title, body, meta = {}) {
+    try {
+      await addDoc(collection(this.db, 'adminNotifications'), {
+        type, title, body, meta,
+        isRead: false,
+        createdAt: serverTimestamp()
+      });
+    } catch(_) { /* 알림 저장 실패는 무시 */ }
+  }
+
+  async getAdminNotifications(maxCount = 50) {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(this.db, 'adminNotifications'),
+          orderBy('createdAt', 'desc'),
+          limit(maxCount)
+        )
+      );
+      return ok(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch(e) { return err(e); }
+  }
+
+  async markAdminNotificationRead(notifId) {
+    try {
+      await updateDoc(doc(this.db, 'adminNotifications', notifId), { isRead: true });
+      return ok(true);
+    } catch(e) { return err(e); }
+  }
+
+  async markAllAdminNotificationsRead() {
+    try {
+      const snap = await getDocs(
+        query(collection(this.db, 'adminNotifications'), where('isRead', '==', false))
+      );
+      if (snap.empty) return ok(0);
+      const batch = writeBatch(this.db);
+      snap.docs.forEach(d => batch.update(d.ref, { isRead: true }));
+      await batch.commit();
+      return ok(snap.size);
+    } catch(e) { return err(e); }
+  }
+
+  async deleteAdminNotification(notifId) {
+    try {
+      await deleteDoc(doc(this.db, 'adminNotifications', notifId));
       return ok(true);
     } catch(e) { return err(e); }
   }

@@ -706,6 +706,48 @@ canvas{width:100% !important;}
     <span class="header-status">SYSTEM ONLINE</span>
   </div>
   <div class="header-right">
+    <!-- 🔔 관리자 알림 벨 -->
+    <div style="position:relative;" id="adminNotifWrap">
+      <button id="adminNotifBell" onclick="toggleAdminNotifPanel()" style="
+        background:none;border:none;cursor:pointer;font-size:22px;
+        position:relative;padding:4px 6px;border-radius:8px;
+        transition:background 0.15s;
+      " title="관리자 알림">
+        🔔
+        <span id="adminNotifBadge" style="
+          display:none;position:absolute;top:0;right:0;
+          background:#ef4444;color:#fff;font-size:10px;font-weight:700;
+          border-radius:999px;min-width:16px;height:16px;
+          line-height:16px;text-align:center;padding:0 3px;
+          pointer-events:none;
+        ">0</span>
+      </button>
+
+      <!-- 드롭다운 패널 -->
+      <div id="adminNotifPanel" style="
+        display:none;position:absolute;top:42px;right:0;
+        width:360px;max-height:500px;overflow-y:auto;
+        background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+        box-shadow:0 8px 32px rgba(0,0,0,0.15);z-index:9999;
+        font-size:13px;
+      ">
+        <!-- 패널 헤더 -->
+        <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1;">
+          <span style="font-weight:700;font-size:14px;color:#1e293b;">🔔 관리자 알림</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="markAllAdminNotifRead()" style="font-size:11px;color:#3b82f6;background:none;border:none;cursor:pointer;font-weight:600;">모두 읽음</button>
+            <button onclick="clearAllAdminNotif()" style="font-size:11px;color:#ef4444;background:none;border:none;cursor:pointer;font-weight:600;">전체 삭제</button>
+          </div>
+        </div>
+        <!-- 알림 목록 -->
+        <div id="adminNotifList" style="padding:0;">
+          <div style="padding:32px 16px;text-align:center;color:#94a3b8;font-size:13px;">
+            알림이 없습니다
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="admin-chip">
       <div class="admin-avatar">👤</div>
       <span class="admin-name" id="adminName">관리자</span>
@@ -4096,6 +4138,7 @@ onAuthStateChanged(auth, async user => {
             api = new DedraAPI(db);
             loadDashboard();
             setupEvents();
+            startAdminNotifPolling(); // 🔔 관리자 알림 폴링 시작
             _setupDone = true;
         }
     } catch(e) {
@@ -10284,6 +10327,157 @@ document.addEventListener('click', (e) => {
     if (drop) drop.style.display = 'none';
   }
 });
+
+// ═══════════════════════════════════════════════════════════
+// 🔔 관리자 알림 시스템
+// ═══════════════════════════════════════════════════════════
+let _adminNotifPanelOpen = false;
+let _adminNotifPollTimer = null;
+let _adminNotifCache = [];
+
+/** 알림 타입별 아이콘·색상 */
+function _notifStyle(type) {
+  const map = {
+    deposit_success: { icon: '✅', color: '#10b981', bg: '#ecfdf5' },
+    deposit_failed:  { icon: '⚠️', color: '#f59e0b', bg: '#fffbeb' },
+    rank_up:         { icon: '🏆', color: '#8b5cf6', bg: '#f5f3ff' },
+    withdrawal:      { icon: '💸', color: '#3b82f6', bg: '#eff6ff' },
+    system:          { icon: '🔧', color: '#6b7280', bg: '#f9fafb' },
+  };
+  return map[type] || map.system;
+}
+
+/** 상대 시간 포맷 */
+function _relTime(ts) {
+  if (!ts) return '';
+  const sec = Math.floor((Date.now() - (ts.seconds ? ts.seconds * 1000 : ts)) / 1000);
+  if (sec < 60) return `${sec}초 전`;
+  if (sec < 3600) return `${Math.floor(sec/60)}분 전`;
+  if (sec < 86400) return `${Math.floor(sec/3600)}시간 전`;
+  return `${Math.floor(sec/86400)}일 전`;
+}
+
+/** 알림 목록 렌더링 */
+function renderAdminNotifList(items) {
+  const el = document.getElementById('adminNotifList');
+  if (!el) return;
+  if (!items || items.length === 0) {
+    el.innerHTML = '<div style="padding:32px 16px;text-align:center;color:#94a3b8;font-size:13px;">알림이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = items.map(n => {
+    const s = _notifStyle(n.type);
+    const isUnread = !n.isRead;
+    return `
+      <div data-notif-id="${n.id}" onclick="handleAdminNotifClick('${n.id}')" style="
+        padding:12px 16px;border-bottom:1px solid #f1f5f9;cursor:pointer;
+        background:${isUnread ? s.bg : '#fff'};
+        display:flex;gap:10px;align-items:flex-start;
+        transition:background 0.15s;
+      " onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${isUnread ? s.bg : '#fff'}'">
+        <div style="font-size:20px;flex-shrink:0;margin-top:1px;">${s.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:${isUnread ? '700' : '600'};color:#1e293b;font-size:13px;margin-bottom:2px;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n.title}</div>
+          <div style="color:#475569;font-size:12px;line-height:1.4;word-break:break-word;">${n.body}</div>
+          <div style="color:#94a3b8;font-size:11px;margin-top:4px;">${_relTime(n.createdAt)}</div>
+        </div>
+        ${isUnread ? `<div style="width:8px;height:8px;background:${s.color};border-radius:999px;flex-shrink:0;margin-top:5px;"></div>` : ''}
+        <button onclick="event.stopPropagation();deleteAdminNotif('${n.id}')" style="
+          background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:14px;
+          flex-shrink:0;padding:0 2px;
+        " title="삭제">✕</button>
+      </div>`;
+  }).join('');
+}
+
+/** 뱃지 업데이트 */
+function updateAdminNotifBadge(items) {
+  const badge = document.getElementById('adminNotifBadge');
+  if (!badge) return;
+  const unread = (items || []).filter(n => !n.isRead).length;
+  if (unread > 0) {
+    badge.style.display = 'block';
+    badge.textContent = unread > 99 ? '99+' : unread;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+/** 알림 로드 */
+async function loadAdminNotifications() {
+  if (typeof api === 'undefined') return;
+  const r = await api.getAdminNotifications(50);
+  if (!r.success) return;
+  _adminNotifCache = r.data;
+  updateAdminNotifBadge(_adminNotifCache);
+  if (_adminNotifPanelOpen) renderAdminNotifList(_adminNotifCache);
+}
+
+/** 패널 토글 */
+window.toggleAdminNotifPanel = function() {
+  const panel = document.getElementById('adminNotifPanel');
+  if (!panel) return;
+  _adminNotifPanelOpen = !_adminNotifPanelOpen;
+  panel.style.display = _adminNotifPanelOpen ? 'block' : 'none';
+  if (_adminNotifPanelOpen) renderAdminNotifList(_adminNotifCache);
+};
+
+/** 알림 클릭 (읽음 처리) */
+window.handleAdminNotifClick = async function(id) {
+  if (!id) return;
+  await api.markAdminNotificationRead(id);
+  _adminNotifCache = _adminNotifCache.map(n => n.id === id ? { ...n, isRead: true } : n);
+  updateAdminNotifBadge(_adminNotifCache);
+  renderAdminNotifList(_adminNotifCache);
+};
+
+/** 개별 삭제 */
+window.deleteAdminNotif = async function(id) {
+  if (!id) return;
+  await api.deleteAdminNotification(id);
+  _adminNotifCache = _adminNotifCache.filter(n => n.id !== id);
+  updateAdminNotifBadge(_adminNotifCache);
+  renderAdminNotifList(_adminNotifCache);
+};
+
+/** 모두 읽음 */
+window.markAllAdminNotifRead = async function() {
+  await api.markAllAdminNotificationsRead();
+  _adminNotifCache = _adminNotifCache.map(n => ({ ...n, isRead: true }));
+  updateAdminNotifBadge(_adminNotifCache);
+  renderAdminNotifList(_adminNotifCache);
+  showToast('✅ 모든 알림을 읽음 처리했습니다.');
+};
+
+/** 전체 삭제 */
+window.clearAllAdminNotif = async function() {
+  if (!await _adminConfirm('모든 관리자 알림을 삭제하시겠습니까?')) return;
+  for (const n of _adminNotifCache) {
+    await api.deleteAdminNotification(n.id);
+  }
+  _adminNotifCache = [];
+  updateAdminNotifBadge([]);
+  renderAdminNotifList([]);
+  showToast('🗑 모든 알림이 삭제되었습니다.');
+};
+
+/** 패널 외부 클릭 시 닫기 */
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#adminNotifWrap')) {
+    const panel = document.getElementById('adminNotifPanel');
+    if (panel && _adminNotifPanelOpen) {
+      panel.style.display = 'none';
+      _adminNotifPanelOpen = false;
+    }
+  }
+});
+
+/** 30초마다 폴링 */
+function startAdminNotifPolling() {
+  loadAdminNotifications();
+  _adminNotifPollTimer = setInterval(loadAdminNotifications, 30000);
+}
 
 </script>
 </div><!-- /adminMain -->
