@@ -147,7 +147,7 @@ export class DedraAPI {
         status: 'approved', approvedAt: serverTimestamp(), approvedBy: adminId,
         txid: txid || ''
       });
-      await this._auditLog(adminId, 'withdrawal', `출금 승인 ${tx.amountUsdt || tx.amount} USDT → ${tx.amount} DDRA (TXID: ${txid})`, { txId, userId: tx.userId });
+      await this._auditLog(adminId, 'withdrawal', `출금 승인 ${tx.amount} DEEDRA (TXID: ${txid})`, { txId, userId: tx.userId });
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -163,20 +163,22 @@ export class DedraAPI {
       batch.update(doc(db, 'transactions', txId), {
         status: 'rejected', rejectedAt: serverTimestamp(), rejectedBy: adminId, rejectReason: reason
       });
-      // bonusBalance 복구 (출금 신청 시 bonusBalance에서 차감했으므로 되돌림)
+      // dedra 잔액 복구 (출금 신청 시 차감했으므로 되돌림)
+      // wallets/{userId} 직접 접근 (doc ID = userId 구조)
       const walletRef = doc(db, 'wallets', tx.userId);
       const wSnap = await getDoc(walletRef);
       if (wSnap.exists()) {
         batch.update(walletRef, {
-          bonusBalance: increment(tx.amount || 0),
+          dedraBalance: increment(tx.amount || 0),
           totalWithdrawal: increment(-(tx.amount || 0)),
         });
       } else {
+        // 레거시: query 방식으로 fallback
         const walletQ = query(collection(db, 'wallets'), where('userId', '==', tx.userId));
         const wsSnap = await getDocs(walletQ);
         if (!wsSnap.empty) {
           batch.update(wsSnap.docs[0].ref, {
-            bonusBalance: increment(tx.amount || 0),
+            dedraBalance: increment(tx.amount || 0),
             totalWithdrawal: increment(-(tx.amount || 0)),
           });
         }
@@ -220,14 +222,14 @@ export class DedraAPI {
       const wSnap = await getDocs(walletQ);
       if (wSnap.empty) throw new Error('지갑 없음');
       const batch = writeBatch(db);
-      batch.update(wSnap.docs[0].ref, { bonusBalance: increment(amt), totalEarnings: increment(amt) });
+      batch.update(wSnap.docs[0].ref, { dedraBalance: increment(amt), totalEarnings: increment(amt) });
       const bonusRef = doc(collection(db, 'bonuses'));
       batch.set(bonusRef, {
         userId, amount: amt, reason, type: 'manual_bonus',
         grantedBy: adminId, createdAt: serverTimestamp()
       });
       await batch.commit();
-      await this._auditLog(adminId, 'bonus', `수동 보너스 ${amt} USDT 지급`, { userId, reason });
+      await this._auditLog(adminId, 'bonus', `수동 보너스 ${amt} DEEDRA 지급`, { userId, reason });
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -414,7 +416,7 @@ export class DedraAPI {
       await setDoc(doc(this.db, 'settings', 'deedraPrice'), {
         price: parseFloat(price), updatedAt: serverTimestamp(), updatedBy: adminId
       }, { merge: true });
-      await this._auditLog(adminId, 'settings', `DDRA 시세 변경: $${price}`, { price });
+      await this._auditLog(adminId, 'settings', `DEEDRA 시세 변경: $${price}`, { price });
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -572,12 +574,12 @@ export class DedraAPI {
         if (bonusRate > 0) {
           const bonusAmt = parseFloat((dailyIncome * bonusRate).toFixed(8));
 
-          // 지갑 잔액 증가 (USDT 기준 bonusBalance)
+          // 지갑 잔액 증가
           const walletQ = query(collection(db, 'wallets'), where('userId', '==', ancestor.id));
           const wSnap   = await getDocs(walletQ);
           if (!wSnap.empty) {
             await updateDoc(wSnap.docs[0].ref, {
-              bonusBalance:  increment(bonusAmt),
+              dedraBalance:  increment(bonusAmt),
               totalEarnings: increment(bonusAmt),
             });
           }
@@ -666,15 +668,16 @@ export class DedraAPI {
           const wSnap = await getDoc(walletRef);
           if (wSnap.exists()) {
             await updateDoc(walletRef, {
-              bonusBalance:  increment(bonusAmt),
+              dedraBalance:  increment(bonusAmt),
               totalEarnings: increment(bonusAmt),
             });
           } else {
+            // 레거시 fallback
             const walletQ = query(collection(db, 'wallets'), where('userId', '==', ancestor.id));
             const wsSnap  = await getDocs(walletQ);
             if (!wsSnap.empty) {
               await updateDoc(wsSnap.docs[0].ref, {
-                bonusBalance:  increment(bonusAmt),
+                dedraBalance:  increment(bonusAmt),
                 totalEarnings: increment(bonusAmt),
               });
             }
@@ -738,20 +741,21 @@ export class DedraAPI {
 
       const feeAmt = parseFloat((dailyIncome * feeRate).toFixed(8));
 
-      // 센터장 지갑에 적립 (USDT 기준 bonusBalance)
+      // 센터장 지갑에 적립
       const leaderWalletRef = doc(db, 'wallets', centerLeaderId);
       const lwSnap = await getDoc(leaderWalletRef);
       if (lwSnap.exists()) {
         await updateDoc(leaderWalletRef, {
-          bonusBalance:  increment(feeAmt),
+          dedraBalance:  increment(feeAmt),
           totalEarnings: increment(feeAmt),
         });
       } else {
+        // 레거시 fallback
         const q = query(collection(db, 'wallets'), where('userId', '==', centerLeaderId));
         const qs = await getDocs(q);
         if (!qs.empty) {
           await updateDoc(qs.docs[0].ref, {
-            bonusBalance:  increment(feeAmt),
+            dedraBalance:  increment(feeAmt),
             totalEarnings: increment(feeAmt),
           });
         }
@@ -849,12 +853,12 @@ export class DedraAPI {
           }
         }
 
-        // 지갑 적립 (USDT 기준 bonusBalance)
+        // 지갑 적립
         const walletRef = doc(db, 'wallets', user.id);
         const wSnap = await getDoc(walletRef);
         if (wSnap.exists()) {
           await updateDoc(walletRef, {
-            bonusBalance:  increment(bonusAmt),
+            dedraBalance:  increment(bonusAmt),
             totalEarnings: increment(bonusAmt),
           });
         } else {
@@ -862,7 +866,7 @@ export class DedraAPI {
           const qs = await getDocs(q);
           if (!qs.empty) {
             await updateDoc(qs.docs[0].ref, {
-              bonusBalance:  increment(bonusAmt),
+              dedraBalance:  increment(bonusAmt),
               totalEarnings: increment(bonusAmt),
             });
           }
@@ -998,12 +1002,12 @@ export class DedraAPI {
           const D = parseFloat((inv.amount * dailyRoiRate).toFixed(8));
           if (D <= 0) continue;
 
-          // ── 회원 지갑에 ROI 적립 (USDT 기준 bonusBalance) ──
+          // ── 회원 지갑에 ROI 적립 ──
           const walletQ = query(collection(db, 'wallets'), where('userId', '==', inv.userId));
           const wSnap   = await getDocs(walletQ);
           if (!wSnap.empty) {
             await updateDoc(wSnap.docs[0].ref, {
-              bonusBalance:  increment(D),
+              dedraBalance:  increment(D),
               totalEarnings: increment(D),
             });
           }

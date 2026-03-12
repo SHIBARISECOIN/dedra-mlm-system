@@ -25,13 +25,13 @@ const TRANSLATIONS = {
     btnRegister: '회원가입',
     // 홈
     greeting: '안녕하세요 👋',
-    totalAssetLabel: '총 자산 (USD 환산)',
+    totalAssetLabel: '총 자산 (USDT 환산)',
     assetLocked: 'USDT 원금 (잠금)',
     assetInvesting: '투자 중',
-    assetInterest: 'DEEDRA 이자 (출금 가능)',
+    assetInterest: '수익 잔액 (출금 가능)',
     btnDeposit: 'USDT 입금',
-    btnWithdraw: 'DEEDRA 출금',
-    deedraPrice: 'DEEDRA 현재 시세',
+    btnWithdraw: 'DDRA 출금',
+    deedraPrice: 'DDRA 현재 시세',
     recentUpdated: '최근 업데이트: ',
     investingNow: '📈 진행 중인 투자',
     investAmount: '투자금',
@@ -51,8 +51,8 @@ const TRANSLATIONS = {
     simInvestAmount: '투자 금액',
     simPeriod: '기간',
     simRoi: '수익률',
-    simEarning: '수익 (DEEDRA)',
-    simEarningUsd: 'USD 환산 수익',
+    simEarning: '일 수익 (USDT)',
+    simEarningUsd: '총 수익 (USDT)',
     productListTitle: '💼 투자 상품',
     myInvestTitle: '📋 내 투자 현황',
     // 네트워크
@@ -117,8 +117,8 @@ const TRANSLATIONS = {
     // More
     walletSection: '💰 지갑',
     usdtBalance: 'USDT 잔액',
-    deedraBalance: 'DEEDRA 잔액',
-    bonusBalance: '보너스 잔액',
+    deedraBalance: 'DDRA 게임 잔액',
+    bonusBalance: '수익 잔액 (출금 가능)',
     txHistory: '📊 거래 내역',
     txAll: '전체',
     txDeposit: '입금',
@@ -148,9 +148,9 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ 반드시 위 주소로 입금 후 TXID를 입력해주세요. 관리자 승인 후 잔액이 업데이트됩니다.',
     btnCancel: '취소',
     btnSubmitDeposit: '입금 신청',
-    modalWithdraw: '💸 DEEDRA 출금 신청',
-    withdrawAvailLabel: '출금 가능 잔액',
-    withdrawAmountLabel: '출금 금액 (DEEDRA)',
+    modalWithdraw: '💸 수익 출금 신청 (DDRA 지급)',
+    withdrawAvailLabel: '출금 가능 수익 (USDT)',
+    withdrawAmountLabel: '출금 금액 (USDT)',
     withdrawAddressLabel: '수신 지갑 주소',
     withdrawAddressPlaceholder: '수신 지갑 주소 입력',
     withdrawPinLabel: '출금 PIN (6자리)',
@@ -160,9 +160,9 @@ const TRANSLATIONS = {
     investAmountLabel: '투자 금액 (USDT)',
     btnSubmitInvest: '투자 신청',
     modalCharge: '🎮 게임 지갑 충전',
-    chargeInfoLabel: 'DEEDRA 잔액에서 게임 지갑으로 이동',
+    chargeInfoLabel: 'DDRA 잔액에서 게임 지갑으로 이동',
     chargeHolding: '보유: ',
-    chargeAmountLabel: '충전 금액 (DEEDRA)',
+    chargeAmountLabel: '충전 금액 (DDRA)',
     btnSubmitCharge: '충전',
     modalPin: '🔐 출금 PIN 설정',
     newPinLabel: '새 PIN (6자리)',
@@ -194,7 +194,7 @@ const TRANSLATIONS = {
     toastDepositDone: '입금 신청 완료! 관리자 승인을 기다려주세요.',
     toastWithdrawDone: '출금 신청 완료! 처리까지 1~3 영업일 소요됩니다.',
     toastInvestDone: '투자 신청 완료! 🎉',
-    toastChargeDone: ' DEEDRA 충전 완료!',
+    toastChargeDone: ' DDRA 충전 완료!',
     toastGameChargeFirst: '게임 지갑을 먼저 충전해주세요.',
     toastNoBalance: '잔액 부족',
     toastSelectBet: '베팅을 먼저 선택하세요.',
@@ -250,13 +250,13 @@ const TRANSLATIONS = {
     placeholderReferral: 'Enter referral code',
     btnRegister: 'Register',
     greeting: 'Hello 👋',
-    totalAssetLabel: 'Total Assets (USD)',
+    totalAssetLabel: 'Total Assets (USDT)',
     assetLocked: 'USDT Principal (Locked)',
     assetInvesting: 'Investing',
-    assetInterest: 'DEEDRA Interest (Withdrawable)',
+    assetInterest: 'Earnings (Withdrawable)',
     btnDeposit: 'Deposit USDT',
-    btnWithdraw: 'Withdraw DEEDRA',
-    deedraPrice: 'DEEDRA Current Price',
+    btnWithdraw: 'Withdraw DDRA',
+    deedraPrice: 'DDRA Current Price',
     recentUpdated: 'Updated: ',
     investingNow: '📈 Active Investment',
     investAmount: 'Invested',
@@ -275,8 +275,8 @@ const TRANSLATIONS = {
     simInvestAmount: 'Investment Amount',
     simPeriod: 'Period',
     simRoi: 'ROI',
-    simEarning: 'Earnings (DEEDRA)',
-    simEarningUsd: 'USD Earnings',
+    simEarning: 'Earnings (USDT)',
+    simEarningUsd: 'Total Earnings (USDT)',
     productListTitle: '💼 Investment Products',
     myInvestTitle: '📋 My Investments',
     pageNetwork: '🌐 Network',
@@ -338,8 +338,8 @@ const TRANSLATIONS = {
     gameStart: 'Start a game!',
     walletSection: '💰 Wallet',
     usdtBalance: 'USDT Balance',
-    deedraBalance: 'DEEDRA Balance',
-    bonusBalance: 'Bonus Balance',
+    deedraBalance: 'DDRA Balance (Game)',
+    bonusBalance: 'Earnings Balance (Withdrawable)',
     txHistory: '📊 Transaction History',
     txAll: 'All',
     txDeposit: 'Deposit',
@@ -368,9 +368,9 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ Please deposit to the address above and enter the TXID. Balance will be updated after admin approval.',
     btnCancel: 'Cancel',
     btnSubmitDeposit: 'Submit Deposit',
-    modalWithdraw: '💸 DEEDRA Withdrawal Request',
-    withdrawAvailLabel: 'Available Balance',
-    withdrawAmountLabel: 'Withdrawal Amount (DEEDRA)',
+    modalWithdraw: '💸 DDRA Withdrawal Request',
+    withdrawAvailLabel: 'Available Earnings (USDT)',
+    withdrawAmountLabel: 'Withdrawal Amount (USDT)',
     withdrawAddressLabel: 'Recipient Wallet Address',
     withdrawAddressPlaceholder: 'Enter recipient address',
     withdrawPinLabel: 'Withdrawal PIN (6 digits)',
@@ -380,9 +380,9 @@ const TRANSLATIONS = {
     investAmountLabel: 'Investment Amount (USDT)',
     btnSubmitInvest: 'Submit Investment',
     modalCharge: '🎮 Charge Game Wallet',
-    chargeInfoLabel: 'Transfer from DEEDRA balance to game wallet',
+    chargeInfoLabel: 'Transfer from DDRA balance to game wallet',
     chargeHolding: 'Balance: ',
-    chargeAmountLabel: 'Charge Amount (DEEDRA)',
+    chargeAmountLabel: 'Charge Amount (DDRA)',
     btnSubmitCharge: 'Charge',
     modalPin: '🔐 Set Withdrawal PIN',
     newPinLabel: 'New PIN (6 digits)',
@@ -413,7 +413,7 @@ const TRANSLATIONS = {
     toastDepositDone: 'Deposit request submitted! Waiting for admin approval.',
     toastWithdrawDone: 'Withdrawal request submitted! Processing takes 1-3 business days.',
     toastInvestDone: 'Investment request submitted! 🎉',
-    toastChargeDone: ' DEEDRA charged!',
+    toastChargeDone: ' DDRA charged!',
     toastGameChargeFirst: 'Please charge your game wallet first.',
     toastNoBalance: 'Insufficient balance',
     toastSelectBet: 'Please select a bet first.',
@@ -469,13 +469,13 @@ const TRANSLATIONS = {
     placeholderReferral: 'Nhập mã giới thiệu',
     btnRegister: 'Đăng ký',
     greeting: 'Xin chào 👋',
-    totalAssetLabel: 'Tổng tài sản (USD)',
+    totalAssetLabel: 'Tổng tài sản (USDT)',
     assetLocked: 'Gốc USDT (Đang khóa)',
     assetInvesting: 'Đang đầu tư',
-    assetInterest: 'Lãi DEEDRA (Có thể rút)',
+    assetInterest: 'Thu nhập (Có thể rút)',
     btnDeposit: 'Nạp USDT',
-    btnWithdraw: 'Rút DEEDRA',
-    deedraPrice: 'Giá DEEDRA hiện tại',
+    btnWithdraw: 'Rút DDRA',
+    deedraPrice: 'Giá DDRA hiện tại',
     recentUpdated: 'Cập nhật: ',
     investingNow: '📈 Đầu tư đang hoạt động',
     investAmount: 'Đầu tư',
@@ -494,8 +494,8 @@ const TRANSLATIONS = {
     simInvestAmount: 'Số tiền đầu tư',
     simPeriod: 'Thời gian',
     simRoi: 'ROI',
-    simEarning: 'Thu nhập (DEEDRA)',
-    simEarningUsd: 'Thu nhập USD',
+    simEarning: 'Thu nhập (USDT)',
+    simEarningUsd: 'Thu nhập tổng cộng (USDT)',
     productListTitle: '💼 Sản phẩm đầu tư',
     myInvestTitle: '📋 Đầu tư của tôi',
     pageNetwork: '🌐 Mạng lưới',
@@ -688,13 +688,13 @@ const TRANSLATIONS = {
     placeholderReferral: 'กรอกรหัสแนะนำ',
     btnRegister: 'สมัครสมาชิก',
     greeting: 'สวัสดี 👋',
-    totalAssetLabel: 'สินทรัพย์รวม (USD)',
+    totalAssetLabel: 'สินทรัพย์รวม (USDT)',
     assetLocked: 'เงินต้น USDT (ล็อค)',
     assetInvesting: 'กำลังลงทุน',
-    assetInterest: 'ดอกเบี้ย DEEDRA (ถอนได้)',
+    assetInterest: 'รายได้ (ถอนได้)',
     btnDeposit: 'ฝาก USDT',
-    btnWithdraw: 'ถอน DEEDRA',
-    deedraPrice: 'ราคา DEEDRA ปัจจุบัน',
+    btnWithdraw: 'ถอน DDRA',
+    deedraPrice: 'ราคา DDRA ปัจจุบัน',
     recentUpdated: 'อัปเดต: ',
     investingNow: '📈 การลงทุนที่กำลังดำเนินการ',
     investAmount: 'ลงทุน',
@@ -713,8 +713,8 @@ const TRANSLATIONS = {
     simInvestAmount: 'จำนวนเงินลงทุน',
     simPeriod: 'ระยะเวลา',
     simRoi: 'ROI',
-    simEarning: 'รายได้ (DEEDRA)',
-    simEarningUsd: 'รายได้ USD',
+    simEarning: 'รายได้ (USDT)',
+    simEarningUsd: 'รายได้รวม (USDT)',
     productListTitle: '💼 ผลิตภัณฑ์การลงทุน',
     myInvestTitle: '📋 การลงทุนของฉัน',
     pageNetwork: '🌐 เครือข่าย',
@@ -776,8 +776,8 @@ const TRANSLATIONS = {
     gameStart: 'เริ่มเล่นเกม!',
     walletSection: '💰 กระเป๋าเงิน',
     usdtBalance: 'ยอด USDT',
-    deedraBalance: 'ยอด DEEDRA',
-    bonusBalance: 'ยอดโบนัส',
+    deedraBalance: 'ยอด DDRA (Game)',
+    bonusBalance: 'รายได้ (ถอนได้)',
     txHistory: '📊 ประวัติรายการ',
     txAll: 'ทั้งหมด',
     txDeposit: 'ฝาก',
@@ -806,9 +806,9 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ กรุณาฝากไปยังที่อยู่ด้านบนแล้วกรอก TXID ยอดจะอัปเดตหลังจากผู้ดูแลอนุมัติ',
     btnCancel: 'ยกเลิก',
     btnSubmitDeposit: 'ส่งคำขอฝาก',
-    modalWithdraw: '💸 คำขอถอน DEEDRA',
-    withdrawAvailLabel: 'ยอดที่สามารถถอนได้',
-    withdrawAmountLabel: 'จำนวนที่ถอน (DEEDRA)',
+    modalWithdraw: '💸 คำขอถอน DDRA',
+    withdrawAvailLabel: 'รายได้ที่ถอนได้ (USDT)',
+    withdrawAmountLabel: 'จำนวนที่ถอน (USDT)',
     withdrawAddressLabel: 'ที่อยู่กระเป๋าผู้รับ',
     withdrawAddressPlaceholder: 'กรอกที่อยู่กระเป๋าผู้รับ',
     withdrawPinLabel: 'PIN ถอนเงิน (6 หลัก)',
@@ -818,9 +818,9 @@ const TRANSLATIONS = {
     investAmountLabel: 'จำนวนเงินลงทุน (USDT)',
     btnSubmitInvest: 'ยืนยันการลงทุน',
     modalCharge: '🎮 เติมเงินกระเป๋าเกม',
-    chargeInfoLabel: 'โอนจาก DEEDRA ไปยังกระเป๋าเกม',
+    chargeInfoLabel: 'โอนจาก DDRA ไปยังกระเป๋าเกม',
     chargeHolding: 'ยอด: ',
-    chargeAmountLabel: 'จำนวนเติมเงิน (DEEDRA)',
+    chargeAmountLabel: 'จำนวนเติมเงิน (DDRA)',
     btnSubmitCharge: 'เติมเงิน',
     modalPin: '🔐 ตั้ง PIN ถอนเงิน',
     newPinLabel: 'PIN ใหม่ (6 หลัก)',
@@ -1137,13 +1137,13 @@ function updatePriceTicker(price, updatedAt) {
   const changeEl = document.getElementById('deedraChange');
 
   if (el) el.textContent = '$' + price.toFixed(4);
-  if (subEl) subEl.textContent = updatedAt ? '업데이트: ' + fmtDate(updatedAt) : '관리자 설정 시세';
+  if (subEl) subEl.textContent = updatedAt ? '업데이트: ' + fmtDate(updatedAt) : '';
   if (changeEl) {
-    changeEl.textContent = '1 DEEDRA = $' + price.toFixed(4);
+    changeEl.textContent = '1 DDRA = $' + price.toFixed(4) + ' USDT';
     changeEl.className = 'price-change-value up';
   }
 
-  // splitDedra의 USD 환산 업데이트
+  // DDRA 게임 잔액 USD 환산 업데이트
   if (walletData) {
     const dedraUsd = (walletData.dedraBalance || 0) * price;
     const el2 = document.getElementById('splitDedraUsd');
@@ -1152,6 +1152,8 @@ function updatePriceTicker(price, updatedAt) {
     if (el3) el3.textContent = '≈ $' + fmt(dedraUsd);
     const el4 = document.getElementById('gameBalanceUsd');
     if (el4) el4.textContent = '≈ $' + fmt(gameBalanceVal * price);
+    // 출금 모달 DDRA 환산 업데이트
+    updateWithdrawDdraCalc && updateWithdrawDdraCalc();
   }
 }
 
@@ -1325,6 +1327,21 @@ window.handleLogout = async function() {
   showScreen('auth');
 };
 
+// ===== 지갑 UI 빠른 갱신 (출금/투자 후 즉시 반영) =====
+function updateWalletUI() {
+  updateHomeUI();
+  // more 페이지가 열려있으면 해당 잔액도 갱신
+  if (currentPage === 'more' && walletData) {
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
+    setEl('moreWalletBonus', fmt(walletData.bonusBalance || 0) + ' USDT');
+    setEl('moreWalletBonusDdra', '≈ ' + fmt((walletData.bonusBalance||0) / (deedraPrice||0.5)) + ' DDRA');
+    setEl('moreWalletDedra', fmt(walletData.dedraBalance || 0) + ' DDRA');
+    const dedraUsd = (walletData.dedraBalance || 0) * deedraPrice;
+    setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
+  }
+}
+
 // ===== 홈 UI 업데이트 =====
 function updateHomeUI() {
   if (!userData || !walletData) return;
@@ -1342,17 +1359,19 @@ function updateHomeUI() {
 
   const usdt = walletData.usdtBalance || 0;
   const dedra = walletData.dedraBalance || 0;
-  const bonus = walletData.bonusBalance || 0;
-  const dedraInUsd = dedra * deedraPrice;
-  const total = usdt + dedraInUsd + bonus;
+  const bonus = walletData.bonusBalance || 0;  // 수익 잔액 (USDT 기준, 출금 가능)
+  // 총 자산 = USDT 원금 + 수익 잔액 (DDRA 게임 잔액 제외)
+  const total = usdt + bonus;
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-  setEl('totalAsset', '$' + fmt(total));
+  setEl('totalAsset', fmt(total) + ' USDT');
   setEl('totalAssetKrw', '≈ ₩' + fmtInt(total * USD_KRW));
-  setEl('splitUsdt', fmt(usdt));
-  setEl('splitDedra', fmt(dedra));
-  setEl('splitDedraUsd', '≈ $' + fmt(dedraInUsd));
+  setEl('splitUsdt', fmt(usdt) + ' USDT');
+  setEl('splitBonus', fmt(bonus) + ' USDT');  // 수익 잔액 (출금 가능)
+  setEl('splitBonusDdra', '≈ ' + fmt(bonus / (deedraPrice||0.5)) + ' DDRA');  // DDRA 환산
+  setEl('splitDedra', fmt(dedra) + ' DDRA');  // 게임용 DDRA
+  setEl('splitDedraUsd', '≈ $' + fmt(dedra * deedraPrice));
 }
 
 // ===== D-Day 카드 =====
@@ -1391,8 +1410,8 @@ async function loadDDayCard() {
     setEl('ddayName', inv.productName || '투자 진행 중');
     setEl('ddayStart', fmtDateShort(startTs));
     setEl('ddayEnd', fmtDateShort(endTs));
-    setEl('ddayAmount', '$' + fmt(inv.amount));
-    setEl('ddayReturn', '+' + fmt(inv.expectedReturn || 0) + ' DEEDRA');
+    setEl('ddayAmount', fmt(inv.amount) + ' USDT');
+    setEl('ddayReturn', '+' + fmt(inv.expectedReturn || 0) + ' USDT/일');
     setEl('ddayRemain', remainDays + '일 남음');
 
     const fill = document.getElementById('ddayFill');
@@ -1525,11 +1544,14 @@ function loadMorePage() {
   if (rankEl) rankEl.innerHTML = `<i class="fas fa-star" style="font-size:10px"></i> ${userData.rank || 'G0'}`;
 
   const dedra = walletData.dedraBalance || 0;
+  const bonus = walletData.bonusBalance || 0;
   const dedraUsd = dedra * deedraPrice;
-  setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0));
-  setEl('moreWalletDedra', fmt(dedra));
+  const bonusDdra = bonus / (deedraPrice || 0.5);
+  setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
+  setEl('moreWalletBonus', fmt(bonus) + ' USDT');  // 수익잔액
+  setEl('moreWalletBonusDdra', '≈ ' + fmt(bonusDdra) + ' DDRA');
+  setEl('moreWalletDedra', fmt(dedra) + ' DDRA');
   setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
-  setEl('moreWalletBonus', fmt(walletData.bonusBalance || 0));
 
   // 다크모드 토글 동기화
   const toggle = document.getElementById('darkModeToggle');
@@ -1607,7 +1629,7 @@ function renderBonusList(bonuses, containerId) {
         <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
       </div>
       <div>
-        <div class="tx-amount plus">+${fmt(b.amount)} DEEDRA</div>
+        <div class="tx-amount plus">+${fmt(b.amount)} USDT</div>
         <div class="tx-status" style="color:var(--green)">완료</div>
       </div>
     </div>`;
@@ -1674,10 +1696,36 @@ window.submitDeposit = async function() {
 
 // ===== 출금 신청 =====
 window.showWithdrawModal = function() {
+  const bonus = walletData?.bonusBalance || 0;  // 수익 잔액 (USDT, 출금 가능)
   const avEl = document.getElementById('withdrawAvailable');
-  if (avEl) avEl.textContent = fmt(walletData?.dedraBalance || 0);
+  if (avEl) avEl.textContent = fmt(bonus) + ' USDT';
+
+  // DDRA 환산 표시 업데이트
+  updateWithdrawDdraCalc();
+
   document.getElementById('withdrawModal').classList.remove('hidden');
 };
+
+// 출금 모달에서 금액 입력 시 DDRA 환산 실시간 업데이트
+window.onWithdrawAmountInput = function() {
+  updateWithdrawDdraCalc();
+};
+
+function updateWithdrawDdraCalc() {
+  const amtEl = document.getElementById('withdrawAmount');
+  const calcEl = document.getElementById('withdrawDdraCalc');
+  if (!calcEl) return;
+  const amount = parseFloat(amtEl?.value || '0') || 0;
+  const price = deedraPrice || 0.5;
+  if (amount > 0 && price > 0) {
+    const ddraAmt = amount / price;
+    calcEl.textContent = `≈ ${fmt(ddraAmt)} DDRA (1 DDRA = $${price.toFixed(4)} USDT)`;
+    calcEl.style.color = '#6366f1';
+  } else {
+    calcEl.textContent = `1 DDRA = $${price.toFixed(4)} USDT`;
+    calcEl.style.color = '#94a3b8';
+  }
+}
 
 window.submitWithdraw = async function() {
   const amount = parseFloat(document.getElementById('withdrawAmount').value);
@@ -1687,7 +1735,12 @@ window.submitWithdraw = async function() {
   if (!amount || amount <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
-  if ((walletData?.dedraBalance || 0) < amount) { showToast('잔액이 부족합니다.', 'error'); return; }
+
+  // 출금 가능 금액 = bonusBalance (수익만, 원금 인출 불가)
+  const availableBonus = walletData?.bonusBalance || 0;
+  if (availableBonus < amount) {
+    showToast(`출금 가능 수익이 부족합니다. (가능: ${fmt(availableBonus)} USDT)`, 'error'); return;
+  }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
   const btn = event.target;
@@ -1697,38 +1750,45 @@ window.submitWithdraw = async function() {
     const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
 
     // ── VIP 할인율 적용 수수료 계산 ──────────────────────────────────
-    let feeRate = 0; // 기본 수수료율 0%
+    let feeRate = 0;
     let feeAmount = 0;
     try {
       const ratesSnap = await getDoc(doc(db, 'settings', 'rates'));
       if (ratesSnap.exists()) {
         const rates = ratesSnap.data();
-        const baseWithdrawFee = rates.withdrawFeeRate || 0;  // 기본 출금 수수료 %
+        const baseWithdrawFee = rates.withdrawFeeRate || 0;
         const vipDiscounts = rates.vipDiscounts || {};
-        const vipLevel = userData?.vipLevel || 'bronze';     // 회원 VIP 등급
-        const discount = vipDiscounts[vipLevel] || 0;        // VIP 할인율 %
-        feeRate = Math.max(0, baseWithdrawFee - discount);   // 최소 0%
+        const vipLevel = userData?.vipLevel || 'bronze';
+        const discount = vipDiscounts[vipLevel] || 0;
+        feeRate = Math.max(0, baseWithdrawFee - discount);
         feeAmount = amount * feeRate / 100;
       }
     } catch(e) { console.warn('[VIP Fee] 수수료 계산 실패, 기본 0% 적용:', e); }
 
-    const netAmount = amount - feeAmount; // 실 지급액
+    const netAmount = amount - feeAmount;   // 실 수령 USDT
+    const price = deedraPrice || 0.5;
+    const ddraAmount = netAmount / price;    // DDRA 코인 수량 (실 지급)
 
-    // ── 원자적 처리: 출금 신청 생성 + dedra 잔액 차감 ─────────────
+    // ── 원자적 처리: 출금 신청 생성 + bonusBalance 차감 ─────────────
     const batch = writeBatch(db);
 
     const txRef = doc(collection(db, 'transactions'));
     batch.set(txRef, {
       userId: currentUser.uid, userEmail: currentUser.email,
-      type: 'withdrawal', amount, currency: 'DEEDRA', walletAddress: address,
+      type: 'withdrawal',
+      amountUsdt: amount,       // USDT 기준 신청 금액
+      amount: ddraAmount,       // DDRA 코인 환산 수량 (실 지급)
+      currency: 'DDRA',
+      ddraPrice: price,         // 적용 시세
+      walletAddress: address,
       feeRate, feeAmount, netAmount,
       status: 'pending', createdAt: serverTimestamp(),
     });
 
-    // dedra 잔액 차감 (신청 즉시 보류)
+    // bonusBalance 차감 (USDT 기준)
     const walletRef = doc(db, 'wallets', currentUser.uid);
     batch.update(walletRef, {
-      dedraBalance: increment(-amount),
+      bonusBalance: increment(-amount),
       totalWithdrawal: increment(amount),
     });
 
@@ -1736,13 +1796,14 @@ window.submitWithdraw = async function() {
 
     // 로컬 walletData 즉시 반영
     if (walletData) {
-      walletData.dedraBalance = (walletData.dedraBalance || 0) - amount;
+      walletData.bonusBalance = (walletData.bonusBalance || 0) - amount;
       walletData.totalWithdrawal = (walletData.totalWithdrawal || 0) + amount;
     }
 
     closeModal('withdrawModal');
-    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} DEEDRA 포함)` : '';
-    showToast(t('toastWithdrawDone') + feeMsg, 'success');
+    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} USDT)` : '';
+    const ddraMsg = ` → ${fmt(ddraAmount)} DDRA 지급 예정`;
+    showToast(t('toastWithdrawDone') + feeMsg + ddraMsg, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
@@ -1783,7 +1844,7 @@ async function loadProducts() {
     if (listEl) listEl.innerHTML = productsCache.map(p => {
       const tier = tierMap[p.name] || 'basic';
       const tag = tagMap[p.name] || 'tag-basic';
-      const earning = (p.minAmount * p.roiPercent / 100) / deedraPrice;
+      const dailyEarning = p.minAmount * p.roiPercent / 100;  // 하루 USDT 수익
       return `
       <div class="product-card">
         <div class="product-tier-bar tier-${tier}"></div>
@@ -1794,17 +1855,17 @@ async function loadProducts() {
           </div>
           <div class="product-roi-block">
             <div class="product-roi">${p.roiPercent}%</div>
-            <div class="product-roi-label">수익률</div>
+            <div class="product-roi-label">일 수익률</div>
           </div>
         </div>
         <div class="product-meta">
           <div class="product-meta-item">기간: <strong>${p.durationDays}일</strong></div>
-          <div class="product-meta-item">최소: <strong>$${fmt(p.minAmount)}</strong></div>
-          <div class="product-meta-item">최대: <strong>$${fmt(p.maxAmount)}</strong></div>
+          <div class="product-meta-item">최소: <strong>${fmt(p.minAmount)} USDT</strong></div>
+          <div class="product-meta-item">최대: <strong>${fmt(p.maxAmount)} USDT</strong></div>
         </div>
         <div class="product-conversion">
-          💡 $${fmt(p.minAmount)} 투자 시 <strong>~${fmt(earning)} DEEDRA</strong> 수익
-          (≈ $${fmt(earning * deedraPrice)})
+          💡 ${fmt(p.minAmount)} USDT 투자 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
+          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 원금 계약만기 후 출금
         </div>
         <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name}',${p.roiPercent},${p.durationDays},${p.minAmount},${p.maxAmount})">
           투자하기
@@ -1840,15 +1901,16 @@ window.runSimulator = function() {
 
   const roi = parseFloat(opt.dataset.roi);
   const days = parseInt(opt.dataset.days);
-  const earning = (amount * roi / 100);
-  const earningDedra = earning / deedraPrice;
+  const earning = (amount * roi / 100);           // 하루 USDT 수익
+  const totalEarning = earning * days;            // 전체 기간 USDT 수익
+  const earningDdra = earning / (deedraPrice||0.5); // 하루 DDRA 환산
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setEl('simInputAmount', '$' + fmt(amount));
+  setEl('simInputAmount', fmt(amount) + ' USDT');
   setEl('simDays', days + '일');
   setEl('simRoi', roi + '%');
-  setEl('simEarning', fmt(earningDedra) + ' DEEDRA');
-  setEl('simEarningUsd', '≈ $' + fmt(earning));
+  setEl('simEarning', fmt(earning) + ' USDT/일 (' + fmt(earningDdra) + ' DDRA)');
+  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + '일 합계)');
 
   result.classList.add('show');
 };
@@ -1878,7 +1940,7 @@ async function loadMyInvestments() {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('activeInvestCount', sumItems.count + '건');
     setEl('totalInvestAmount', '$' + fmt(sumItems.total));
-    setEl('expectedReturn', fmt(sumItems.returns) + ' DEEDRA');
+    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/일');
 
     if (!invests.length) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i>진행 중인 투자가 없습니다</div>';
@@ -1907,7 +1969,7 @@ async function loadMyInvestments() {
           <span>잔여 ${remainDays}일</span>
         </div>
         <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
-          총 예상수익: +${fmt(inv.expectedReturn || 0)} DEEDRA
+          총 예상수익(일): +${fmt(inv.expectedReturn || 0)} USDT (원금은 만기 후 출금 가능)
         </div>
         <div class="invest-progress">
           <div class="invest-progress-fill" style="width:${progress.toFixed(1)}%"></div>
@@ -1928,14 +1990,14 @@ window.openInvestModal = function(id, name, roi, days, minAmt, maxAmt) {
   if (sumEl) sumEl.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <div style="font-size:18px;font-weight:800;color:var(--text)">${name}</div>
-      <div style="font-size:24px;font-weight:900;color:var(--green)">${roi}%</div>
+      <div style="font-size:24px;font-weight:900;color:var(--green)">${roi}% <span style="font-size:13px;font-weight:600;">/ 일</span></div>
     </div>
     <div style="font-size:13px;color:var(--text2)">
-      기간: <strong>${days}일</strong> · 최소 $${fmt(minAmt)} ~ 최대 $${fmt(maxAmt)}
+      기간: <strong>${days}일</strong> · 최소 ${fmt(minAmt)} USDT ~ 최대 ${fmt(maxAmt)} USDT
     </div>`;
 
   const hintEl = document.getElementById('investAmountHint');
-  if (hintEl) hintEl.textContent = `최소 $${fmt(minAmt)} ~ 최대 $${fmt(maxAmt)}`;
+  if (hintEl) hintEl.textContent = `최소 ${fmt(minAmt)} USDT ~ 최대 ${fmt(maxAmt)} USDT`;
 
   const amtEl = document.getElementById('investAmount');
   if (amtEl) amtEl.value = '';
@@ -1951,12 +2013,14 @@ window.updateInvestPreview = function() {
   const previewEl = document.getElementById('investPreview');
   if (!previewEl || !amount || isNaN(amount)) { if (previewEl) previewEl.style.display = 'none'; return; }
 
-  const earning = (amount * selectedProduct.roi / 100) / deedraPrice;
+  const earning = (amount * selectedProduct.roi / 100); // USDT 일 수익
+  const earningDdra = earning / (deedraPrice || 0.5);
   previewEl.style.display = 'block';
   previewEl.innerHTML = `
-    📌 예상 수익: <strong style="color:var(--green)">${fmt(earning)} DEEDRA</strong><br>
-    💵 USD 환산: ~$${fmt(earning * deedraPrice)}<br>
-    📅 만기일: ${getDaysLaterStr(selectedProduct.days)}`;
+    📌 일 수익: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
+    💡 DDRA 환산: ≈ ${fmt(earningDdra)} DDRA/일 (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
+    📅 만기일: ${getDaysLaterStr(selectedProduct.days)}<br>
+    🔒 원금은 계약 기간 종료 후 출금 가능합니다.`;
 };
 
 window.submitInvest = async function() {
@@ -1975,7 +2039,7 @@ window.submitInvest = async function() {
     const { addDoc, collection, db, serverTimestamp, doc, updateDoc, increment, writeBatch } = window.FB;
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + selectedProduct.days * 86400000);
-    const expectedReturn = (amount * selectedProduct.roi / 100) / deedraPrice;
+    const expectedReturn = (amount * selectedProduct.roi / 100); // USDT 일 수익
 
     // 원자적 처리: 투자 도큐먼트 생성 + 지갑 USDT 차감
     const batch = writeBatch(db);
@@ -2135,7 +2199,7 @@ async function loadReferralList() {
     const refs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     if (netDirect) netDirect.textContent = refs.length;
-    if (netBonus) netBonus.textContent = '$' + fmt(walletData?.totalEarnings || 0);
+    if (netBonus) netBonus.textContent = fmt(walletData?.totalEarnings || 0) + ' USDT';
 
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('rankReferralCount', refs.length);

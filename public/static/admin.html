@@ -901,7 +901,7 @@ canvas{width:100% !important;}
 
       <!-- ── DEEDRA 시세 설정 (단순 한 줄) ── -->
       <div id="dedraRateCard" style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;margin-bottom:16px;">
-        <span style="font-size:15px;font-weight:600;color:#64748b;white-space:nowrap;">💎 DEEDRA 시세</span>
+        <span style="font-size:15px;font-weight:600;color:#64748b;white-space:nowrap;">💎 DDRA 시세</span>
         <!-- 표시 모드 -->
         <span id="dedraRateDisplay"
           style="font-size:22px;font-weight:700;color:#6366f1;cursor:pointer;padding:4px 10px;border-radius:8px;transition:background .15s;"
@@ -911,12 +911,12 @@ canvas{width:100% !important;}
           onclick="startEditDedraRate()">로딩 중...</span>
         <!-- 편집 모드 (기본 숨김) -->
         <span id="dedraRateEditWrap" style="display:none;align-items:center;gap:8px;">
-          <span style="font-size:14px;color:#94a3b8;">1 DEEDRA =</span>
+          <span style="font-size:14px;color:#94a3b8;">1 DDRA =</span>
           <input type="number" id="dedraRateInput" min="0.000001" step="0.000001"
             style="width:130px;padding:6px 10px;border:2px solid #6366f1;border-radius:8px;font-size:18px;font-weight:700;color:#1e293b;outline:none;"
             placeholder="0.0433"
             onkeydown="if(event.key==='Enter')saveDedraRate();if(event.key==='Escape')cancelEditDedraRate();"/>
-          <span style="font-size:14px;color:#94a3b8;">USD</span>
+          <span style="font-size:14px;color:#94a3b8;">USDT</span>
           <button onclick="saveDedraRate()" id="saveDedraRateBtn"
             style="padding:6px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">저장</button>
           <button onclick="cancelEditDedraRate()"
@@ -994,7 +994,7 @@ canvas{width:100% !important;}
               <input class="form-input" id="bonusUserId" placeholder="이메일 또는 UID 입력">
             </div>
             <div class="form-group">
-              <label class="form-label">지급 금액 (DEEDRA)</label>
+              <label class="form-label">지급 금액 (USDT)</label>
               <input type="number" class="form-input" id="bonusAmount" placeholder="0.00" min="0.01">
             </div>
           </div>
@@ -1056,7 +1056,7 @@ canvas{width:100% !important;}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
         <div>
           <div class="page-title" style="margin-bottom:4px;">📰 뉴스</div>
-          <div style="font-size:13px;color:#64748b;">DEEDRA 관련 뉴스·시장 동향·업데이트 정보를 관리합니다</div>
+          <div style="font-size:13px;color:#64748b;">DDRA 관련 뉴스·시장 동향·업데이트 정보를 관리합니다</div>
         </div>
         <button class="btn btn-primary" id="newNewsBtn" style="display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:14px;">
           <span style="font-size:18px;">📝</span> 뉴스 등록
@@ -2867,7 +2867,7 @@ canvas{width:100% !important;}
               <input type="number" class="form-input" id="cfg_minDeposit" placeholder="10" min="0" step="0.01">
             </div>
             <div class="form-group">
-              <label class="form-label">최소 출금액 (DEEDRA)</label>
+              <label class="form-label">최소 출금액 (USDT)</label>
               <input type="number" class="form-input" id="cfg_minWithdrawal" placeholder="10" min="0" step="0.01">
             </div>
             <div class="form-group">
@@ -3144,7 +3144,7 @@ canvas{width:100% !important;}
                   <label class="mfield-label">수정 항목</label>
                   <select class="mfield-input select" id="walletAdjustField">
                     <option value="usdtBalance">USDT 잔액</option>
-                    <option value="dedraBalance">DEEDRA 잔액</option>
+                    <option value="dedraBalance">DDRA 잔액 (게임)</option>
                     <option value="totalDeposit">총 입금액</option>
                     <option value="totalEarnings">총 수익</option>
                   </select>
@@ -3390,7 +3390,7 @@ canvas{width:100% !important;}
         <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">📰</div>
         <div>
           <div id="newsModalTitle" style="font-size:18px;font-weight:800;color:#fff;">뉴스 등록</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px;">DEEDRA 관련 뉴스·시장 동향·업데이트를 등록하세요</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px;">DDRA 관련 뉴스·시장 동향·업데이트를 등록하세요</div>
         </div>
       </div>
       <button onclick="closeModal('newsModal')"
@@ -3803,15 +3803,13 @@ async function loadWithdrawals(status = 'pending') {
         const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
         if (!rows.length) { wrap.innerHTML = emptyState('출금 내역이 없습니다'); return; }
 
-        const rateInfo = dedraRate
-            ? `<div style="font-size:11px;color:#6366f1;background:#ede9fe;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">💱 적용 시세: 1 DEEDRA = $${dedraRate} USD</div>`
-            : `<div style="font-size:11px;color:#92400e;background:#fef3c7;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">⚠️ 시세 미설정 — USD 환산 불가</div>`;
+        const rateInfo = `<div style="font-size:11px;color:#6366f1;background:#ede9fe;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">💱 출금 = USDT 기준 신청 → DDRA 코인으로 지급</div>`;
 
         wrap.innerHTML = rateInfo + `<div class="table-wrap"><table>
           <thead><tr>
             <th>회원 UID</th>
-            <th>금액 (DEEDRA)</th>
-            <th>USD 환산</th>
+            <th>신청 (USDT)</th>
+            <th>지급 (DDRA)</th>
             <th>지갑 주소</th>
             <th>신청일</th>
             <th>상태</th>
@@ -3819,13 +3817,14 @@ async function loadWithdrawals(status = 'pending') {
             <th>작업</th>
           </tr></thead>
           <tbody>${rows.map(r => {
-            const usd = (dedraRate && dedraRate > 0) ? (r.amount * dedraRate).toFixed(4) : null;
+            const amtUsdt = (r.amountUsdt || r.amount || 0).toFixed(2);
+            const amtDdra = (r.amount || 0).toFixed(4);
             const wallet = r.walletAddress || '';
             const walletShort = wallet ? wallet.substring(0,6)+'...'+wallet.substring(wallet.length-4) : '없음';
             return `<tr>
               <td><code style="font-size:12px;">${r.userId?.substring(0,12)}...</code></td>
-              <td><strong style="color:#dc2626;font-size:14px;">${r.amount?.toFixed(2)}</strong><div style="font-size:10px;color:#94a3b8;">DEEDRA</div></td>
-              <td>${usd ? `<strong style="color:#7c3aed;">$${usd}</strong><div style="font-size:10px;color:#94a3b8;">USD</div>` : '<span style="color:#94a3b8;font-size:12px;">-</span>'}</td>
+              <td><strong style="color:#dc2626;font-size:14px;">${amtUsdt}</strong><div style="font-size:10px;color:#94a3b8;">USDT</div></td>
+              <td><strong style="color:#6d28d9;font-size:13px;">${amtDdra}</strong><div style="font-size:10px;color:#94a3b8;">DDRA</div></td>
               <td title="${wallet}">
                 <code style="font-size:11px;">${walletShort}</code>
                 ${wallet ? `<button onclick="navigator.clipboard.writeText('${wallet}').then(()=>showToast('주소 복사됨','success'))" style="background:none;border:none;cursor:pointer;font-size:10px;color:#6366f1;padding:0 2px;vertical-align:middle;" title="복사">📋</button>` : ''}
@@ -3888,7 +3887,7 @@ async function loadBonusLog() {
             .slice(0,50);
         if (!rows.length) { wrap.innerHTML = emptyState('보너스 지급 내역 없음'); return; }
         wrap.innerHTML = `<div class="table-wrap"><table>
-          <thead><tr><th>회원 UID</th><th>유형</th><th>금액 (DEEDRA)</th><th>사유</th><th>지급자</th><th>일시</th></tr></thead>
+          <thead><tr><th>회원 UID</th><th>유형</th><th>금액 (USDT→DDRA)</th><th>사유</th><th>지급자</th><th>일시</th></tr></thead>
           <tbody>${rows.map(r=>`<tr>
             <td><code style="font-size:12px;">${(r.userId||'').substring(0,12)}...</code></td>
             <td><span class="badge badge-approved">${r.type==='manual_bonus'?'수동지급':r.type}</span></td>
@@ -4674,30 +4673,33 @@ window.showWithdrawalDetail = async (txId) => {
     const subEl = document.getElementById('wdModalSubtitle');
     if (subEl) subEl.textContent = memberName + ' • ' + fmtDate(currentTx.createdAt);
 
-    const usdHtml = usdValue
-        ? `<div style="text-align:right;"><div style="font-size:11px;color:#ef4444;font-weight:600;margin-bottom:2px;">USD 환산</div><div style="font-size:18px;font-weight:700;color:#7f1d1d;">≈ $${usdValue}</div><div style="font-size:10px;color:#b91c1c;">1 DEEDRA = $${dedraRate}</div></div>`
-        : `<div style="background:#fef3c7;padding:6px 10px;border-radius:6px;font-size:11px;color:#92400e;">⚠️ 시세 미설정</div>`;
+    // 출금 신청 금액 표시 (USDT 기준 신청, DDRA로 지급)
+    // currentTx.amountUsdt = USDT 신청금액, currentTx.amount = DDRA 환산 수량
+    const amountUsdt = currentTx.amountUsdt || currentTx.amount || 0;
+    const amountDdra = currentTx.amount || 0;
+    const ddraPrice  = currentTx.ddraPrice || dedraRate || 0;
 
-    const walletCopyBtn = wallet !== '-'
-        ? `<div style="font-size:11px;color:#0284c7;margin-top:5px;"><button onclick="navigator.clipboard.writeText('${wallet}').then(()=>{this.textContent='✅ 복사됨';setTimeout(()=>{this.textContent='📋 주소 복사'},2000)})" style="background:none;border:none;color:#0284c7;cursor:pointer;font-size:11px;text-decoration:underline;padding:0;">📋 주소 복사</button></div>`
-        : '';
+    const usdHtml = `<div style="text-align:right;">
+        <div style="font-size:11px;color:#6366f1;font-weight:600;margin-bottom:2px;">DDRA 환산</div>
+        <div style="font-size:18px;font-weight:700;color:#4c1d95;">≈ ${amountDdra.toFixed(4)} DDRA</div>
+        <div style="font-size:10px;color:#6d28d9;">1 DDRA = $${ddraPrice.toFixed(4)} USDT</div></div>`;
 
-    const usdAmtExtra = usdValue
-        ? ` <span style="color:#7f1d1d;font-size:12px;">(≈ $${usdValue} USD)</span>`
-        : '';
+    const usdAmtExtra = ` <span style="color:#6d28d9;font-size:12px;">(≈ ${amountDdra.toFixed(4)} DDRA)</span>`;
 
     const pendingNote = isPending
-        ? `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:14px;"><div style="font-size:12px;color:#92400e;font-weight:700;margin-bottom:4px;">⚠️ 승인 전 확인사항</div><ul style="font-size:12px;color:#78350f;margin:0;padding-left:16px;line-height:1.8;"><li>위 Solana 지갑 주소로 <strong>${currentTx.amount?.toFixed(2)} DEEDRA</strong>${usdValue?` (≈ $${usdValue} USD)`:''} 를 전송하세요</li><li>전송 완료 후 TXID를 아래에 입력하고 "송금 완료 승인" 버튼을 클릭하세요</li><li>승인 후 회원의 DEEDRA 잔액에서 해당 금액이 차감됩니다</li></ul></div>`
+        ? `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:14px;"><div style="font-size:12px;color:#92400e;font-weight:700;margin-bottom:4px;">⚠️ 승인 전 확인사항</div><ul style="font-size:12px;color:#78350f;margin:0;padding-left:16px;line-height:1.8;"><li>위 지갑 주소로 <strong>${amountDdra.toFixed(4)} DDRA</strong> (≈ ${amountUsdt.toFixed(2)} USDT) 를 전송하세요</li><li>전송 완료 후 TXID를 아래에 입력하고 "송금 완료 승인" 버튼을 클릭하세요</li><li>승인 후 회원의 수익 잔액(USDT)에서 해당 금액이 차감됩니다</li></ul></div>`
         : '';
 
     document.getElementById('withdrawalModalBody').innerHTML =
-        `<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:12px;padding:14px 16px;margin-bottom:16px;"><div style="display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:28px;">💎</span><div><div style="font-size:22px;font-weight:800;color:#991b1b;">${currentTx.amount?.toFixed(2)} DEEDRA</div><div style="font-size:12px;color:#dc2626;margin-top:2px;">출금 신청 — <strong>${memberName}</strong></div></div></div>${usdHtml}</div></div>`
-        + `<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:11px;color:#0369a1;font-weight:700;margin-bottom:6px;">🔗 출금 목적지 지갑 주소 (Solana)</div><div style="font-family:monospace;font-size:13px;color:#0c4a6e;word-break:break-all;background:#e0f2fe;padding:8px 12px;border-radius:8px;border:1px solid #7dd3fc;">${wallet}</div>${walletCopyBtn}</div>`
+        `<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:12px;padding:14px 16px;margin-bottom:16px;"><div style="display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:28px;">💎</span><div><div style="font-size:22px;font-weight:800;color:#991b1b;">${amountUsdt.toFixed(2)} USDT</div><div style="font-size:12px;color:#dc2626;margin-top:2px;">출금 신청 — <strong>${memberName}</strong></div></div></div>${usdHtml}</div></div>`
+        + `<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:11px;color:#0369a1;font-weight:700;margin-bottom:6px;">🔗 출금 목적지 지갑 주소</div><div style="font-family:monospace;font-size:13px;color:#0c4a6e;word-break:break-all;background:#e0f2fe;padding:8px 12px;border-radius:8px;border:1px solid #7dd3fc;">${wallet}</div>${walletCopyBtn}</div>`
         + `<div style="display:grid;gap:2px;">`
         + infoRow('거래 ID', `<code style="font-size:11px;">${currentTx.id}</code>`)
         + infoRow('회원 이름', `<strong>${memberName}</strong>`)
         + infoRow('회원 UID', `<code style="font-size:11px;">${currentTx.userId}</code>`)
-        + infoRow('신청 금액', `<strong style="color:#dc2626;">${currentTx.amount?.toFixed(2)} DEEDRA</strong>${usdAmtExtra}`)
+        + infoRow('신청 금액 (USDT)', `<strong style="color:#dc2626;">${amountUsdt.toFixed(2)} USDT</strong>`)
+        + infoRow('지급 금액 (DDRA)', `<strong style="color:#6d28d9;">${amountDdra.toFixed(4)} DDRA</strong>${usdAmtExtra}`)
+        + infoRow('적용 시세', `1 DDRA = $${ddraPrice.toFixed(4)} USDT`)
         + infoRow('신청일', fmtDate(currentTx.createdAt))
         + infoRow('상태', `<span class="badge badge-${currentTx.status}">${fmtStatus(currentTx.status)}</span>`)
         + (currentTx.txid ? infoRow('처리 TXID', `<code style="font-size:11px;word-break:break-all;">${currentTx.txid}</code>`) : '')
@@ -4799,9 +4801,9 @@ window.showMemberDetail = async (userId) => {
             <div class="wallet-item-unit">USDT</div>
         </div>
         <div class="wallet-item">
-            <div class="wallet-item-label">DEEDRA 잔액</div>
+            <div class="wallet-item-label">DDRA 게임 잔액</div>
             <div class="wallet-item-value deedra">${(wallet.dedraBalance||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">DEEDRA</div>
+            <div class="wallet-item-unit">DDRA</div>
         </div>
         <div class="wallet-item">
             <div class="wallet-item-label">총 입금액</div>
@@ -4811,12 +4813,12 @@ window.showMemberDetail = async (userId) => {
         <div class="wallet-item">
             <div class="wallet-item-label">총 출금액</div>
             <div class="wallet-item-value withdrawal">${(wallet.totalWithdrawal||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">DEEDRA</div>
+            <div class="wallet-item-unit">USDT</div>
         </div>
         <div class="wallet-item" style="grid-column:span 2;">
-            <div class="wallet-item-label">누적 수익</div>
+            <div class="wallet-item-label">누적 수익 (USDT 기준)</div>
             <div class="wallet-item-value earnings">${(wallet.totalEarnings||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">DEEDRA</div>
+            <div class="wallet-item-unit">USDT</div>
         </div>`;
 
     document.getElementById('walletAdjustField').value  = 'usdtBalance';
@@ -4949,7 +4951,7 @@ async function loadMemberTxHistory(userId) {
           <thead><tr><th>유형</th><th>금액</th><th>상태</th><th>TXID</th><th>일시</th></tr></thead>
           <tbody>${rows.map(r=>`<tr>
             <td><span class="badge ${r.type==='deposit'?'badge-approved':'badge-pending'}">${r.type==='deposit'?'입금':'출금'}</span></td>
-            <td><strong>${(r.amount||0).toFixed(2)} ${r.type==='deposit'?'USDT':'DEEDRA'}</strong></td>
+            <td><strong>${(r.type==='deposit' ? (r.amount||0) : (r.amountUsdt||r.amount||0)).toFixed(2)} USDT${r.type==='withdrawal' && r.amount ? ` (≈${(r.amount||0).toFixed(4)} DDRA)` : ''}</strong></td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
             <td><code style="font-size:11px;">${(r.txid||'-').substring(0,14)}</code></td>
             <td style="font-size:12px;">${fmtDate(r.createdAt)}</td>
@@ -5090,7 +5092,7 @@ function setupEvents() {
         // 현재 시세 표시 포함한 확인창
         const dedraAmt = currentTx.amount?.toFixed(2);
         const rate = _cachedDedraRate;
-        const usdMsg = rate ? `\n▸ USD 환산: ≈ $${(currentTx.amount*rate).toFixed(4)} (시세: 1 DEEDRA = $${rate})` : '';
+        const usdMsg = rate ? `\n▸ USD 환산: ≈ $${(currentTx.amount*rate).toFixed(4)} (시세: 1 DDRA = $${rate})` : '';
         const wallet = currentTx.walletAddress || '주소 없음';
         if (!confirm(`💸 출금 송금 완료 승인\n\n▸ 금액: ${dedraAmt} DEEDRA${usdMsg}\n▸ 지갑: ${wallet}\n▸ TXID: ${txid}\n\n위 내용으로 승인하시겠습니까?`)) return;
 

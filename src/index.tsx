@@ -193,22 +193,32 @@ const HTML = () => `<!DOCTYPE html>
 
           <!-- 총 자산 카드 -->
           <div class="asset-main-card">
-            <div class="asset-total-label" data-i18n="totalAssetLabel">총 자산 (USD 환산)</div>
-            <div class="asset-total-amount" id="totalAsset">$0.00</div>
+            <div class="asset-total-label" data-i18n="totalAssetLabel">총 자산 (USDT 환산)</div>
+            <div class="asset-total-amount" id="totalAsset">0.00 USDT</div>
             <div class="asset-total-sub" id="totalAssetKrw">≈ ₩0</div>
 
-            <!-- 원금/이자 분리 -->
+            <!-- 원금/수익 분리 -->
             <div class="asset-split-row">
               <div class="asset-split-item">
                 <div class="asset-split-icon">🔒</div>
                 <div class="asset-split-label" data-i18n="assetLocked">USDT 원금 (잠금)</div>
-                <div class="asset-split-value" id="splitUsdt">0.00</div>
-                <div class="asset-split-sub" data-i18n="assetInvesting">투자 중</div>
+                <div class="asset-split-value" id="splitUsdt">0.00 USDT</div>
+                <div class="asset-split-sub" data-i18n="assetInvesting">투자 중 (계약 만기 후 출금)</div>
               </div>
               <div class="asset-split-item">
-                <div class="asset-split-icon">💎</div>
-                <div class="asset-split-label" data-i18n="assetInterest">DEEDRA 이자 (출금 가능)</div>
-                <div class="asset-split-value" id="splitDedra">0.00</div>
+                <div class="asset-split-icon">💰</div>
+                <div class="asset-split-label" data-i18n="assetInterest">수익 잔액 (출금 가능)</div>
+                <div class="asset-split-value" id="splitBonus">0.00 USDT</div>
+                <div class="asset-split-sub" id="splitBonusDdra">≈ 0.00 DDRA</div>
+              </div>
+            </div>
+
+            <!-- DDRA 게임 잔액 (separate row) -->
+            <div class="asset-split-row" style="margin-top:6px;">
+              <div class="asset-split-item" style="opacity:0.7;">
+                <div class="asset-split-icon">🎮</div>
+                <div class="asset-split-label">DDRA 게임 잔액</div>
+                <div class="asset-split-value" id="splitDedra">0.00 DDRA</div>
                 <div class="asset-split-sub" id="splitDedraUsd">≈ $0.00</div>
               </div>
             </div>
@@ -219,21 +229,21 @@ const HTML = () => `<!DOCTYPE html>
                 <i class="fas fa-arrow-down"></i> <span data-i18n="btnDeposit">USDT 입금</span>
               </button>
               <button class="asset-action-btn withdraw" onclick="showWithdrawModal()">
-                <i class="fas fa-arrow-up"></i> <span data-i18n="btnWithdraw">DEEDRA 출금</span>
+                <i class="fas fa-arrow-up"></i> <span data-i18n="btnWithdraw">DDRA 출금 (수익)</span>
               </button>
             </div>
           </div>
 
-          <!-- DEEDRA 시세창 -->
+          <!-- DDRA 시세사 -->
           <div class="price-ticker-card">
             <div class="price-ticker-coin">💎</div>
             <div class="price-ticker-info">
-              <div class="price-ticker-name" data-i18n="deedraPrice">DEEDRA 현재 시세</div>
+              <div class="price-ticker-name" data-i18n="deedraPrice">DDRA 현재 시세</div>
               <div class="price-ticker-value" id="deedraPrice">$0.50</div>
-              <div class="price-ticker-sub" id="deedraUpdated">최근 업데이트: -</div>
+              <div class="price-ticker-sub" id="deedraUpdated"></div>
             </div>
             <div class="price-ticker-change">
-              <div class="price-change-value up" id="deedraChange">-</div>
+              <div class="price-change-value up" id="deedraChange">1 DDRA = $0.5000 USDT</div>
             </div>
           </div>
 
@@ -744,26 +754,31 @@ const HTML = () => `<!DOCTYPE html>
           <div class="menu-section">
             <div class="menu-section-title" data-i18n="walletSection">💰 지갑</div>
             <div class="wallet-balance-card">
+              <!-- USDT 원금 (잠금) -->
               <div class="wb-item">
                 <div class="wb-icon usdt-icon">₮</div>
                 <div class="wb-info">
-                  <div class="wb-label" data-i18n="usdtBalance">USDT 잔액</div>
-                  <div class="wb-value" id="moreWalletUsdt">0.00</div>
+                  <div class="wb-label" data-i18n="usdtBalance">USDT 잔액 (원금)</div>
+                  <div class="wb-value" id="moreWalletUsdt">0.00 USDT</div>
+                  <div class="wb-sub" style="color:#f59e0b;">🔒 계약 만기 후 출금 가능</div>
                 </div>
               </div>
+              <!-- 수익 잔액 (출금 가능) -->
               <div class="wb-item">
-                <div class="wb-icon dedra-icon">💎</div>
+                <div class="wb-icon bonus-icon">💰</div>
                 <div class="wb-info">
-                  <div class="wb-label" data-i18n="deedraBalance">DEEDRA 잔액</div>
-                  <div class="wb-value" id="moreWalletDedra">0.00</div>
+                  <div class="wb-label" data-i18n="bonusBalance">수익 잔액 (출금 가능)</div>
+                  <div class="wb-value" id="moreWalletBonus" style="color:var(--green);">0.00 USDT</div>
+                  <div class="wb-sub" id="moreWalletBonusDdra">≈ 0.00 DDRA</div>
+                </div>
+              </div>
+              <!-- DDRA 게임 잔액 -->
+              <div class="wb-item">
+                <div class="wb-icon dedra-icon">🎮</div>
+                <div class="wb-info">
+                  <div class="wb-label" data-i18n="deedraBalance">DDRA 게임 잔액</div>
+                  <div class="wb-value" id="moreWalletDedra">0.00 DDRA</div>
                   <div class="wb-sub" id="moreWalletDedraUsd">≈ $0.00</div>
-                </div>
-              </div>
-              <div class="wb-item">
-                <div class="wb-icon bonus-icon">🎁</div>
-                <div class="wb-info">
-                  <div class="wb-label" data-i18n="bonusBalance">보너스 잔액</div>
-                  <div class="wb-value" id="moreWalletBonus">0.00</div>
                 </div>
               </div>
             </div>
@@ -774,7 +789,7 @@ const HTML = () => `<!DOCTYPE html>
               </button>
               <button class="wallet-action-btn withdraw" onclick="showWithdrawModal()">
                 <i class="fas fa-arrow-up"></i>
-                <span data-i18n="btnWithdraw">DEEDRA 출금</span>
+                <span data-i18n="btnWithdraw">DDRA 출금 (수익)</span>
               </button>
             </div>
           </div>
@@ -946,26 +961,41 @@ const HTML = () => `<!DOCTYPE html>
   </div>
 </div>
 
-<!-- DEEDRA 출금 모달 -->
+<!-- 수익 출금 모달 (USDT → DDRA 환산 지급) -->
 <div id="withdrawModal" class="modal hidden">
   <div class="modal-overlay" onclick="closeModal('withdrawModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title" data-i18n="modalWithdraw">💸 DEEDRA 출금 신청</div>
+    <div class="modal-title" data-i18n="modalWithdraw">💸 수익 출금 신청 (DDRA 지급)</div>
     <div class="modal-body">
-      <div class="info-box">
-        <div class="info-label" data-i18n="withdrawAvailLabel">출금 가능 잔액</div>
+      <!-- 출금 가능 수익 잔액 -->
+      <div class="info-box" style="margin-bottom:10px;">
+        <div class="info-label" data-i18n="withdrawAvailLabel">출금 가능 수익 (USDT)</div>
         <div style="font-size:22px;font-weight:800;color:var(--accent)">
-          <span id="withdrawAvailable">0.00</span> DEEDRA
+          <span id="withdrawAvailable">0.00</span> USDT
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">
+          💡 수익만 출금 가능 · 투자 원금은 계약 만기 후 인출 가능
+        </div>
+      </div>
+      <!-- 원금 잠금 안내 -->
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text2);">
+        🔒 <strong style="color:var(--accent)">원금 잠금 안내</strong><br>
+        투자 원금은 계약 기간 동안 잠금 상태입니다.<br>
+        수익(ROI·보너스)은 언제든지 출금 신청 가능합니다.
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-i18n="withdrawAmountLabel">출금 금액 (USDT)</label>
+        <input type="number" id="withdrawAmount" class="form-input" placeholder="0.00" min="0" step="0.01"
+          oninput="onWithdrawAmountInput()" />
+        <!-- DDRA 환산 실시간 표시 -->
+        <div id="withdrawDdraCalc" style="margin-top:6px;font-size:12px;color:#94a3b8;padding:6px 10px;background:var(--card2,rgba(255,255,255,0.04));border-radius:8px;">
+          1 DDRA = $0.5000 USDT
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" data-i18n="withdrawAmountLabel">출금 금액 (DEEDRA)</label>
-        <input type="number" id="withdrawAmount" class="form-input" placeholder="0.00" min="0" step="0.01" />
-      </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="withdrawAddressLabel">수신 지갑 주소</label>
-        <input type="text" id="withdrawAddress" class="form-input" placeholder="수신 지갑 주소 입력" data-i18n="withdrawAddressPlaceholder" data-i18n-attr="placeholder" />
+        <label class="form-label" data-i18n="withdrawAddressLabel">수신 지갑 주소 (DDRA)</label>
+        <input type="text" id="withdrawAddress" class="form-input" placeholder="DDRA 수신 지갑 주소 입력" data-i18n="withdrawAddressPlaceholder" data-i18n-attr="placeholder" />
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="withdrawPinLabel">출금 PIN (6자리)</label>
