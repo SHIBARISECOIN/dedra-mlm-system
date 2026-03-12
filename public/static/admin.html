@@ -2516,7 +2516,7 @@ canvas{width:100% !important;}
       <!-- ── 유니레벨 추천 보너스 (3~10단계) ── -->
       <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <span style="font-size:16px;font-weight:700;color:#1e293b;">🌐 [Policy A] 유니레벨 추천 보너스율 (1~10단계)</span>
+          <span style="font-size:16px;font-weight:700;color:#1e293b;">🌐 [Policy A] 유니레벨 추천 보너스율 (무제한 단계)</span>
           <span id="badge_unilevel" style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#16a34a;font-weight:600;">활성</span>
         </div>
         <div style="font-size:12px;color:#64748b;margin-bottom:16px;">
@@ -2525,6 +2525,11 @@ canvas{width:100% !important;}
           1대·2대 직접보너스(Policy A)가 활성화된 경우 3단계부터 적용됩니다.
         </div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;" id="unilevelRateGrid"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:14px;">
+          <button onclick="addUnilevelStage()" style="padding:7px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">＋ 단계 추가</button>
+          <button onclick="removeUnilevelStage()" style="padding:7px 18px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">－ 마지막 단계 삭제</button>
+          <span style="font-size:12px;color:#64748b;" id="unilevelStageCount"></span>
+        </div>
       </div>
 
       <!-- ── 직급 차이 보너스 ── -->
@@ -7667,11 +7672,41 @@ function renderDirectBonusRates(rates) {
 function renderUnilevelRates(rates) {
     const grid = document.getElementById('unilevelRateGrid');
     grid.innerHTML = rates.map((v, i) => `
-        <div style="text-align:center;">
+        <div style="text-align:center;" id="uni_cell_${i}">
             <div style="font-size:12px;color:var(--gray);margin-bottom:6px;">${i+1}단계</div>
             <input type="number" class="settings-input" id="uni_${i}" value="${v}" step="0.1" min="0" max="100" style="text-align:center;">
             <div style="font-size:11px;color:var(--gray);margin-top:4px;">%</div>
         </div>`).join('');
+    _updateUnilevelCount();
+}
+
+function _updateUnilevelCount() {
+    const cells = document.querySelectorAll('#unilevelRateGrid > div[id^="uni_cell_"]');
+    const el = document.getElementById('unilevelStageCount');
+    if (el) el.textContent = `현재 ${cells.length}단계`;
+}
+
+function addUnilevelStage() {
+    const grid = document.getElementById('unilevelRateGrid');
+    const cells = grid.querySelectorAll('div[id^="uni_cell_"]');
+    const i = cells.length;
+    const div = document.createElement('div');
+    div.id = `uni_cell_${i}`;
+    div.style.textAlign = 'center';
+    div.innerHTML = `
+        <div style="font-size:12px;color:var(--gray);margin-bottom:6px;">${i+1}단계</div>
+        <input type="number" class="settings-input" id="uni_${i}" value="0" step="0.1" min="0" max="100" style="text-align:center;">
+        <div style="font-size:11px;color:var(--gray);margin-top:4px;">%</div>`;
+    grid.appendChild(div);
+    _updateUnilevelCount();
+}
+
+function removeUnilevelStage() {
+    const grid = document.getElementById('unilevelRateGrid');
+    const cells = grid.querySelectorAll('div[id^="uni_cell_"]');
+    if (cells.length <= 1) { showToast('⚠️ 최소 1단계는 유지해야 합니다.'); return; }
+    grid.removeChild(cells[cells.length - 1]);
+    _updateUnilevelCount();
 }
 
 function renderRankBonusRates(rates) {
@@ -7779,7 +7814,8 @@ async function saveProductRate(productId, type) {
 
 function setupRateButtons() {
     document.getElementById('saveRatesBtn').onclick = async () => {
-        const unilevelRates = Array.from({length:10}, (_,i) => parseFloat(document.getElementById(`uni_${i}`)?.value)||0);
+        const unilevelCells = document.querySelectorAll('#unilevelRateGrid > div[id^="uni_cell_"]');
+        const unilevelRates = Array.from(unilevelCells, (_, i) => parseFloat(document.getElementById(`uni_${i}`)?.value) || 0);
         const ranks = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
         const rankBonusRates = {};
         ranks.forEach(r => { rankBonusRates[r] = parseFloat(document.getElementById(`rank_${r}`)?.value)||0; });
