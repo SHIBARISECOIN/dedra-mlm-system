@@ -75,18 +75,12 @@ body {
   z-index: 9999;
 }
 
-.loading-logo {
-  font-size: 64px;
-  margin-bottom: 8px;
+.loading-banner {
+  width: 88%;
+  max-width: 360px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
   animation: pulse 1.5s ease-in-out infinite;
-}
-
-.loading-text {
-  font-size: 28px;
-  font-weight: 800;
-  color: white;
-  letter-spacing: 3px;
-  margin-bottom: 32px;
 }
 
 @keyframes pulse {
@@ -111,13 +105,15 @@ body {
 }
 
 .auth-logo {
-  font-size: 32px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   text-align: center;
+}
+
+.auth-banner-img {
+  width: 100%;
+  max-width: 340px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
 
 .auth-tabs {
@@ -249,12 +245,11 @@ body {
   z-index: 10;
 }
 
-.header-logo {
-  font-size: 20px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.header-logo-img {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .icon-btn {

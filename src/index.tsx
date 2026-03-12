@@ -6,6 +6,9 @@ const app = new Hono()
 // Static files
 app.use('/static/*', serveStatic({ root: './' }))
 
+// 테스트 계정 생성 페이지
+app.get('/setup', (c) => c.html(SETUP_HTML()))
+
 // ─── Main App (SPA) ───────────────────────────────────────────────────────────
 const HTML = () => `<!DOCTYPE html>
 <html lang="ko">
@@ -13,6 +16,7 @@ const HTML = () => `<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>DEEDRA</title>
+  <link rel="icon" href="/static/favicon.ico" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -20,15 +24,16 @@ const HTML = () => `<!DOCTYPE html>
   <div id="app">
     <!-- 로딩 화면 -->
     <div id="loadingScreen" class="loading-screen">
-      <div class="loading-logo">💎</div>
-      <div class="loading-text">DEEDRA</div>
-      <div class="spinner"></div>
+      <img src="/static/logo-banner.png" class="loading-banner" alt="DDRA" />
+      <div class="spinner" style="margin-top:24px"></div>
     </div>
 
     <!-- 인증 화면 -->
     <div id="authScreen" class="screen hidden">
       <div class="auth-container">
-        <div class="auth-logo">💎 DEEDRA</div>
+        <div class="auth-logo">
+          <img src="/static/logo-banner.png" class="auth-banner-img" alt="DDRA" />
+        </div>
         <div class="auth-tabs">
           <button class="auth-tab active" id="loginTab" onclick="switchAuthTab('login')">로그인</button>
           <button class="auth-tab" id="registerTab" onclick="switchAuthTab('register')">회원가입</button>
@@ -76,7 +81,7 @@ const HTML = () => `<!DOCTYPE html>
       <!-- 상단 헤더 -->
       <div class="app-header">
         <div class="header-left">
-          <span class="header-logo">💎 DEEDRA</span>
+          <img src="/static/logo-banner.png" class="header-logo-img" alt="DDRA" />
         </div>
         <div class="header-right">
           <button class="icon-btn" onclick="showNotifications()">
@@ -680,5 +685,97 @@ const HTML = () => `<!DOCTYPE html>
 
 app.get('/', (c) => c.html(HTML()))
 app.get('/app', (c) => c.html(HTML()))
+
+// ─── Setup Page ───────────────────────────────────────────────────────────────
+const SETUP_HTML = () => `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>DEEDRA 테스트 계정 생성</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; background: #f3f4f6; }
+    .card { background: white; padding: 32px; border-radius: 12px; max-width: 520px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    h2 { margin-bottom: 24px; color: #6366f1; }
+    .log { background: #1f2937; color: #10b981; padding: 16px; border-radius: 8px; font-size: 13px; font-family: monospace; min-height: 200px; white-space: pre-wrap; margin-top: 16px; overflow-y: auto; max-height: 400px; }
+    button { padding: 12px 24px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 16px; width: 100%; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>🛠️ DEEDRA 테스트 계정 생성</h2>
+  <p style="color:#6b7280;margin-bottom:8px">버튼을 클릭하면 Firebase에 테스트 계정 3개가 생성됩니다.</p>
+  <button id="createBtn" onclick="createTestAccounts()">▶ 테스트 계정 3개 생성 시작</button>
+  <div class="log" id="log">버튼을 클릭하면 테스트 계정이 생성됩니다...</div>
+</div>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8",
+  authDomain: "dedra-mlm.firebaseapp.com",
+  projectId: "dedra-mlm",
+  storageBucket: "dedra-mlm.firebasestorage.app",
+  messagingSenderId: "990762022325",
+  appId: "1:990762022325:web:1b238ef6eca4ffb4b795fc"
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const testAccounts = [
+  { email:'test1@deedra.com', password:'Test1234!', name:'테스트1호', rank:'G1', usdt:1000, dedra:500, bonus:50, referralCode:'TEST0001' },
+  { email:'test2@deedra.com', password:'Test1234!', name:'테스트2호', rank:'G0', usdt:500,  dedra:200, bonus:20, referralCode:'TEST0002' },
+  { email:'test3@deedra.com', password:'Test1234!', name:'테스트3호', rank:'G2', usdt:5000, dedra:2000,bonus:300,referralCode:'TEST0003' },
+];
+
+function log(msg, color='#d1d5db') {
+  const el = document.getElementById('log');
+  el.innerHTML += '<span style="color:'+color+'">'+msg+'</span>\\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+window.createTestAccounts = async function() {
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true;
+  document.getElementById('log').innerHTML = '';
+
+  for (const a of testAccounts) {
+    log('\\n📋 ['+a.email+'] 처리 중...', '#60a5fa');
+    try {
+      let uid;
+      try {
+        const c = await createUserWithEmailAndPassword(auth, a.email, a.password);
+        uid = c.user.uid;
+        log('  ✅ Auth 계정 신규 생성', '#10b981');
+      } catch(e) {
+        if(e.code==='auth/email-already-in-use') {
+          const c = await signInWithEmailAndPassword(auth, a.email, a.password);
+          uid = c.user.uid;
+          log('  ℹ️ 기존 계정 업데이트', '#60a5fa');
+        } else throw e;
+      }
+      await setDoc(doc(db,'users',uid), { uid, email:a.email, name:a.name, role:'member', rank:a.rank, status:'active', referralCode:a.referralCode, referredBy:null, phone:'', withdrawPin:btoa('123456'), createdAt:serverTimestamp() }, {merge:true});
+      await setDoc(doc(db,'wallets',uid), { userId:uid, usdtBalance:a.usdt, dedraBalance:a.dedra, bonusBalance:a.bonus, totalDeposit:a.usdt, totalWithdrawal:0, totalEarnings:a.bonus, createdAt:serverTimestamp() }, {merge:true});
+      log('  ✅ Firestore 저장 완료 (USDT:'+a.usdt+' / DEEDRA:'+a.dedra+')', '#10b981');
+    } catch(e) {
+      log('  ❌ 오류: '+e.message, '#ef4444');
+    }
+  }
+
+  log('\\n========================================', '#6b7280');
+  log('🎉 완료! 아래 계정으로 앱에서 로그인하세요', '#f59e0b');
+  log('========================================', '#6b7280');
+  testAccounts.forEach(a => {
+    log('📧 '+a.email+'  🔑 '+a.password, '#10b981');
+    log('   직급:'+a.rank+' | USDT:'+a.usdt+' | DEEDRA:'+a.dedra+' | 출금PIN:123456', '#60a5fa');
+    log('----------------------------------------', '#374151');
+  });
+  btn.disabled = false;
+};
+</script>
+</body>
+</html>`
 
 export default app
