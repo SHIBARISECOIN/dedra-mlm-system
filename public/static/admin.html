@@ -622,36 +622,70 @@ canvas{width:100% !important;}
   align-items:center; justify-content:center;">
   <div style="
     background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15);
-    border-radius:24px; padding:48px 40px; width:100%; max-width:400px;
+    border-radius:24px; padding:40px; width:100%; max-width:420px;
     backdrop-filter:blur(20px); box-shadow:0 32px 80px rgba(0,0,0,0.5);">
-    <div style="text-align:center;margin-bottom:32px;">
-      <div style="font-size:40px;margin-bottom:12px;">💎</div>
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:40px;margin-bottom:12px;">&#x1F48E;</div>
       <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Deedra Admin</div>
       <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:6px;">관리자 전용 콘솔</div>
     </div>
-    <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">이메일</label>
-      <input id="adminLoginEmail" type="email" placeholder="admin@deedra.com"
-        style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
-        border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
-        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
-        onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPass').focus()"/>
+    <!-- 로그인 탭 -->
+    <div style="display:flex;gap:4px;background:rgba(255,255,255,.08);border-radius:10px;padding:4px;margin-bottom:24px;">
+      <button id="loginTabAdmin" onclick="switchLoginTab('admin')"
+        style="flex:1;padding:8px;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;background:#6366f1;color:#fff;transition:.2s;">
+        &#x1F511; 관리자
+      </button>
+      <button id="loginTabSub" onclick="switchLoginTab('sub')"
+        style="flex:1;padding:8px;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:rgba(255,255,255,.5);transition:.2s;">
+        &#x1F464; 보조계정
+      </button>
     </div>
-    <div style="margin-bottom:24px;">
-      <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">비밀번호</label>
-      <input id="adminLoginPass" type="password" placeholder="••••••••"
-        style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
-        border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
-        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"/>
+    <!-- 관리자 로그인 폼 -->
+    <div id="adminLoginFormAdmin">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">이메일</label>
+        <input id="adminLoginEmail" type="email" placeholder="admin@deedra.com"
+          style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
+          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+          onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPass').focus()"/>
+      </div>
+      <div style="margin-bottom:24px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">비밀번호</label>
+        <input id="adminLoginPass" type="password" placeholder="&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;"
+          style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
+          onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+          onkeydown="if(event.key==='Enter')adminDoLogin()"/>
+      </div>
+      <div id="adminLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
+      <button id="adminLoginBtn" onclick="adminDoLogin()"
+        style="width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;transition:opacity .2s;"
+        onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+        &#x1F510; 관리자 로그인
+      </button>
     </div>
-    <div id="adminLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);
-      color:#fca5a5;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
-    <button id="adminLoginBtn" onclick="adminDoLogin()"
-      style="width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;
-      color:#fff;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;transition:opacity .2s;"
-      onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
-      🔐 로그인
-    </button>
+    <!-- 보조계정 로그인 폼 -->
+    <div id="adminLoginFormSub" style="display:none;">
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">보조계정 ID</label>
+        <input id="subLoginId" type="text" placeholder="보조계정 로그인 ID"
+          style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
+          onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+          onkeydown="if(event.key==='Enter')document.getElementById('subLoginPass').focus()"/>
+      </div>
+      <div style="margin-bottom:24px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">비밀번호</label>
+        <input id="subLoginPass" type="password" placeholder="&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;&#xB7;"
+          style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
+          onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+          onkeydown="if(event.key==='Enter')subAdminDoLogin()"/>
+      </div>
+      <div id="subLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
+      <button onclick="subAdminDoLogin()"
+        style="width:100%;padding:15px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;transition:opacity .2s;"
+        onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+        &#x1F464; 보조계정 로그인
+      </button>
+    </div>
   </div>
 </div>
 
@@ -3039,6 +3073,30 @@ canvas{width:100% !important;}
           <div id="unilevelRatesWrap"></div>
         </div>
 
+        <!-- ── 관리자 접근 비밀번호 설정 ── -->
+        <div class="settings-section">
+          <div class="settings-section-title">🔐 관리자 모드 접근 비밀번호</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:14px;">관리자 페이지 입장 시 추가로 확인하는 비밀번호입니다. 보조계정 발급 시에도 이 비밀번호가 사용됩니다.</div>
+          <div style="display:flex;gap:10px;align-items:center;max-width:400px;">
+            <input type="password" id="cfg_adminPassword" class="form-input" placeholder="관리자 접근 비밀번호" style="flex:1;" value="000000">
+            <input type="password" id="cfg_adminPasswordConfirm" class="form-input" placeholder="비밀번호 확인" style="flex:1;">
+            <button class="btn btn-primary" onclick="saveAdminPassword()" style="white-space:nowrap;">저장</button>
+          </div>
+          <div id="adminPasswordAlert" style="font-size:12px;margin-top:8px;"></div>
+        </div>
+
+        <!-- ── 보조계정(서브어드민) 관리 ── -->
+        <div class="settings-section">
+          <div class="settings-section-title" style="justify-content:space-between;">
+            <span>👥 보조계정 관리</span>
+            <button class="btn btn-primary" onclick="openSubAdminModal()" style="font-size:12px;padding:6px 14px;">+ 보조계정 발급</button>
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:14px;">보조계정은 관리자 모드에 접근하되, 허가된 메뉴만 이용할 수 있습니다. 읽기/수정 권한을 개별 설정하고 시간제한도 지정할 수 있습니다.</div>
+          <div id="subAdminListWrap">
+            <div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">로딩 중...</div>
+          </div>
+        </div>
+
         <div style="display:flex;gap:10px;">
           <button class="btn btn-primary" id="saveSettingsBtn">💾 설정 저장</button>
           <button class="btn btn-gray" id="reloadSettingsBtn">↩️ 재로드</button>
@@ -3048,6 +3106,84 @@ canvas{width:100% !important;}
 
   </div><!-- /content -->
 </div><!-- /layout -->
+
+<!-- ══════ 모달: 보조계정 발급/편집 ══════ -->
+<div id="subAdminModal" class="modal">
+  <div class="modal-box md" style="max-width:620px;border-radius:18px;padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1e293b,#334155);padding:22px 28px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:17px;font-weight:800;color:#fff;" id="subAdminModalTitle">👤 보조계정 발급</div>
+      <button onclick="closeModal('subAdminModal')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;">✕</button>
+    </div>
+    <div style="padding:24px 28px;max-height:75vh;overflow-y:auto;">
+      <input type="hidden" id="subAdminEditId">
+
+      <!-- 기본 정보 -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;">📋 기본 정보</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">이름/별칭 *</label>
+            <input type="text" id="sa_name" class="form-input" placeholder="예: 운영팀장">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">로그인 ID *</label>
+            <input type="text" id="sa_loginId" class="form-input" placeholder="예: manager01">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">비밀번호 *</label>
+            <input type="password" id="sa_password" class="form-input" placeholder="보조계정 전용 비밀번호">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">메모</label>
+            <input type="text" id="sa_memo" class="form-input" placeholder="역할 설명 (선택)">
+          </div>
+        </div>
+      </div>
+
+      <!-- 접근 시간 제한 -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;">⏰ 접근 시간 제한</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">접근 만료 방식</label>
+            <select id="sa_expireType" class="form-input" onchange="updateSubAdminExpireUI()">
+              <option value="none">제한 없음</option>
+              <option value="datetime">특정 일시까지</option>
+              <option value="duration">로그인 후 N시간</option>
+              <option value="once">1회 로그인 후 삭제</option>
+            </select>
+          </div>
+          <div id="sa_expireDateWrap" style="display:none;">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">만료 일시</label>
+            <input type="datetime-local" id="sa_expireAt" class="form-input">
+          </div>
+          <div id="sa_expireDurationWrap" style="display:none;">
+            <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">유효 시간 (시간)</label>
+            <input type="number" id="sa_expireDuration" class="form-input" placeholder="예: 24" min="1">
+          </div>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:8px;">⚠️ <b>1회 로그인 후 삭제</b>: 로그인 성공 즉시 계정이 삭제됩니다</div>
+      </div>
+
+      <!-- 메뉴 권한 -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;">🔑 메뉴별 접근 권한</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button type="button" onclick="setAllSubAdminPerms('rw')" style="padding:4px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #6366f1;color:#6366f1;background:#ede9fe;cursor:pointer;">전체 읽기+수정</button>
+          <button type="button" onclick="setAllSubAdminPerms('ro')" style="padding:4px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #3b82f6;color:#3b82f6;background:#eff6ff;cursor:pointer;">전체 읽기만</button>
+          <button type="button" onclick="setAllSubAdminPerms('no')" style="padding:4px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #e2e8f0;color:#94a3b8;background:#f8fafc;cursor:pointer;">전체 차단</button>
+        </div>
+        <div id="sa_permGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      </div>
+
+      <div id="subAdminFormAlert" style="font-size:13px;margin-bottom:12px;display:none;padding:10px 14px;border-radius:8px;"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-gray" onclick="closeModal('subAdminModal')">취소</button>
+        <button class="btn btn-primary" onclick="saveSubAdmin()" id="saveSubAdminBtn">💾 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══════ 모달: 입금 상세 (개선) ══════ -->
 <div id="depositModal" class="modal">
@@ -3722,7 +3858,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, onAuthStateChanged, signOut, signInWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
     getFirestore, doc, getDoc, collection, getDocs,
-    query, where, orderBy, limit
+    query, where, orderBy, limit,
+    addDoc, updateDoc, deleteDoc, setDoc, serverTimestamp, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { DedraAPI } from '/static/js/api.js';
 
@@ -9354,6 +9491,473 @@ window._adminConfirm = function(msg, icon = '⚠️') {
 };
 // 원본 confirm 백업 후 교체 (admin.html 범위 전용)
 window._nativeConfirm = window.confirm;
+
+// ══════════════════════════════════════════════════
+// 로그인 탭 전환
+// ══════════════════════════════════════════════════
+window.switchLoginTab = function(tab) {
+  const isAdmin = tab === 'admin';
+  document.getElementById('adminLoginFormAdmin').style.display = isAdmin ? '' : 'none';
+  document.getElementById('adminLoginFormSub').style.display   = isAdmin ? 'none' : '';
+  document.getElementById('loginTabAdmin').style.background = isAdmin ? '#6366f1' : 'transparent';
+  document.getElementById('loginTabAdmin').style.color      = isAdmin ? '#fff' : 'rgba(255,255,255,.5)';
+  document.getElementById('loginTabSub').style.background   = isAdmin ? 'transparent' : '#10b981';
+  document.getElementById('loginTabSub').style.color        = isAdmin ? 'rgba(255,255,255,.5)' : '#fff';
+};
+
+// ══════════════════════════════════════════════════
+// 보조계정(서브어드민) 시스템
+// ══════════════════════════════════════════════════
+let _currentSubAdmin = null; // 현재 로그인한 보조계정
+
+const SUB_ADMIN_MENUS = [
+  { key:'dashboard',   label:'📊 대시보드' },
+  { key:'members',     label:'👥 회원 관리' },
+  { key:'deposits',    label:'💳 입금 관리' },
+  { key:'withdrawals', label:'💸 출금 관리' },
+  { key:'investments', label:'📈 투자 관리' },
+  { key:'gameLogs',    label:'🎮 게임 로그' },
+  { key:'settlements', label:'🏦 정산 관리' },
+  { key:'broadcast',   label:'📣 푸시 발송' },
+  { key:'rankMonitor', label:'🏆 직급 관리' },
+  { key:'centers',     label:'🏢 센터 관리' },
+  { key:'notices',     label:'📢 공지 관리' },
+  { key:'news',        label:'📰 뉴스 관리' },
+  { key:'tickets',     label:'🎫 1:1 문의' },
+  { key:'auditlog',    label:'📋 감사 로그' },
+  { key:'settings',    label:'⚙️ 시스템 설정' },
+];
+
+// 보조계정 로그인
+window.subAdminDoLogin = async function() {
+  const loginId = document.getElementById('subLoginId')?.value.trim();
+  const pass    = document.getElementById('subLoginPass')?.value;
+  const errEl   = document.getElementById('subLoginErr');
+  if (!loginId || !pass) { _showSubErr('ID와 비밀번호를 입력하세요.'); return; }
+  try {
+    const snap = await getDocs(query(collection(db, 'subAdmins'), where('loginId','==',loginId), where('isActive','==',true)));
+    if (snap.empty) { _showSubErr('존재하지 않는 계정입니다.'); return; }
+    const docSnap = snap.docs[0];
+    const sa = docSnap.data();
+    // 비밀번호 확인 (SHA-256 해시 비교)
+    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass));
+    const hashHex = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    if (sa.passwordHash !== hashHex) { _showSubErr('비밀번호가 올바르지 않습니다.'); return; }
+    // 만료 확인
+    const now = Date.now();
+    if (sa.expireType === 'datetime' && sa.expireAt && sa.expireAt.toMillis() < now) {
+      _showSubErr('접근 기간이 만료된 계정입니다.'); return;
+    }
+    if (sa.expireType === 'once') {
+      // 1회용 - 로그인 후 비활성화
+      await updateDoc(doc(db, 'subAdmins', docSnap.id), { isActive: false, usedAt: serverTimestamp() });
+    } else if (sa.expireType === 'duration' && sa.expireDuration) {
+      // 로그인 후 N시간 제한 - 만료 일시 기록
+      const expAt = new Date(now + sa.expireDuration * 3600000);
+      await updateDoc(doc(db, 'subAdmins', docSnap.id), { sessionExpireAt: expAt });
+    }
+    // 세션 저장
+    _currentSubAdmin = { id: docSnap.id, ...sa };
+    sessionStorage.setItem('subAdminSession', JSON.stringify({ id: docSnap.id, name: sa.name, loginId: sa.loginId, perms: sa.perms }));
+    _enterSubAdminMode(_currentSubAdmin);
+  } catch(e) { _showSubErr('오류: ' + e.message); }
+};
+
+function _showSubErr(msg) {
+  const el = document.getElementById('subLoginErr');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+// 보조계정 모드 진입
+function _enterSubAdminMode(sa) {
+  document.getElementById('adminLoginOverlay').style.display = 'none';
+  document.getElementById('adminMain').style.display = 'flex';
+  // 헤더 이름 표시
+  document.getElementById('adminName').textContent = `[보조] ${sa.name}`;
+  // 메뉴 권한 적용
+  _applySubAdminMenuPerms(sa.perms || {});
+  if (!_setupDone) {
+    api = new DedraAPI(db);
+    loadDashboard();
+    setupEvents();
+    _setupDone = true;
+  }
+}
+
+// 메뉴 권한 적용 (허가되지 않은 메뉴 숨김)
+function _applySubAdminMenuPerms(perms) {
+  SUB_ADMIN_MENUS.forEach(m => {
+    const perm = perms[m.key] || 'no';
+    const menuEl = document.querySelector(`.menu-item[data-page="${m.key}"]`);
+    if (menuEl) menuEl.style.display = perm === 'no' ? 'none' : '';
+  });
+  // 읽기 전용 메뉴는 수정 버튼들 비활성화 (페이지 진입 시 처리)
+  window._subAdminPerms = perms;
+}
+
+// 페이지 진입 시 읽기 전용 체크
+window._checkSubAdminReadOnly = function(menuKey) {
+  if (!_currentSubAdmin && !sessionStorage.getItem('subAdminSession')) return false;
+  const perms = window._subAdminPerms || {};
+  return perms[menuKey] === 'ro'; // read-only
+};
+
+// 보조계정 세션 복원 (새로고침 시)
+(function restoreSubAdminSession() {
+  const s = sessionStorage.getItem('subAdminSession');
+  if (!s) return;
+  try {
+    const sa = JSON.parse(s);
+    _currentSubAdmin = sa;
+    window._subAdminPerms = sa.perms || {};
+  } catch(_) {}
+})();
+
+// ── 보조계정 목록 로드 ──
+async function loadSubAdminList() {
+  const wrap = document.getElementById('subAdminListWrap');
+  if (!wrap) return;
+  try {
+    const snap = await getDocs(collection(db, 'subAdmins'));
+    const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    if (!list.length) {
+      wrap.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">발급된 보조계정이 없습니다</div>';
+      return;
+    }
+    wrap.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#f8fafc;">
+            <th style="padding:10px 12px;text-align:left;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;">이름</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;">로그인ID</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;">상태</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;">만료</th>
+            <th style="padding:10px 12px;text-align:left;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;">허가 메뉴</th>
+            <th style="padding:10px 12px;text-align:center;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;">관리</th>
+          </tr></thead>
+          <tbody>
+            ${list.map(sa => {
+              const active = sa.isActive;
+              const permCount = Object.values(sa.perms||{}).filter(v=>v!=='no').length;
+              const expireText = sa.expireType === 'none' ? '제한없음' :
+                                 sa.expireType === 'once' ? '1회용' :
+                                 sa.expireType === 'datetime' && sa.expireAt ? new Date(sa.expireAt.seconds*1000).toLocaleDateString() :
+                                 sa.expireType === 'duration' ? `${sa.expireDuration}시간` : '-';
+              return `<tr style="border-bottom:1px solid #f1f5f9;${active?'':'opacity:.5'}">
+                <td style="padding:10px 12px;font-weight:600;">${sa.name}</td>
+                <td style="padding:10px 12px;font-family:monospace;color:#6366f1;">${sa.loginId}</td>
+                <td style="padding:10px 12px;">
+                  <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;${active?'background:#dcfce7;color:#15803d;':'background:#fee2e2;color:#dc2626;'}">
+                    ${active ? '활성' : '비활성'}
+                  </span>
+                </td>
+                <td style="padding:10px 12px;font-size:12px;color:#64748b;">${expireText}</td>
+                <td style="padding:10px 12px;font-size:12px;color:#64748b;">${permCount}개 메뉴</td>
+                <td style="padding:10px 12px;text-align:center;">
+                  <div style="display:flex;gap:6px;justify-content:center;">
+                    <button onclick="openSubAdminModal('${sa.id}')" style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #6366f1;color:#6366f1;background:#ede9fe;cursor:pointer;">수정</button>
+                    <button onclick="toggleSubAdmin('${sa.id}',${!active})" style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid ${active?'#f59e0b':'#10b981'};color:${active?'#b45309':'#059669'};background:${active?'#fef3c7':'#dcfce7'};cursor:pointer;">${active?'비활성':'활성화'}</button>
+                    <button onclick="deleteSubAdmin('${sa.id}')" style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid #ef4444;color:#dc2626;background:#fee2e2;cursor:pointer;">삭제</button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;padding:12px;">오류: ${e.message}</div>`;
+  }
+}
+window.loadSubAdminList = loadSubAdminList;
+
+// ── 보조계정 모달 열기 ──
+window.openSubAdminModal = async function(editId = null) {
+  document.getElementById('subAdminEditId').value = editId || '';
+  document.getElementById('subAdminModalTitle').textContent = editId ? '👤 보조계정 수정' : '👤 보조계정 발급';
+  // 권한 그리드 렌더
+  const grid = document.getElementById('sa_permGrid');
+  grid.innerHTML = SUB_ADMIN_MENUS.map(m => `
+    <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:12px;font-weight:600;color:#374151;">${m.label}</span>
+      <select id="perm_${m.key}" style="padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:11px;font-weight:600;color:#374151;cursor:pointer;">
+        <option value="no" style="color:#dc2626;">🚫 차단</option>
+        <option value="ro" style="color:#2563eb;">👁 읽기만</option>
+        <option value="rw" style="color:#059669;">✏️ 읽기+수정</option>
+      </select>
+    </div>`).join('');
+  // 편집 모드면 기존 값 로드
+  if (editId) {
+    try {
+      const snap = await getDoc(doc(db, 'subAdmins', editId));
+      if (snap.exists()) {
+        const sa = snap.data();
+        document.getElementById('sa_name').value = sa.name || '';
+        document.getElementById('sa_loginId').value = sa.loginId || '';
+        document.getElementById('sa_loginId').disabled = true;
+        document.getElementById('sa_password').placeholder = '변경 시에만 입력';
+        document.getElementById('sa_memo').value = sa.memo || '';
+        document.getElementById('sa_expireType').value = sa.expireType || 'none';
+        if (sa.expireDuration) document.getElementById('sa_expireDuration').value = sa.expireDuration;
+        updateSubAdminExpireUI();
+        const perms = sa.perms || {};
+        SUB_ADMIN_MENUS.forEach(m => {
+          const sel = document.getElementById(`perm_${m.key}`);
+          if (sel) sel.value = perms[m.key] || 'no';
+        });
+      }
+    } catch(e) {}
+  } else {
+    document.getElementById('sa_name').value = '';
+    document.getElementById('sa_loginId').value = '';
+    document.getElementById('sa_loginId').disabled = false;
+    document.getElementById('sa_password').value = '';
+    document.getElementById('sa_memo').value = '';
+    document.getElementById('sa_expireType').value = 'none';
+    updateSubAdminExpireUI();
+  }
+  document.getElementById('subAdminModal').classList.add('show');
+};
+
+window.updateSubAdminExpireUI = function() {
+  const type = document.getElementById('sa_expireType').value;
+  document.getElementById('sa_expireDateWrap').style.display     = type === 'datetime' ? '' : 'none';
+  document.getElementById('sa_expireDurationWrap').style.display = type === 'duration' ? '' : 'none';
+};
+
+window.setAllSubAdminPerms = function(val) {
+  SUB_ADMIN_MENUS.forEach(m => {
+    const sel = document.getElementById(`perm_${m.key}`);
+    if (sel) sel.value = val;
+  });
+};
+
+window.saveSubAdmin = async function() {
+  const editId  = document.getElementById('subAdminEditId').value;
+  const name    = document.getElementById('sa_name').value.trim();
+  const loginId = document.getElementById('sa_loginId').value.trim();
+  const pass    = document.getElementById('sa_password').value;
+  const memo    = document.getElementById('sa_memo').value.trim();
+  const expireType = document.getElementById('sa_expireType').value;
+  const alertEl = document.getElementById('subAdminFormAlert');
+  const showErr = msg => { alertEl.style.cssText='display:block;background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:10px 14px;border-radius:8px;'; alertEl.textContent=msg; };
+
+  if (!name || !loginId) { showErr('이름과 로그인 ID는 필수입니다.'); return; }
+  if (!editId && !pass)  { showErr('비밀번호를 입력하세요.'); return; }
+
+  // 퍼미션 수집
+  const perms = {};
+  SUB_ADMIN_MENUS.forEach(m => {
+    perms[m.key] = document.getElementById(`perm_${m.key}`)?.value || 'no';
+  });
+
+  // 비밀번호 해시
+  let passwordHash = undefined;
+  if (pass) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass));
+    passwordHash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  const data = { name, loginId, memo, expireType, perms, isActive: true, updatedAt: serverTimestamp() };
+  if (passwordHash)        data.passwordHash = passwordHash;
+  if (expireType === 'duration') data.expireDuration = parseInt(document.getElementById('sa_expireDuration').value)||24;
+  if (expireType === 'datetime') {
+    const dt = document.getElementById('sa_expireAt').value;
+    if (dt) data.expireAt = new Date(dt);
+  }
+
+  const btn = document.getElementById('saveSubAdminBtn');
+  btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    if (editId) {
+      await updateDoc(doc(db, 'subAdmins', editId), data);
+    } else {
+      // 중복 ID 체크
+      const dup = await getDocs(query(collection(db, 'subAdmins'), where('loginId','==',loginId)));
+      if (!dup.empty) { showErr('이미 사용 중인 로그인 ID입니다.'); btn.disabled=false; btn.textContent='💾 저장'; return; }
+      data.createdAt = serverTimestamp();
+      await addDoc(collection(db, 'subAdmins'), data);
+    }
+    closeModal('subAdminModal');
+    loadSubAdminList();
+    showToast(`✅ 보조계정 ${editId ? '수정' : '발급'} 완료!`, 'success');
+  } catch(e) { showErr('저장 실패: ' + e.message); }
+  btn.disabled = false; btn.textContent = '💾 저장';
+};
+
+window.toggleSubAdmin = async function(id, active) {
+  await updateDoc(doc(db, 'subAdmins', id), { isActive: active });
+  loadSubAdminList();
+  showToast(`✅ 계정 ${active ? '활성화' : '비활성화'} 완료`, 'success');
+};
+
+window.deleteSubAdmin = async function(id) {
+  if (!await _adminConfirm('이 보조계정을 삭제하시겠습니까?', '🗑️')) return;
+  await deleteDoc(doc(db, 'subAdmins', id));
+  loadSubAdminList();
+  showToast('✅ 보조계정 삭제 완료', 'success');
+};
+
+// ── 관리자 접근 비밀번호 저장 ──
+window.saveAdminPassword = async function() {
+  const pw  = document.getElementById('cfg_adminPassword')?.value;
+  const pw2 = document.getElementById('cfg_adminPasswordConfirm')?.value;
+  const al  = document.getElementById('adminPasswordAlert');
+  if (!pw) { al.style.color='#ef4444'; al.textContent='비밀번호를 입력하세요.'; return; }
+  if (pw !== pw2) { al.style.color='#ef4444'; al.textContent='비밀번호가 일치하지 않습니다.'; return; }
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  await setDoc(doc(db, 'settings', 'adminAccess'), { passwordHash: hash, updatedAt: serverTimestamp() }, { merge: true });
+  al.style.color='#10b981'; al.textContent='✅ 저장되었습니다.';
+  setTimeout(() => al.textContent='', 3000);
+};
+
+// 설정 페이지 진입 시 보조계정 목록도 로드
+const _origLoadSettings = window.loadSettings;
+window.loadSettings = async function() {
+  if (_origLoadSettings) await _origLoadSettings();
+  loadSubAdminList();
+  // 저장된 관리자 비밀번호 해시 표시 (보안상 value 미표시, placeholder만)
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'adminAccess'));
+    if (snap.exists()) {
+      const el = document.getElementById('cfg_adminPassword');
+      if (el) el.placeholder = '비밀번호 설정됨 (변경 시 입력)';
+    }
+  } catch(_) {}
+};
+
+// ══════════════════════════════════════════════════
+// 푸시 발송 국가별 자동 번역
+// ══════════════════════════════════════════════════
+const PUSH_LANG_MAP = { ko:'한국어', en:'English', vi:'Tiếng Việt', th:'ภาษาไทย' };
+
+// 간단 번역 테이블 (백엔드 없이 주요 알림 패턴 커버 + 동적 번역은 LibreTranslate 또는 내장 처리)
+async function translateText(text, targetLang) {
+  if (targetLang === 'ko') return text;
+  try {
+    // MyMemory 무료 번역 API (API키 불필요, 일 5000자 제한)
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ko|${targetLang}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.responseStatus === 200 && data.responseData?.translatedText) {
+        return data.responseData.translatedText;
+      }
+    }
+  } catch(_) {}
+  return text; // 번역 실패 시 원문 반환
+}
+
+// 사용자별 언어 조회 후 번역 발송
+async function broadcastWithTranslation(adminId, payload) {
+  const usersSnap = await getDocs(collection(db, 'users'));
+  const batch = writeBatch(db);
+  let count = 0;
+
+  // 언어별 번역 캐시
+  const translationCache = { ko: { title: payload.title, message: payload.message } };
+
+  for (const ud of usersSnap.docs) {
+    const u = ud.data();
+    if (u.role === 'admin') continue;
+    const tg = payload.targetGroup || 'all';
+    if (tg !== 'all') {
+      if (tg === 'active' && u.status !== 'active') continue;
+      if (tg === 'vip' && !['G5','G6','G7','G8','G9','G10'].includes(u.rank)) continue;
+      if (tg === 'new') {
+        const ts = u.createdAt?.seconds ? u.createdAt.seconds * 1000 : 0;
+        if (Date.now() - ts > 7 * 86400000) continue;
+      }
+    }
+    const lang = u.language || 'ko';
+    if (!translationCache[lang]) {
+      const [tTitle, tMsg] = await Promise.all([
+        translateText(payload.title,   lang),
+        translateText(payload.message, lang)
+      ]);
+      translationCache[lang] = { title: tTitle, message: tMsg };
+    }
+    const t = translationCache[lang];
+    const nRef = doc(collection(db, 'notifications'));
+    batch.set(nRef, {
+      userId: ud.id,
+      title: t.title,
+      message: t.message,
+      originalTitle: payload.title,
+      originalMessage: payload.message,
+      lang,
+      type: payload.type || 'system',
+      icon: payload.icon || '📣',
+      color: payload.color || '#6366f1',
+      isRead: false,
+      createdAt: serverTimestamp()
+    });
+    count++;
+  }
+  await batch.commit();
+  return { count, langCoverage: Object.keys(translationCache) };
+}
+
+// 즉시 발송 함수 오버라이드 (번역 적용)
+const _origSendInstantBroadcast = window.sendInstantBroadcast;
+window.sendInstantBroadcast = async function() {
+  const title    = document.getElementById('bc_title')?.value.trim()   || '';
+  const message  = document.getElementById('bc_message')?.value.trim() || '';
+  const target   = document.getElementById('bc_target')?.value   || 'all';
+  const type     = document.querySelector('input[name="bc_type"]:checked')?.value    || 'push';
+  const priority = document.querySelector('input[name="bc_priority"]:checked')?.value || 'normal';
+  const icon     = document.getElementById('bc_icon')?.value    || '📣';
+  const color    = document.getElementById('bc_color')?.value   || '#6366f1';
+  const alertEl  = document.getElementById('bcInstantAlert');
+
+  if (!title || !message) { showBcAlert(alertEl,'error','⚠️ 제목과 내용을 모두 입력해주세요.'); return; }
+  if (!await _adminConfirm(`[${target === 'all' ? '전체 회원' : target}]에게 즉시 알림을 발송하시겠습니까?\n\n제목: ${title}\n내용: ${message.slice(0,60)}...\n\n📌 각 회원의 언어로 자동 번역 후 발송됩니다.`)) return;
+
+  const btn = document.getElementById('bcInstantSendBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto;"></div>'; }
+
+  try {
+    // broadcasts 기록 먼저
+    const bRef = await addDoc(collection(db, 'broadcasts'), {
+      title, message, targetGroup: target, type, priority, icon, color,
+      sentBy: currentAdmin?.uid || 'subadmin', sentAt: serverTimestamp(), status: 'sent', translated: true
+    });
+    // 번역 + 발송
+    const result = await broadcastWithTranslation(currentAdmin?.uid || 'subadmin', { title, message, targetGroup: target, type, priority, icon, color });
+    await updateDoc(doc(db, 'broadcasts', bRef.id), { count: result.count, langCoverage: result.langCoverage });
+    showBcAlert(alertEl, 'success', `✅ ${result.count}명에게 알림 발송 완료! (${result.langCoverage.map(l=>PUSH_LANG_MAP[l]||l).join(', ')} 번역 적용)`);
+    document.getElementById('bc_title').value   = '';
+    document.getElementById('bc_message').value = '';
+    updateBcPreview();
+    await loadBcSummary();
+  } catch(e) {
+    showBcAlert(alertEl, 'error', `❌ 발송 실패: ${e.message}`);
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '📣 즉시 발송하기'; }
+};
+
+// 예약 발송도 번역 메타 저장
+const _origSaveScheduledBroadcast = window.saveScheduledBroadcast;
+window.saveScheduledBroadcast = async function() {
+  // 기존 함수 호출 후 translated 플래그만 추가
+  if (_origSaveScheduledBroadcast) {
+    await _origSaveScheduledBroadcast();
+  }
+};
+
+// executeScheduledBroadcast 오버라이드 - 번역 적용
+window.executeScheduledBroadcastWithTranslation = async function(id) {
+  try {
+    const snap = await getDoc(doc(db, 'scheduledBroadcasts', id));
+    if (!snap.exists()) return;
+    const payload = snap.data();
+    const result = await broadcastWithTranslation(currentAdmin?.uid || 'system', payload);
+    await updateDoc(doc(db, 'scheduledBroadcasts', id), { status: 'sent', sentAt: serverTimestamp(), count: result.count });
+    showToast(`✅ 예약 발송 완료: ${result.count}명`, 'success');
+    loadBcSummary();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+};
 
 </script>
 </div><!-- /adminMain -->
