@@ -945,7 +945,7 @@ let deedraPrice = 0.50; // DEEDRA 시세 (관리자 설정값)
 let currentTheme = 'dark';
 let productsCache = [];
 
-// 직급 체계
+// 직급 체계 (기본값 - 관리자 설정이 없을 때 사용)
 const RANKS = [
   { rank: 'G0', minRefs: 0, label: 'Bronze' },
   { rank: 'G1', minRefs: 3, label: 'Silver' },
@@ -959,6 +959,9 @@ const RANKS = [
   { rank: 'G9', minRefs: 1200, label: 'Elite' },
   { rank: 'G10', minRefs: 2000, label: 'Founder' },
 ];
+
+// 관리자가 설정한 직급 승진 조건 (Firestore에서 로드)
+let rankPromoSettings = null;
 
 const SLOT_SYMBOLS = ['🍋', '🍇', '🍎', '🍊', '⭐', '7️⃣', '💎'];
 const DICE_FACES = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣'];
@@ -1044,6 +1047,12 @@ async function initApp() {
     } else {
       userData = userSnap.data();
     }
+
+    // 직급 승진 조건 설정 로드 (에러 무시)
+    try {
+      const promoSnap = await getDoc(doc(db, 'settings', 'rankPromotion'));
+      if (promoSnap.exists()) rankPromoSettings = promoSnap.data();
+    } catch(e) { /* 설정 없으면 기본값 사용 */ }
 
     await loadWalletData();
     await loadDeedraPrice();
@@ -1876,18 +1885,82 @@ async function loadNetworkPage() {
 
 function updateRankUI() {
   if (!userData) return;
-  const rank = userData.rank || 'G0';
-  const refCount = userData.referralCount || 0;
+  const rank    = userData.rank || 'G0';
   const rankIdx = RANKS.findIndex(r => r.rank === rank);
-  const nextRank = RANKS[rankIdx + 1];
+  const nextRankObj = RANKS[rankIdx + 1];
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setEl('rankCurrent', rank);
-  setEl('rankReferralCount', refCount);
 
-  if (nextRank) {
-    const progress = Math.min(100, (refCount / nextRank.minRefs) * 100);
-    setEl('rankNextLabel', `${nextRank.rank} (${nextRank.minRefs - refCount}명 필요)`);
+  setEl('rankCurrent', rank);
+
+  // ── 새 승진 조건 (관리자 설정) 방식 ──────────────────────────
+  if (rankPromoSettings && rankPromoSettings.criteria && nextRankObj) {
+    const criteria   = rankPromoSettings.criteria;
+    const nextRankId = nextRankObj.rank;
+    const crit       = criteria[nextRankId];
+    const depth      = rankPromoSettings.networkDepth || 3;
+    const mode       = rankPromoSettings.promotionMode || 'all';
+
+    if (crit) {
+      // 현재 보유 값 (walletData/userData에서)
+      const selfInvest     = walletData?.totalDeposit     || 0;
+      const networkMembers = userData?.totalReferrals     || 0;
+
+      // 조건 표시 우선순위: 인원 수 > 투자액 순으로 진행도 표시
+      const hasInvestCond  = (crit.minSelfInvest     || 0) > 0;
+      const hasSalesCond   = (crit.minNetworkSales   || 0) > 0;
+      const hasMemberCond  = (crit.minNetworkMembers || 0) > 0;
+
+      // 진행도: 가장 의미 있는 조건을 선택
+      let progressPct  = 0;
+      let progressDesc = '';
+      let needed       = '';
+
+      if (hasMemberCond) {
+        const cur = networkMembers;
+        const req = crit.minNetworkMembers;
+        progressPct  = Math.min(100, (cur / req) * 100);
+        needed       = req - cur > 0 ? `산하 ${req - cur}명 더 필요` : '인원 조건 달성!';
+        progressDesc = `산하 ${cur}/${req}명 (${depth}대)`;
+      } else if (hasInvestCond) {
+        const cur = selfInvest;
+        const req = crit.minSelfInvest;
+        progressPct  = Math.min(100, (cur / req) * 100);
+        needed       = req - cur > 0 ? `투자 $${(req - cur).toFixed(0)} 더 필요` : '투자 조건 달성!';
+        progressDesc = `투자 $${cur.toFixed(0)}/$${req}`;
+      } else {
+        progressPct  = 100;
+        progressDesc = '조건 미설정';
+        needed       = '';
+      }
+
+      // 다음 직급 표시
+      const modeLabel = mode === 'any' ? '[OR]' : '[AND]';
+      const condParts = [];
+      if (hasInvestCond)  condParts.push(`투자 $${crit.minSelfInvest}`);
+      if (hasSalesCond)   condParts.push(`매출 $${crit.minNetworkSales}`);
+      if (hasMemberCond)  condParts.push(`인원 ${crit.minNetworkMembers}명`);
+      const condStr = condParts.length ? condParts.join(' / ') : '조건 없음';
+
+      setEl('rankNextLabel', `${nextRankId} ${modeLabel} ${condStr}`);
+      setEl('rankReferralCount', progressDesc);
+
+      const fill = document.getElementById('rankProgressFill');
+      if (fill) fill.style.width = progressPct.toFixed(1) + '%';
+
+      // 추가 필요 조건 표시
+      const needEl = document.getElementById('rankNeeded');
+      if (needEl) needEl.textContent = needed;
+      return;
+    }
+  }
+
+  // ── 레거시 방식 (추천인 수 기반) ─────────────────────────────
+  const refCount = userData.referralCount || userData.totalReferrals || 0;
+  setEl('rankReferralCount', refCount);
+  if (nextRankObj) {
+    const progress = Math.min(100, (refCount / nextRankObj.minRefs) * 100);
+    setEl('rankNextLabel', `${nextRankObj.rank} (${nextRankObj.minRefs - refCount}명 필요)`);
     const fill = document.getElementById('rankProgressFill');
     if (fill) fill.style.width = progress.toFixed(1) + '%';
   } else {

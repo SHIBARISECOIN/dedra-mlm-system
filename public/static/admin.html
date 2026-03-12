@@ -2382,6 +2382,78 @@ canvas{width:100% !important;}
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;" id="vipDiscountGrid"></div>
       </div>
 
+      <!-- ══════════════════════════════════════════════
+           직급 승진 조건 설정 카드
+      ══════════════════════════════════════════════ -->
+      <div id="rankPromoCard" style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
+        <!-- 헤더 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:22px;">🎖️</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#1e293b;">직급 승진 조건 설정</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">각 직급 달성에 필요한 <strong>본인 투자액</strong>, <strong>산하 매출</strong>, <strong>산하 인원</strong> 조건을 설정합니다.</div>
+            </div>
+          </div>
+          <button id="saveRankPromoBtn" class="btn btn-primary btn-sm" style="min-width:120px;">💾 승진조건 저장</button>
+        </div>
+
+        <!-- 글로벌 옵션 -->
+        <div style="background:#f8faff;border:1.5px solid #c7d2fe;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+          <!-- 산하 계산 깊이 -->
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#4338ca;margin-bottom:6px;">📊 산하 계산 깊이 (대수)</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="number" id="rp_networkDepth" min="1" max="10" value="3"
+                style="width:70px;padding:8px;border:2px solid #c7d2fe;border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:#3730a3;">
+              <span style="font-size:12px;color:#64748b;">대까지 집계</span>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">예) 3 → 1대+2대+3대 합산</div>
+          </div>
+          <!-- 조건 충족 방식 -->
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#4338ca;margin-bottom:6px;">⚙️ 승진 조건 충족 방식</label>
+            <select id="rp_promotionMode"
+              style="width:100%;padding:8px 10px;border:2px solid #c7d2fe;border-radius:8px;font-size:13px;color:#1e293b;background:#fff;">
+              <option value="all">AND — 모든 조건 동시 충족</option>
+              <option value="any">OR — 하나라도 충족 시 승진</option>
+            </select>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">0 입력 시 해당 조건 미적용</div>
+          </div>
+        </div>
+
+        <!-- 직급별 조건 테이블 -->
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;" id="rankPromoTable">
+            <thead>
+              <tr style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
+                <th style="padding:10px 14px;text-align:left;font-weight:700;border-radius:8px 0 0 0;">직급</th>
+                <th style="padding:10px 14px;text-align:center;font-weight:700;">💰 본인 투자액 (USDT)</th>
+                <th style="padding:10px 14px;text-align:center;font-weight:700;">📈 산하 매출 합계 (USDT)</th>
+                <th style="padding:10px 14px;text-align:center;font-weight:700;">👥 산하 인원 수 (명)</th>
+              </tr>
+            </thead>
+            <tbody id="rankPromoBody">
+              <!-- JS로 렌더링 -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 일괄 승격 버튼 -->
+        <div style="margin-top:16px;padding:14px;background:#fefce8;border:1.5px solid #fde047;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <div style="font-size:13px;font-weight:700;color:#854d0e;">⚡ 저장 후 일괄 승격 실행</div>
+            <div style="font-size:11px;color:#92400e;margin-top:2px;">설정된 조건을 기준으로 전체 회원의 직급을 즉시 재계산합니다.</div>
+          </div>
+          <button id="batchRankPromoBtn" class="btn btn-sm"
+            style="background:#f59e0b;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            🔄 전체 직급 재계산
+          </button>
+        </div>
+
+        <div id="rankPromoAlert" style="margin-top:10px;"></div>
+      </div>
+
       <!-- 저장/재로드 -->
       <div style="display:flex;gap:10px;max-width:960px;margin-bottom:24px;">
         <button class="btn btn-primary" id="saveRatesBtn" style="min-width:140px;">💾 전체 이율 저장</button>
@@ -5327,10 +5399,10 @@ const RANK_DEFS = [
     {id:'G4',minRefs:40},{id:'G5',minRefs:80},{id:'G6',minRefs:150},{id:'G7',minRefs:300},
     {id:'G8',minRefs:600},{id:'G9',minRefs:1200},{id:'G10',minRefs:2000}
 ];
+const RANK_ORDER_LIST = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
 let allMembersForRank = [];
 
 async function loadRankMonitor() {
-    // 전체 회원 로드
     const wrap = document.getElementById('rankMemberListWrap');
     const upgradeWrap = document.getElementById('upgradeTargetsWrap');
     const statsGrid = document.getElementById('rankStatsGrid');
@@ -5339,8 +5411,31 @@ async function loadRankMonitor() {
     wrap.innerHTML = loading();
 
     try {
+        // 직급 승진 조건 설정 로드
+        const promoR = await api.getRankPromotionSettings();
+        const promoSettings = promoR.success ? promoR.data : null;
+        const promoCriteria = promoSettings?.criteria || null;
+        const promoDepth    = promoSettings?.networkDepth || 3;
+        const promoMode     = promoSettings?.promotionMode || 'all';
+
         const snap = await getDocs(collection(db, 'users'));
         allMembersForRank = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'admin');
+
+        // 전체 사용자 목록 (BFS용)
+        const allUsersArr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // ── BFS: 각 회원의 산하 인원 계산 ──────────────────────────
+        function getDownlineIds(userId, depth) {
+            const result = [];
+            let level = [userId];
+            for (let d = 0; d < depth; d++) {
+                const next = allUsersArr.filter(u => level.includes(u.referredBy)).map(u => u.id);
+                result.push(...next);
+                level = next;
+                if (!next.length) break;
+            }
+            return result;
+        }
 
         // 직급별 통계
         const rankDist = {};
@@ -5355,35 +5450,66 @@ async function loadRankMonitor() {
               <div class="stat-sub">명</div>
             </div>`).join('');
 
-        // 승격 대상자 찾기
-        const upgradeTargets = allMembersForRank.filter(m => {
-            const refs = m.totalReferrals || 0;
-            const curRankIdx = RANK_DEFS.findIndex(r => r.id === (m.rank || 'G0'));
-            const nextRank = RANK_DEFS[curRankIdx + 1];
-            return nextRank && refs >= nextRank.minRefs;
-        });
+        // ── 승격 대상자 찾기 (새 설정 또는 레거시 추천인 수 방식) ──
+        const upgradeTargets = [];
+        for (const m of allMembersForRank) {
+            const curRankIdx = RANK_ORDER_LIST.indexOf(m.rank || 'G0');
+            if (curRankIdx < 0 || curRankIdx >= RANK_ORDER_LIST.length - 1) continue;
+
+            if (promoCriteria) {
+                // ── 새 승진 조건 방식 ──
+                const downline = getDownlineIds(m.id, promoDepth);
+                const networkMembers = downline.length;
+                const selfInvest     = m.totalInvested || 0;     // wallets 캐시 또는 0으로 시작
+                const networkSales   = 0; // 빠른 렌더링용: 실시간 계산은 일괄승격 버튼 클릭 시
+
+                // 달성 가능한 최고 직급 확인
+                let targetIdx = curRankIdx;
+                for (let i = RANK_ORDER_LIST.length - 1; i > curRankIdx; i--) {
+                    const rankId = RANK_ORDER_LIST[i];
+                    const crit   = promoCriteria[rankId];
+                    if (!crit) continue;
+                    const cInvest  = selfInvest  >= (crit.minSelfInvest     || 0);
+                    const cSales   = (crit.minNetworkSales  || 0) === 0; // 빠른 체크: 0이면 통과
+                    const cMembers = networkMembers >= (crit.minNetworkMembers || 0);
+                    const pass = promoMode === 'any'
+                        ? (cInvest || cSales || cMembers)
+                        : (cInvest && cSales && cMembers);
+                    if (pass) { targetIdx = i; break; }
+                }
+                if (targetIdx > curRankIdx) {
+                    upgradeTargets.push({ ...m, _newRankIdx: targetIdx, _networkMembers: networkMembers });
+                }
+            } else {
+                // ── 레거시: 추천인 수 방식 ──
+                const refs = m.totalReferrals || 0;
+                const nextRank = RANK_DEFS[curRankIdx + 1];
+                if (nextRank && refs >= nextRank.minRefs) {
+                    upgradeTargets.push({ ...m, _newRankIdx: curRankIdx + 1, _networkMembers: refs });
+                }
+            }
+        }
 
         document.getElementById('upgradeTargetCount').textContent = `${upgradeTargets.length}명 대상`;
 
         if (!upgradeTargets.length) {
             upgradeWrap.innerHTML = emptyState('승격 대상자가 없습니다');
         } else {
-            upgradeWrap.innerHTML = `<div class="table-wrap"><table>
-              <thead><tr><th>이름</th><th>이메일</th><th>현재 직급</th><th>추천인 수</th><th>승격 가능 직급</th><th>작업</th></tr></thead>
+            const condLabel = promoCriteria
+                ? `<span style="font-size:11px;background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:6px;font-weight:600;">🆕 새 승진조건 적용 (${promoDepth}대, ${promoMode==='all'?'AND':'OR'})</span>`
+                : `<span style="font-size:11px;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:6px;font-weight:600;">📌 레거시(추천인수) 방식</span>`;
+            upgradeWrap.innerHTML = `
+              <div style="margin-bottom:8px;">${condLabel}</div>
+              <div class="table-wrap"><table>
+              <thead><tr><th>이름</th><th>이메일</th><th>현재 직급</th><th>산하 인원(${promoDepth}대)</th><th>승격 가능 직급</th><th>작업</th></tr></thead>
               <tbody>${upgradeTargets.map(m => {
-                const refs = m.totalReferrals || 0;
-                const curRankIdx = RANK_DEFS.findIndex(r => r.id === (m.rank || 'G0'));
-                // 최고 달성 가능 직급 찾기
-                let newRankIdx = curRankIdx;
-                for (let i = RANK_DEFS.length - 1; i > curRankIdx; i--) {
-                    if (refs >= RANK_DEFS[i].minRefs) { newRankIdx = i; break; }
-                }
-                const newRank = RANK_DEFS[newRankIdx].id;
+                const curRank = m.rank || 'G0';
+                const newRank = RANK_ORDER_LIST[m._newRankIdx];
                 return `<tr>
                   <td><strong>${m.name||'-'}</strong></td>
                   <td style="font-size:12px;">${m.email||'-'}</td>
-                  <td><span class="badge badge-rank">${m.rank||'G0'}</span></td>
-                  <td>${refs}명</td>
+                  <td><span class="badge badge-rank">${curRank}</span></td>
+                  <td>${m._networkMembers}명</td>
                   <td><span class="badge badge-rank" style="background:linear-gradient(135deg,#10b981,#059669);">${newRank}</span></td>
                   <td><button class="btn btn-success btn-sm" onclick="applyRankUpgrade('${m.id}','${newRank}','${m.name||''}')">⬆️ 승격</button></td>
                 </tr>`;
@@ -5425,34 +5551,15 @@ window.applyRankUpgrade = async (userId, newRank, name) => {
 };
 
 async function runAutoRankUpgrade() {
-    if (!allMembersForRank.length) {
-        const snap = await getDocs(collection(db, 'users'));
-        allMembersForRank = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'admin');
+    // api.runBatchRankPromotion()을 활용해 전체 일괄 승격 실행
+    if (!confirm('설정된 직급 승진 조건으로 전체 회원을 즉시 재계산합니다.\n계속하시겠습니까?')) return;
+
+    const r = await api.runBatchRankPromotion(currentAdmin.uid);
+    if (r.success) {
+        alert(`✅ 자동 승격 완료: ${r.data.upgraded}명 처리`);
+    } else {
+        alert(`❌ 오류: ${r.error}`);
     }
-
-    let upgradedCount = 0;
-    const upgradeTargets = allMembersForRank.filter(m => {
-        const refs = m.totalReferrals || 0;
-        const curRankIdx = RANK_DEFS.findIndex(r => r.id === (m.rank || 'G0'));
-        const nextRank = RANK_DEFS[curRankIdx + 1];
-        return nextRank && refs >= nextRank.minRefs;
-    });
-
-    for (const m of upgradeTargets) {
-        const refs = m.totalReferrals || 0;
-        const curRankIdx = RANK_DEFS.findIndex(r => r.id === (m.rank || 'G0'));
-        let newRankIdx = curRankIdx;
-        for (let i = RANK_DEFS.length - 1; i > curRankIdx; i--) {
-            if (refs >= RANK_DEFS[i].minRefs) { newRankIdx = i; break; }
-        }
-        if (newRankIdx > curRankIdx) {
-            const newRank = RANK_DEFS[newRankIdx].id;
-            await api.updateUserRank(m.id, newRank, currentAdmin.uid + '_auto');
-            upgradedCount++;
-        }
-    }
-
-    alert(`✅ 자동 승격 완료: ${upgradedCount}명 처리`);
     allMembersForRank = [];
     loadRankMonitor();
 }
@@ -6578,6 +6685,7 @@ async function loadRates() {
     updateBadges(currentRates);
     await loadProductRates();
     await loadRateHistory();
+    await loadRankPromotionSettings();
     setupRateButtons();
 }
 
@@ -6774,7 +6882,144 @@ function setupRateButtons() {
         }
     };
     document.getElementById('reloadRatesBtn').onclick = () => loadRates();
+
+    // ── 직급 승진 조건 저장 버튼 ──
+    const saveRankPromoBtn = document.getElementById('saveRankPromoBtn');
+    if (saveRankPromoBtn) {
+        saveRankPromoBtn.onclick = async () => {
+            await saveRankPromotionSettings();
+        };
+    }
+
+    // ── 전체 직급 재계산 버튼 ──
+    const batchBtn = document.getElementById('batchRankPromoBtn');
+    if (batchBtn) {
+        batchBtn.onclick = async () => {
+            if (!confirm('설정된 조건으로 전체 회원의 직급을 즉시 재계산합니다.\n계속하시겠습니까?')) return;
+            batchBtn.disabled = true;
+            batchBtn.textContent = '처리 중...';
+            const r = await api.runBatchRankPromotion(currentAdmin.uid);
+            batchBtn.disabled = false;
+            batchBtn.textContent = '🔄 전체 직급 재계산';
+            const alertEl = document.getElementById('rankPromoAlert');
+            if (r.success) {
+                const details = r.data.details.map(d => `${d.name||d.userId}: ${d.oldRank} → ${d.newRank}`).join(', ');
+                alertEl.innerHTML = `<div class="inline-alert success">✅ 일괄 승격 완료 — ${r.data.upgraded}명 승격${details ? '<br><span style="font-size:11px;color:#15803d;">'+details+'</span>' : ''}</div>`;
+                setTimeout(() => { alertEl.innerHTML = ''; }, 8000);
+                // 직급 모니터 탭이 활성화 상태면 새로고침
+                if (document.getElementById('rankPage')?.classList.contains('active')) loadRankMonitor();
+            } else {
+                alertEl.innerHTML = `<div class="inline-alert error">❌ ${r.error}</div>`;
+            }
+        };
+    }
 }
+
+// ══════════════════════════════════════════════════
+// 직급 승진 조건 설정 (rankPromotion)
+// ══════════════════════════════════════════════════
+let currentRankPromoSettings = null;
+
+const RANK_PROMO_ORDER = ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+const RANK_PROMO_COLORS = {
+    G1:'#0ea5e9', G2:'#10b981', G3:'#22c55e',
+    G4:'#f59e0b', G5:'#f97316', G6:'#8b5cf6',
+    G7:'#7c3aed', G8:'#ec4899', G9:'#ef4444', G10:'#991b1b'
+};
+
+async function loadRankPromotionSettings() {
+    const r = await api.getRankPromotionSettings();
+    if (!r.success) return;
+    currentRankPromoSettings = r.data;
+    renderRankPromoTable(r.data);
+}
+
+function renderRankPromoTable(settings) {
+    const criteria = settings.criteria || {};
+    const depthEl  = document.getElementById('rp_networkDepth');
+    const modeEl   = document.getElementById('rp_promotionMode');
+    if (depthEl) depthEl.value = settings.networkDepth || 3;
+    if (modeEl)  modeEl.value  = settings.promotionMode || 'all';
+
+    const tbody = document.getElementById('rankPromoBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = RANK_PROMO_ORDER.map((rank, idx) => {
+        const crit = criteria[rank] || { minSelfInvest: 0, minNetworkSales: 0, minNetworkMembers: 0 };
+        const color = RANK_PROMO_COLORS[rank] || '#6366f1';
+        const bg    = idx % 2 === 0 ? '#f8faff' : '#fff';
+        return `
+        <tr style="background:${bg};">
+          <td style="padding:10px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="display:inline-block;width:36px;height:22px;border-radius:6px;background:${color};color:#fff;font-size:12px;font-weight:800;text-align:center;line-height:22px;">${rank}</span>
+              <span style="font-size:12px;color:#64748b;">달성 조건</span>
+            </div>
+          </td>
+          <td style="padding:8px 10px;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+              <input type="number" id="rp_invest_${rank}" value="${crit.minSelfInvest||0}"
+                min="0" step="1"
+                style="width:100px;padding:7px 8px;border:1.5px solid #c7d2fe;border-radius:7px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;"
+                onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#c7d2fe'">
+              <span style="font-size:11px;color:#94a3b8;">USDT</span>
+            </div>
+          </td>
+          <td style="padding:8px 10px;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+              <input type="number" id="rp_sales_${rank}" value="${crit.minNetworkSales||0}"
+                min="0" step="1"
+                style="width:100px;padding:7px 8px;border:1.5px solid #c7d2fe;border-radius:7px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;"
+                onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#c7d2fe'">
+              <span style="font-size:11px;color:#94a3b8;">USDT</span>
+            </div>
+          </td>
+          <td style="padding:8px 10px;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+              <input type="number" id="rp_members_${rank}" value="${crit.minNetworkMembers||0}"
+                min="0" step="1"
+                style="width:90px;padding:7px 8px;border:1.5px solid #c7d2fe;border-radius:7px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;"
+                onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#c7d2fe'">
+              <span style="font-size:11px;color:#94a3b8;">명</span>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+}
+
+function collectRankPromoSettings() {
+    const networkDepth   = parseInt(document.getElementById('rp_networkDepth')?.value) || 3;
+    const promotionMode  = document.getElementById('rp_promotionMode')?.value || 'all';
+    const criteria = {};
+    RANK_PROMO_ORDER.forEach(rank => {
+        criteria[rank] = {
+            minSelfInvest:     parseFloat(document.getElementById(`rp_invest_${rank}`)?.value)  || 0,
+            minNetworkSales:   parseFloat(document.getElementById(`rp_sales_${rank}`)?.value)   || 0,
+            minNetworkMembers: parseInt(document.getElementById(`rp_members_${rank}`)?.value) || 0,
+        };
+    });
+    return { networkDepth, promotionMode, criteria };
+}
+
+async function saveRankPromotionSettings() {
+    const settings = collectRankPromoSettings();
+    const btn = document.getElementById('saveRankPromoBtn');
+    const alertEl = document.getElementById('rankPromoAlert');
+    if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+    const r = await api.saveRankPromotionSettings(currentAdmin.uid, settings);
+    if (btn) { btn.disabled = false; btn.textContent = '💾 승진조건 저장'; }
+    if (r.success) {
+        currentRankPromoSettings = settings;
+        alertEl.innerHTML = '<div class="inline-alert success">✅ 직급 승진 조건이 저장되었습니다.</div>';
+        setTimeout(() => { alertEl.innerHTML = ''; }, 3000);
+        // 직급 모니터 탭도 갱신
+        if (document.getElementById('rankPage')?.classList.contains('active')) loadRankMonitor();
+    } else {
+        alertEl.innerHTML = `<div class="inline-alert error">❌ ${r.error}</div>`;
+    }
+}
+
+window.saveRankPromotionSettings = saveRankPromotionSettings;
 
 async function loadRateHistory() {
     const list = document.getElementById('rateHistoryList');

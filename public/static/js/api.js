@@ -424,6 +424,203 @@ export class DedraAPI {
   }
 
   // ─────────────────────────────────────────────────
+  // 직급 승진 조건 설정
+  // ─────────────────────────────────────────────────
+  /**
+   * 직급 승진 조건 설정 가져오기
+   * Firestore: settings/rankPromotion
+   * 기본값: 각 직급(G0~G10)에 대해 { minSelfInvest, networkDepth, minNetworkSales, minNetworkMembers } 설정
+   */
+  async getRankPromotionSettings() {
+    try {
+      const snap = await getDoc(doc(this.db, 'settings', 'rankPromotion'));
+      if (snap.exists()) return ok(snap.data());
+      // 기본값 반환 (추천인 수 기반 레거시와 호환)
+      const defaults = {
+        networkDepth: 3,           // 산하 계산 깊이 (1~10)
+        promotionMode: 'all',      // 'all' = 모든 조건 충족, 'any' = 하나라도 충족
+        criteria: {
+          G1:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 3    },
+          G2:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 10   },
+          G3:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 20   },
+          G4:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 40   },
+          G5:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 80   },
+          G6:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 150  },
+          G7:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 300  },
+          G8:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 600  },
+          G9:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 1200 },
+          G10: { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 2000 },
+        }
+      };
+      return ok(defaults);
+    } catch(e) { return err(e); }
+  }
+
+  /**
+   * 직급 승진 조건 설정 저장
+   * @param {string} adminId
+   * @param {object} settings  { networkDepth, promotionMode, criteria: { G1: {...}, ... } }
+   */
+  async saveRankPromotionSettings(adminId, settings) {
+    try {
+      await setDoc(doc(this.db, 'settings', 'rankPromotion'), {
+        ...settings, updatedAt: serverTimestamp(), updatedBy: adminId
+      });
+      await this._auditLog(adminId, 'settings', '직급 승진 조건 설정 변경', settings);
+      return ok(true);
+    } catch(e) { return err(e); }
+  }
+
+  /**
+   * 특정 회원의 직급 승진 자격 계산
+   * - 본인 투자 총액
+   * - networkDepth까지 산하 매출(입금 승인액) 합산
+   * - networkDepth까지 산하 인원 수 합산
+   * @param {string} userId
+   * @param {object} settings  getRankPromotionSettings 결과
+   */
+  async calcRankEligibility(userId, settings) {
+    try {
+      const db = this.db;
+      const depth = settings.networkDepth || 3;
+
+      // 전체 회원 로드 (referredBy 관계로 조직도 구성)
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const allUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // BFS로 userId의 산하 depth단계까지 구성원 수집
+      const downline = [];
+      let currentLevel = [userId];
+      for (let d = 0; d < depth; d++) {
+        const nextLevel = allUsers.filter(u => currentLevel.includes(u.referredBy)).map(u => u.id);
+        downline.push(...nextLevel);
+        currentLevel = nextLevel;
+        if (!nextLevel.length) break;
+      }
+
+      // 본인 투자 합산
+      const selfInvSnap = await getDocs(query(
+        collection(db, 'investments'),
+        where('userId', '==', userId),
+        where('status', '==', 'active')
+      ));
+      const selfInvest = selfInvSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+
+      // 산하 승인 입금 합산 (매출)
+      let networkSales = 0;
+      let networkMembers = downline.length;
+
+      if (downline.length > 0) {
+        // Firestore in 쿼리는 최대 30개씩 분할
+        const chunks = [];
+        for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
+        for (const chunk of chunks) {
+          const txSnap = await getDocs(query(
+            collection(db, 'transactions'),
+            where('userId', 'in', chunk),
+            where('type', '==', 'deposit'),
+            where('status', '==', 'approved')
+          ));
+          networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+        }
+      }
+
+      return ok({ selfInvest, networkSales, networkMembers, downlineIds: downline });
+    } catch(e) { return err(e); }
+  }
+
+  /**
+   * 전체 회원 직급 일괄 재계산 (관리자 수동 실행)
+   * 승진 조건에 맞는 회원을 찾아 자동 승격
+   * @returns {{ upgraded: number, details: Array }}
+   */
+  async runBatchRankPromotion(adminId) {
+    try {
+      const db = this.db;
+      const settingsR = await this.getRankPromotionSettings();
+      if (!settingsR.success) throw new Error('승진 조건 설정 로드 실패');
+      const settings  = settingsR.data;
+      const criteria  = settings.criteria || {};
+      const mode      = settings.promotionMode || 'all';
+
+      const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const members   = usersSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(u => u.role !== 'admin');
+
+      const depth = settings.networkDepth || 3;
+      // BFS 전체 조직도
+      const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const upgraded = [];
+      for (const member of members) {
+        const curRank    = member.rank || 'G0';
+        const curIdx     = RANK_ORDER.indexOf(curRank);
+        if (curIdx < 0 || curIdx >= RANK_ORDER.length - 1) continue;
+
+        // 산하 계산
+        const downline = [];
+        let lvl = [member.id];
+        for (let d = 0; d < depth; d++) {
+          const next = allUsers.filter(u => lvl.includes(u.referredBy)).map(u => u.id);
+          downline.push(...next);
+          lvl = next;
+          if (!next.length) break;
+        }
+
+        // 본인 투자액 (investments 컬렉션 없이 wallets.totalDeposit 사용 가능하면 사용)
+        const selfInvSnap = await getDocs(query(
+          collection(db, 'investments'),
+          where('userId', '==', member.id),
+          where('status', '==', 'active')
+        ));
+        const selfInvest = selfInvSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+
+        let networkSales = 0;
+        if (downline.length > 0) {
+          const chunks = [];
+          for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
+          for (const chunk of chunks) {
+            const txSnap = await getDocs(query(
+              collection(db, 'transactions'),
+              where('userId', 'in', chunk),
+              where('type', '==', 'deposit'),
+              where('status', '==', 'approved')
+            ));
+            networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+          }
+        }
+        const networkMembers = downline.length;
+
+        // 달성 가능한 최고 직급 찾기
+        let targetIdx = curIdx;
+        for (let i = RANK_ORDER.length - 1; i > curIdx; i--) {
+          const rankId = RANK_ORDER[i];
+          const crit   = criteria[rankId];
+          if (!crit) continue;
+          const cInvest  = selfInvest  >= (crit.minSelfInvest     || 0);
+          const cSales   = networkSales>= (crit.minNetworkSales    || 0);
+          const cMembers = networkMembers >= (crit.minNetworkMembers || 0);
+          const pass = mode === 'any' ? (cInvest || cSales || cMembers)
+                                      : (cInvest && cSales && cMembers);
+          if (pass) { targetIdx = i; break; }
+        }
+
+        if (targetIdx > curIdx) {
+          const newRank = RANK_ORDER[targetIdx];
+          await updateDoc(doc(db, 'users', member.id), { rank: newRank, updatedAt: serverTimestamp() });
+          await this._auditLog(adminId, 'rank', `[일괄승격] ${member.name||member.id}: ${curRank} → ${newRank}`,
+            { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, networkMembers });
+          upgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank });
+        }
+      }
+      return ok({ upgraded: upgraded.length, details: upgraded });
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
   // 투자 상품
   // ─────────────────────────────────────────────────
   async getProducts(type) {
