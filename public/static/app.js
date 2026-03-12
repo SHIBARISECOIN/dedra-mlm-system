@@ -1482,13 +1482,20 @@ window.handleLogin = async function() {
 
 // ===== 회원가입 =====
 window.handleRegister = async function() {
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const pw = document.getElementById('regPassword').value;
-  const refCode = document.getElementById('regReferral').value.trim();
+  const name    = document.getElementById('regName').value.trim();
+  const phone   = document.getElementById('regPhone')?.value.trim() || '';
+  const email   = document.getElementById('regEmail').value.trim();
+  const pw      = document.getElementById('regPassword').value;
+  const country = document.getElementById('regCountry')?.value || '';
+  const refCode = document.getElementById('regReferral').value.trim().toUpperCase();
 
-  if (!name || !email || !pw || !refCode) { showToast('모든 필드를 입력해주세요.', 'warning'); return; }
-  if (pw.length < 8) { showToast('비밀번호는 8자 이상이어야 합니다.', 'warning'); return; }
+  if (!name)    { showToast('이름을 입력해주세요.', 'warning'); return; }
+  if (!phone)   { showToast('전화번호를 입력해주세요.', 'warning'); return; }
+  if (!email)   { showToast('이메일을 입력해주세요.', 'warning'); return; }
+  if (!pw)      { showToast('비밀번호를 입력해주세요.', 'warning'); return; }
+  if (pw.length < 4) { showToast('비밀번호는 4자리 이상이어야 합니다.', 'warning'); return; }
+  if (!country) { showToast('국가를 선택해주세요.', 'warning'); return; }
+  if (!refCode) { showToast('추천인 코드는 필수입니다.', 'warning'); return; }
 
   const referrer = await findUserByReferralCode(refCode);
   if (!referrer) { showToast('유효하지 않은 추천인 코드입니다.', 'error'); return; }
@@ -1502,7 +1509,7 @@ window.handleRegister = async function() {
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid, email, name, role: 'member', rank: 'G0', status: 'active',
       referralCode: myCode, referredBy: referrer.uid, referredByCode: refCode,
-      createdAt: serverTimestamp(), phone: '', withdrawPin: null,
+      createdAt: serverTimestamp(), phone, country, withdrawPin: null,
     });
     await setDoc(doc(db, 'wallets', user.uid), {
       userId: user.uid, usdtBalance: 0, dedraBalance: 0, bonusBalance: 0,
@@ -3718,24 +3725,27 @@ window.dealPoker = async function() {
 // ===== 마이페이지 (More 탭 내) =====
 window.showProfileEdit = function() {
   if (!userData) return;
-  const nameEl = document.getElementById('editName');
-  const phoneEl = document.getElementById('editPhone');
-  if (nameEl) nameEl.value = userData.name || '';
-  if (phoneEl) phoneEl.value = userData.phone || '';
+  const nameEl    = document.getElementById('editName');
+  const phoneEl   = document.getElementById('editPhone');
+  const countryEl = document.getElementById('editCountry');
+  if (nameEl)    nameEl.value    = userData.name    || '';
+  if (phoneEl)   phoneEl.value   = userData.phone   || '';
+  if (countryEl) countryEl.value = userData.country || '';
   document.getElementById('profileModal').classList.remove('hidden');
 };
 
 window.saveProfile = async function() {
-  const name = document.getElementById('editName').value.trim();
-  const phone = document.getElementById('editPhone').value.trim();
+  const name    = document.getElementById('editName').value.trim();
+  const phone   = document.getElementById('editPhone').value.trim();
+  const country = document.getElementById('editCountry')?.value || '';
   if (!name) { showToast('이름을 입력하세요.', 'warning'); return; }
 
   const btn = event.target;
   btn.disabled = true; btn.textContent = '저장 중...';
   try {
     const { doc, updateDoc, db } = window.FB;
-    await updateDoc(doc(db, 'users', currentUser.uid), { name, phone });
-    userData.name = name; userData.phone = phone;
+    await updateDoc(doc(db, 'users', currentUser.uid), { name, phone, country });
+    userData.name = name; userData.phone = phone; userData.country = country;
     closeModal('profileModal');
     showToast('프로필이 저장되었습니다.', 'success');
     loadMorePage();
@@ -4007,3 +4017,133 @@ function showToast(msg, type = 'info') {
 }
 
 console.log('✅ DEEDRA app.js v2.0 로드 완료');
+
+// ===== PWA: Service Worker 등록 =====
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW 등록 완료:', reg.scope))
+      .catch(err => console.warn('SW 등록 실패:', err));
+  });
+}
+
+// ===== PWA: 설치 배너 =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // 설치 배너 표시 (로그인 후 5초 뒤)
+  setTimeout(showInstallBanner, 5000);
+});
+
+function showInstallBanner() {
+  if (!deferredPrompt) return;
+  if (localStorage.getItem('pwa_install_dismissed')) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwaInstallBanner';
+  banner.style.cssText = `
+    position:fixed;bottom:calc(var(--nav-height,60px) + 12px);left:50%;transform:translateX(-50%);
+    background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;
+    border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;
+    box-shadow:0 8px 32px rgba(99,102,241,0.5);z-index:9990;
+    width:calc(100% - 32px);max-width:380px;cursor:pointer;
+  `;
+  banner.innerHTML = `
+    <div style="font-size:28px">📲</div>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:700;">DEEDRA 앱 설치</div>
+      <div style="font-size:12px;opacity:0.85;margin-top:2px;">홈 화면에 추가하면 더 빠르게 실행돼요</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button id="pwaInstallBtn" style="background:#fff;color:#4f46e5;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">설치</button>
+      <button id="pwaDismissBtn" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;">✕</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') showToast('✅ DEEDRA 앱이 설치되었습니다!', 'success');
+    deferredPrompt = null;
+    banner.remove();
+  });
+  document.getElementById('pwaDismissBtn').addEventListener('click', () => {
+    localStorage.setItem('pwa_install_dismissed', '1');
+    banner.remove();
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  showToast('✅ DEEDRA 앱 설치 완료!', 'success');
+  deferredPrompt = null;
+  const b = document.getElementById('pwaInstallBanner');
+  if (b) b.remove();
+});
+
+// ===== URL 파라미터: 추천인 코드 자동 입력 =====
+(function autoFillRefCode() {
+  const params = new URLSearchParams(window.location.search);
+  const ref = params.get('ref') || params.get('referral') || params.get('code');
+  if (!ref) return;
+  // 회원가입 탭 자동 전환 + 코드 입력
+  const fill = () => {
+    const input = document.getElementById('regReferral');
+    if (input) {
+      input.value = ref.toUpperCase();
+      input.dispatchEvent(new Event('input'));
+      // 추천인 탭으로 자동 이동
+      const registerTab = document.getElementById('registerTab');
+      if (registerTab && !registerTab.classList.contains('active')) {
+        registerTab.click();
+      }
+      showRefCodeHint(ref.toUpperCase());
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fill);
+  } else {
+    setTimeout(fill, 500);
+  }
+})();
+
+async function showRefCodeHint(code) {
+  const hintEl = document.getElementById('refCodeHint');
+  const statusEl = document.getElementById('refCodeStatus');
+  if (!hintEl || !statusEl) return;
+  statusEl.textContent = '🔍';
+  try {
+    const referrer = await findUserByReferralCode(code);
+    if (referrer) {
+      statusEl.textContent = '✅';
+      statusEl.style.color = '#10b981';
+      hintEl.textContent = `✓ 추천인: ${referrer.name || referrer.email || '확인됨'}`;
+      hintEl.style.color = '#10b981';
+    } else {
+      statusEl.textContent = '❌';
+      statusEl.style.color = '#ef4444';
+      hintEl.textContent = '유효하지 않은 추천인 코드입니다';
+      hintEl.style.color = '#ef4444';
+    }
+  } catch(e) {
+    statusEl.textContent = '';
+    hintEl.textContent = '';
+  }
+}
+
+// 추천인 코드 실시간 검증
+document.addEventListener('DOMContentLoaded', () => {
+  const refInput = document.getElementById('regReferral');
+  if (!refInput) return;
+  let refTimer = null;
+  refInput.addEventListener('input', (e) => {
+    const val = e.target.value.trim().toUpperCase();
+    e.target.value = val;
+    const hintEl = document.getElementById('refCodeHint');
+    const statusEl = document.getElementById('refCodeStatus');
+    if (!val) { if(hintEl) hintEl.textContent=''; if(statusEl) statusEl.textContent=''; return; }
+    if (val.length < 6) return;
+    clearTimeout(refTimer);
+    refTimer = setTimeout(() => showRefCodeHint(val), 800);
+  });
+});

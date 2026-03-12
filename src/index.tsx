@@ -18,6 +18,15 @@ app.use('/static/*', serveStatic({ root: './' }))
 // favicon.ico - /static/favicon.ico로 리다이렉트
 app.get('/favicon.ico', (c) => c.redirect('/static/favicon.ico', 301))
 
+// PWA 파일 서빙
+app.use('/manifest.json', serveStatic({ root: './', path: './public/manifest.json' }))
+app.use('/sw.js', async (c, next) => {
+  await next()
+  c.res.headers.set('Content-Type', 'application/javascript')
+  c.res.headers.set('Service-Worker-Allowed', '/')
+})
+app.use('/sw.js', serveStatic({ root: './', path: './public/sw.js' }))
+
 // ─── Firebase Auth 프록시 (sandbox 도메인 우회) ───────────────────────
 const FIREBASE_API_KEY = 'AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8'
 
@@ -85,6 +94,14 @@ const HTML = () => `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>DEEDRA</title>
   <link rel="icon" href="/static/favicon.ico" />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0a0f1e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DEEDRA" />
+  <link rel="apple-touch-icon" href="/static/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
@@ -132,21 +149,63 @@ const HTML = () => `<!DOCTYPE html>
 
         <!-- 회원가입 폼 -->
         <div id="registerForm" class="hidden">
-          <div class="form-group">
-            <label class="form-label" data-i18n="labelName">이름</label>
-            <input type="text" id="regName" class="form-input" placeholder="이름을 입력하세요" data-i18n="placeholderName" data-i18n-attr="placeholder" />
+          <!-- 이름 + 전화번호 (2열) -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label" data-i18n="labelName">이름 <span style="color:#ef4444">*</span></label>
+              <input type="text" id="regName" class="form-input" placeholder="홍길동" data-i18n="placeholderName" data-i18n-attr="placeholder" />
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label" data-i18n="labelPhone">전화번호 <span style="color:#ef4444">*</span></label>
+              <input type="tel" id="regPhone" class="form-input" placeholder="010-0000-0000" />
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label" data-i18n="labelEmail">이메일</label>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label" data-i18n="labelEmail">이메일 <span style="color:#ef4444">*</span></label>
             <input type="email" id="regEmail" class="form-input" placeholder="이메일을 입력하세요" data-i18n="placeholderEmail" data-i18n-attr="placeholder" />
           </div>
           <div class="form-group">
-            <label class="form-label" data-i18n="labelPassword">비밀번호</label>
-            <input type="password" id="regPassword" class="form-input" placeholder="8자리 이상 입력하세요" data-i18n="placeholderPasswordMin" data-i18n-attr="placeholder" />
+            <label class="form-label" data-i18n="labelPassword">비밀번호 <span style="color:#ef4444">*</span></label>
+            <input type="password" id="regPassword" class="form-input" placeholder="4자리 이상 입력하세요" data-i18n="placeholderPasswordMin" data-i18n-attr="placeholder" />
           </div>
           <div class="form-group">
-            <label class="form-label"><span data-i18n="labelReferral">추천인 코드</span> <span class="required" data-i18n="referralRequired">* 필수</span></label>
-            <input type="text" id="regReferral" class="form-input" placeholder="추천인 코드를 입력하세요" data-i18n="placeholderReferral" data-i18n-attr="placeholder" />
+            <label class="form-label" data-i18n="labelCountry">국가 <span style="color:#ef4444">*</span></label>
+            <select id="regCountry" class="form-input" style="appearance:none;-webkit-appearance:none;cursor:pointer;">
+              <option value="">-- 국가 선택 --</option>
+              <option value="KR">🇰🇷 대한민국</option>
+              <option value="US">🇺🇸 미국</option>
+              <option value="JP">🇯🇵 일본</option>
+              <option value="CN">🇨🇳 중국</option>
+              <option value="VN">🇻🇳 베트남</option>
+              <option value="TH">🇹🇭 태국</option>
+              <option value="PH">🇵🇭 필리핀</option>
+              <option value="ID">🇮🇩 인도네시아</option>
+              <option value="MY">🇲🇾 말레이시아</option>
+              <option value="SG">🇸🇬 싱가포르</option>
+              <option value="AU">🇦🇺 호주</option>
+              <option value="GB">🇬🇧 영국</option>
+              <option value="DE">🇩🇪 독일</option>
+              <option value="FR">🇫🇷 프랑스</option>
+              <option value="CA">🇨🇦 캐나다</option>
+              <option value="IN">🇮🇳 인도</option>
+              <option value="BR">🇧🇷 브라질</option>
+              <option value="RU">🇷🇺 러시아</option>
+              <option value="UAE">🇦🇪 UAE</option>
+              <option value="OTHER">🌐 기타</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">
+              <span data-i18n="labelReferral">추천인 코드</span>
+              <span style="color:#ef4444;font-size:11px;margin-left:4px;" data-i18n="referralRequired">* 필수</span>
+            </label>
+            <div style="position:relative;">
+              <input type="text" id="regReferral" class="form-input" placeholder="추천인 코드를 입력하세요"
+                data-i18n="placeholderReferral" data-i18n-attr="placeholder"
+                style="text-transform:uppercase;letter-spacing:2px;font-weight:700;" />
+              <div id="refCodeStatus" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;"></div>
+            </div>
+            <div id="refCodeHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
           </div>
           <button class="btn btn-primary btn-full mt-8" onclick="handleRegister()">
             <i class="fas fa-user-plus"></i> <span data-i18n="btnRegister">회원가입</span>
@@ -1185,6 +1244,32 @@ const HTML = () => `<!DOCTYPE html>
       <div class="form-group">
         <label class="form-label" data-i18n="labelPhone">연락처</label>
         <input type="text" id="editPhone" class="form-input" placeholder="010-0000-0000" data-i18n="placeholderPhone" data-i18n-attr="placeholder" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-i18n="labelCountry">국가</label>
+        <select id="editCountry" class="form-input" style="appearance:none;-webkit-appearance:none;cursor:pointer;">
+          <option value="">-- 국가 선택 --</option>
+          <option value="KR">🇰🇷 대한민국</option>
+          <option value="US">🇺🇸 미국</option>
+          <option value="JP">🇯🇵 일본</option>
+          <option value="CN">🇨🇳 중국</option>
+          <option value="VN">🇻🇳 베트남</option>
+          <option value="TH">🇹🇭 태국</option>
+          <option value="PH">🇵🇭 필리핀</option>
+          <option value="ID">🇮🇩 인도네시아</option>
+          <option value="MY">🇲🇾 말레이시아</option>
+          <option value="SG">🇸🇬 싱가포르</option>
+          <option value="AU">🇦🇺 호주</option>
+          <option value="GB">🇬🇧 영국</option>
+          <option value="DE">🇩🇪 독일</option>
+          <option value="FR">🇫🇷 프랑스</option>
+          <option value="CA">🇨🇦 캐나다</option>
+          <option value="IN">🇮🇳 인도</option>
+          <option value="BR">🇧🇷 브라질</option>
+          <option value="RU">🇷🇺 러시아</option>
+          <option value="UAE">🇦🇪 UAE</option>
+          <option value="OTHER">🌐 기타</option>
+        </select>
       </div>
     </div>
     <div class="modal-footer">

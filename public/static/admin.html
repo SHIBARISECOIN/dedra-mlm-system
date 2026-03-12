@@ -2998,54 +2998,84 @@ canvas{width:100% !important;}
   </div><!-- /content -->
 </div><!-- /layout -->
 
-<!-- ══════ 모달: 입금 상세 ══════ -->
+<!-- ══════ 모달: 입금 상세 (개선) ══════ -->
 <div id="depositModal" class="modal">
-  <div class="modal-box md">
-    <div class="modal-title">💰 입금 상세</div>
-    <div id="depositModalBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-gray" onclick="closeModal('depositModal')">닫기</button>
-      <button class="btn btn-danger" id="rejectDepositBtn">❌ 거부</button>
-      <button class="btn btn-success" id="approveDepositBtn">✅ 승인</button>
+  <div class="modal-box md" style="max-width:520px;padding:0;overflow:hidden;border-radius:16px;">
+    <!-- 헤더 -->
+    <div style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;padding:20px 22px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:42px;height:42px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">💰</div>
+          <div>
+            <div style="font-size:16px;font-weight:800;">입금 신청 상세</div>
+            <div id="depModalSubtitle" style="font-size:12px;opacity:0.8;margin-top:1px;">입금 정보를 확인하세요</div>
+          </div>
+        </div>
+        <button onclick="closeModal('depositModal')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+    </div>
+
+    <!-- 바디 -->
+    <div id="depositModalBody" style="padding:20px 22px;max-height:55vh;overflow-y:auto;"></div>
+
+    <!-- 빠른 액션 버튼 영역 (보류 상태 메모 + 버튼 통합) -->
+    <div id="depActionArea" style="padding:0 22px 6px;display:none;">
+      <!-- 메모 입력 -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;">📝 처리 메모 (선택)</label>
+        <input type="text" id="depAdminMemo" placeholder="처리 사유, 메모 입력..." style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;background:#f8fafc;outline:none;box-sizing:border-box;" />
+      </div>
+    </div>
+
+    <!-- 푸터 버튼 -->
+    <div style="padding:14px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:8px;">
+      <button class="btn btn-gray" onclick="closeModal('depositModal')" style="flex:1;min-width:0;">✕ 닫기</button>
+      <button id="holdDepositBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:none;">⏸ 보류</button>
+      <button id="rejectDepositBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">❌ 거부</button>
+      <button id="approveDepositBtn" style="flex:2;min-width:0;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:800;cursor:pointer;">✅ 승인</button>
     </div>
   </div>
 </div>
 
-<!-- ══════ 모달: 출금 상세 ══════ -->
+<!-- ══════ 모달: 출금 상세 (개선) ══════ -->
 <div id="withdrawalModal" class="modal">
-  <div class="modal-box md" style="max-width:600px;">
-    <!-- 모달 헤더 -->
-    <div style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;margin:-24px -24px 20px -24px;">
+  <div class="modal-box md" style="max-width:540px;padding:0;overflow:hidden;border-radius:16px;">
+    <!-- 헤더 -->
+    <div style="background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;padding:20px 22px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:24px;">💸</span>
+          <div style="width:42px;height:42px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">💸</div>
           <div>
-            <div style="font-size:17px;font-weight:700;">출금 신청 상세</div>
-            <div id="wdModalSubtitle" style="font-size:12px;opacity:0.85;margin-top:2px;">신청 정보를 확인하세요</div>
+            <div style="font-size:16px;font-weight:800;">출금 신청 상세</div>
+            <div id="wdModalSubtitle" style="font-size:12px;opacity:0.8;margin-top:1px;">출금 정보를 확인하세요</div>
           </div>
         </div>
-        <button onclick="closeModal('withdrawalModal')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">✕</button>
+        <button onclick="closeModal('withdrawalModal')" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
     </div>
 
-    <div id="withdrawalModalBody"></div>
+    <!-- 바디 -->
+    <div id="withdrawalModalBody" style="padding:20px 22px;max-height:45vh;overflow-y:auto;"></div>
 
-    <!-- TXID 입력 영역 -->
-    <div id="txidFormWrap" style="display:none;margin-top:16px;">
-      <div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:14px;">
-        <label style="font-size:12px;font-weight:700;color:#15803d;display:block;margin-bottom:8px;">
-          🔗 처리 TXID 입력 <span style="color:#ef4444;">(필수)</span>
-        </label>
-        <input type="text" class="form-input" id="withdrawalTxidInput" placeholder="Solana 트랜잭션 해시 입력..."
-          style="border-color:#86efac;">
-        <div style="font-size:11px;color:#16a34a;margin-top:4px;">실제 전송 후 발급된 트랜잭션 ID를 입력하세요</div>
+    <!-- TXID + 메모 통합 입력 영역 -->
+    <div id="txidFormWrap" style="display:none;padding:0 22px 10px;">
+      <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:12px;padding:14px;">
+        <label style="font-size:12px;font-weight:700;color:#15803d;display:block;margin-bottom:6px;">🔗 처리 TXID <span style="color:#ef4444;">(필수)</span></label>
+        <input type="text" id="withdrawalTxidInput" placeholder="트랜잭션 해시 입력..."
+          style="width:100%;padding:9px 12px;border:1.5px solid #86efac;border-radius:9px;font-size:13px;background:#fff;outline:none;box-sizing:border-box;font-family:monospace;" />
+      </div>
+      <div style="margin-top:8px;">
+        <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;">📝 처리 메모 (선택)</label>
+        <input type="text" id="wdAdminMemo" placeholder="처리 사유, 메모 입력..." style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;background:#f8fafc;outline:none;box-sizing:border-box;" />
       </div>
     </div>
 
-    <div class="modal-footer" style="margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;">
-      <button class="btn btn-gray" onclick="closeModal('withdrawalModal')">닫기</button>
-      <button class="btn btn-danger" id="rejectWithdrawalBtn">❌ 거부</button>
-      <button class="btn btn-success" id="approveWithdrawalBtn" style="background:linear-gradient(135deg,#10b981,#059669);">✅ 송금 완료 승인</button>
+    <!-- 푸터 버튼 -->
+    <div style="padding:14px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;gap:8px;">
+      <button class="btn btn-gray" onclick="closeModal('withdrawalModal')" style="flex:1;min-width:0;">✕ 닫기</button>
+      <button id="holdWithdrawalBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:none;">⏸ 보류</button>
+      <button id="rejectWithdrawalBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">❌ 거부</button>
+      <button id="approveWithdrawalBtn" style="flex:2;min-width:0;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:800;cursor:pointer;">✅ 송금 완료 승인</button>
     </div>
   </div>
 </div>
@@ -4805,33 +4835,72 @@ window.showDepositDetail = async (txId) => {
     if (!snap.exists()) return alert('데이터 없음');
     currentTx = {id:txId,...snap.data()};
     const isPending = currentTx.status === 'pending';
+    const isHeld    = currentTx.status === 'held';
+    const canAct    = isPending || isHeld;
 
-    // 회원 이름 조회
-    let memberName = currentTx.userId;
+    // 회원 정보 조회
+    let memberName = currentTx.userId, memberPhone = '', memberEmail = '';
     try {
         const userSnap = await getDoc(doc(db,'users',currentTx.userId));
-        if (userSnap.exists()) memberName = userSnap.data().name || currentTx.userId;
+        if (userSnap.exists()) {
+            const ud = userSnap.data();
+            memberName  = ud.name  || currentTx.userId;
+            memberPhone = ud.phone || '';
+            memberEmail = ud.email || '';
+        }
     } catch(e) {}
 
-    document.getElementById('depositModalBody').innerHTML = `
-        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
-            <span style="font-size:28px;">💰</span>
-            <div>
-                <div style="font-size:20px;font-weight:800;color:#166534;">${currentTx.amount?.toFixed(2)} USDT</div>
-                <div style="font-size:12px;color:#16a34a;margin-top:2px;">입금 신청 — <strong>${memberName}</strong></div>
-            </div>
-        </div>
-        ${infoRow('회원 이름', memberName)}
-        ${infoRow('회원 UID', `<code style="font-size:11px;">${currentTx.userId}</code>`)}
-        ${infoRow('입금 TXID', `<span style="font-size:12px;word-break:break-all;font-family:monospace;">${currentTx.txid||'-'}</span>`)}
-        ${infoRow('메모', currentTx.memo||'-')}
-        ${infoRow('신청일', fmtDate(currentTx.createdAt))}
-        ${infoRow('상태', `<span class="badge badge-${currentTx.status}">${fmtStatus(currentTx.status)}</span>`)}
-        ${currentTx.rejectionReason ? infoRow('거부 사유', `<span style="color:#dc2626;">${currentTx.rejectionReason}</span>`) : ''}
-        ${isPending ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:12px;font-size:12px;color:#92400e;"><strong>⚠️ 승인 안내:</strong> 승인 시 <strong>${memberName}</strong>의 USDT 잔액에 <strong>${currentTx.amount?.toFixed(2)} USDT</strong>가 즉시 충전됩니다.</div>` : ''}`;
+    // 서브타이틀
+    const subEl = document.getElementById('depModalSubtitle');
+    if (subEl) subEl.textContent = memberName + ' • ' + fmtDate(currentTx.createdAt);
 
-    document.getElementById('approveDepositBtn').style.display = isPending?'':'none';
-    document.getElementById('rejectDepositBtn').style.display  = isPending?'':'none';
+    // 상태 배지 색상
+    const statusColor = { pending:'#f59e0b', approved:'#10b981', rejected:'#ef4444', held:'#6366f1' };
+    const sColor = statusColor[currentTx.status] || '#94a3b8';
+
+    document.getElementById('depositModalBody').innerHTML = `
+      <!-- 금액 하이라이트 -->
+      <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:14px;padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:11px;color:#16a34a;font-weight:600;margin-bottom:2px;">입금 신청 금액</div>
+          <div style="font-size:28px;font-weight:900;color:#065f46;letter-spacing:-1px;">${(currentTx.amount||0).toFixed(2)} <span style="font-size:16px;font-weight:600;">USDT</span></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="display:inline-flex;align-items:center;gap:5px;background:${sColor}22;border:1.5px solid ${sColor}66;border-radius:20px;padding:5px 12px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:${sColor};display:inline-block;"></span>
+            <span style="font-size:13px;font-weight:700;color:${sColor};">${fmtStatus(currentTx.status)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 정보 카드 -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
+        ${infoRow2('👤 회원', `<strong>${memberName}</strong>${memberPhone ? ` · <span style="color:#64748b;font-size:12px;">${memberPhone}</span>` : ''}`)}
+        ${infoRow2('📧 이메일', `<span style="font-size:12px;">${memberEmail||currentTx.userId}</span>`)}
+        ${infoRow2('🔗 TXID', `<span style="font-family:monospace;font-size:11px;word-break:break-all;color:#1d4ed8;">${currentTx.txid||'-'}</span>`)}
+        ${currentTx.memo ? infoRow2('📝 메모', currentTx.memo) : ''}
+        ${infoRow2('📅 신청일', fmtDate(currentTx.createdAt))}
+        ${currentTx.processedAt ? infoRow2('✅ 처리일', fmtDate(currentTx.processedAt)) : ''}
+        ${currentTx.adminMemo ? infoRow2('💬 관리자 메모', `<span style="color:#7c3aed;">${currentTx.adminMemo}</span>`) : ''}
+        ${currentTx.rejectionReason ? infoRow2('❌ 거부 사유', `<span style="color:#dc2626;">${currentTx.rejectionReason}</span>`) : ''}
+      </div>
+
+      ${canAct ? `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:11px 14px;font-size:12px;color:#92400e;">
+        <strong>⚡ 승인 즉시</strong> <strong>${memberName}</strong>의 USDT 잔액에 <strong>${(currentTx.amount||0).toFixed(2)} USDT</strong>가 충전됩니다
+      </div>` : ''}
+    `;
+
+    // 액션 영역 표시
+    const actionArea = document.getElementById('depActionArea');
+    if (actionArea) actionArea.style.display = canAct ? 'block' : 'none';
+    if (document.getElementById('depAdminMemo')) document.getElementById('depAdminMemo').value = '';
+
+    // 버튼 표시/숨김
+    document.getElementById('approveDepositBtn').style.display = canAct ? '' : 'none';
+    document.getElementById('rejectDepositBtn').style.display  = canAct ? '' : 'none';
+    const holdBtn = document.getElementById('holdDepositBtn');
+    if (holdBtn) holdBtn.style.display = isPending ? '' : 'none';
+
     document.getElementById('depositModal').classList.add('show');
 };
 
@@ -4843,73 +4912,93 @@ window.showWithdrawalDetail = async (txId) => {
     if (!snap.exists()) return alert('데이터 없음');
     currentTx = {id:txId,...snap.data()};
     const isPending = currentTx.status === 'pending';
+    const isHeld    = currentTx.status === 'held';
+    const canAct    = isPending || isHeld;
 
-    // 현재 DEEDRA 시세 가져오기
-    let dedraRate = null;
-    let usdValue = null;
+    // DEEDRA 시세
+    let dedraRate = 0;
     try {
         const rateSnap = await getDoc(doc(db,'settings','dedra_rate'));
-        if (rateSnap.exists()) {
-            dedraRate = rateSnap.data().dedraPerUsd;
-            if (dedraRate && dedraRate > 0) {
-                usdValue = (currentTx.amount * dedraRate).toFixed(4);
-            }
-        }
-    } catch(e) { /* 시세 조회 실패 시 무시 */ }
-
-    // 회원 이름 조회
-    let memberName = currentTx.userId;
-    try {
-        const userSnap = await getDoc(doc(db,'users',currentTx.userId));
-        if (userSnap.exists()) memberName = userSnap.data().name || memberName;
+        if (rateSnap.exists()) dedraRate = rateSnap.data().dedraPerUsd || 0;
     } catch(e) {}
 
-    // 지갑 주소
-    const wallet = currentTx.walletAddress || '-';
+    // 회원 정보
+    let memberName = currentTx.userId, memberPhone = '';
+    try {
+        const userSnap = await getDoc(doc(db,'users',currentTx.userId));
+        if (userSnap.exists()) {
+            const ud = userSnap.data();
+            memberName  = ud.name  || memberName;
+            memberPhone = ud.phone || '';
+        }
+    } catch(e) {}
 
-    // 서브타이틀 업데이트
     const subEl = document.getElementById('wdModalSubtitle');
     if (subEl) subEl.textContent = memberName + ' • ' + fmtDate(currentTx.createdAt);
 
-    // 출금 신청 금액 표시 (USDT 기준 신청, DDRA로 지급)
-    // currentTx.amountUsdt = USDT 신청금액, currentTx.amount = DDRA 환산 수량
     const amountUsdt = currentTx.amountUsdt || currentTx.amount || 0;
     const amountDdra = currentTx.amount || 0;
     const ddraPrice  = currentTx.ddraPrice || dedraRate || 0;
+    const wallet     = currentTx.walletAddress || '-';
 
-    const usdHtml = `<div style="text-align:right;">
-        <div style="font-size:11px;color:#6366f1;font-weight:600;margin-bottom:2px;">DDRA 환산</div>
-        <div style="font-size:18px;font-weight:700;color:#4c1d95;">≈ ${amountDdra.toFixed(4)} DDRA</div>
-        <div style="font-size:10px;color:#6d28d9;">1 DDRA = $${ddraPrice.toFixed(4)} USDT</div></div>`;
+    const statusColor = { pending:'#f59e0b', approved:'#10b981', rejected:'#ef4444', held:'#6366f1' };
+    const sColor = statusColor[currentTx.status] || '#94a3b8';
 
-    const usdAmtExtra = ` <span style="color:#6d28d9;font-size:12px;">(≈ ${amountDdra.toFixed(4)} DDRA)</span>`;
+    // 지갑 복사 버튼
+    const walletCopyBtn = wallet !== '-' ? `
+      <button onclick="navigator.clipboard.writeText('${wallet}').then(()=>showToast('주소 복사됨','success'))"
+        style="margin-top:6px;background:#0369a1;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:600;">
+        📋 주소 복사
+      </button>` : '';
 
-    const pendingNote = isPending
-        ? `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin-top:14px;"><div style="font-size:12px;color:#92400e;font-weight:700;margin-bottom:4px;">⚠️ 승인 전 확인사항</div><ul style="font-size:12px;color:#78350f;margin:0;padding-left:16px;line-height:1.8;"><li>위 지갑 주소로 <strong>${amountDdra.toFixed(4)} DDRA</strong> (≈ ${amountUsdt.toFixed(2)} USDT) 를 전송하세요</li><li>전송 완료 후 TXID를 아래에 입력하고 "송금 완료 승인" 버튼을 클릭하세요</li><li>승인 후 회원의 수익 잔액(USDT)에서 해당 금액이 차감됩니다</li></ul></div>`
-        : '';
+    document.getElementById('withdrawalModalBody').innerHTML = `
+      <!-- 금액 하이라이트 -->
+      <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:2px solid #fca5a5;border-radius:14px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:11px;color:#dc2626;font-weight:600;margin-bottom:2px;">출금 신청 금액</div>
+          <div style="font-size:28px;font-weight:900;color:#7f1d1d;letter-spacing:-1px;">${amountUsdt.toFixed(2)} <span style="font-size:16px;font-weight:600;">USDT</span></div>
+          ${ddraPrice > 0 ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px;">≈ ${amountDdra.toFixed(4)} DDRA (1 DDRA=$${ddraPrice.toFixed(4)})</div>` : ''}
+        </div>
+        <div style="text-align:right;">
+          <div style="display:inline-flex;align-items:center;gap:5px;background:${sColor}22;border:1.5px solid ${sColor}66;border-radius:20px;padding:5px 12px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:${sColor};display:inline-block;"></span>
+            <span style="font-size:13px;font-weight:700;color:${sColor};">${fmtStatus(currentTx.status)}</span>
+          </div>
+        </div>
+      </div>
 
-    document.getElementById('withdrawalModalBody').innerHTML =
-        `<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:12px;padding:14px 16px;margin-bottom:16px;"><div style="display:flex;align-items:center;justify-content:space-between;"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:28px;">💎</span><div><div style="font-size:22px;font-weight:800;color:#991b1b;">${amountUsdt.toFixed(2)} USDT</div><div style="font-size:12px;color:#dc2626;margin-top:2px;">출금 신청 — <strong>${memberName}</strong></div></div></div>${usdHtml}</div></div>`
-        + `<div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:12px 14px;margin-bottom:14px;"><div style="font-size:11px;color:#0369a1;font-weight:700;margin-bottom:6px;">🔗 출금 목적지 지갑 주소</div><div style="font-family:monospace;font-size:13px;color:#0c4a6e;word-break:break-all;background:#e0f2fe;padding:8px 12px;border-radius:8px;border:1px solid #7dd3fc;">${wallet}</div>${walletCopyBtn}</div>`
-        + `<div style="display:grid;gap:2px;">`
-        + infoRow('거래 ID', `<code style="font-size:11px;">${currentTx.id}</code>`)
-        + infoRow('회원 이름', `<strong>${memberName}</strong>`)
-        + infoRow('회원 UID', `<code style="font-size:11px;">${currentTx.userId}</code>`)
-        + infoRow('신청 금액 (USDT)', `<strong style="color:#dc2626;">${amountUsdt.toFixed(2)} USDT</strong>`)
-        + infoRow('지급 금액 (DDRA)', `<strong style="color:#6d28d9;">${amountDdra.toFixed(4)} DDRA</strong>${usdAmtExtra}`)
-        + infoRow('적용 시세', `1 DDRA = $${ddraPrice.toFixed(4)} USDT`)
-        + infoRow('신청일', fmtDate(currentTx.createdAt))
-        + infoRow('상태', `<span class="badge badge-${currentTx.status}">${fmtStatus(currentTx.status)}</span>`)
-        + (currentTx.txid ? infoRow('처리 TXID', `<code style="font-size:11px;word-break:break-all;">${currentTx.txid}</code>`) : '')
-        + (currentTx.rejectionReason ? infoRow('거부 사유', `<span style="color:#dc2626;">${currentTx.rejectionReason}</span>`) : '')
-        + (currentTx.processedAt ? infoRow('처리일', fmtDate(currentTx.processedAt)) : '')
-        + `</div>`
-        + pendingNote;
+      <!-- 목적지 지갑 -->
+      <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:11px;color:#0369a1;font-weight:700;margin-bottom:6px;">🔗 출금 목적지 지갑 주소</div>
+        <div style="font-family:monospace;font-size:12px;color:#0c4a6e;word-break:break-all;background:#e0f2fe;padding:9px 12px;border-radius:8px;border:1px solid #7dd3fc;line-height:1.4;">${wallet}</div>
+        ${walletCopyBtn}
+      </div>
 
-    document.getElementById('txidFormWrap').style.display = isPending ? 'block' : 'none';
-    document.getElementById('withdrawalTxidInput').value = '';
-    document.getElementById('approveWithdrawalBtn').style.display = isPending ? '' : 'none';
-    document.getElementById('rejectWithdrawalBtn').style.display  = isPending ? '' : 'none';
+      <!-- 상세 정보 -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:12px;">
+        ${infoRow2('👤 회원', `<strong>${memberName}</strong>${memberPhone ? ` · <span style="color:#64748b;font-size:12px;">${memberPhone}</span>` : ''}`)}
+        ${infoRow2('💰 신청(USDT)', `<strong style="color:#dc2626;">${amountUsdt.toFixed(2)} USDT</strong>`)}
+        ${infoRow2('💎 지급(DDRA)', `<strong style="color:#6d28d9;">${amountDdra.toFixed(4)} DDRA</strong>`)}
+        ${infoRow2('📅 신청일', fmtDate(currentTx.createdAt))}
+        ${currentTx.txid ? infoRow2('🔗 처리 TXID', `<code style="font-size:11px;word-break:break-all;">${currentTx.txid}</code>`) : ''}
+        ${currentTx.processedAt ? infoRow2('✅ 처리일', fmtDate(currentTx.processedAt)) : ''}
+        ${currentTx.adminMemo ? infoRow2('💬 관리자 메모', `<span style="color:#7c3aed;">${currentTx.adminMemo}</span>`) : ''}
+        ${currentTx.rejectionReason ? infoRow2('❌ 거부 사유', `<span style="color:#dc2626;">${currentTx.rejectionReason}</span>`) : ''}
+      </div>
+    `;
+
+    // TXID + 메모 영역
+    const txWrap = document.getElementById('txidFormWrap');
+    if (txWrap) txWrap.style.display = canAct ? 'block' : 'none';
+    if (document.getElementById('withdrawalTxidInput')) document.getElementById('withdrawalTxidInput').value = '';
+    if (document.getElementById('wdAdminMemo')) document.getElementById('wdAdminMemo').value = '';
+
+    // 버튼
+    document.getElementById('approveWithdrawalBtn').style.display = canAct ? '' : 'none';
+    document.getElementById('rejectWithdrawalBtn').style.display  = canAct ? '' : 'none';
+    const holdWdBtn = document.getElementById('holdWithdrawalBtn');
+    if (holdWdBtn) holdWdBtn.style.display = isPending ? '' : 'none';
+
     document.getElementById('withdrawalModal').classList.add('show');
 };
 
@@ -5260,65 +5349,88 @@ function setupEvents() {
 
     // ── 입금 승인 ──
     document.getElementById('approveDepositBtn').addEventListener('click', async () => {
-        const amount = currentTx.amount?.toFixed(2);
-        if (!confirm(`💰 입금 승인 확인\n\n▸ 금액: ${amount} USDT\n▸ 회원 USDT 잔액에 즉시 충전됩니다.\n\n승인하시겠습니까?`)) return;
+        const amount = (currentTx.amount||0).toFixed(2);
+        const memo   = document.getElementById('depAdminMemo')?.value.trim() || '';
+        if (!confirm(`✅ 입금 승인하시겠습니까?\n\n금액: ${amount} USDT\n승인 즉시 회원 잔액에 충전됩니다.`)) return;
         const btn = document.getElementById('approveDepositBtn');
         btn.disabled=true; btn.textContent='처리 중...';
-        const r = await api.approveDeposit(currentTx.id, currentAdmin.uid);
+        const r = await api.approveDeposit(currentTx.id, currentAdmin.uid, memo);
         if (r.success) {
-            showToast(`✅ ${amount} USDT 입금 승인 완료! 회원 잔액에 충전되었습니다.`);
+            showToast(`✅ ${amount} USDT 입금 승인 완료!`, 'success');
             closeModal('depositModal');
             loadDeposits(currentDepositStatus); loadDashboard();
-        } else { alert('❌ '+r.error); }
+        } else { showToast('❌ '+r.error, 'error'); }
         btn.disabled=false; btn.textContent='✅ 승인';
     });
 
     // ── 입금 거부 ──
     document.getElementById('rejectDepositBtn').addEventListener('click', async () => {
-        const reason = prompt('거부 사유를 입력하세요:');
+        const memo   = document.getElementById('depAdminMemo')?.value.trim() || '';
+        const reason = memo || prompt('거부 사유를 입력하세요:');
         if (!reason) return;
         const r = await api.rejectDeposit(currentTx.id, currentAdmin.uid, reason);
         if (r.success) {
-            alert('✅ 입금이 거부되었습니다.');
+            showToast('❌ 입금 거부 처리되었습니다.', 'warning');
             closeModal('depositModal');
             loadDeposits(currentDepositStatus); loadDashboard();
-        } else { alert('❌ '+r.error); }
+        } else { showToast('❌ '+r.error, 'error'); }
+    });
+
+    // ── 입금 보류 ──
+    const holdDepBtn = document.getElementById('holdDepositBtn');
+    if (holdDepBtn) holdDepBtn.addEventListener('click', async () => {
+        const memo = document.getElementById('depAdminMemo')?.value.trim() || '보류 처리';
+        try {
+            await updateDoc(doc(db, 'transactions', currentTx.id), { status: 'held', adminMemo: memo, updatedAt: serverTimestamp() });
+            showToast('⏸ 입금 보류 처리되었습니다.', 'info');
+            closeModal('depositModal');
+            loadDeposits(currentDepositStatus);
+        } catch(e) { showToast('오류: '+e.message, 'error'); }
     });
 
     // ── 출금 승인 ──
     document.getElementById('approveWithdrawalBtn').addEventListener('click', async () => {
-        const txid = document.getElementById('withdrawalTxidInput').value.trim();
-        if (!txid) { alert('TXID를 입력하세요.'); return; }
-
-        // 현재 시세 표시 포함한 확인창
-        const dedraAmt = currentTx.amount?.toFixed(2);
-        const rate = _cachedDedraRate;
-        const usdMsg = rate ? `\n▸ USD 환산: ≈ $${(currentTx.amount*rate).toFixed(4)} (시세: 1 DDRA = $${rate})` : '';
-        const wallet = currentTx.walletAddress || '주소 없음';
-        if (!confirm(`💸 출금 송금 완료 승인\n\n▸ 금액: ${dedraAmt} DEEDRA${usdMsg}\n▸ 지갑: ${wallet}\n▸ TXID: ${txid}\n\n위 내용으로 승인하시겠습니까?`)) return;
-
+        const txid  = document.getElementById('withdrawalTxidInput').value.trim();
+        if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
+        const memo   = document.getElementById('wdAdminMemo')?.value.trim() || '';
+        const dedraAmt = (currentTx.amount||0).toFixed(4);
+        const wallet  = currentTx.walletAddress || '주소 없음';
+        if (!confirm(`✅ 출금 승인하시겠습니까?\n\n금액: ${dedraAmt} DDRA\n지갑: ${wallet}\nTXID: ${txid}`)) return;
         const btn = document.getElementById('approveWithdrawalBtn');
         btn.disabled=true; btn.textContent='처리 중...';
-        const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, txid);
+        const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, txid, memo);
         if (r.success) {
-            showToast(`✅ ${dedraAmt} DEEDRA 출금 승인 완료! 감사 로그가 기록되었습니다.`, 'success');
+            showToast(`✅ ${dedraAmt} DDRA 출금 승인 완료!`, 'success');
             closeModal('withdrawalModal');
-            _cachedDedraRate = null; // 캐시 갱신
+            _cachedDedraRate = null;
             loadWithdrawals(currentWithdrawalStatus); loadDashboard();
-        } else { alert('❌ '+r.error); }
+        } else { showToast('❌ '+r.error, 'error'); }
         btn.disabled=false; btn.textContent='✅ 송금 완료 승인';
     });
 
     // ── 출금 거부 ──
     document.getElementById('rejectWithdrawalBtn').addEventListener('click', async () => {
-        const reason = prompt('거부 사유를 입력하세요:');
+        const memo   = document.getElementById('wdAdminMemo')?.value.trim() || '';
+        const reason = memo || prompt('거부 사유를 입력하세요:');
         if (!reason) return;
         const r = await api.rejectWithdrawal(currentTx.id, currentAdmin.uid, reason);
         if (r.success) {
-            alert('✅ 출금이 거부되었습니다.');
+            showToast('❌ 출금 거부 처리되었습니다.', 'warning');
             closeModal('withdrawalModal');
             loadWithdrawals(currentWithdrawalStatus); loadDashboard();
-        } else { alert('❌ '+r.error); }
+        } else { showToast('❌ '+r.error, 'error'); }
+    });
+
+    // ── 출금 보류 ──
+    const holdWdBtn = document.getElementById('holdWithdrawalBtn');
+    if (holdWdBtn) holdWdBtn.addEventListener('click', async () => {
+        const memo = document.getElementById('wdAdminMemo')?.value.trim() || '보류 처리';
+        try {
+            await updateDoc(doc(db, 'transactions', currentTx.id), { status: 'held', adminMemo: memo, updatedAt: serverTimestamp() });
+            showToast('⏸ 출금 보류 처리되었습니다.', 'info');
+            closeModal('withdrawalModal');
+            loadWithdrawals(currentWithdrawalStatus);
+        } catch(e) { showToast('오류: '+e.message, 'error'); }
     });
 
     // ── 잔액 수정 ──
@@ -6172,6 +6284,13 @@ function loading() { return '<div class="loading"><div class="spinner"></div><di
 function emptyState(msg) { return `<div class="empty-state"><div class="empty-icon">📭</div>${msg}</div>`; }
 function infoRow(label, value) {
     return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${value}</span></div>`;
+}
+// 개선된 infoRow (배경 없는 깔끔한 2열 레이아웃)
+function infoRow2(label, value) {
+    return `<div style="display:flex;align-items:flex-start;padding:9px 14px;border-bottom:1px solid #f1f5f9;">
+      <span style="font-size:12px;color:#64748b;min-width:110px;font-weight:600;padding-top:1px;">${label}</span>
+      <span style="font-size:13px;color:#1e293b;flex:1;word-break:break-word;">${value}</span>
+    </div>`;
 }
 function showInlineAlert(id, type, msg) {
     const el = document.getElementById(id);
