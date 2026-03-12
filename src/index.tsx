@@ -1123,6 +1123,22 @@ const SETUP_HTML = () => `<!DOCTYPE html>
     <p style="margin:6px 0 0;font-size:11px;color:#9ca3af">출금 PIN: 123456</p>
   </div>
 
+  <div class="section" style="margin-top:16px;background:#1e293b;border-radius:10px;padding:16px;">
+    <div class="section-title" style="color:#f59e0b">🔐 관리자 계정 생성</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <input id="adminEmail" type="email" placeholder="관리자 이메일" value="admin@deedra.com"
+        style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:200px;"/>
+      <input id="adminPass" type="password" placeholder="비밀번호" value="Admin1234!"
+        style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:160px;"/>
+      <input id="adminName" type="text" placeholder="이름" value="관리자"
+        style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:120px;"/>
+    </div>
+    <button id="btnAdmin" onclick="createAdmin()"
+      style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">
+      🔐 관리자 계정 생성
+    </button>
+  </div>
+
   <div class="btn-row">
     <button class="btn-all" id="btnAll" onclick="runAll()">🚀 전체 초기화 (상품 + 계정 + 설정)</button>
     <button class="btn-products" id="btnProducts" onclick="createProducts()">📦 투자 상품만 생성</button>
@@ -1166,6 +1182,46 @@ function log(msg, color='#d1fae5') {
   el.innerHTML += '<span style="color:'+color+'">'+msg+'</span>\\n';
   el.scrollTop = el.scrollHeight;
 }
+
+window.createAdmin = async function() {
+  const email = document.getElementById('adminEmail').value.trim();
+  const pass  = document.getElementById('adminPass').value.trim();
+  const name  = document.getElementById('adminName').value.trim() || '관리자';
+  if (!email || !pass) { log('❌ 이메일과 비밀번호를 입력해주세요.', '#fca5a5'); return; }
+  const btn = document.getElementById('btnAdmin');
+  btn.disabled = true;
+  log('\n🔐 [관리자 계정 생성 시작]', '#fcd34d');
+  log('  이메일: ' + email, '#e5e7eb');
+  try {
+    let uid;
+    try {
+      const c = await createUserWithEmailAndPassword(auth, email, pass);
+      uid = c.user.uid;
+      log('  ✅ Firebase Auth 계정 생성 완료', '#86efac');
+    } catch(e) {
+      if (e.code === 'auth/email-already-in-use') {
+        const c = await signInWithEmailAndPassword(auth, email, pass);
+        uid = c.user.uid;
+        log('  ℹ️ 기존 계정 발견 → role을 admin으로 업데이트', '#93c5fd');
+      } else throw e;
+    }
+    await setDoc(doc(db, 'users', uid), {
+      uid, email, name, role: 'admin',
+      status: 'active', rank: 'ADMIN',
+      referralCode: 'ADMIN', referredBy: null,
+      phone: '', createdAt: serverTimestamp()
+    }, { merge: true });
+    log('  ✅ Firestore users 저장 완료 (role: admin)', '#86efac');
+    log('\n✅✅ 관리자 계정 생성 완료!', '#fcd34d');
+    log('  📧 이메일: ' + email, '#fcd34d');
+    log('  🔑 비밀번호: ' + pass, '#fcd34d');
+    log('  👉 /admin 에서 로그인하세요', '#fcd34d');
+  } catch(e) {
+    log('  ❌ 오류: ' + e.message, '#fca5a5');
+  } finally {
+    btn.disabled = false;
+  }
+};
 
 function disableAll(v) {
   ['btnAll','btnProducts','btnAccounts','btnSettings'].forEach(id => {
