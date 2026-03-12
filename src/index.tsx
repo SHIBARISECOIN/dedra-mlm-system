@@ -1234,6 +1234,37 @@ const HTML = () => `<!DOCTYPE html>
   max-width:200px;pointer-events:none;
 "></div>
 
+<!-- 알림 모달 -->
+<div id="notiModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('notiModal')"></div>
+  <div class="modal-sheet large">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔔 알림 센터</div>
+    <div class="modal-body">
+      <div id="notiList" class="noti-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('notiModal')" data-i18n="btnClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지사항 상세 모달 -->
+<div id="announcementDetailModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('announcementDetailModal')"></div>
+  <div class="modal-sheet large">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="annDetailTitle">📢 공지사항</div>
+    <div class="modal-body">
+      <div id="annDetailDate" style="font-size:12px;color:var(--text2);margin-bottom:12px;"></div>
+      <div id="annDetailBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('announcementDetailModal')" data-i18n="btnClose">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 

@@ -1760,19 +1760,32 @@ export class DedraAPI {
       // 대상 회원 알림 컬렉션에 저장
       const usersSnap = await getDocs(collection(this.db, 'users'));
       const batch = writeBatch(this.db);
+      let count = 0;
       usersSnap.docs.forEach(ud => {
         const u = ud.data();
         if (u.role === 'admin') return;
+        // targetGroup 필터 적용
+        const tg = payload.targetGroup || 'all';
+        if (tg !== 'all') {
+          if (tg === 'active' && u.status !== 'active') return;
+          if (tg === 'vip' && !['G5','G6','G7','G8','G9','G10'].includes(u.rank)) return;
+          if (tg === 'new') {
+            const ts = u.createdAt?.seconds ? u.createdAt.seconds * 1000 : 0;
+            if (Date.now() - ts > 7 * 86400000) return;
+          }
+        }
         const nRef = doc(collection(this.db, 'notifications'));
         batch.set(nRef, {
           userId: ud.id, title: payload.title, message: payload.message,
-          type: payload.type || 'info', isRead: false,
+          type: payload.type || 'system', isRead: false,
           broadcastId: ref.id, createdAt: serverTimestamp()
         });
+        count++;
       });
       await batch.commit();
-      await this._auditLog(adminId, 'broadcast', `브로드캐스트: ${payload.title}`, { id: ref.id });
-      return ok({ id: ref.id });
+      await updateDoc(doc(this.db, 'broadcasts', ref.id), { count });
+      await this._auditLog(adminId, 'broadcast', `브로드캐스트: ${payload.title}`, { id: ref.id, count });
+      return ok({ id: ref.id, count });
     } catch(e) { return err(e); }
   }
 

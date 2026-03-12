@@ -1161,6 +1161,7 @@ async function initApp() {
     loadAnnouncements();
     loadRecentTransactions();
     loadDDayCard();
+    startNotificationListener();
 
     // 테마 복원
     restoreTheme();
@@ -1593,8 +1594,27 @@ window.showAnnouncementModal = async function() {
   }
 };
 
-window.showAnnouncementDetail = function(id) {
-  // 추후 상세 구현
+window.showAnnouncementDetail = async function(id) {
+  const { doc, getDoc, db } = window.FB;
+  // 공지사항 상세 모달 표시
+  const modal = document.getElementById('announcementDetailModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  const titleEl = document.getElementById('annDetailTitle');
+  const dateEl  = document.getElementById('annDetailDate');
+  const bodyEl  = document.getElementById('annDetailBody');
+  if (titleEl) titleEl.textContent = '불러오는 중...';
+  if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
+  try {
+    const snap = await getDoc(doc(db, 'announcements', id));
+    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">공지사항을 찾을 수 없습니다.</div>'; return; }
+    const a = snap.data();
+    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || '제목 없음');
+    if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
+    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(a.content || '내용 없음').replace(/\n/g, '<br>')}</div>`;
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+  }
 };
 
 // ===== 최근 거래 =====
@@ -1862,6 +1882,15 @@ window.submitWithdraw = async function() {
   if (!ddrAmt || ddrAmt <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast('PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
+
+  // PIN 미설정 시 설정 유도
+  if (!userData?.withdrawPin) {
+    showToast('출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.', 'warning');
+    closeModal('withdrawModal');
+    setTimeout(() => showWithdrawPinSetup(), 300);
+    return;
+  }
 
   const price = deedraPrice || 0.5;
   const amountUsdt = ddrAmt * price;  // USDT 환산
@@ -2045,6 +2074,59 @@ window.runSimulator = function() {
   result.classList.add('show');
 };
 
+// ===== 투자 만기 자동 처리 =====
+async function autoCompleteExpiredInvestments(investDocs) {
+  if (!currentUser || !investDocs || investDocs.length === 0) return;
+  const now = new Date();
+  const { doc, updateDoc, addDoc, collection, db, serverTimestamp, increment, writeBatch } = window.FB;
+  const expired = investDocs.filter(d => {
+    const inv = d.data();
+    if (inv.status !== 'active') return false;
+    const endDate = inv.endDate?.toDate ? inv.endDate.toDate() : (inv.endDate ? new Date(inv.endDate) : null);
+    return endDate && now >= endDate;
+  });
+  if (expired.length === 0) return;
+
+  for (const d of expired) {
+    const inv = d.data();
+    try {
+      const batch = writeBatch(db);
+      // 투자 상태를 completed로 변경
+      batch.update(doc(db, 'investments', d.id), {
+        status: 'completed',
+        completedAt: serverTimestamp()
+      });
+      // 원금(USDT)을 wallets.usdtBalance에 반환
+      batch.update(doc(db, 'wallets', currentUser.uid), {
+        usdtBalance: increment(inv.amount || 0)
+      });
+      await batch.commit();
+
+      // 만기 알림 생성
+      await addDoc(collection(db, 'notifications'), {
+        userId: currentUser.uid,
+        type: 'invest',
+        title: '✅ 투자 만기 완료',
+        message: `[${inv.productName}] 투자 계약이 만료되었습니다. 원금 ${fmt(inv.amount)} USDT가 지갑에 반환되었습니다.`,
+        isRead: false,
+        createdAt: serverTimestamp()
+      });
+
+      // 로컬 walletData 즉시 반영
+      if (walletData) {
+        walletData.usdtBalance = (walletData.usdtBalance || 0) + (inv.amount || 0);
+      }
+      console.info(`[AutoComplete] 투자 만기 처리 완료: ${d.id} (${inv.productName}, ${inv.amount} USDT 반환)`);
+    } catch(e) { console.warn('[AutoComplete] 만기 처리 실패:', d.id, e); }
+  }
+  if (expired.length > 0) {
+    // 만기 처리 후 지갑 UI 갱신
+    updateWalletUI();
+    updateHomeUI();
+    showToast(`📋 만기 투자 ${expired.length}건의 원금이 반환되었습니다.`, 'success');
+  }
+}
+
 async function loadMyInvestments() {
   const { collection, query, where, orderBy, getDocs, db } = window.FB;
   const listEl = document.getElementById('myInvestList');
@@ -2060,6 +2142,9 @@ async function loadMyInvestments() {
     );
     const snap = await getDocs(q);
     const invests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // 만기 투자 자동 처리
+    await autoCompleteExpiredInvestments(snap.docs);
 
     invests.forEach(inv => {
       sumItems.count++;
@@ -3053,6 +3138,35 @@ function logGame(gameName, win, bet) {
       ${win ? '+' : '-'}${fmt(bet)} DDRA
     </div>`;
   listEl.insertBefore(item, listEl.firstChild);
+
+  // Firestore 실시간 동기화 (gamelogs 기록 + wallets bonusBalance 즉시 반영)
+  if (!currentUser || !walletData) return;
+  try {
+    const { addDoc, collection, doc, updateDoc, db, serverTimestamp } = window.FB;
+    const ddraChange = win ? bet : -bet;
+    const usdtChange = _ddraToUsdt(ddraChange);
+    const newBonus = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+
+    // gamelogs 컬렉션에 기록
+    addDoc(collection(db, 'gamelogs'), {
+      userId: currentUser.uid,
+      userEmail: currentUser.email,
+      game: gameName,
+      win,
+      bet,
+      betUsdt: _ddraToUsdt(bet),
+      ddraChange,
+      usdtChange,
+      ddraPrice: deedraPrice || 0.5,
+      createdAt: serverTimestamp()
+    }).catch(() => {});
+
+    // wallets bonusBalance 즉시 Firestore 반영
+    updateDoc(doc(db, 'wallets', currentUser.uid), {
+      bonusBalance: newBonus
+    }).catch(() => {});
+
+  } catch(e) { console.warn('[logGame] Firestore 저장 오류:', e); }
 }
 
 // ============================================================
@@ -3542,8 +3656,74 @@ window.submitTicket = async function() {
   }
 };
 
-window.showNotifications = function() {
-  showToast('새 알림이 없습니다.', 'info');
+// ===== 알림 시스템 =====
+let _notiUnsubscribe = null;
+
+// 앱 시작 시 실시간 알림 리스너 등록 (initApp에서 호출)
+async function startNotificationListener() {
+  if (!currentUser) return;
+  const { collection, query, where, orderBy, onSnapshot, db, limit } = window.FB;
+  if (_notiUnsubscribe) _notiUnsubscribe(); // 기존 리스너 해제
+  try {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', currentUser.uid),
+      where('isRead', '==', false),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    _notiUnsubscribe = onSnapshot(q, (snap) => {
+      const count = snap.size;
+      const badge = document.getElementById('notiBadge');
+      if (badge) {
+        if (count > 0) { badge.classList.remove('hidden'); badge.textContent = count > 9 ? '9+' : count; }
+        else { badge.classList.add('hidden'); badge.textContent = ''; }
+      }
+    }, () => {});
+  } catch(e) { console.warn('[Noti] 리스너 오류:', e); }
+}
+
+window.showNotifications = async function() {
+  const { collection, query, where, orderBy, getDocs, doc, updateDoc, writeBatch, db, limit, serverTimestamp } = window.FB;
+  const modal = document.getElementById('notiModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  const listEl = document.getElementById('notiList');
+  if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
+  try {
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', currentUser.uid),
+      orderBy('createdAt', 'desc'),
+      limit(30)
+    );
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // 읽지 않은 알림 일괄 읽음 처리
+    const unread = snap.docs.filter(d => !d.data().isRead);
+    if (unread.length > 0) {
+      const batch = writeBatch(db);
+      unread.forEach(d => batch.update(doc(db, 'notifications', d.id), { isRead: true }));
+      await batch.commit();
+    }
+    if (!items.length) {
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-bell-slash"></i><br>알림이 없습니다</div>';
+      return;
+    }
+    const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
+    if (listEl) listEl.innerHTML = items.map(n => `
+      <div class="noti-item ${n.isRead ? '' : 'unread'}">
+        <div class="noti-icon">${notiIcons[n.type] || '🔔'}</div>
+        <div class="noti-body">
+          <div class="noti-title">${n.title || '알림'}</div>
+          <div class="noti-msg">${n.message || ''}</div>
+          <div class="noti-date">${fmtDate(n.createdAt)}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    if (listEl) listEl.innerHTML = '<div class="empty-state">알림을 불러올 수 없습니다</div>';
+  }
 };
 
 // ===== 모달 =====
