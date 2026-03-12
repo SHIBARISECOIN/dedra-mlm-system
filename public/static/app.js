@@ -1061,6 +1061,59 @@ const RANKS = [
 // 관리자가 설정한 직급 승진 조건 (Firestore에서 로드)
 let rankPromoSettings = null;
 
+// ===== 게임 하우스 확률 (관리자 설정) =====
+// houseWinRate: 0~100 → 관리자(하우스)가 이기는 확률 %
+// 0% = 하우스가 절대 못 이김(유저 유리), 100% = 하우스가 항상 이김(유저 항상 패)
+// 기본값은 각 게임별 정상 RTP 기반 (홀짝 4%, 주사위 6%, 슬롯 8%, 룰렛 2.7%, 바카라 1.1%, 포커 1%)
+let gameOdds = {
+  global:   { houseWinRate: 4 },   // 전체 게임 공통 (개별 설정이 없을 때 사용)
+  oddeven:  { houseWinRate: 4 },
+  dice:     { houseWinRate: 6 },
+  slot:     { houseWinRate: 8 },
+  roulette: { houseWinRate: 3 },
+  baccarat: { houseWinRate: 1 },
+  poker:    { houseWinRate: 1 },
+};
+let gameOddsLoaded = false;
+
+// Firestore에서 게임 확률 설정 로드
+async function loadGameOdds() {
+  try {
+    const { doc, getDoc, db } = window.FB;
+    const snap = await getDoc(doc(db, 'settings', 'gameOdds'));
+    if (snap.exists()) {
+      const data = snap.data();
+      // 저장된 값으로 gameOdds 덮어쓰기
+      if (data.global   !== undefined) gameOdds.global.houseWinRate   = Number(data.global);
+      if (data.oddeven  !== undefined) gameOdds.oddeven.houseWinRate  = Number(data.oddeven);
+      if (data.dice     !== undefined) gameOdds.dice.houseWinRate     = Number(data.dice);
+      if (data.slot     !== undefined) gameOdds.slot.houseWinRate     = Number(data.slot);
+      if (data.roulette !== undefined) gameOdds.roulette.houseWinRate = Number(data.roulette);
+      if (data.baccarat !== undefined) gameOdds.baccarat.houseWinRate = Number(data.baccarat);
+      if (data.poker    !== undefined) gameOdds.poker.houseWinRate    = Number(data.poker);
+      // useGlobal: true이면 모든 게임에 global 값 적용
+      if (data.useGlobal) {
+        const g = gameOdds.global.houseWinRate;
+        ['oddeven','dice','slot','roulette','baccarat','poker'].forEach(k => gameOdds[k].houseWinRate = g);
+      }
+    }
+    gameOddsLoaded = true;
+  } catch(e) {
+    console.warn('[GameOdds] 설정 로드 실패, 기본값 사용:', e);
+    gameOddsLoaded = true;
+  }
+}
+
+// 하우스 확률 적용 랜덤 함수
+// gameKey: 'oddeven' | 'dice' | 'slot' | 'roulette' | 'baccarat' | 'poker'
+// 반환: true = 유저 승리, false = 유저 패배
+function houseRandom(gameKey) {
+  const rate = gameOdds[gameKey]?.houseWinRate ?? gameOdds.global.houseWinRate;
+  // rate = 하우스(관리자)가 이기는 확률 (0~100%)
+  // 즉 유저가 이길 확률 = (100 - rate) / 100
+  return Math.random() * 100 >= rate;  // true → 유저 승리
+}
+
 const SLOT_SYMBOLS = ['🍋', '🍇', '🍎', '🍊', '⭐', '7️⃣', '💎'];
 const DICE_FACES = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣'];
 
@@ -1154,6 +1207,7 @@ async function initApp() {
 
     await loadWalletData();
     await loadDeedraPrice();
+    await loadGameOdds();
 
     showScreen('main');
 
@@ -2697,7 +2751,10 @@ window.playOddEven = function(choice) {
 
   setTimeout(() => {
     const result = Math.random() < 0.5 ? 'odd' : 'even';
-    const win = choice === result;
+    const userWins = houseRandom('oddeven');
+    const win = userWins ? true : false;
+    // 결과값은 유저 선택과 일치/불일치로 결정
+    const forcedResult = win ? choice : (choice === 'odd' ? 'even' : 'odd');
     const betUsdt = _ddraToUsdt(oeBetVal);
     // DDRA 변화 반영 → bonusBalance(USDT) 동기화
     const ddraChange = win ? oeBetVal : -oeBetVal;
@@ -2708,8 +2765,8 @@ window.playOddEven = function(choice) {
 
     if (coin) coin.classList.remove('coin-flipping');
     if (coinText) {
-      coinText.textContent = result === 'odd' ? '🔴 홀 (Odd)' : '🔵 짝 (Even)';
-      coinText.style.color = result === 'odd' ? '#90caf9' : '#ef9a9a';
+      coinText.textContent = forcedResult === 'odd' ? '🔴 홀 (Odd)' : '🔵 짝 (Even)';
+      coinText.style.color = forcedResult === 'odd' ? '#90caf9' : '#ef9a9a';
     }
 
     const el = document.getElementById('oeResult');
@@ -2717,8 +2774,8 @@ window.playOddEven = function(choice) {
     if (el) {
       el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
       el.innerHTML = win
-        ? `🎉 <strong>승리!</strong> +${oeBetVal} DDRA (≈+${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`
-        : `😢 <strong>패배</strong> -${oeBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`;
+        ? `🎉 <strong>승리!</strong> +${oeBetVal} DDRA (≈+${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${forcedResult === 'odd' ? '홀' : '짝'}`
+        : `😢 <strong>패배</strong> -${oeBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${forcedResult === 'odd' ? '홀' : '짝'}`;
       el.classList.remove('hidden');
     }
 
@@ -2753,8 +2810,12 @@ window.playDice = function(chosenNum) {
   }
 
   setTimeout(() => {
-    const result = Math.ceil(Math.random() * 6);
-    const win = chosenNum === result;
+    const userWins = houseRandom('dice');
+    // 유저가 이기면 선택한 숫자, 지면 다른 숫자
+    const result = userWins
+      ? chosenNum
+      : (() => { const others = [1,2,3,4,5,6].filter(n => n !== chosenNum); return others[Math.floor(Math.random() * others.length)]; })();
+    const win = userWins;
     const betUsdt = _ddraToUsdt(diceBetVal);
     const ddraChange = win ? diceBetVal * 5 : -diceBetVal;
     const usdtChange = _ddraToUsdt(ddraChange);
@@ -2798,7 +2859,20 @@ window.playSpin = function() {
 
   // 릴별로 다른 시점에 멈춤 (순차적으로)
   const stopTimes = [800, 1100, 1400];
-  const result = [0,1,2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
+  // 하우스 확률 적용: 유저가 이길지 먼저 결정
+  const slotUserWins = houseRandom('slot');
+  let result;
+  if (slotUserWins) {
+    // 유저 승리: 3개 같은 심볼 생성 (가중치: 낮은 배율 우선)
+    const winSymbols = ['🍋','🍇','🍎','🍊','⭐','7️⃣','💎'];
+    const sym = winSymbols[Math.floor(Math.random() * winSymbols.length)];
+    result = [sym, sym, sym];
+  } else {
+    // 유저 패배: 3개 중 최소 하나는 다른 심볼
+    do {
+      result = [0,1,2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
+    } while (result[0] === result[1] && result[1] === result[2]);
+  }
 
   reels.forEach((r, i) => {
     setTimeout(() => {
@@ -3022,8 +3096,33 @@ window.playRoulette = function() {
   const spinBtn = document.getElementById('rlSpinBtn');
   if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span style="display:inline-block;animation:spinRotate 0.4s linear infinite">🎡</span> 스피닝...'; }
 
-  // 결과 먼저 뽑기
-  const resultNum = ROULETTE_ORDER[Math.floor(Math.random() * ROULETTE_ORDER.length)];
+  // 하우스 확률 적용하여 결과 숫자 결정
+  const rlUserWins = houseRandom('roulette');
+  let resultNum;
+  // 베팅 유형에 따라 이기는 숫자 집합과 지는 숫자 집합 분류
+  const bet = rlSelectedBet;
+  const winNums = ROULETTE_ORDER.filter(n => {
+    if (bet === 'red')    return RL_RED.has(n);
+    if (bet === 'black')  return n !== 0 && !RL_RED.has(n);
+    if (bet === 'zero')   return n === 0;
+    if (bet === 'odd')    return n !== 0 && n % 2 === 1;
+    if (bet === 'even')   return n !== 0 && n % 2 === 0;
+    if (bet === 'low')    return n >= 1 && n <= 18;
+    if (bet === 'high')   return n >= 19 && n <= 36;
+    if (bet === 'dozen1') return n >= 1 && n <= 12;
+    if (bet === 'dozen2') return n >= 13 && n <= 24;
+    if (bet === 'dozen3') return n >= 25 && n <= 36;
+    if (bet.startsWith('num')) return n === parseInt(bet.slice(3));
+    return false;
+  });
+  const loseNums = ROULETTE_ORDER.filter(n => !winNums.includes(n));
+  if (rlUserWins && winNums.length > 0) {
+    resultNum = winNums[Math.floor(Math.random() * winNums.length)];
+  } else if (!rlUserWins && loseNums.length > 0) {
+    resultNum = loseNums[Math.floor(Math.random() * loseNums.length)];
+  } else {
+    resultNum = ROULETTE_ORDER[Math.floor(Math.random() * ROULETTE_ORDER.length)];
+  }
 
   // 결과 번호가 바퀴 상단(포인터 위치)에 오도록 목표 각도 계산
   const count = ROULETTE_ORDER.length;
@@ -3292,8 +3391,22 @@ window.playBaccarat = async function(betSide) {
     }
   }
 
-  // 승패 판정
-  let outcome = pScore > bScore ? 'player' : bScore > pScore ? 'banker' : 'tie';
+  // 승패 판정 (하우스 확률 적용)
+  let naturalOutcome = pScore > bScore ? 'player' : bScore > pScore ? 'banker' : 'tie';
+  let outcome;
+  if (betSide === 'tie') {
+    // 타이 베팅: 하우스 확률로 타이 여부 결정
+    outcome = houseRandom('baccarat') ? 'tie' : naturalOutcome !== 'tie' ? naturalOutcome : 'player';
+  } else {
+    // 플레이어/뱅커 베팅: 유저가 이기면 베팅한 쪽이 이기도록, 지면 반대쪽 or 타이
+    const bacUserWins = houseRandom('baccarat');
+    if (bacUserWins) {
+      outcome = betSide; // 유저 베팅쪽 승리
+    } else {
+      // 유저 패배: 반대쪽 or 타이로 결정
+      outcome = naturalOutcome !== betSide ? naturalOutcome : (betSide === 'player' ? 'banker' : 'player');
+    }
+  }
 
   // 배당 계산
   let win = false, multiplier = 0, resultMsg = '';

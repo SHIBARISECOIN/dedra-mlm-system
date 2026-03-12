@@ -1898,4 +1898,23 @@ export class DedraAPI {
       });
     } catch(_) { /* 감사 로그 실패는 무시 */ }
   }
+
+  // ─────────────────────────────────────────────────
+  // 범용 Firestore 헬퍼 (settings 등 직접 접근용)
+  // ─────────────────────────────────────────────────
+
+  /** settings/{docId} 단일 문서 스냅샷 반환 */
+  async getRawDoc(collectionName, docId) {
+    return await getDoc(doc(this.db, collectionName, docId));
+  }
+
+  /** settings/{docId} 문서 덮어쓰기 (merge:true) */
+  async setRawDoc(collectionName, docId, data) {
+    await setDoc(doc(this.db, collectionName, docId), data, { merge: true });
+  }
+
+  /** 감사 로그 공개 인터페이스 */
+  async addAuditLog(adminId, action, meta = {}) {
+    await this._auditLog(adminId, 'system', action, meta);
+  }
 }
