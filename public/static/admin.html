@@ -6886,9 +6886,20 @@ function renderLogicSwitches(rates) {
         { id: 'enableRankDiffBonus',  label: '🏅 직급 차이 보너스',               desc: '상위 추천인의 직급이 높을 때 추가 지급' },
         { id: 'enableRankBonus',      label: '🏆 직급별 추가 보너스',             desc: '직급에 따른 추가 이벤트 보너스 (기본 비활성)' },
     ];
+    // 각 스위치의 기본 ON/OFF 여부 (Firestore 미저장 시 사용)
+    const switchDefaults = {
+        enableDirectBonus:    true,
+        enableUnilevel:       true,
+        enableDirectBonus2Gen:false,
+        enableRankDiffBonus:  false,
+        enableRankBonus:      false,
+    };
     grid.innerHTML = switches.map(s => {
-        const on = rates[s.id] !== false && (s.id !== 'enableRankBonus' || rates[s.id] === true)
-                && (s.id !== 'enableDirectBonus2Gen' || rates[s.id] === true);
+        // Firestore에 저장된 값이 있으면 그 값, 없으면 기본값 사용
+        const storedVal = rates[s.id];
+        const on = (storedVal !== undefined && storedVal !== null)
+                   ? storedVal === true          // 저장된 값이 있으면 엄격히 boolean true만 ON
+                   : switchDefaults[s.id] === true; // 없으면 기본값
         return `
         <div style="background:${on?'#f0fdf4':'#fef2f2'};border:1.5px solid ${on?'#86efac':'#fca5a5'};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
             <label class="toggle-label" style="margin:0;cursor:pointer;display:flex;align-items:center;gap:10px;flex:1;">
@@ -6905,23 +6916,42 @@ function renderLogicSwitches(rates) {
 }
 
 window.updateSwitchStyle = function(id, checked) {
+    // 스위치 배지 업데이트
     const sw = document.getElementById(`sw_badge_${id}`);
     if (sw) {
         sw.textContent = checked ? 'ON' : 'OFF';
         sw.style.background = checked ? '#dcfce7' : '#fee2e2';
         sw.style.color = checked ? '#16a34a' : '#dc2626';
     }
+    // 카드 배경색도 동기화
+    const checkbox = document.getElementById(`sw_${id}`);
+    if (checkbox) {
+        const card = checkbox.closest('div[style]');
+        if (card) {
+            card.style.background = checked ? '#f0fdf4' : '#fef2f2';
+            card.style.borderColor = checked ? '#86efac' : '#fca5a5';
+        }
+        const labelTitle = checkbox.parentElement?.querySelector('div > div:first-child');
+        if (labelTitle) labelTitle.style.color = checked ? '#15803d' : '#dc2626';
+    }
     updateBadges(null); // 뱃지 동기화
 };
 
 // ── 뱃지 업데이트 ────────────────────────────────────────────────
 function updateBadges(rates) {
+    // DOM 체크박스가 있으면 checked 값 사용, 없으면 rates에서 엄격하게 === true 비교
+    function getOn(swId, ratesKey, defaultOn) {
+        const el = document.getElementById(swId);
+        if (el) return el.checked === true;
+        if (rates && rates[ratesKey] !== undefined) return rates[ratesKey] === true;
+        return defaultOn === true;
+    }
     const badges = {
-        'badge_directBonus':     document.getElementById('sw_enableDirectBonus')?.checked ?? (rates?.enableDirectBonus !== false),
-        'badge_unilevel':        document.getElementById('sw_enableUnilevel')?.checked ?? (rates?.enableUnilevel !== false),
-        'badge_directBonus2Gen': document.getElementById('sw_enableDirectBonus2Gen')?.checked ?? (rates?.enableDirectBonus2Gen === true),
-        'badge_rankDiff':        document.getElementById('sw_enableRankDiffBonus')?.checked ?? (rates?.enableRankDiffBonus !== false),
-        'badge_rankBonus':       document.getElementById('sw_enableRankBonus')?.checked ?? (rates?.enableRankBonus === true),
+        'badge_directBonus':     getOn('sw_enableDirectBonus',    'enableDirectBonus',    true),
+        'badge_unilevel':        getOn('sw_enableUnilevel',       'enableUnilevel',       true),
+        'badge_directBonus2Gen': getOn('sw_enableDirectBonus2Gen','enableDirectBonus2Gen',false),
+        'badge_rankDiff':        getOn('sw_enableRankDiffBonus',  'enableRankDiffBonus',  false),
+        'badge_rankBonus':       getOn('sw_enableRankBonus',      'enableRankBonus',      false),
     };
     for (const [id, on] of Object.entries(badges)) {
         const el = document.getElementById(id);
@@ -7037,10 +7067,11 @@ function setupRateButtons() {
         });
 
         // ── 마케팅 로직 스위치 값 수집 ──
-        const enableDirectBonus      = document.getElementById('sw_enableDirectBonus')?.checked !== false;
-        const enableUnilevel         = document.getElementById('sw_enableUnilevel')?.checked !== false;
+        // 체크박스 .checked 는 boolean true/false — === true 로 엄격하게 읽음
+        const enableDirectBonus      = document.getElementById('sw_enableDirectBonus')?.checked === true;
+        const enableUnilevel         = document.getElementById('sw_enableUnilevel')?.checked === true;
         const enableDirectBonus2Gen  = document.getElementById('sw_enableDirectBonus2Gen')?.checked === true;
-        const enableRankDiffBonus    = document.getElementById('sw_enableRankDiffBonus')?.checked !== false;
+        const enableRankDiffBonus    = document.getElementById('sw_enableRankDiffBonus')?.checked === true;
         const enableRankBonus        = document.getElementById('sw_enableRankBonus')?.checked === true;
 
         // ── 1대·2대 직접 추천 보너스율 (Policy A) ──

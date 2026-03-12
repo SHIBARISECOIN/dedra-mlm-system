@@ -946,14 +946,24 @@ export class DedraAPI {
 
   async updateRates(adminId, rates) {
     try {
+      // boolean 필드들은 반드시 boolean 타입으로 저장 (Firestore 타입 안전)
+      const boolFields = [
+        'enableDirectBonus','enableUnilevel','enableDirectBonus2Gen',
+        'enableRankDiffBonus','enableRankBonus','autoSettlement'
+      ];
+      const safeRates = { ...rates };
+      boolFields.forEach(f => {
+        if (f in safeRates) safeRates[f] = safeRates[f] === true;
+      });
+
       await setDoc(doc(this.db, 'settings', 'rates'), {
-        ...rates, updatedAt: serverTimestamp(), updatedBy: adminId
+        ...safeRates, updatedAt: serverTimestamp(), updatedBy: adminId
       }, { merge: true });
       // 히스토리 기록
       await addDoc(collection(this.db, 'rateHistory'), {
-        ...rates, adminId, createdAt: serverTimestamp()
+        ...safeRates, adminId, createdAt: serverTimestamp()
       });
-      await this._auditLog(adminId, 'settings', '환율 설정 변경', rates);
+      await this._auditLog(adminId, 'settings', '환율 설정 변경', safeRates);
       return ok(true);
     } catch(e) { return err(e); }
   }
