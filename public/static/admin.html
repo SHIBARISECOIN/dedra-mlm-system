@@ -3780,7 +3780,23 @@ if (location.search.includes('autotest=1')) {
 }
 
 let _setupDone = false;
+// Firebase Auth 응답 타임아웃 안전장치 (10초 후에도 응답 없으면 로그인 화면으로)
+const _authTimeout = setTimeout(() => {
+    const loadingEl = document.getElementById('authLoadingOverlay');
+    if (loadingEl && loadingEl.style.display !== 'none') {
+        loadingEl.style.display = 'none';
+        document.getElementById('adminLoginOverlay').style.display = 'flex';
+        document.getElementById('adminMain').style.display = 'none';
+        const errEl = document.getElementById('adminLoginErr');
+        if (errEl) {
+            errEl.textContent = '인증 서버 연결 시간 초과. Firebase Console에서 deedra.pages.dev 도메인을 승인해 주세요.';
+            errEl.style.display = 'block';
+        }
+    }
+}, 10000);
+
 onAuthStateChanged(auth, async user => {
+    clearTimeout(_authTimeout);
     // 로딩 스피너 숨기기
     const loadingEl = document.getElementById('authLoadingOverlay');
     if (loadingEl) loadingEl.style.display = 'none';
