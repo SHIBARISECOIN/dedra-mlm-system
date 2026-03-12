@@ -1220,6 +1220,8 @@ async function initApp() {
     loadDDayCard();
     loadHomeEarn();
     startNotificationListener();
+    // 홈 네트워크 수익 미리보기 로드
+    setTimeout(() => _loadNepSummary && _loadNepSummary(), 800);
 
     // 테마 복원
     restoreTheme();
@@ -4424,3 +4426,471 @@ document.addEventListener('DOMContentLoaded', () => {
     refTimer = setTimeout(() => showRefCodeHint(val), 800);
   });
 });
+
+// ═══════════════════════════════════════════════════════════
+// 🌐 네트워크 수익 슬라이드업 패널
+// ═══════════════════════════════════════════════════════════
+let _nepCurrentTab = 'tx';
+let _nepLoaded = { tx: false, gen1: false, gen2: false, deep: false };
+let _nepAllUsers = null;  // 전체 사용자 캐시
+
+/** 이메일 마스킹: @ 앞자리까지만 표시 */
+function maskEmail(email) {
+  if (!email) return '***';
+  const atIdx = email.indexOf('@');
+  if (atIdx <= 0) return email.slice(0, 2) + '***';
+  const local = email.slice(0, atIdx);
+  if (local.length <= 3) return local + '@***';
+  return local.slice(0, 3) + '***@' + email.slice(atIdx + 1).split('.')[0] + '.**';
+}
+
+/** 패널 열기 */
+window.showNetworkEarningsPanel = function(tab = 'tx') {
+  const panel = document.getElementById('networkEarningsPanel');
+  const backdrop = document.getElementById('nepBackdrop');
+  const sheet = document.getElementById('nepSheet');
+  if (!panel) return;
+
+  _nepCurrentTab = tab;
+  _nepLoaded = { tx: false, gen1: false, gen2: false, deep: false };
+
+  // 표시
+  panel.style.pointerEvents = 'auto';
+  backdrop.style.pointerEvents = 'auto';
+  backdrop.style.opacity = '1';
+  sheet.style.transform = 'translateY(0)';
+
+  // 탭 활성화
+  _activateNepTab(tab);
+  // 요약 로드
+  _loadNepSummary();
+  // 탭 콘텐츠 로드
+  _loadNepTab(tab);
+};
+
+/** 패널 닫기 */
+window.closeNetworkEarningsPanel = function() {
+  const panel = document.getElementById('networkEarningsPanel');
+  const backdrop = document.getElementById('nepBackdrop');
+  const sheet = document.getElementById('nepSheet');
+  if (!panel) return;
+  backdrop.style.opacity = '0';
+  sheet.style.transform = 'translateY(100%)';
+  setTimeout(() => {
+    panel.style.pointerEvents = 'none';
+    backdrop.style.pointerEvents = 'none';
+  }, 350);
+};
+
+/** 탭 전환 */
+window.switchNepTab = function(tab) {
+  _nepCurrentTab = tab;
+  _activateNepTab(tab);
+  _loadNepTab(tab);
+};
+
+function _activateNepTab(tab) {
+  document.querySelectorAll('.nep-tab').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.style.color = isActive ? '#3b82f6' : 'var(--text2, #94a3b8)';
+    btn.style.borderBottomColor = isActive ? '#3b82f6' : 'transparent';
+    btn.style.fontWeight = isActive ? '700' : '600';
+  });
+}
+
+/** 요약 카드 데이터 로드 */
+async function _loadNepSummary() {
+  if (!currentUser) return;
+  const { collection, query, where, getDocs, db, orderBy, limit } = window.FB;
+
+  try {
+    // 전체 사용자 로드 (캐시)
+    if (!_nepAllUsers) {
+      const snap = await getDocs(collection(db, 'users'));
+      _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+    const allUsers = _nepAllUsers;
+
+    // 하부 전체 BFS
+    let totalMembers = 0;
+    let queue = [currentUser.uid];
+    const visited = new Set([currentUser.uid]);
+    while (queue.length) {
+      const next = allUsers.filter(u => queue.includes(u.referredBy) && !visited.has(u.id));
+      next.forEach(u => { visited.add(u.id); totalMembers++; });
+      queue = next.map(u => u.id);
+      if (!next.length) break;
+    }
+
+    // 오늘 날짜
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 당일 보너스 (내가 받은 것: unilevel_bonus, direct_bonus, rank_gap_bonus)
+    const bonusQ = query(
+      collection(db, 'bonuses'),
+      where('userId', '==', currentUser.uid),
+      where('settlementDate', '==', today)
+    );
+    const bonusSnap = await getDocs(bonusQ);
+    const todayEarning = bonusSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+
+    // 총 누적 수익
+    const totalEarning = walletData?.totalEarnings || 0;
+
+    // 요약 카드 업데이트
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setEl('nepTodayEarning', '$' + fmt(todayEarning));
+    setEl('nepTotalMembers', totalMembers + '명');
+    setEl('nepTotalEarning', '$' + fmt(totalEarning));
+    setEl('nepSubTitle', `하부 ${totalMembers}명 조직 수익 현황`);
+
+    // 홈 미리보기도 업데이트
+    setEl('homeNetTodayEarn', '$' + fmt(todayEarning));
+    setEl('homeNetMembers', totalMembers + '명');
+    setEl('homeNetTotalEarn', '$' + fmt(totalEarning));
+
+  } catch(e) {
+    console.warn('[NEP] summary load error:', e);
+  }
+}
+
+/** 탭별 콘텐츠 로드 */
+async function _loadNepTab(tab) {
+  const contentEl = document.getElementById('nepContent');
+  if (!contentEl) return;
+
+  if (tab === 'tx') {
+    await _loadNepTxTab(contentEl);
+  } else if (tab === 'gen1') {
+    await _loadNepGenTab(contentEl, 1);
+  } else if (tab === 'gen2') {
+    await _loadNepGenTab(contentEl, 2);
+  } else if (tab === 'deep') {
+    await _loadNepDeepTab(contentEl);
+  }
+}
+
+/** 💳 거래내역 탭 */
+async function _loadNepTxTab(contentEl) {
+  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
+  const { collection, query, where, getDocs, orderBy, limit, db } = window.FB;
+
+  try {
+    const q = query(
+      collection(db, 'transactions'),
+      where('userId', '==', currentUser.uid),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    if (!txs.length) {
+      contentEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>거래 내역이 없습니다</div>';
+      return;
+    }
+
+    const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
+    const statusTxt = { pending: '승인 대기', approved: '완료', rejected: '거부됨' };
+    const statusColor = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+
+    contentEl.innerHTML = txs.map(tx => {
+      const isPlus = ['deposit', 'bonus'].includes(tx.type);
+      const sc = statusColor[tx.status] || '#94a3b8';
+      return `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.07);
+          display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+          ${icons[tx.type] || '💱'}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text,#f1f5f9);">${getTxTypeName(tx.type)}</div>
+          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">${fmtDate(tx.createdAt)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:14px;font-weight:700;color:${isPlus ? '#10b981' : '#f87171'};">
+            ${isPlus ? '+' : '-'}${fmt(tx.amount)} ${tx.currency || 'USDT'}
+          </div>
+          <div style="font-size:10px;color:${sc};margin-top:2px;">${statusTxt[tx.status] || tx.status}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    contentEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+  }
+}
+
+/** 👤 1대 / 👥 2대 탭 */
+async function _loadNepGenTab(contentEl, gen) {
+  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
+  const { collection, query, where, getDocs, db } = window.FB;
+
+  try {
+    if (!_nepAllUsers) {
+      const snap = await getDocs(collection(db, 'users'));
+      _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+    const allUsers = _nepAllUsers;
+
+    // gen1: referredBy == 나 / gen2: referredBy ∈ gen1 ids
+    let members = [];
+    if (gen === 1) {
+      members = allUsers.filter(u => u.referredBy === currentUser.uid && u.role !== 'admin');
+    } else {
+      const gen1ids = allUsers
+        .filter(u => u.referredBy === currentUser.uid && u.role !== 'admin')
+        .map(u => u.id);
+      members = allUsers.filter(u => gen1ids.includes(u.referredBy) && u.role !== 'admin');
+    }
+
+    if (!members.length) {
+      contentEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends"></i><br>${gen}대 하부 멤버가 없습니다</div>`;
+      return;
+    }
+
+    // 각 멤버의 오늘/누적 수익 집계
+    const today = new Date().toISOString().slice(0, 10);
+    const memberIds = members.map(u => u.id);
+
+    // 청크 단위 bonuses 조회 (30개씩)
+    const todayMap = {};
+    const totalDepMap = {};
+    const chunks = [];
+    for (let i = 0; i < memberIds.length; i += 10) chunks.push(memberIds.slice(i, i + 10));
+
+    for (const chunk of chunks) {
+      // 오늘 ROI
+      const bq = query(
+        collection(db, 'bonuses'),
+        where('fromUserId', 'in', chunk),
+        where('userId', '==', currentUser.uid),
+        where('settlementDate', '==', today)
+      );
+      const bs = await getDocs(bq);
+      bs.docs.forEach(d => {
+        const data = d.data();
+        const uid = data.fromUserId;
+        todayMap[uid] = (todayMap[uid] || 0) + (data.amount || 0);
+      });
+
+      // 해당 멤버들 입금 총액 (투자매출)
+      const txq = query(
+        collection(db, 'transactions'),
+        where('userId', 'in', chunk),
+        where('type', '==', 'deposit'),
+        where('status', '==', 'approved')
+      );
+      const txs = await getDocs(txq);
+      txs.docs.forEach(d => {
+        const data = d.data();
+        totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
+      });
+    }
+
+    // 총 당일/매출 합산
+    const totalTodayEarn = Object.values(todayMap).reduce((s, v) => s + v, 0);
+    const totalSales = Object.values(totalDepMap).reduce((s, v) => s + v, 0);
+
+    // 헤더 요약
+    const headerHtml = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;color:#10b981;margin-bottom:3px;">${gen}대 인원</div>
+          <div style="font-size:15px;font-weight:700;color:#10b981;">${members.length}명</div>
+        </div>
+        <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;color:#3b82f6;margin-bottom:3px;">당일 내 수익</div>
+          <div style="font-size:15px;font-weight:700;color:#3b82f6;">$${fmt(totalTodayEarn)}</div>
+        </div>
+        <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;color:#8b5cf6;margin-bottom:3px;">${gen}대 총매출</div>
+          <div style="font-size:15px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
+        </div>
+      </div>`;
+
+    // 멤버 목록 (매출 내림차순)
+    const sorted = [...members].sort((a, b) => (totalDepMap[b.id] || 0) - (totalDepMap[a.id] || 0));
+
+    const listHtml = sorted.map((m, idx) => {
+      const todayEarn = todayMap[m.id] || 0;
+      const totalDep = totalDepMap[m.id] || 0;
+      const maskedEmail = maskEmail(m.email);
+      const rankColor = { G0:'#94a3b8', G1:'#6b7280', G2:'#10b981', G3:'#3b82f6',
+        G4:'#8b5cf6', G5:'#f59e0b', G6:'#ef4444', G7:'#ec4899', G8:'#14b8a6',
+        G9:'#f97316', G10:'#eab308' };
+      const rc = rankColor[m.rank] || '#94a3b8';
+
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <!-- 순위 -->
+        <div style="width:22px;text-align:center;font-size:12px;color:var(--text2,#94a3b8);flex-shrink:0;">${idx + 1}</div>
+        <!-- 아바타 -->
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.07);
+          display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">👤</div>
+        <!-- 정보 -->
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text,#f1f5f9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${m.name || '이름 없음'}
+          </div>
+          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:1px;">${maskedEmail}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;align-items:center;">
+            <span style="font-size:10px;background:${rc}22;color:${rc};padding:1px 6px;border-radius:99px;font-weight:700;">${m.rank || 'G0'}</span>
+            <span style="font-size:10px;color:var(--text3,#64748b);">매출 $${fmt(totalDep)}</span>
+          </div>
+        </div>
+        <!-- 당일 수익 -->
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:13px;font-weight:700;color:${todayEarn > 0 ? '#10b981' : 'var(--text2,#94a3b8)'};">
+            ${todayEarn > 0 ? '+$' + fmt(todayEarn) : '-'}
+          </div>
+          <div style="font-size:10px;color:var(--text3,#64748b);margin-top:2px;">당일 내 수익</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    contentEl.innerHTML = headerHtml + listHtml;
+  } catch(e) {
+    console.warn('[NEP] gen tab error:', e);
+    contentEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+  }
+}
+
+/** 🌐 3대+ 탭 (집계만) */
+async function _loadNepDeepTab(contentEl) {
+  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
+  const { collection, query, where, getDocs, db } = window.FB;
+
+  try {
+    if (!_nepAllUsers) {
+      const snap = await getDocs(collection(db, 'users'));
+      _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+    const allUsers = _nepAllUsers;
+
+    // BFS로 전 대수 구조 파악
+    const genMap = {}; // uid → generation number
+    let queue = allUsers.filter(u => u.referredBy === currentUser.uid && u.role !== 'admin');
+    queue.forEach(u => { genMap[u.id] = 1; });
+
+    while (queue.length) {
+      const next = [];
+      for (const u of queue) {
+        const children = allUsers.filter(c => c.referredBy === u.id && c.role !== 'admin');
+        children.forEach(c => {
+          if (genMap[c.id] === undefined) {
+            genMap[c.id] = genMap[u.id] + 1;
+            next.push(c);
+          }
+        });
+      }
+      queue = next;
+    }
+
+    // 3대 이상만 추출
+    const deepIds = Object.entries(genMap)
+      .filter(([, g]) => g >= 3)
+      .map(([id]) => id);
+
+    if (!deepIds.length) {
+      contentEl.innerHTML = '<div class="empty-state"><i class="fas fa-network-wired"></i><br>3대 이하 하부 멤버가 없습니다</div>';
+      return;
+    }
+
+    // 대별 집계
+    const genGroups = {};
+    deepIds.forEach(id => {
+      const g = genMap[id];
+      if (!genGroups[g]) genGroups[g] = [];
+      genGroups[g].push(id);
+    });
+
+    // 각 대별 매출 집계
+    const today = new Date().toISOString().slice(0, 10);
+    const genSales = {};
+    const genTodayEarn = {};
+
+    for (const [g, ids] of Object.entries(genGroups)) {
+      genSales[g] = 0;
+      genTodayEarn[g] = 0;
+      const chunks = [];
+      for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
+      for (const chunk of chunks) {
+        // 매출
+        const txq = query(collection(db, 'transactions'),
+          where('userId', 'in', chunk),
+          where('type', '==', 'deposit'),
+          where('status', '==', 'approved'));
+        const txs = await getDocs(txq);
+        txs.docs.forEach(d => { genSales[g] += (d.data().amount || 0); });
+
+        // 당일 내가 받은 보너스
+        const bq = query(collection(db, 'bonuses'),
+          where('fromUserId', 'in', chunk),
+          where('userId', '==', currentUser.uid),
+          where('settlementDate', '==', today));
+        const bs = await getDocs(bq);
+        bs.docs.forEach(d => { genTodayEarn[g] += (d.data().amount || 0); });
+      }
+    }
+
+    // 전체 합산
+    const totalDeep = deepIds.length;
+    const totalSales = Object.values(genSales).reduce((s, v) => s + v, 0);
+    const totalToday = Object.values(genTodayEarn).reduce((s, v) => s + v, 0);
+
+    // 상단 요약
+    let html = `
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;color:#10b981;margin-bottom:3px;">3대+ 인원</div>
+          <div style="font-size:15px;font-weight:700;color:#10b981;">${totalDeep}명</div>
+        </div>
+        <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;color:#3b82f6;margin-bottom:3px;">당일 내 수익</div>
+          <div style="font-size:15px;font-weight:700;color:#3b82f6;">$${fmt(totalToday)}</div>
+        </div>
+        <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;color:#8b5cf6;margin-bottom:3px;">총 매출</div>
+          <div style="font-size:15px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2,#94a3b8);margin-bottom:10px;">📊 대별 집계 (3대 이하는 개인정보 보호)</div>`;
+
+    // 대별 행 렌더
+    const sortedGens = Object.keys(genGroups).map(Number).sort((a, b) => a - b);
+    html += sortedGens.map(g => {
+      const cnt = genGroups[g].length;
+      const sales = genSales[g] || 0;
+      const today = genTodayEarn[g] || 0;
+      return `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+        background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
+        border-radius:10px;margin-bottom:8px;">
+        <div style="width:36px;height:36px;border-radius:50%;
+          background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+          display:flex;align-items:center;justify-content:center;
+          font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">${g}대</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:var(--text,#f1f5f9);">${g}대 하부</div>
+          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">${cnt}명 · 총 매출 $${fmt(sales)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:13px;font-weight:700;color:${today > 0 ? '#10b981' : 'var(--text2)'};">
+            ${today > 0 ? '+$' + fmt(today) : '-'}
+          </div>
+          <div style="font-size:10px;color:var(--text3,#64748b);margin-top:1px;">당일 내 수익</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    contentEl.innerHTML = html;
+  } catch(e) {
+    console.warn('[NEP] deep tab error:', e);
+    contentEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+  }
+}
+
+/** 홈 로드 시 미리보기 데이터도 로드 */
+const _origLoadRecentTransactions = window.loadRecentTransactions || null;
+// 홈 페이지 로드될 때 네트워크 요약도 함께 로드
+const _origOnReady = window._onAppReady;

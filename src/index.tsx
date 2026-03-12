@@ -519,11 +519,38 @@ const HTML = () => `<!DOCTYPE html>
           <!-- 최근 거래 -->
           <div class="section-header">
             <span class="section-title" data-i18n="recentTx">💳 최근 거래</span>
-            <button class="see-all-btn" onclick="switchPage('more')" data-i18n="seeAll">전체보기</button>
+            <button class="see-all-btn" onclick="showNetworkEarningsPanel('tx')" data-i18n="seeAll">전체보기</button>
           </div>
-          <div id="recentTxList" class="tx-list">
+          <div id="recentTxList" class="tx-list" onclick="showNetworkEarningsPanel('tx')" style="cursor:pointer;">
             <div class="skeleton-item"></div>
             <div class="skeleton-item"></div>
+          </div>
+
+          <!-- 네트워크 수익 미리보기 -->
+          <div class="section-header" style="margin-top:8px;">
+            <span class="section-title">🌐 네트워크 수익</span>
+            <button class="see-all-btn" onclick="showNetworkEarningsPanel('gen1')">자세히 보기</button>
+          </div>
+          <div onclick="showNetworkEarningsPanel('gen1')" style="cursor:pointer;
+            background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(139,92,246,0.08));
+            border:1px solid rgba(59,130,246,0.2);border-radius:14px;padding:14px 16px;
+            display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;
+          ">
+            <div style="display:flex;gap:20px;">
+              <div style="text-align:center;">
+                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;">당일 수익</div>
+                <div id="homeNetTodayEarn" style="font-size:15px;font-weight:700;color:#10b981;">$0.00</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;">하부 인원</div>
+                <div id="homeNetMembers" style="font-size:15px;font-weight:700;color:#3b82f6;">0명</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;">누적 수익</div>
+                <div id="homeNetTotalEarn" style="font-size:15px;font-weight:700;color:#8b5cf6;">$0.00</div>
+              </div>
+            </div>
+            <div style="color:var(--text2,#94a3b8);font-size:18px;">›</div>
           </div>
 
         </div>
@@ -1642,6 +1669,83 @@ const HTML = () => `<!DOCTYPE html>
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=${Date.now()}"></script>
 <script src="/static/app.js?v=${Date.now()}"></script>
+
+<!-- ══════════════════════════════════════════════
+     🌐 네트워크 수익 슬라이드업 패널
+     ══════════════════════════════════════════════ -->
+<div id="networkEarningsPanel" style="
+  position:fixed; left:0; right:0; bottom:0; top:0;
+  z-index:3000; pointer-events:none;
+">
+  <!-- 딤 배경 -->
+  <div id="nepBackdrop" onclick="closeNetworkEarningsPanel()" style="
+    position:absolute; inset:0;
+    background:rgba(0,0,0,0.5);
+    opacity:0; transition:opacity 0.3s;
+    pointer-events:none;
+  "></div>
+
+  <!-- 슬라이드업 시트 -->
+  <div id="nepSheet" style="
+    position:absolute; left:0; right:0; bottom:0;
+    max-height:92vh; overflow-y:auto;
+    background:var(--bg, #0f172a);
+    border-radius:20px 20px 0 0;
+    transform:translateY(100%);
+    transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);
+    pointer-events:auto;
+    padding-bottom:env(safe-area-inset-bottom, 16px);
+  ">
+    <!-- 핸들 -->
+    <div style="display:flex;justify-content:center;padding:12px 0 4px;">
+      <div style="width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:99px;"></div>
+    </div>
+
+    <!-- 헤더 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 20px 16px;">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--text,#f1f5f9);">🌐 네트워크 수익</div>
+        <div style="font-size:12px;color:var(--text2,#94a3b8);margin-top:2px;" id="nepSubTitle">하부 조직 수익 현황</div>
+      </div>
+      <button onclick="closeNetworkEarningsPanel()" style="
+        background:rgba(255,255,255,0.08);border:none;
+        width:32px;height:32px;border-radius:50%;
+        color:var(--text,#f1f5f9);font-size:16px;cursor:pointer;
+      ">✕</button>
+    </div>
+
+    <!-- 요약 카드 3개 -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px 16px;">
+      <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-size:11px;color:#10b981;font-weight:600;margin-bottom:4px;">당일 수익</div>
+        <div id="nepTodayEarning" style="font-size:16px;font-weight:700;color:#10b981;">$0.00</div>
+      </div>
+      <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-size:11px;color:#3b82f6;font-weight:600;margin-bottom:4px;">총 하부인원</div>
+        <div id="nepTotalMembers" style="font-size:16px;font-weight:700;color:#3b82f6;">0명</div>
+      </div>
+      <div style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);border-radius:12px;padding:12px 10px;text-align:center;">
+        <div style="font-size:11px;color:#8b5cf6;font-weight:600;margin-bottom:4px;">총 누적 수익</div>
+        <div id="nepTotalEarning" style="font-size:16px;font-weight:700;color:#8b5cf6;">$0.00</div>
+      </div>
+    </div>
+
+    <!-- 탭: 거래내역 / 1대 / 2대 / 3대+ -->
+    <div style="display:flex;gap:0;padding:0 16px 12px;border-bottom:1px solid rgba(255,255,255,0.07);">
+      <button class="nep-tab active" data-tab="tx" onclick="switchNepTab('tx')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid #3b82f6;color:#3b82f6;font-size:12px;font-weight:700;cursor:pointer;">💳 거래내역</button>
+      <button class="nep-tab" data-tab="gen1" onclick="switchNepTab('gen1')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2,#94a3b8);font-size:12px;font-weight:600;cursor:pointer;">👤 1대</button>
+      <button class="nep-tab" data-tab="gen2" onclick="switchNepTab('gen2')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2,#94a3b8);font-size:12px;font-weight:600;cursor:pointer;">👥 2대</button>
+      <button class="nep-tab" data-tab="deep" onclick="switchNepTab('deep')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2,#94a3b8);font-size:12px;font-weight:600;cursor:pointer;">🌐 3대+</button>
+    </div>
+
+    <!-- 탭 콘텐츠 -->
+    <div id="nepContent" style="padding:12px 16px 24px;min-height:200px;">
+      <div class="skeleton-item" style="margin-bottom:8px;"></div>
+      <div class="skeleton-item" style="margin-bottom:8px;"></div>
+      <div class="skeleton-item"></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>`
 
