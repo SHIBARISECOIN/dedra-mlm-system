@@ -311,28 +311,20 @@ textarea.form-input{resize:vertical;min-height:80px;}
 .lose-amount{font-weight:700;color:var(--danger);}
 
 /* ── 게임 확률 관리 ── */
-.odds-panel{background:var(--card-bg);border:2px solid #6366f1;border-radius:14px;padding:22px;margin-bottom:20px;}
-.odds-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:10px;}
-.odds-panel-title{font-size:16px;font-weight:700;color:var(--text);}
-.odds-legend{display:flex;gap:14px;font-size:11px;margin-bottom:14px;padding:8px 12px;background:rgba(99,102,241,.06);border-radius:8px;}
-.odds-legend-item{display:flex;align-items:center;gap:5px;}
-.odds-legend-dot{width:10px;height:10px;border-radius:50%;}
-.odds-row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border);}
-.odds-row:last-of-type{border-bottom:none;}
-.odds-label{min-width:90px;font-size:13px;font-weight:600;color:var(--text);}
-/* 슬라이더: 왼쪽=유저승률(녹색), 오른쪽=회사승률(적색) */
-.odds-slider{flex:1;-webkit-appearance:none;appearance:none;height:8px;border-radius:4px;outline:none;cursor:pointer;background:linear-gradient(to right,#22c55e 0%,#22c55e var(--val,50%),#ef4444 var(--val,50%),#ef4444 100%);}
-.odds-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #6366f1;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);}
-.odds-val-wrap{min-width:170px;display:flex;flex-direction:column;gap:2px;}
-.odds-val-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;}
-.odds-user-num{font-size:15px;font-weight:800;font-family:monospace;color:#22c55e;}
-.odds-house-num{font-size:13px;font-weight:700;font-family:monospace;color:#ef4444;}
-.odds-label-u{color:#22c55e;font-size:11px;font-weight:600;}
-.odds-label-h{color:#ef4444;font-size:11px;font-weight:600;}
-.odds-global-toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);}
-.odds-global-toggle input[type=checkbox]{width:16px;height:16px;cursor:pointer;}
-.odds-warn-banner{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#ef4444;margin-bottom:12px;display:none;}
-.odds-warn-banner.show{display:block;}
+.odds-panel{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;}
+.odds-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.odds-panel-title{font-size:15px;font-weight:700;color:var(--text);}
+.odds-table{width:100%;border-collapse:collapse;}
+.odds-table th{font-size:12px;color:var(--gray);font-weight:600;padding:8px 12px;border-bottom:1px solid var(--border);text-align:center;}
+.odds-table th:first-child{text-align:left;}
+.odds-table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle;}
+.odds-table td:first-child{text-align:left;font-size:13px;font-weight:600;}
+.odds-table tr:last-child td{border-bottom:none;}
+.odds-input{width:72px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--input-bg,var(--card-bg));color:var(--text);font-size:15px;font-weight:700;text-align:center;outline:none;}
+.odds-input:focus{border-color:#6366f1;}
+.odds-calc{font-size:13px;font-weight:700;padding:4px 10px;border-radius:6px;display:inline-block;min-width:52px;}
+.odds-calc.user{background:rgba(34,197,94,.12);color:#16a34a;}
+.odds-calc.house{background:rgba(239,68,68,.1);color:#dc2626;}
 .odds-save-status{font-size:12px;margin-left:8px;}
 .odds-save-status.ok{color:#22c55e;}
 .odds-save-status.err{color:#ef4444;}
@@ -1122,145 +1114,60 @@ canvas{width:100% !important;}
       <!-- ── 게임 확률 관리 패널 ── -->
       <div class="odds-panel">
         <div class="odds-panel-header">
-          <span class="odds-panel-title">🎲 게임 확률 관리</span>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <label class="odds-global-toggle">
-              <input type="checkbox" id="oddsGlobalToggle">
-              <span>전체 게임 동일 적용</span>
-            </label>
-            <button class="btn btn-primary btn-sm" id="saveOddsBtn">💾 저장</button>
+          <span class="odds-panel-title">게임 확률 설정</span>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-primary btn-sm" id="saveOddsBtn">저장</button>
             <span class="odds-save-status" id="oddsSaveStatus"></span>
           </div>
         </div>
-
-        <!-- 범례 -->
-        <div class="odds-legend">
-          <div class="odds-legend-item"><div class="odds-legend-dot" style="background:#22c55e"></div><span style="color:#22c55e;font-weight:700;">녹색 = 유저 승률</span></div>
-          <div class="odds-legend-item"><div class="odds-legend-dot" style="background:#ef4444"></div><span style="color:#ef4444;font-weight:700;">적색 = 회사(하우스) 승률</span></div>
-          <div class="odds-legend-item" style="margin-left:auto;color:var(--gray);">← 슬라이더를 오른쪽으로 이동 = 회사 유리</div>
-        </div>
-
-        <div class="odds-warn-banner" id="oddsWarnBanner">
-          ⚠️ 회사 승률이 50% 초과인 게임이 있습니다. 유저가 장기적으로 크게 불리해질 수 있습니다.
-        </div>
-
-        <!-- 전체(Global) -->
-        <div class="odds-row" id="oddsRowGlobal">
-          <span class="odds-label">🌐 전체 공통</span>
-          <input type="range" min="0" max="100" value="96" step="1"
-                 class="odds-slider" id="oddsSliderGlobal"
-                 oninput="syncOddsSlider('global',this.value)">
-          <div class="odds-val-wrap">
-            <div class="odds-val-row">
-              <span class="odds-label-u">👤 유저 승률</span>
-              <span class="odds-user-num" id="oddsUserGlobal">96%</span>
-            </div>
-            <div class="odds-val-row">
-              <span class="odds-label-h">🏦 회사 승률</span>
-              <span class="odds-house-num" id="oddsHouseGlobal">4%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 개별 게임 -->
-        <div id="oddsIndividualRows">
-          <div class="odds-row">
-            <span class="odds-label">🪙 홀짝</span>
-            <input type="range" min="0" max="100" value="96" step="1"
-                   class="odds-slider" id="oddsSliderOddeven"
-                   oninput="syncOddsSlider('oddeven',this.value)">
-            <div class="odds-val-wrap">
-              <div class="odds-val-row">
-                <span class="odds-label-u">👤 유저 승률</span>
-                <span class="odds-user-num" id="oddsUserOddeven">96%</span>
-              </div>
-              <div class="odds-val-row">
-                <span class="odds-label-h">🏦 회사 승률</span>
-                <span class="odds-house-num" id="oddsHouseOddeven">4%</span>
-              </div>
-            </div>
-          </div>
-          <div class="odds-row">
-            <span class="odds-label">🎲 주사위</span>
-            <input type="range" min="0" max="100" value="94" step="1"
-                   class="odds-slider" id="oddsSliderDice"
-                   oninput="syncOddsSlider('dice',this.value)">
-            <div class="odds-val-wrap">
-              <div class="odds-val-row">
-                <span class="odds-label-u">👤 유저 승률</span>
-                <span class="odds-user-num" id="oddsUserDice">94%</span>
-              </div>
-              <div class="odds-val-row">
-                <span class="odds-label-h">🏦 회사 승률</span>
-                <span class="odds-house-num" id="oddsHouseDice">6%</span>
-              </div>
-            </div>
-          </div>
-          <div class="odds-row">
-            <span class="odds-label">🎰 슬롯</span>
-            <input type="range" min="0" max="100" value="92" step="1"
-                   class="odds-slider" id="oddsSliderSlot"
-                   oninput="syncOddsSlider('slot',this.value)">
-            <div class="odds-val-wrap">
-              <div class="odds-val-row">
-                <span class="odds-label-u">👤 유저 승률</span>
-                <span class="odds-user-num" id="oddsUserSlot">92%</span>
-              </div>
-              <div class="odds-val-row">
-                <span class="odds-label-h">🏦 회사 승률</span>
-                <span class="odds-house-num" id="oddsHouseSlot">8%</span>
-              </div>
-            </div>
-          </div>
-          <div class="odds-row">
-            <span class="odds-label">🎡 룰렛</span>
-            <input type="range" min="0" max="100" value="97" step="1"
-                   class="odds-slider" id="oddsSliderRoulette"
-                   oninput="syncOddsSlider('roulette',this.value)">
-            <div class="odds-val-wrap">
-              <div class="odds-val-row">
-                <span class="odds-label-u">👤 유저 승률</span>
-                <span class="odds-user-num" id="oddsUserRoulette">97%</span>
-              </div>
-              <div class="odds-val-row">
-                <span class="odds-label-h">🏦 회사 승률</span>
-                <span class="odds-house-num" id="oddsHouseRoulette">3%</span>
-              </div>
-            </div>
-          </div>
-          <div class="odds-row">
-            <span class="odds-label">🃏 바카라</span>
-            <input type="range" min="0" max="100" value="99" step="1"
-                   class="odds-slider" id="oddsSliderBaccarat"
-                   oninput="syncOddsSlider('baccarat',this.value)">
-            <div class="odds-val-wrap">
-              <div class="odds-val-row">
-                <span class="odds-label-u">👤 유저 승률</span>
-                <span class="odds-user-num" id="oddsUserBaccarat">99%</span>
-              </div>
-              <div class="odds-val-row">
-                <span class="odds-label-h">🏦 회사 승률</span>
-                <span class="odds-house-num" id="oddsHouseBaccarat">1%</span>
-              </div>
-            </div>
-          </div>
-          <div class="odds-row">
-            <span class="odds-label">♠️ 포커</span>
-            <input type="range" min="0" max="100" value="99" step="1"
-                   class="odds-slider" id="oddsSliderPoker"
-                   oninput="syncOddsSlider('poker',this.value)">
-            <div class="odds-val-wrap">
-              <div class="odds-val-row">
-                <span class="odds-label-u">👤 유저 승률</span>
-                <span class="odds-user-num" id="oddsUserPoker">99%</span>
-              </div>
-              <div class="odds-val-row">
-                <span class="odds-label-h">🏦 회사 승률</span>
-                <span class="odds-house-num" id="oddsHousePoker">1%</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <table class="odds-table">
+          <thead>
+            <tr>
+              <th>게임</th>
+              <th>유저 승률 입력 (0~100)</th>
+              <th>유저 승률</th>
+              <th>회사 승률</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>🪙 홀짝</td>
+              <td><input type="number" class="odds-input" id="oddsInputOddeven" min="0" max="100" value="96" oninput="calcOdds('oddeven',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserOddeven">96%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseOddeven">4%</span></td>
+            </tr>
+            <tr>
+              <td>🎲 주사위</td>
+              <td><input type="number" class="odds-input" id="oddsInputDice" min="0" max="100" value="94" oninput="calcOdds('dice',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserDice">94%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseDice">6%</span></td>
+            </tr>
+            <tr>
+              <td>🎰 슬롯</td>
+              <td><input type="number" class="odds-input" id="oddsInputSlot" min="0" max="100" value="92" oninput="calcOdds('slot',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserSlot">92%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseSlot">8%</span></td>
+            </tr>
+            <tr>
+              <td>🎡 룰렛</td>
+              <td><input type="number" class="odds-input" id="oddsInputRoulette" min="0" max="100" value="97" oninput="calcOdds('roulette',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserRoulette">97%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseRoulette">3%</span></td>
+            </tr>
+            <tr>
+              <td>🃏 바카라</td>
+              <td><input type="number" class="odds-input" id="oddsInputBaccarat" min="0" max="100" value="99" oninput="calcOdds('baccarat',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserBaccarat">99%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseBaccarat">1%</span></td>
+            </tr>
+            <tr>
+              <td>♠️ 포커</td>
+              <td><input type="number" class="odds-input" id="oddsInputPoker" min="0" max="100" value="99" oninput="calcOdds('poker',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserPoker">99%</span></td>
+              <td><span class="odds-calc house" id="oddsHousePoker">1%</span></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- ── 게임 로그 테이블 ── -->
@@ -4433,161 +4340,99 @@ window.newsInsertBlock = (type) => {
 };
 
 // ══════════════════════════════════════════════════════════════
-// 게임 확률 관리  (유저 승률 기준: 0~100%)
-// Firestore settings/gameOdds 에는 houseWinRate(회사 승률) 로 저장
-// 슬라이더 값 = 유저 승률(%)  →  회사 승률 = 100 - 유저 승률
+// 게임 확률 관리
+// _oddsData: 유저 승률(%) 기준 저장. Firestore에는 houseWinRate로 변환 저장
 // ══════════════════════════════════════════════════════════════
 
-// _oddsData: 유저 승률(%) 기준으로 저장
-let _oddsData = {
-  global: 96, oddeven: 96, dice: 94, slot: 92, roulette: 97, baccarat: 99, poker: 99,
-  useGlobal: false
-};
+const ODDS_GAME_KEYS = ['oddeven','dice','slot','roulette','baccarat','poker'];
+let _oddsData = { oddeven:96, dice:94, slot:92, roulette:97, baccarat:99, poker:99 };
 
-const ODDS_KEYS = ['global','oddeven','dice','slot','roulette','baccarat','poker'];
-
-/* 슬라이더 UI 한 칸 동기화 (userRate = 유저 승률 %) */
-function syncOddsSlider(key, userRate) {
-  userRate = parseInt(userRate, 10);
-  if (isNaN(userRate)) return;
-  userRate = Math.max(0, Math.min(100, userRate));
-  _oddsData[key] = userRate;
-
-  const houseRate = 100 - userRate;
+/* 숫자 입력 시 유저/회사 승률 즉시 갱신 */
+function calcOdds(key, val) {
+  let v = parseInt(val, 10);
+  if (isNaN(v)) v = 0;
+  v = Math.max(0, Math.min(100, v));
+  _oddsData[key] = v;
   const cap = key.charAt(0).toUpperCase() + key.slice(1);
-  const s = document.getElementById('oddsSlider' + cap);
   const u = document.getElementById('oddsUser' + cap);
   const h = document.getElementById('oddsHouse' + cap);
-  if (s) { s.value = userRate; s.style.setProperty('--val', userRate + '%'); }
-  if (u) u.textContent = userRate + '%';
-  if (h) h.textContent = houseRate + '%';
-
-  // 전체 공통 모드: global 변경 → 나머지 모든 게임도 동기화
-  if (key === 'global' && _oddsData.useGlobal) {
-    ['oddeven','dice','slot','roulette','baccarat','poker'].forEach(k => {
-      _oddsData[k] = userRate;
-      const kCap = k.charAt(0).toUpperCase() + k.slice(1);
-      const ks = document.getElementById('oddsSlider' + kCap);
-      const ku = document.getElementById('oddsUser' + kCap);
-      const kh = document.getElementById('oddsHouse' + kCap);
-      if (ks) { ks.value = userRate; ks.style.setProperty('--val', userRate + '%'); }
-      if (ku) ku.textContent = userRate + '%';
-      if (kh) kh.textContent = houseRate + '%';
-    });
-  }
-
-  // 회사 승률 50% 초과 경고 (= 유저 승률 < 50%)
-  const anyLow = ODDS_KEYS.some(k => k !== 'global' && typeof _oddsData[k] === 'number' && _oddsData[k] < 50);
-  const banner = document.getElementById('oddsWarnBanner');
-  if (banner) banner.classList.toggle('show', anyLow);
-
+  if (u) u.textContent = v + '%';
+  if (h) h.textContent = (100 - v) + '%';
   // 저장 상태 초기화
   const st = document.getElementById('oddsSaveStatus');
   if (st) { st.textContent = ''; st.className = 'odds-save-status'; }
 }
 
-/* 전체 패널 UI 를 _oddsData 로 다시 그리기 */
-function renderOddsPanel() {
-  ODDS_KEYS.forEach(k => {
-    const userRate = _oddsData[k] ?? 96;
-    syncOddsSlider(k, userRate);  // 각 슬라이더/숫자 업데이트
-  });
-  // _oddsData 는 이미 syncOddsSlider 에서 갱신되므로 useGlobal 만 추가 처리
-  const toggle = document.getElementById('oddsGlobalToggle');
-  if (toggle) toggle.checked = !!_oddsData.useGlobal;
-  const rows = document.getElementById('oddsIndividualRows');
-  if (rows) {
-    rows.style.opacity = _oddsData.useGlobal ? '0.4' : '1';
-    rows.style.pointerEvents = _oddsData.useGlobal ? 'none' : 'auto';
-  }
-}
-
-/* Firestore 에서 로드 → 유저 승률로 변환하여 _oddsData 에 저장 */
+/* Firestore 로드 → _oddsData 갱신 후 입력창/표시 반영 */
 async function loadGameOddsAdmin() {
-  const st = document.getElementById('oddsSaveStatus');
   try {
     const snap = await api.getRawDoc('settings', 'gameOdds');
     if (snap && snap.exists()) {
       const d = snap.data();
-      // Firestore 에 houseWinRate 형식으로 저장돼 있음 → 유저 승률 = 100 - houseWinRate
-      ODDS_KEYS.forEach(k => {
+      const isFmtUser = (d._fmt === 'user');
+      ODDS_GAME_KEYS.forEach(k => {
         if (d[k] !== undefined) {
           const stored = Number(d[k]);
-          // 저장 형식 자동 판별: 값이 50 이하이면 houseWinRate, 50 초과이면 userWinRate 로 간주
-          // (기존 데이터 호환: 이전엔 houseWinRate 로 저장, 이번에 userWinRate 로 바꿈)
-          // → 새 형식: _fmt='user' 필드가 있으면 유저 승률 그대로
-          if (d._fmt === 'user') {
-            _oddsData[k] = stored;
-          } else {
-            // 구버전: houseWinRate 였으므로 변환
-            _oddsData[k] = 100 - stored;
-          }
+          // _fmt:'user' → 유저 승률 그대로, 없으면 구버전(houseWinRate) → 변환
+          _oddsData[k] = isFmtUser ? stored : (100 - stored);
         }
       });
-      _oddsData.useGlobal = !!d.useGlobal;
     }
-    if (st) { st.textContent = ''; }
   } catch(e) {
     console.warn('[AdminOdds] 로드 실패:', e);
-    if (st) { st.textContent = '⚠️ 로드 실패 (기본값 사용)'; st.className = 'odds-save-status err'; }
   }
-  renderOddsPanel();
+  // 입력창 & 표시 업데이트
+  ODDS_GAME_KEYS.forEach(k => {
+    const cap = k.charAt(0).toUpperCase() + k.slice(1);
+    const input = document.getElementById('oddsInput' + cap);
+    const u     = document.getElementById('oddsUser'  + cap);
+    const h     = document.getElementById('oddsHouse' + cap);
+    const v     = _oddsData[k] ?? 96;
+    if (input) input.value = v;
+    if (u) u.textContent = v + '%';
+    if (h) h.textContent = (100 - v) + '%';
+  });
 }
 
-/* Firestore 에 저장 (houseWinRate = 100 - 유저승률 로 변환) */
+/* Firestore 저장 (houseWinRate = 100 - 유저승률) */
 async function saveGameOdds() {
   const btn = document.getElementById('saveOddsBtn');
   const st  = document.getElementById('oddsSaveStatus');
   if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
-  if (st)  { st.textContent = ''; st.className = 'odds-save-status'; }
   try {
-    // houseWinRate 로 변환하여 저장 (app.js 의 houseRandom 과 호환)
+    // 입력창 최신값을 _oddsData에 반영
+    ODDS_GAME_KEYS.forEach(k => {
+      const cap = k.charAt(0).toUpperCase() + k.slice(1);
+      const input = document.getElementById('oddsInput' + cap);
+      if (input) {
+        let v = parseInt(input.value, 10);
+        if (isNaN(v)) v = 96;
+        _oddsData[k] = Math.max(0, Math.min(100, v));
+      }
+    });
     const payload = {
-      _fmt: 'user',          // 새 형식 플래그 (로드 시 판별용)
-      global:   100 - _oddsData.global,
+      _fmt: 'user',
       oddeven:  100 - _oddsData.oddeven,
       dice:     100 - _oddsData.dice,
       slot:     100 - _oddsData.slot,
       roulette: 100 - _oddsData.roulette,
       baccarat: 100 - _oddsData.baccarat,
       poker:    100 - _oddsData.poker,
-      useGlobal: _oddsData.useGlobal,
       updatedAt: new Date().toISOString()
     };
     await api.setRawDoc('settings', 'gameOdds', payload);
-
-    // 저장 후 즉시 다시 읽어서 UI 검증
-    const verify = await api.getRawDoc('settings', 'gameOdds');
-    if (verify && verify.exists()) {
-      showToast('✅ 게임 확률 저장 완료!', 'success');
-      if (st) { st.textContent = '✅ 저장됨'; st.className = 'odds-save-status ok'; }
-    } else {
-      throw new Error('저장 후 검증 실패');
-    }
-
-    // 감사 로그
+    if (st) { st.textContent = '저장 완료'; st.className = 'odds-save-status ok'; }
+    showToast('게임 확률이 저장되었습니다.', 'success');
     try {
       if (typeof currentAdmin !== 'undefined' && currentAdmin) {
-        await api.addAuditLog(currentAdmin.uid, 'system_settings_update', {
-          target: 'gameOdds',
-          detail: JSON.stringify({
-            oddeven: `유저${_oddsData.oddeven}%/회사${100-_oddsData.oddeven}%`,
-            dice:    `유저${_oddsData.dice}%/회사${100-_oddsData.dice}%`,
-            slot:    `유저${_oddsData.slot}%/회사${100-_oddsData.slot}%`,
-            roulette:`유저${_oddsData.roulette}%/회사${100-_oddsData.roulette}%`,
-            baccarat:`유저${_oddsData.baccarat}%/회사${100-_oddsData.baccarat}%`,
-            poker:   `유저${_oddsData.poker}%/회사${100-_oddsData.poker}%`,
-          })
-        });
+        await api.addAuditLog(currentAdmin.uid, 'system_settings_update', { target: 'gameOdds' });
       }
-    } catch(e2) { /* 감사 로그 실패는 무시 */ }
-
+    } catch(e2) {}
   } catch(e) {
-    console.error('[AdminOdds] 저장 오류:', e);
-    showToast('❌ 저장 실패: ' + (e.message || e), 'error');
-    if (st) { st.textContent = '❌ 저장 실패'; st.className = 'odds-save-status err'; }
+    if (st) { st.textContent = '저장 실패'; st.className = 'odds-save-status err'; }
+    showToast('저장 실패: ' + (e.message || e), 'error');
   }
-  if (btn) { btn.disabled = false; btn.textContent = '💾 저장'; }
+  if (btn) { btn.disabled = false; btn.textContent = '저장'; }
 }
 
 
@@ -5384,18 +5229,6 @@ function setupEvents() {
 
     // ── 게임 확률 관리 ──
     document.getElementById('saveOddsBtn').addEventListener('click', saveGameOdds);
-    document.getElementById('oddsGlobalToggle').addEventListener('change', function() {
-        _oddsData.useGlobal = this.checked;
-        const rows = document.getElementById('oddsIndividualRows');
-        if (rows) {
-          rows.style.opacity = this.checked ? '0.4' : '1';
-          rows.style.pointerEvents = this.checked ? 'none' : 'auto';
-        }
-        if (this.checked) {
-            // global 값을 모든 게임에 즉시 동기화
-            syncOddsSlider('global', _oddsData.global);
-        }
-    });
 
     // ── 감사 로그 새로고침 (onclick으로 직접 처리) ──
 
