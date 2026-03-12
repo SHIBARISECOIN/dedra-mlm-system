@@ -3394,7 +3394,7 @@ canvas{width:100% !important;}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signOut, signInWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
     getFirestore, doc, getDoc, collection, getDocs,
     query, where, orderBy, limit
@@ -3430,7 +3430,8 @@ window.adminDoLogin = async function() {
     if (!email || !pass) { errEl.textContent = '이메일과 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
     btn.disabled = true; btn.textContent = '로그인 중...';
     try {
-        await signInWithEmailAndPassword(auth, email, pass);
+        const credential = EmailAuthProvider.credential(email, pass);
+        await signInWithCredential(auth, credential);
     } catch(e) {
         const msg = e.code === 'auth/user-not-found' ? '존재하지 않는 계정입니다.' :
                     e.code === 'auth/wrong-password'  ? '비밀번호가 틀렸습니다.' :
@@ -3442,28 +3443,47 @@ window.adminDoLogin = async function() {
 };
 document.getElementById('adminLoginPass')?.addEventListener('keydown', e => { if(e.key==='Enter') window.adminDoLogin(); });
 
+// 자동 로그인 테스트 (?autotest=1)
+if (location.search.includes('autotest=1')) {
+    setTimeout(async () => {
+        console.log('[AdminTest] 자동 로그인 시작');
+        document.getElementById('adminLoginEmail').value = 'admin@deedra.com';
+        document.getElementById('adminLoginPass').value = 'Admin1234!';
+        await window.adminDoLogin();
+        console.log('[AdminTest] adminDoLogin 완료');
+    }, 2000);
+}
+
 onAuthStateChanged(auth, async user => {
     if (!user) {
         document.getElementById('adminLoginOverlay').style.display = 'flex';
         document.getElementById('adminMain').style.display = 'none';
         return;
     }
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists() || snap.data().role !== 'admin') {
+    try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (!snap.exists() || snap.data().role !== 'admin') {
+            document.getElementById('adminLoginOverlay').style.display = 'flex';
+            document.getElementById('adminMain').style.display = 'none';
+            document.getElementById('adminLoginErr').textContent = '관리자 권한이 없는 계정입니다.';
+            document.getElementById('adminLoginErr').style.display = 'block';
+            await signOut(auth);
+            return;
+        }
+        document.getElementById('adminLoginOverlay').style.display = 'none';
+        document.getElementById('adminMain').style.display = 'flex';
+        currentAdmin = user;
+        document.getElementById('adminName').textContent = snap.data().name || user.email;
+        api = new DedraAPI(db);
+        loadDashboard();
+        setupEvents();
+    } catch(e) {
+        console.error('[Admin] 인증 오류:', e.code, e.message);
+        document.getElementById('adminLoginErr').textContent = `오류: ${e.code || e.message}`;
+        document.getElementById('adminLoginErr').style.display = 'block';
         document.getElementById('adminLoginOverlay').style.display = 'flex';
         document.getElementById('adminMain').style.display = 'none';
-        document.getElementById('adminLoginErr').textContent = '관리자 권한이 없는 계정입니다.';
-        document.getElementById('adminLoginErr').style.display = 'block';
-        await signOut(auth);
-        return;
     }
-    document.getElementById('adminLoginOverlay').style.display = 'none';
-    document.getElementById('adminMain').style.display = 'flex';
-    currentAdmin = user;
-    document.getElementById('adminName').textContent = snap.data().name || user.email;
-    api = new DedraAPI(db);
-    loadDashboard();
-    setupEvents();
 });
 
 // ══════════════════════════════════════════════════
@@ -7479,6 +7499,8 @@ function setupBonusPaymentButtons() {
     };
   }
 }
+
+async function loadRateHistory() {
     const list = document.getElementById('rateHistoryList');
     list.innerHTML = '<div class="loading" style="padding:10px;"><div class="spinner"></div></div>';
     const r = await api.getRateHistory(15);

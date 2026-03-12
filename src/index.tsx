@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { cors } from 'hono/cors'
+// @ts-ignore
+import ADMIN_HTML from '../public/static/admin.html?raw'
 
 const app = new Hono()
 
@@ -12,6 +14,9 @@ app.use('/static/*', async (c, next) => {
   c.res.headers.set('Expires', '0')
 })
 app.use('/static/*', serveStatic({ root: './' }))
+
+// favicon.ico - /static/favicon.ico로 리다이렉트
+app.get('/favicon.ico', (c) => c.redirect('/static/favicon.ico', 301))
 
 // ─── Firebase Auth 프록시 (sandbox 도메인 우회) ───────────────────────
 const FIREBASE_API_KEY = 'AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8'
@@ -68,10 +73,9 @@ app.post('/api/auth/register', async (c) => {
 // 테스트 계정 생성 페이지
 app.get('/setup', (c) => c.html(SETUP_HTML()))
 
-// 관리자 페이지 - wrangler가 /static/admin.html 에 308을 내므로
-// /static/admin (확장자 없이) 으로 redirect
-app.get('/admin', (c) => c.redirect('/static/admin', 302))
-app.get('/admin.html', (c) => c.redirect('/static/admin', 302))
+// 관리자 페이지 - /admin 에서 직접 서빙
+app.get('/admin', (c) => c.html(ADMIN_HTML))
+app.get('/admin.html', (c) => c.html(ADMIN_HTML))
 
 // ─── Main App (SPA) ───────────────────────────────────────────────────────────
 const HTML = () => `<!DOCTYPE html>
