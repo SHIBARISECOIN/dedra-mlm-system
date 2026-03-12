@@ -586,6 +586,49 @@ canvas{width:100% !important;}
 </head>
 <body>
 
+<!-- ═══════════ 관리자 로그인 오버레이 ═══════════ -->
+<div id="adminLoginOverlay" style="
+  display:flex; position:fixed; inset:0; z-index:9999;
+  background:linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%);
+  align-items:center; justify-content:center;">
+  <div style="
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15);
+    border-radius:24px; padding:48px 40px; width:100%; max-width:400px;
+    backdrop-filter:blur(20px); box-shadow:0 32px 80px rgba(0,0,0,0.5);">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-size:40px;margin-bottom:12px;">💎</div>
+      <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">Deedra Admin</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:6px;">관리자 전용 콘솔</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">이메일</label>
+      <input id="adminLoginEmail" type="email" placeholder="admin@deedra.com"
+        style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
+        border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
+        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+        onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPass').focus()"/>
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">비밀번호</label>
+      <input id="adminLoginPass" type="password" placeholder="••••••••"
+        style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
+        border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
+        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"/>
+    </div>
+    <div id="adminLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);
+      color:#fca5a5;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
+    <button id="adminLoginBtn" onclick="adminDoLogin()"
+      style="width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;
+      color:#fff;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;transition:opacity .2s;"
+      onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+      🔐 로그인
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════ 관리자 메인 (로그인 후 표시) ═══════════ -->
+<div id="adminMain" style="display:none;flex-direction:column;min-height:100vh;">
+
 <!-- 헤더 -->
 <div class="header">
   <div class="header-logo">
@@ -3124,7 +3167,7 @@ canvas{width:100% !important;}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
     getFirestore, doc, getDoc, collection, getDocs,
     query, where, orderBy, limit
@@ -3150,15 +3193,45 @@ let allMembers = [], allGameLogs = [];
 let editingNoticeId = null;
 
 // ── 인증 체크 ──
+// ── 관리자 로그인 ──
+window.adminDoLogin = async function() {
+    const email = document.getElementById('adminLoginEmail').value.trim();
+    const pass  = document.getElementById('adminLoginPass').value.trim();
+    const errEl = document.getElementById('adminLoginErr');
+    const btn   = document.getElementById('adminLoginBtn');
+    errEl.style.display = 'none';
+    if (!email || !pass) { errEl.textContent = '이메일과 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
+    btn.disabled = true; btn.textContent = '로그인 중...';
+    try {
+        await signInWithEmailAndPassword(auth, email, pass);
+    } catch(e) {
+        const msg = e.code === 'auth/user-not-found' ? '존재하지 않는 계정입니다.' :
+                    e.code === 'auth/wrong-password'  ? '비밀번호가 틀렸습니다.' :
+                    e.code === 'auth/invalid-credential' ? '이메일 또는 비밀번호가 틀렸습니다.' :
+                    e.code === 'auth/too-many-requests' ? '너무 많은 시도. 잠시 후 다시 시도하세요.' : e.message;
+        errEl.textContent = msg; errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = '🔐 로그인';
+    }
+};
+document.getElementById('adminLoginPass')?.addEventListener('keydown', e => { if(e.key==='Enter') window.adminDoLogin(); });
+
 onAuthStateChanged(auth, async user => {
-    if (!user) { window.location.href = '/'; return; }
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists() || snap.data().role !== 'admin') {
-        alert('관리자 권한이 없습니다.');
-        await signOut(auth);
-        window.location.href = '/';
+    if (!user) {
+        document.getElementById('adminLoginOverlay').style.display = 'flex';
+        document.getElementById('adminMain').style.display = 'none';
         return;
     }
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (!snap.exists() || snap.data().role !== 'admin') {
+        document.getElementById('adminLoginOverlay').style.display = 'flex';
+        document.getElementById('adminMain').style.display = 'none';
+        document.getElementById('adminLoginErr').textContent = '관리자 권한이 없는 계정입니다.';
+        document.getElementById('adminLoginErr').style.display = 'block';
+        await signOut(auth);
+        return;
+    }
+    document.getElementById('adminLoginOverlay').style.display = 'none';
+    document.getElementById('adminMain').style.display = 'flex';
     currentAdmin = user;
     document.getElementById('adminName').textContent = snap.data().name || user.email;
     api = new DedraAPI(db);
@@ -7325,5 +7398,6 @@ function showToast(msg, type = 'default') {
 }
 
 </script>
+</div><!-- /adminMain -->
 </body>
 </html>
