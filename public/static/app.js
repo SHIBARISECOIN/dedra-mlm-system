@@ -1325,16 +1325,18 @@ async function loadHomeEarn() {
   }
   try {
     const { collection, getDocs, db } = window.FB;
-    // orderBy 없이 전체 로드 후 클라이언트 정렬 (복합인덱스 불필요)
     const snap = await getDocs(collection(db, 'products'));
-    const products = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(p => p.isActive === true)
-      .sort((a, b) => (a.minAmount || 0) - (b.minAmount || 0));
+    const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    console.log('[EARN] 전체 상품 수:', allDocs.length, allDocs.map(p => ({name:p.name, isActive:p.isActive, type:p.type})));
+    // isActive 필터 (true / "true" / undefined 모두 허용)
+    const products = allDocs
+      .filter(p => p.isActive !== false)
+      .sort((a, b) => (a.minAmount || a.sortOrder || 0) - (b.minAmount || b.sortOrder || 0));
+    console.log('[EARN] 필터 후 상품 수:', products.length);
     productsCache = products;
     renderHomeEarn(products);
   } catch (e) {
-    console.warn('[EARN] 상품 로드 오류:', e);
+    console.error('[EARN] 상품 로드 오류:', e);
     listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 없음</div>';
   }
 }
@@ -2093,12 +2095,12 @@ async function loadProducts() {
   const listEl = document.getElementById('productList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item tall"></div><div class="skeleton-item tall"></div>';
   try {
-    // orderBy 없이 전체 로드 후 클라이언트 정렬 (복합인덱스 불필요)
     const snap = await getDocs(collection(db, 'products'));
-    productsCache = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(p => p.isActive === true)
-      .sort((a, b) => (a.minAmount || 0) - (b.minAmount || 0));
+    const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    console.log('[Products] 전체 상품:', allDocs.length, allDocs.map(p=>({name:p.name,isActive:p.isActive,type:p.type})));
+    productsCache = allDocs
+      .filter(p => p.isActive !== false)
+      .sort((a, b) => (a.minAmount || a.sortOrder || 0) - (b.minAmount || b.sortOrder || 0));
 
     if (!productsCache.length) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i>투자 상품이 없습니다</div>';
