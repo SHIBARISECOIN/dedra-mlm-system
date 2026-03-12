@@ -712,10 +712,195 @@ export class DedraAPI {
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // 센터피(Center Fee) — 소속 회원의 Daily ROI D × centerFeeRate% 를 센터장에게 지급
+  // ─────────────────────────────────────────────────────────────────
+  /**
+   * @param {string}  investUserId   ROI 발생 회원 uid
+   * @param {number}  dailyIncome    당일 ROI D (USDT)
+   * @param {object}  rates          getRates() 결과 (enableCenterFee, centerFeeRate)
+   * @param {object}  userMap        { [uid]: userData } 전체 회원 맵
+   * @param {object}  db
+   * @param {string}  triggerBy
+   * @param {string}  settlementDate 'YYYY-MM-DD'
+   */
+  async _processCenterFee(investUserId, dailyIncome, rates, userMap, db, triggerBy, settlementDate) {
+    try {
+      if (!dailyIncome || dailyIncome <= 0) return 0;
+      if (!rates.enableCenterFee) return 0;
+      const feeRate = (rates.centerFeeRate ?? 5) / 100;
+      if (feeRate <= 0) return 0;
+
+      const investor = userMap[investUserId];
+      if (!investor || !investor.centerId) return 0; // 센터 소속이 아니면 패스
+
+      // 센터 문서에서 센터장 uid 조회
+      const centerSnap = await getDoc(doc(db, 'centers', investor.centerId));
+      if (!centerSnap.exists()) return 0;
+      const centerLeaderId = centerSnap.data().leaderId;
+      if (!centerLeaderId || centerLeaderId === investUserId) return 0;
+
+      const feeAmt = parseFloat((dailyIncome * feeRate).toFixed(8));
+
+      // 센터장 지갑에 적립
+      const leaderWalletRef = doc(db, 'wallets', centerLeaderId);
+      const lwSnap = await getDoc(leaderWalletRef);
+      if (lwSnap.exists()) {
+        await updateDoc(leaderWalletRef, {
+          dedraBalance:  increment(feeAmt),
+          totalEarnings: increment(feeAmt),
+        });
+      } else {
+        // 레거시 fallback
+        const q = query(collection(db, 'wallets'), where('userId', '==', centerLeaderId));
+        const qs = await getDocs(q);
+        if (!qs.empty) {
+          await updateDoc(qs.docs[0].ref, {
+            dedraBalance:  increment(feeAmt),
+            totalEarnings: increment(feeAmt),
+          });
+        }
+      }
+
+      await addDoc(collection(db, 'bonuses'), {
+        userId:         centerLeaderId,
+        fromUserId:     investUserId,
+        amount:         feeAmt,
+        type:           'center_fee',
+        centerId:       investor.centerId,
+        baseIncome:     dailyIncome,
+        rate:           feeRate,
+        settlementDate: settlementDate || '',
+        reason:         `센터피 (${(feeRate*100).toFixed(1)}% × D${dailyIncome.toFixed(4)}, 정산일: ${settlementDate||'수동'})`,
+        grantedBy:      triggerBy || 'system',
+        createdAt:      serverTimestamp(),
+      });
+
+      return feeAmt;
+    } catch(e) {
+      console.error('_processCenterFee error:', e);
+      return 0;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 직급 달성 보너스(Rank Achieve Bonus) — 특정 직급이 되면 일정 금액 지급 (N일 주기)
+  // ─────────────────────────────────────────────────────────────────
+  /**
+   * 운영 방식:
+   *   - cycleDays === 0  → 최초 직급 달성 시 1회만 지급 (bonuses 컬렉션에 기록, 중복 방지)
+   *   - cycleDays > 0   → N일마다 반복 지급 (마지막 지급일 기록, N일 이상 지났으면 재지급)
+   *
+   * 호출 시점: runDailyROISettlement 내부 또는 별도 배치 실행
+   * @param {string} adminId
+   * @param {string} targetDateStr 'YYYY-MM-DD'
+   */
+  async runRankAchieveBonusBatch(adminId, targetDateStr = null) {
+    try {
+      const db = this.db;
+      const ratesR = await this.getRates();
+      const rates  = ratesR.success ? ratesR.data : {};
+      if (!rates.enableRankAchieveBonus) return ok({ skipped: true, reason: '직급 보너스 비활성' });
+
+      const cycleDays   = rates.rankAchieveBonusCycleDays ?? 0;
+      const bonusAmounts= rates.rankAchieveBonusAmounts   || {};
+
+      const dateStr = targetDateStr
+        || (new Date()).toISOString().slice(0, 10);
+
+      const usersSnap = await getDocs(
+        query(collection(db, 'users'), where('role', '!=', 'admin'))
+      );
+
+      let paidCount = 0;
+      let totalPaid = 0;
+
+      for (const ud of usersSnap.docs) {
+        const user = { id: ud.id, ...ud.data() };
+        const rank = user.rank || 'G0';
+        if (rank === 'G0') continue;
+
+        const bonusAmt = parseFloat(bonusAmounts[rank] || 0);
+        if (bonusAmt <= 0) continue;
+
+        if (cycleDays === 0) {
+          // ── 1회 지급: 이미 지급된 기록이 있으면 스킵 ──
+          const prev = await getDocs(query(
+            collection(db, 'bonuses'),
+            where('userId', '==', user.id),
+            where('type',   '==', 'rank_achieve_bonus'),
+            where('rank',   '==', rank),
+            limit(1)
+          ));
+          if (!prev.empty) continue; // 이미 지급됨
+        } else {
+          // ── N일 반복: 마지막 지급일 확인 ──
+          const prev = await getDocs(query(
+            collection(db, 'bonuses'),
+            where('userId', '==', user.id),
+            where('type',   '==', 'rank_achieve_bonus'),
+            where('rank',   '==', rank),
+            limit(1)
+          ));
+          if (!prev.empty) {
+            const lastBonus = prev.docs[0].data();
+            const lastDate = lastBonus.settlementDate || '';
+            if (lastDate) {
+              const lastMs  = new Date(lastDate + 'T00:00:00').getTime();
+              const todayMs = new Date(dateStr   + 'T00:00:00').getTime();
+              const daysDiff = (todayMs - lastMs) / 86400000;
+              if (daysDiff < cycleDays) continue; // 아직 주기 안 됨
+            }
+          }
+        }
+
+        // 지갑 적립
+        const walletRef = doc(db, 'wallets', user.id);
+        const wSnap = await getDoc(walletRef);
+        if (wSnap.exists()) {
+          await updateDoc(walletRef, {
+            dedraBalance:  increment(bonusAmt),
+            totalEarnings: increment(bonusAmt),
+          });
+        } else {
+          const q = query(collection(db, 'wallets'), where('userId', '==', user.id));
+          const qs = await getDocs(q);
+          if (!qs.empty) {
+            await updateDoc(qs.docs[0].ref, {
+              dedraBalance:  increment(bonusAmt),
+              totalEarnings: increment(bonusAmt),
+            });
+          }
+        }
+
+        await addDoc(collection(db, 'bonuses'), {
+          userId:         user.id,
+          amount:         bonusAmt,
+          type:           'rank_achieve_bonus',
+          rank,
+          cycleDays,
+          settlementDate: dateStr,
+          reason:         `직급 달성 보너스 [${rank}] ${bonusAmt} USDT${cycleDays > 0 ? ` (${cycleDays}일 주기)` : ' (1회)'}`,
+          grantedBy:      adminId,
+          createdAt:      serverTimestamp(),
+        });
+
+        paidCount++;
+        totalPaid += bonusAmt;
+      }
+
+      await this._auditLog(adminId, 'settlement',
+        `직급 달성 보너스 배치 [${dateStr}]: ${paidCount}건 / ${totalPaid.toFixed(4)} USDT`,
+        { date: dateStr, paidCount, totalPaid }
+      );
+
+      return ok({ date: dateStr, paidCount, totalPaid });
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // 일일 ROI 정산 배치
   // ─────────────────────────────────────────────────────────────────
   /**
-   * 관리자가 매일 실행하는 정산 배치.
    * 실행 흐름:
    *   1. 전체 활성(active) 투자 조회
    *   2. 투자 상품별 지급 패턴(bonusPaymentConfig) 체크
@@ -753,10 +938,15 @@ export class DedraAPI {
       const globalOptions = bpConfig.globalOptions|| {};
 
       // 모든 활성 투자 조회
-      const invSnap = await getDocs(
-        query(collection(db, 'investments'), where('status', '==', 'active'))
-      );
+      const [invSnap, usersSnap] = await Promise.all([
+        getDocs(query(collection(db, 'investments'), where('status', '==', 'active'))),
+        getDocs(collection(db, 'users')),
+      ]);
       const activeInvestments = invSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // 전체 회원 맵 (센터피/유니레벨 공용)
+      const userMap = Object.fromEntries(
+        usersSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }])
+      );
 
       let roiPaidCount   = 0;
       let bonusPaidCount = 0;
@@ -855,6 +1045,14 @@ export class DedraAPI {
             if (bonusPaidB > 0) { totalBonusAmount += bonusPaidB; }
           }
 
+          // ── 센터피: 소속 센터장에게 D × centerFeeRate% 지급 ──
+          if (rates.enableCenterFee) {
+            const centerFee = await this._processCenterFee(
+              inv.userId, D, rates, userMap, db, adminId, dateStr
+            );
+            if (centerFee > 0) { totalBonusAmount += centerFee; }
+          }
+
           // ── 횟수 제한 차감 ──
           if (productCfg?.paymentDurationType === 'LIMITED_COUNTS') {
             const remaining = inv.remainingPayments ?? (productCfg.durationValue ?? 999);
@@ -887,6 +1085,12 @@ export class DedraAPI {
         { date: dateStr, totalRoiAmount, totalBonusAmount }
       );
 
+      // ── 직급 달성 보너스 배치 (cycleDays 설정에 따라 조건부 실행) ──
+      let rankBonusResult = null;
+      if (rates.enableRankAchieveBonus) {
+        rankBonusResult = await this.runRankAchieveBonusBatch(adminId, dateStr);
+      }
+
       return ok({
         date: dateStr,
         roiPaidCount,
@@ -894,6 +1098,7 @@ export class DedraAPI {
         totalRoiAmount,
         totalBonusAmount,
         totalInvestments: activeInvestments.length,
+        rankBonusResult: rankBonusResult?.data || null,
         details,
       });
     } catch(e) { return err(e); }
@@ -939,6 +1144,16 @@ export class DedraAPI {
         autoSettlement: false,      // true = 자동 정산 활성화
         autoSettlementHour: 0,      // 정산 실행 시각 (0~23, UTC 기준)
         autoSettlementMinute: 0,
+        // 센터피 설정 (Center Fee)
+        enableCenterFee: false,     // true = 센터피 활성화
+        centerFeeRate: 5,           // 센터 소속 회원 ROI D 의 N% 를 센터장에게 지급
+        // 직급 보너스 설정 (Rank Achievement Bonus)
+        enableRankAchieveBonus: false, // true = 직급 달성 보너스 활성화
+        rankAchieveBonusCycleDays: 0,  // 0=직급달성1회만, N>0=N일마다 반복 지급
+        rankAchieveBonusAmounts: {     // 직급별 지급 금액 (USDT)
+          G1:0, G2:0, G3:0, G4:0, G5:0,
+          G6:0, G7:0, G8:0, G9:0, G10:0,
+        },
       };
       return ok(snap.exists() ? { ...defaults, ...snap.data() } : defaults);
     } catch(e) { return err(e); }
@@ -949,7 +1164,8 @@ export class DedraAPI {
       // boolean 필드들은 반드시 boolean 타입으로 저장 (Firestore 타입 안전)
       const boolFields = [
         'enableDirectBonus','enableUnilevel','enableDirectBonus2Gen',
-        'enableRankDiffBonus','enableRankBonus','autoSettlement'
+        'enableRankDiffBonus','enableRankBonus','autoSettlement',
+        'enableCenterFee','enableRankAchieveBonus'
       ];
       const safeRates = { ...rates };
       boolFields.forEach(f => {

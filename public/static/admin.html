@@ -2617,6 +2617,86 @@ canvas{width:100% !important;}
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════
+           센터피(Center Fee) 설정 카드
+      ══════════════════════════════════════════════ -->
+      <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:22px;">🏢</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e293b;">센터피(Center Fee) 설정
+              <span id="badge_centerFee" style="font-size:11px;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600;background:#fee2e2;color:#dc2626;">비활성</span>
+            </div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">
+              센터에 소속된 회원의 <strong>일일 ROI(D)</strong> 중 N%를 해당 센터장에게 자동 지급합니다.<br>
+              회원 본인의 수익에서 차감되지 않으며, 별도로 지급됩니다.
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+            <input type="checkbox" id="sw_enableCenterFee" onchange="updateSwitchStyle('sw_enableCenterFee',this.checked)"
+              style="width:16px;height:16px;accent-color:#6366f1;">
+            센터피 활성화
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            센터장 지급률
+            <input type="number" id="rate_centerFee" min="0" max="100" step="0.1" value="5"
+              style="width:80px;padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;text-align:right;">
+            <span style="color:#64748b;">%</span>
+            <span style="font-size:11px;color:#94a3b8;">(회원 ROI D의 N%)</span>
+          </label>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:#6b7280;background:#f0f9ff;padding:10px 14px;border-radius:8px;border-left:3px solid #7dd3fc;">
+          💡 <strong>센터 구조:</strong> 회원관리 탭에서 회원에게 centerId를 지정하고, 센터 관리 탭에서 leaderId를 설정하면 자동으로 적용됩니다.
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           직급 달성 보너스 설정 카드
+      ══════════════════════════════════════════════ -->
+      <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:22px;">🏆</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1e293b;">직급 달성 보너스 설정
+              <span id="badge_rankAchieveBonus" style="font-size:11px;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600;background:#fee2e2;color:#dc2626;">비활성</span>
+            </div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">
+              특정 직급에 도달한 회원에게 USDT를 지급합니다.<br>
+              <strong>주기 0일</strong> = 직급 달성 시 1회만 지급 | <strong>주기 N일</strong> = N일마다 반복 지급
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+            <input type="checkbox" id="sw_enableRankAchieveBonus" onchange="updateSwitchStyle('sw_enableRankAchieveBonus',this.checked)"
+              style="width:16px;height:16px;accent-color:#6366f1;">
+            직급 달성 보너스 활성화
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            지급 주기
+            <input type="number" id="rate_rankAchieveCycleDays" min="0" max="365" step="1" value="0"
+              style="width:80px;padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;text-align:right;">
+            <span style="color:#64748b;">일</span>
+            <span style="font-size:11px;color:#94a3b8;">(0=1회만)</span>
+          </label>
+        </div>
+        <!-- 직급별 보너스 금액 그리드 -->
+        <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">직급별 지급 금액 (USDT)</div>
+        <div id="rankAchieveBonusGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;"></div>
+        <div style="margin-top:10px;font-size:12px;color:#6b7280;background:#fefce8;padding:10px 14px;border-radius:8px;border-left:3px solid #fde047;">
+          💡 <strong>자동 실행:</strong> 매일 ROI 정산 시 직급 달성 보너스도 함께 처리됩니다.<br>
+          또는 아래 <strong>직급 보너스 수동 실행</strong> 버튼으로 즉시 실행할 수 있습니다.
+        </div>
+        <div style="margin-top:12px;">
+          <button id="runRankAchieveBonusBtn" class="btn btn-sm" style="background:#7c3aed;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;">
+            ▶ 직급 보너스 수동 실행
+          </button>
+          <div id="rankAchieveBonusResult" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+      </div>
+
       <!-- 저장/재로드 -->
       <div style="display:flex;gap:10px;max-width:960px;margin-bottom:24px;">
         <button class="btn btn-primary" id="saveRatesBtn" style="min-width:140px;">💾 전체 이율 저장</button>
@@ -6947,11 +7027,13 @@ function updateBadges(rates) {
         return defaultOn === true;
     }
     const badges = {
-        'badge_directBonus':     getOn('sw_enableDirectBonus',    'enableDirectBonus',    true),
-        'badge_unilevel':        getOn('sw_enableUnilevel',       'enableUnilevel',       true),
-        'badge_directBonus2Gen': getOn('sw_enableDirectBonus2Gen','enableDirectBonus2Gen',false),
-        'badge_rankDiff':        getOn('sw_enableRankDiffBonus',  'enableRankDiffBonus',  false),
-        'badge_rankBonus':       getOn('sw_enableRankBonus',      'enableRankBonus',      false),
+        'badge_directBonus':        getOn('sw_enableDirectBonus',       'enableDirectBonus',       true),
+        'badge_unilevel':           getOn('sw_enableUnilevel',          'enableUnilevel',          true),
+        'badge_directBonus2Gen':    getOn('sw_enableDirectBonus2Gen',   'enableDirectBonus2Gen',   false),
+        'badge_rankDiff':           getOn('sw_enableRankDiffBonus',     'enableRankDiffBonus',     false),
+        'badge_rankBonus':          getOn('sw_enableRankBonus',         'enableRankBonus',         false),
+        'badge_centerFee':          getOn('sw_enableCenterFee',         'enableCenterFee',         false),
+        'badge_rankAchieveBonus':   getOn('sw_enableRankAchieveBonus',  'enableRankAchieveBonus',  false),
     };
     for (const [id, on] of Object.entries(badges)) {
         const el = document.getElementById(id);
@@ -7000,6 +7082,39 @@ function renderFeeRates(rates) {
     document.getElementById('rate_withdrawalFee').value = rates.withdrawalFeeRate ?? 2;
     document.getElementById('rate_depositFee').value = rates.depositFeeRate ?? 0;
     document.getElementById('rate_rankDiff').value = rates.rankDiffBonusRate ?? 0;
+
+    // 센터피
+    const swCenterFee = document.getElementById('sw_enableCenterFee');
+    if (swCenterFee) {
+        swCenterFee.checked = rates.enableCenterFee === true;
+        updateSwitchStyle('sw_enableCenterFee', swCenterFee.checked);
+    }
+    const elCenterFeeRate = document.getElementById('rate_centerFee');
+    if (elCenterFeeRate) elCenterFeeRate.value = rates.centerFeeRate ?? 5;
+
+    // 직급 달성 보너스
+    const swRankAchieve = document.getElementById('sw_enableRankAchieveBonus');
+    if (swRankAchieve) {
+        swRankAchieve.checked = rates.enableRankAchieveBonus === true;
+        updateSwitchStyle('sw_enableRankAchieveBonus', swRankAchieve.checked);
+    }
+    const elCycleDays = document.getElementById('rate_rankAchieveCycleDays');
+    if (elCycleDays) elCycleDays.value = rates.rankAchieveBonusCycleDays ?? 0;
+
+    renderRankAchieveBonusGrid(rates.rankAchieveBonusAmounts || {});
+}
+
+function renderRankAchieveBonusGrid(amounts) {
+    const grid = document.getElementById('rankAchieveBonusGrid');
+    if (!grid) return;
+    const ranks = ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+    grid.innerHTML = ranks.map(r => `
+        <div style="text-align:center;">
+            <div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:5px;">${r}</div>
+            <input type="number" id="rankAchieve_${r}" value="${amounts[r]||0}" min="0" step="1"
+              style="width:100%;padding:6px 8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;text-align:right;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:3px;">USDT</div>
+        </div>`).join('');
 }
 
 function renderVipDiscounts(discounts) {
@@ -7087,6 +7202,18 @@ function setupRateButtons() {
         const autoSettlementHour   = parseInt(document.getElementById('autoSettlementHour')?.value || '0', 10);
         const autoSettlementMinute = parseInt(document.getElementById('autoSettlementMinute')?.value || '0', 10);
 
+        // ── 센터피 설정 ──
+        const enableCenterFee = document.getElementById('sw_enableCenterFee')?.checked === true;
+        const centerFeeRate   = parseFloat(document.getElementById('rate_centerFee')?.value || '5');
+
+        // ── 직급 달성 보너스 설정 ──
+        const enableRankAchieveBonus    = document.getElementById('sw_enableRankAchieveBonus')?.checked === true;
+        const rankAchieveBonusCycleDays = parseInt(document.getElementById('rate_rankAchieveCycleDays')?.value || '0', 10);
+        const rankAchieveBonusAmounts   = {};
+        ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'].forEach(r => {
+            rankAchieveBonusAmounts[r] = parseFloat(document.getElementById(`rankAchieve_${r}`)?.value || '0');
+        });
+
         const rates = {
             unilevelRates,
             directBonus1,
@@ -7106,6 +7233,11 @@ function setupRateButtons() {
             autoSettlement,
             autoSettlementHour,
             autoSettlementMinute,
+            enableCenterFee,
+            centerFeeRate,
+            enableRankAchieveBonus,
+            rankAchieveBonusCycleDays,
+            rankAchieveBonusAmounts,
         };
         document.getElementById('saveRatesBtn').disabled = true;
         document.getElementById('saveRatesBtn').textContent = '저장 중...';
@@ -7125,6 +7257,34 @@ function setupRateButtons() {
         }
     };
     document.getElementById('reloadRatesBtn').onclick = () => loadRates();
+
+    // ── 직급 달성 보너스 수동 실행 버튼 ──
+    const rankAchieveBtn = document.getElementById('runRankAchieveBonusBtn');
+    if (rankAchieveBtn) {
+        rankAchieveBtn.onclick = async () => {
+            if (!confirm('오늘 날짜 기준으로 직급 달성 보너스를 즉시 실행합니다.\n계속하시겠습니까?')) return;
+            rankAchieveBtn.disabled = true;
+            rankAchieveBtn.textContent = '실행 중...';
+            const resultEl = document.getElementById('rankAchieveBonusResult');
+            try {
+                const res = await api.runRankAchieveBonusBatch(currentAdmin.uid, null);
+                if (res.success && !res.data?.skipped) {
+                    resultEl.innerHTML = `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px;">
+                        ✅ 완료: <strong>${res.data.paidCount}건</strong> 지급 / 합계 <strong>${(res.data.totalPaid||0).toFixed(4)} USDT</strong>
+                    </div>`;
+                } else if (res.data?.skipped) {
+                    resultEl.innerHTML = `<div style="color:#92400e;">⚠️ ${res.data.reason}</div>`;
+                } else {
+                    resultEl.innerHTML = `<div style="color:#dc2626;">❌ ${res.error}</div>`;
+                }
+            } catch(e) {
+                resultEl.innerHTML = `<div style="color:#dc2626;">❌ 오류: ${e.message}</div>`;
+            } finally {
+                rankAchieveBtn.disabled = false;
+                rankAchieveBtn.textContent = '▶ 직급 보너스 수동 실행';
+            }
+        };
+    }
 
     // ── 직급 승진 조건 저장 버튼 ──
     const saveRankPromoBtn = document.getElementById('saveRankPromoBtn');
@@ -7881,6 +8041,15 @@ async function runDailySettlement() {
             <div style="font-size:22px;font-weight:800;color:#0ea5e9;">${d.totalInvestments}</div>
             <div style="font-size:11px;color:#6b7280;margin-top:2px;">처리 투자 건 수</div>
           </div>
+          ${d.rankBonusResult ? `
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#f59e0b;">${d.rankBonusResult.paidCount||0}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">직급 보너스 지급 건</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#f59e0b;">${(d.rankBonusResult.totalPaid||0).toFixed(4)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">직급 보너스 총액 (USDT)</div>
+          </div>` : ''}
         </div>
         ${(d.details && d.details.length > 0) ? `
         <details style="cursor:pointer;">
