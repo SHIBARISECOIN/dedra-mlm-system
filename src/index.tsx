@@ -444,384 +444,451 @@ const HTML = () => `<!DOCTYPE html>
       <!-- ======== PLAY 페이지 ======== -->
       <div id="playPage" class="page">
         <div class="page-scroll">
-          <div class="page-title">🎮 Play</div>
 
-          <!-- 게임 가능 잔액 바 -->
-          <div class="game-wallet-bar">
-            <div style="display:flex;align-items:center;gap:12px;flex:1">
-              <div class="game-wallet-icon">💰</div>
+          <!-- 게임 헤더 배너 -->
+          <div class="game-header-banner">
+            <div class="game-header-left">
+              <div class="game-header-title">🎮 DDRA Casino</div>
+              <div class="game-header-sub">수익으로 즉시 플레이</div>
+            </div>
+            <div class="game-balance-pill">
+              <span class="gbp-icon">💎</span>
               <div>
-                <div class="game-wallet-label">게임 가능 DDRA</div>
-                <div class="game-wallet-value" id="gameBalance" style="font-size:22px;font-weight:700;color:#f59e0b;">0.00 DDRA</div>
-                <div class="game-wallet-sub" id="gameBalanceUsd" style="font-size:12px;color:#94a3b8;">≈ $0.00 USDT (수익 잔액 기준)</div>
+                <div class="gbp-val" id="gameBalance">0.00</div>
+                <div class="gbp-sub" id="gameBalanceUsd">≈ $0.00</div>
               </div>
-            </div>
-            <div style="text-align:right;line-height:1.6;">
-              <div style="font-size:11px;color:#10b981;font-weight:600;">✅ 바로 베팅 가능</div>
-              <div style="font-size:10px;color:#94a3b8;">수익 발생 즉시 사용</div>
+              <span class="gbp-unit">DDRA</span>
             </div>
           </div>
 
-          <!-- 게임 로비 -->
-          <div class="section-header">
-            <span class="section-title" data-i18n="gameSelect">🎰 게임 선택</span>
-          </div>
-          <div class="game-grid">
-            <div class="game-card" onclick="startGame('oddeven')">
-              <div class="game-badge badge-live">LIVE</div>
-              <div class="game-thumb oddeven">🎲</div>
-              <div class="game-name" data-i18n="gameOddEven">홀짝</div>
-              <div class="game-desc" data-i18n="gameOddEvenDesc">50% 확률, 2배 수익</div>
+          <!-- 게임 로비 그리드 -->
+          <div class="game-grid-v2">
+
+            <div class="game-card-v2" onclick="startGame('oddeven')">
+              <div class="gcv2-badge live">LIVE</div>
+              <div class="gcv2-icon">🪙</div>
+              <div class="gcv2-name">홀짝</div>
+              <div class="gcv2-desc">50% 확률 · 2배</div>
+              <div class="gcv2-rtp">RTP 96%</div>
             </div>
-            <div class="game-card" onclick="startGame('dice')">
-              <div class="game-badge badge-hot">HOT</div>
-              <div class="game-thumb dice">🎯</div>
-              <div class="game-name" data-i18n="gameDice">주사위</div>
-              <div class="game-desc" data-i18n="gameDiceDesc">숫자 맞추기 6배</div>
+
+            <div class="game-card-v2" onclick="startGame('dice')">
+              <div class="gcv2-badge hot">HOT</div>
+              <div class="gcv2-icon">🎲</div>
+              <div class="gcv2-name">주사위</div>
+              <div class="gcv2-desc">숫자 맞추기 · 6배</div>
+              <div class="gcv2-rtp">RTP 94%</div>
             </div>
-            <div class="game-card" onclick="startGame('slot')">
-              <div class="game-thumb slot">🎰</div>
-              <div class="game-name" data-i18n="gameSlot">슬롯머신</div>
-              <div class="game-desc" data-i18n="gameSlotDesc">잭팟 최대 50배</div>
+
+            <div class="game-card-v2" onclick="startGame('slot')">
+              <div class="gcv2-badge jackpot">JACKPOT</div>
+              <div class="gcv2-icon">🎰</div>
+              <div class="gcv2-name">슬롯머신</div>
+              <div class="gcv2-desc">잭팟 최대 50배</div>
+              <div class="gcv2-rtp">RTP 92%</div>
             </div>
-            <div class="game-card" onclick="startGame('baccarat')">
-              <div class="game-badge badge-hot">HOT</div>
-              <div class="game-thumb baccarat" style="font-size:32px;">🃏</div>
-              <div class="game-name" data-i18n="gameBaccarat">바카라</div>
-              <div class="game-desc" data-i18n="gameBaccaratDesc">뱅커/플레이어 베팅</div>
+
+            <div class="game-card-v2" onclick="startGame('baccarat')">
+              <div class="gcv2-badge hot">HOT</div>
+              <div class="gcv2-icon">🃏</div>
+              <div class="gcv2-name">바카라</div>
+              <div class="gcv2-desc">뱅커/플레이어 · 1.95배</div>
+              <div class="gcv2-rtp">RTP 98.9%</div>
             </div>
-            <div class="game-card" onclick="startGame('roulette')">
-              <div class="game-badge badge-new">NEW</div>
-              <div class="game-thumb roulette">🎡</div>
-              <div class="game-name" data-i18n="gameRoulette">룰렛</div>
-              <div class="game-desc" data-i18n="gameRouletteDesc">숫자/색상 베팅</div>
+
+            <div class="game-card-v2" onclick="startGame('roulette')">
+              <div class="gcv2-badge new-badge">NEW</div>
+              <div class="gcv2-icon">🎡</div>
+              <div class="gcv2-name">룰렛</div>
+              <div class="gcv2-desc">숫자/색상 베팅 · 35배</div>
+              <div class="gcv2-rtp">RTP 97.3%</div>
             </div>
-            <div class="game-card" onclick="startGame('poker')">
-              <div class="game-badge badge-new">NEW</div>
-              <div class="game-thumb poker" style="font-size:32px;">🂡</div>
-              <div class="game-name" data-i18n="gamePoker">포커</div>
-              <div class="game-desc" data-i18n="gamePokerDesc">텍사스 홀덤</div>
+
+            <div class="game-card-v2" onclick="startGame('poker')">
+              <div class="gcv2-badge new-badge">NEW</div>
+              <div class="gcv2-icon">♠️</div>
+              <div class="gcv2-name">포커</div>
+              <div class="gcv2-desc">텍사스 홀덤 · 100배</div>
+              <div class="gcv2-rtp">RTP 99%</div>
             </div>
+
           </div>
 
-          <!-- 홀짝 게임 -->
-          <div id="gameOddEven" class="game-area hidden">
-            <div class="game-area-header">
-              <span class="game-area-title" data-i18n="gameAreaOddEven">🪙 홀짝 게임</span>
-              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
+          <!-- ===== 홀짝 게임 ===== -->
+          <div id="gameOddEven" class="game-area-v2 hidden">
+            <div class="gav2-header">
+              <div class="gav2-title-wrap">
+                <span class="gav2-icon">🪙</span>
+                <span class="gav2-title">홀짝 게임</span>
+              </div>
+              <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
-            <div class="game-body">
-              <div class="bet-info-row">
-                <span class="bet-info-label" data-i18n="betAmount">💰 베팅 금액</span>
-                <span class="bet-info-value"><span id="oeCurrentBet">10</span> DDRA</span>
+            <div class="gav2-body">
+              <div class="gav2-bet-row">
+                <span class="gav2-bet-label">베팅</span>
+                <div class="gav2-bet-val"><span id="oeCurrentBet">10</span> DDRA <small id="oeBetUsdt">≈$5.00</small></div>
               </div>
               <div class="bet-slider-wrap">
-                <div class="bet-slider-label">
-                  <span>1 DDRA</span><span data-i18n="maxBalance">최대 잔액</span>
-                </div>
-                <input type="range" class="bet-slider" id="oeBetSlider" min="1" max="1000" value="10"
-                  oninput="updateBetDisplay('oe', this.value)" />
+                <input type="range" class="bet-slider-v2" id="oeBetSlider" min="1" max="1000" value="10" oninput="updateBetDisplay('oe', this.value)" />
               </div>
-              <div class="bet-quick-row">
-                <button class="bet-quick-btn" onclick="setBetAmount('oe', 10)">10</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('oe', 50)">50</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('oe', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('oe')">½</button>
+              <div class="bet-chip-row">
+                <button class="bet-chip" onclick="setBetAmount('oe',10)">10</button>
+                <button class="bet-chip" onclick="setBetAmount('oe',50)">50</button>
+                <button class="bet-chip" onclick="setBetAmount('oe',100)">100</button>
+                <button class="bet-chip" onclick="setBetAmount('oe',500)">500</button>
+                <button class="bet-chip half" onclick="setBetGameHalf('oe')">½ MAX</button>
               </div>
-              <!-- 동전 애니메이션 영역 -->
-              <div class="coin-arena">
-                <div class="coin-flip-wrap">
-                  <div class="coin-flip" id="coinFlip">
-                    <div class="coin-face front">🪙</div>
-                    <div class="coin-face back">💫</div>
+
+              <!-- 코인 애니메이션 -->
+              <div class="coin-stage">
+                <div class="coin-3d" id="coinFlip">
+                  <div class="coin-side heads">
+                    <div class="coin-face-inner">홀</div>
+                  </div>
+                  <div class="coin-side tails">
+                    <div class="coin-face-inner">짝</div>
                   </div>
                 </div>
-                <div class="coin-result-text" id="coinResultText" data-i18n="coinHint">홀 또는 짝을 선택하세요</div>
+                <div class="coin-shadow" id="coinShadow"></div>
+                <div class="coin-hint" id="coinResultText">홀 또는 짝을 선택하세요</div>
               </div>
-              <div class="choice-row">
-                <button class="choice-btn odd" id="oeBtnOdd" onclick="playOddEven('odd')">
-                  <span class="choice-icon">1</span>
-                  <span class="choice-label" data-i18n="choiceOdd">홀 (Odd)</span>
-                  <span class="choice-odds">× 2배</span>
+
+              <div class="oe-choice-row">
+                <button class="oe-btn odd-btn" id="oeBtnOdd" onclick="playOddEven('odd')">
+                  <span class="oe-num">1 3 5</span>
+                  <span class="oe-name">홀 (Odd)</span>
+                  <span class="oe-odds">× 2배</span>
                 </button>
-                <button class="choice-btn even" id="oeBtnEven" onclick="playOddEven('even')">
-                  <span class="choice-icon">2</span>
-                  <span class="choice-label" data-i18n="choiceEven">짝 (Even)</span>
-                  <span class="choice-odds">× 2배</span>
+                <button class="oe-btn even-btn" id="oeBtnEven" onclick="playOddEven('even')">
+                  <span class="oe-num">2 4 6</span>
+                  <span class="oe-name">짝 (Even)</span>
+                  <span class="oe-odds">× 2배</span>
                 </button>
               </div>
-              <div id="oeResult" class="game-result hidden"></div>
+              <div id="oeResult" class="game-result-v2 hidden"></div>
             </div>
           </div>
 
-          <!-- 주사위 게임 -->
-          <div id="gameDice" class="game-area hidden">
-            <div class="game-area-header">
-              <span class="game-area-title" data-i18n="gameAreaDice">🎲 주사위 게임</span>
-              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
+          <!-- ===== 주사위 게임 ===== -->
+          <div id="gameDice" class="game-area-v2 hidden">
+            <div class="gav2-header">
+              <div class="gav2-title-wrap">
+                <span class="gav2-icon">🎲</span>
+                <span class="gav2-title">주사위 게임</span>
+              </div>
+              <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
-            <div class="game-body">
-              <div class="bet-info-row">
-                <span class="bet-info-label" data-i18n="betAmount">💰 베팅 금액</span>
-                <span class="bet-info-value"><span id="diceCurrentBet">10</span> DDRA <span id="diceBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
+            <div class="gav2-body">
+              <div class="gav2-bet-row">
+                <span class="gav2-bet-label">베팅</span>
+                <div class="gav2-bet-val"><span id="diceCurrentBet">10</span> DDRA <small id="diceBetUsdt">≈$5.00</small></div>
               </div>
-                <button class="bet-quick-btn" onclick="setBetAmount('dice', 50)">50</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('dice', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('dice')">½</button>
+              <div class="bet-chip-row">
+                <button class="bet-chip" onclick="setBetAmount('dice',10)">10</button>
+                <button class="bet-chip" onclick="setBetAmount('dice',50)">50</button>
+                <button class="bet-chip" onclick="setBetAmount('dice',100)">100</button>
+                <button class="bet-chip" onclick="setBetAmount('dice',500)">500</button>
+                <button class="bet-chip half" onclick="setBetGameHalf('dice')">½ MAX</button>
               </div>
+
               <!-- 3D 주사위 -->
-              <div class="dice-arena">
-                <div class="dice-3d-wrap">
-                  <div class="dice-3d" id="dice3d">
-                    <div class="dice-face-svg" id="diceFaceDisplay">
-                      <div class="dice-dots" id="diceDots">
-                        <!-- JS로 동적 생성 -->
-                      </div>
+              <div class="dice-stage">
+                <div class="dice-glow"></div>
+                <div class="dice-3d-v2" id="dice3d">
+                  <div class="dice-face-v2" id="diceDots"></div>
+                </div>
+              </div>
+              <div class="dice-hint">숫자를 선택하여 베팅하세요</div>
+              <div class="dice-btn-grid">
+                ${[1,2,3,4,5,6].map(n => `<button class="dice-num-v2" onclick="playDice(${n})"><span class="dice-num-inner">${n}</span></button>`).join('')}
+              </div>
+              <div id="diceResult" class="game-result-v2 hidden"></div>
+            </div>
+          </div>
+
+          <!-- ===== 슬롯 게임 ===== -->
+          <div id="gameSlot" class="game-area-v2 hidden">
+            <div class="gav2-header">
+              <div class="gav2-title-wrap">
+                <span class="gav2-icon">🎰</span>
+                <span class="gav2-title">슬롯머신</span>
+              </div>
+              <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="gav2-body">
+              <div class="gav2-bet-row">
+                <span class="gav2-bet-label">베팅</span>
+                <div class="gav2-bet-val"><span id="slotCurrentBet">10</span> DDRA <small id="slotBetUsdt">≈$5.00</small></div>
+              </div>
+              <div class="bet-chip-row">
+                <button class="bet-chip" onclick="setBetAmount('slot',10)">10</button>
+                <button class="bet-chip" onclick="setBetAmount('slot',50)">50</button>
+                <button class="bet-chip" onclick="setBetAmount('slot',100)">100</button>
+                <button class="bet-chip" onclick="setBetAmount('slot',500)">500</button>
+                <button class="bet-chip half" onclick="setBetGameHalf('slot')">½ MAX</button>
+              </div>
+
+              <!-- 슬롯 머신 -->
+              <div class="slot-machine-v2">
+                <div class="slot-machine-top">
+                  <span class="slot-brand">✦ DDRA SLOTS ✦</span>
+                </div>
+                <div class="slot-screen">
+                  <div class="slot-reel-wrap">
+                    <div class="slot-reel-track" id="reel1Track">
+                      <div class="slot-reel-v2" id="reel1">🍋</div>
                     </div>
                   </div>
-                </div>
-              </div>
-              <div class="dice-number-row">
-                ${[1,2,3,4,5,6].map(n => `<button class="dice-num-btn" onclick="playDice(${n})">${n}</button>`).join('')}
-              </div>
-              <div id="diceResult" class="game-result hidden"></div>
-            </div>
-          </div>
-
-          <!-- 슬롯 게임 -->
-          <div id="gameSlot" class="game-area hidden">
-            <div class="game-area-header">
-              <span class="game-area-title" data-i18n="gameAreaSlot">🎰 슬롯머신</span>
-              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="game-body">
-              <div class="bet-info-row">
-                <span class="bet-info-label" data-i18n="betAmount">💰 베팅 금액</span>
-                <span class="bet-info-value"><span id="slotCurrentBet">10</span> DDRA <span id="slotBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
-              </div>
-              <div class="bet-quick-row">
-                <button class="bet-quick-btn" onclick="setBetAmount('slot', 10)">10</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('slot', 50)">50</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('slot', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('slot')">½</button>
-              </div>
-              <!-- 슬롯 캐비넷 -->
-              <div class="slot-cabinet">
-                <div class="slot-title">✦ DDRA SLOTS ✦</div>
-                <div class="slot-machine">
-                  <div class="slot-reel" id="reel1">🍋</div>
-                  <div class="slot-reel" id="reel2">🍋</div>
-                  <div class="slot-reel" id="reel3">🍋</div>
-                </div>
-                <!-- 페이테이블 -->
-                <div class="pay-table">
-                  <div class="pay-item">💎💎💎 = <span>×50</span></div>
-                  <div class="pay-item">7️⃣7️⃣7️⃣ = <span>×20</span></div>
-                  <div class="pay-item">⭐⭐⭐ = <span>×10</span></div>
-                  <div class="pay-item">3같은것 = <span>×5</span></div>
-                </div>
-              </div>
-              <button class="btn-spin" onclick="playSpin()" id="spinBtn">
-                <span class="spin-icon">🎰</span> SPIN!
-              </button>
-              <div id="slotResult" class="game-result hidden"></div>
-            </div>
-          </div>
-
-          <!-- ======== 룰렛 게임 ======== -->
-          <div id="gameRoulette" class="game-area hidden">
-            <div class="game-area-header">
-              <span class="game-area-title" data-i18n="gameAreaRoulette">🎡 룰렛</span>
-              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="game-body roulette-body">
-
-              <!-- 베팅 금액 + 빠른 버튼 -->
-              <div class="bet-info-row">
-                <span class="bet-info-label" data-i18n="betAmount">💰 베팅 금액</span>
-                <span class="bet-info-value"><span id="rlCurrentBet">10</span> DDRA <span id="rlBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
-              </div>
-              <div class="bet-quick-row">
-                <button class="bet-quick-btn" onclick="setBetAmount('rl', 10)">10</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('rl', 50)">50</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('rl', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('rl')">½</button>
-              </div>
-
-              <!-- 룰렛 바퀴 Canvas -->
-              <div class="roulette-wheel-wrap">
-                <div class="roulette-outer-ring">
-                  <div class="roulette-inner-shadow">
-                    <canvas id="rouletteCanvas" width="300" height="300"></canvas>
+                  <div class="slot-divider"></div>
+                  <div class="slot-reel-wrap">
+                    <div class="slot-reel-track" id="reel2Track">
+                      <div class="slot-reel-v2" id="reel2">🍋</div>
+                    </div>
                   </div>
+                  <div class="slot-divider"></div>
+                  <div class="slot-reel-wrap">
+                    <div class="slot-reel-track" id="reel3Track">
+                      <div class="slot-reel-v2" id="reel3">🍋</div>
+                    </div>
+                  </div>
+                  <div class="slot-win-line"></div>
                 </div>
-                <!-- 상단 포인터 -->
-                <div class="roulette-pointer">▼</div>
-              </div>
-
-              <!-- 베팅 선택 탭 -->
-              <div class="rl-bet-tabs">
-                <button class="rl-tab active" onclick="switchRlTab('simple')" id="rlTabSimple" data-i18n="rlSimpleBet">간단 베팅</button>
-                <button class="rl-tab" onclick="switchRlTab('number')" id="rlTabNumber" data-i18n="rlNumberBet">숫자 베팅</button>
-              </div>
-
-              <!-- 간단 베팅 판 -->
-              <div id="rlPanelSimple" class="rl-bet-panel">
-                <div class="rl-simple-grid">
-                  <button class="rl-simple-btn red"   onclick="selectRlBet('red')"   id="rlBtnRed" data-i18n="rlRed">🔴 레드 ×2</button>
-                  <button class="rl-simple-btn black" onclick="selectRlBet('black')" id="rlBtnBlack" data-i18n="rlBlack">⚫ 블랙 ×2</button>
-                  <button class="rl-simple-btn green" onclick="selectRlBet('zero')"  id="rlBtnZero" data-i18n="rlZero">🟢 제로 ×35</button>
-                  <button class="rl-simple-btn blue"  onclick="selectRlBet('odd')"   id="rlBtnOdd" data-i18n="rlOdd">홀수 ×2</button>
-                  <button class="rl-simple-btn blue"  onclick="selectRlBet('even')"  id="rlBtnEven" data-i18n="rlEven">짝수 ×2</button>
-                  <button class="rl-simple-btn orange" onclick="selectRlBet('low')"  id="rlBtnLow" data-i18n="rlLow">1-18 ×2</button>
-                  <button class="rl-simple-btn orange" onclick="selectRlBet('high')" id="rlBtnHigh" data-i18n="rlHigh">19-36 ×2</button>
-                  <button class="rl-simple-btn purple" onclick="selectRlBet('dozen1')" id="rlBtnDoz1" data-i18n="rlDoz1">1-12 ×3</button>
-                  <button class="rl-simple-btn purple" onclick="selectRlBet('dozen2')" id="rlBtnDoz2" data-i18n="rlDoz2">13-24 ×3</button>
-                  <button class="rl-simple-btn purple" onclick="selectRlBet('dozen3')" id="rlBtnDoz3" data-i18n="rlDoz3">25-36 ×3</button>
+                <div class="slot-paytable-v2">
+                  <div class="spt-item jackpot">💎💎💎 <span>×50</span></div>
+                  <div class="spt-item gold">7️⃣7️⃣7️⃣ <span>×20</span></div>
+                  <div class="spt-item silver">⭐⭐⭐ <span>×10</span></div>
+                  <div class="spt-item bronze">같은 3개 <span>×5</span></div>
                 </div>
               </div>
+              <button class="btn-spin-v2" id="spinBtn" onclick="playSpin()">
+                <span id="spinBtnIcon">🎰</span> <span id="spinBtnText">SPIN!</span>
+              </button>
+              <div id="slotResult" class="game-result-v2 hidden"></div>
+            </div>
+          </div>
 
-              <!-- 숫자 베팅 판 (0~36) -->
-              <div id="rlPanelNumber" class="rl-bet-panel hidden">
-                <div class="rl-number-board">
-                  <button class="rl-num zero" onclick="selectRlBet('num0')" id="rlNum0">0</button>
-                  <div class="rl-num-grid">
+          <!-- ===== 룰렛 게임 ===== -->
+          <div id="gameRoulette" class="game-area-v2 hidden">
+            <div class="gav2-header">
+              <div class="gav2-title-wrap">
+                <span class="gav2-icon">🎡</span>
+                <span class="gav2-title">룰렛</span>
+              </div>
+              <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="gav2-body roulette-body-v2">
+              <div class="gav2-bet-row">
+                <span class="gav2-bet-label">베팅</span>
+                <div class="gav2-bet-val"><span id="rlCurrentBet">10</span> DDRA <small id="rlBetUsdt">≈$5.00</small></div>
+              </div>
+              <div class="bet-chip-row">
+                <button class="bet-chip" onclick="setBetAmount('rl',10)">10</button>
+                <button class="bet-chip" onclick="setBetAmount('rl',50)">50</button>
+                <button class="bet-chip" onclick="setBetAmount('rl',100)">100</button>
+                <button class="bet-chip" onclick="setBetAmount('rl',500)">500</button>
+                <button class="bet-chip half" onclick="setBetGameHalf('rl')">½ MAX</button>
+              </div>
+
+              <!-- 룰렛 휠 -->
+              <div class="roulette-stage">
+                <div class="roulette-wheel-v2">
+                  <canvas id="rouletteCanvas" width="280" height="280"></canvas>
+                  <div class="roulette-pointer-v2">▼</div>
+                  <div class="roulette-center-hub"></div>
+                </div>
+              </div>
+
+              <!-- 베팅 탭 -->
+              <div class="rl-tab-bar">
+                <button class="rl-tab-v2 active" onclick="switchRlTab('simple')" id="rlTabSimple">간단 베팅</button>
+                <button class="rl-tab-v2" onclick="switchRlTab('number')" id="rlTabNumber">숫자 베팅</button>
+              </div>
+
+              <div id="rlPanelSimple" class="rl-panel">
+                <div class="rl-simple-v2">
+                  <button class="rl-chip-btn rlc-red"    onclick="selectRlBet('red')"    id="rlBtnRed">🔴 레드 ×2</button>
+                  <button class="rl-chip-btn rlc-black"  onclick="selectRlBet('black')"  id="rlBtnBlack">⚫ 블랙 ×2</button>
+                  <button class="rl-chip-btn rlc-green"  onclick="selectRlBet('zero')"   id="rlBtnZero">🟢 제로 ×35</button>
+                  <button class="rl-chip-btn rlc-blue"   onclick="selectRlBet('odd')"    id="rlBtnOdd">홀수 ×2</button>
+                  <button class="rl-chip-btn rlc-blue"   onclick="selectRlBet('even')"   id="rlBtnEven">짝수 ×2</button>
+                  <button class="rl-chip-btn rlc-orange" onclick="selectRlBet('low')"    id="rlBtnLow">1-18 ×2</button>
+                  <button class="rl-chip-btn rlc-orange" onclick="selectRlBet('high')"   id="rlBtnHigh">19-36 ×2</button>
+                  <button class="rl-chip-btn rlc-purple" onclick="selectRlBet('dozen1')" id="rlBtnDoz1">1-12 ×3</button>
+                  <button class="rl-chip-btn rlc-purple" onclick="selectRlBet('dozen2')" id="rlBtnDoz2">13-24 ×3</button>
+                  <button class="rl-chip-btn rlc-purple" onclick="selectRlBet('dozen3')" id="rlBtnDoz3">25-36 ×3</button>
+                </div>
+              </div>
+
+              <div id="rlPanelNumber" class="rl-panel hidden">
+                <div class="rl-number-board-v2">
+                  <button class="rl-num-v2 rn-zero" onclick="selectRlBet('num0')" id="rlNum0">0</button>
+                  <div class="rl-num-grid-v2">
                     ${Array.from({length:36},(_,i)=>{
                       const n=i+1;
                       const reds=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
-                      const cls=reds.includes(n)?'red':'black';
-                      return `<button class="rl-num ${cls}" onclick="selectRlBet('num${n}')" id="rlNum${n}">${n}</button>`;
+                      const cls=reds.includes(n)?'rn-red':'rn-black';
+                      return `<button class="rl-num-v2 ${cls}" onclick="selectRlBet('num${n}')" id="rlNum${n}">${n}</button>`;
                     }).join('')}
                   </div>
                 </div>
               </div>
 
-              <!-- 현재 선택 베팅 표시 -->
-              <div class="rl-selected-bet" id="rlSelectedBet">
-                <span class="rl-sel-label" data-i18n="rlSelectedBet">선택한 베팅:</span>
-                <span class="rl-sel-value" id="rlSelValue" data-i18n="rlNone">없음</span>
+              <div class="rl-selected-v2" id="rlSelectedBet">
+                <span>선택:</span>
+                <span class="rl-sel-val" id="rlSelValue">없음</span>
               </div>
 
-              <!-- 스핀 버튼 -->
-              <button class="btn-roulette-spin" onclick="playRoulette()" id="rlSpinBtn">
-                <span id="rlSpinBtnIcon">🎡</span> <span data-i18n="rlSpin">스핀!</span>
+              <button class="btn-spin-v2 roulette-spin-v2" onclick="playRoulette()" id="rlSpinBtn">
+                <span id="rlSpinBtnIcon">🎡</span> SPIN!
               </button>
-
-              <div id="rouletteResult" class="game-result hidden"></div>
-            </div>
-          </div>
-          <!-- ======== 바카라 게임 ======== -->
-          <div id="gameBaccarat" class="game-area hidden">
-            <div class="game-area-header">
-              <span class="game-area-title">🃏 바카라</span>
-              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="game-body">
-              <!-- 베팅 금액 -->
-              <div class="bet-info-row">
-                <span class="bet-info-label">💰 베팅 금액</span>
-                <span class="bet-info-value"><span id="bacCurrentBet">10</span> DDRA <span id="bacBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
-              </div>
-              <div class="bet-quick-row">
-                <button class="bet-quick-btn" onclick="setBetAmount('bac', 10)">10</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('bac', 50)">50</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('bac', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('bac')">½</button>
-              </div>
-              <!-- 바카라 테이블 -->
-              <div class="bac-table">
-                <div class="bac-side" id="bacPlayerSide">
-                  <div class="bac-side-label">👤 플레이어</div>
-                  <div class="bac-cards" id="bacPlayerCards"></div>
-                  <div class="bac-score" id="bacPlayerScore">-</div>
-                  <div class="bac-odds">× 2배</div>
-                </div>
-                <div class="bac-tie-col">
-                  <div class="bac-tie-label">🤝 타이</div>
-                  <div class="bac-odds" style="color:#fbbf24;">× 8배</div>
-                </div>
-                <div class="bac-side" id="bacBankerSide">
-                  <div class="bac-side-label">🏦 뱅커</div>
-                  <div class="bac-cards" id="bacBankerCards"></div>
-                  <div class="bac-score" id="bacBankerScore">-</div>
-                  <div class="bac-odds">× 1.95배</div>
-                </div>
-              </div>
-              <!-- 베팅 선택 버튼 -->
-              <div class="bac-bet-row">
-                <button class="bac-bet-btn player" id="bacBtnPlayer" onclick="playBaccarat('player')">👤 플레이어 베팅</button>
-                <button class="bac-bet-btn tie" id="bacBtnTie" onclick="playBaccarat('tie')">🤝 타이 베팅</button>
-                <button class="bac-bet-btn banker" id="bacBtnBanker" onclick="playBaccarat('banker')">🏦 뱅커 베팅</button>
-              </div>
-              <div id="bacResult" class="game-result hidden"></div>
+              <div id="rouletteResult" class="game-result-v2 hidden"></div>
             </div>
           </div>
 
-          <!-- ======== 포커 게임 (텍사스 홀덤) ======== -->
-          <div id="gamePoker" class="game-area hidden">
-            <div class="game-area-header">
-              <span class="game-area-title">🂡 텍사스 홀덤 포커</span>
-              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
+          <!-- ===== 바카라 게임 ===== -->
+          <div id="gameBaccarat" class="game-area-v2 hidden">
+            <div class="gav2-header">
+              <div class="gav2-title-wrap">
+                <span class="gav2-icon">🃏</span>
+                <span class="gav2-title">바카라</span>
+              </div>
+              <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
-            <div class="game-body">
-              <!-- 베팅 금액 -->
-              <div class="bet-info-row">
-                <span class="bet-info-label">💰 베팅 금액 (앤티)</span>
-                <span class="bet-info-value"><span id="pkCurrentBet">10</span> DDRA <span id="pkBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
+            <div class="gav2-body">
+              <div class="gav2-bet-row">
+                <span class="gav2-bet-label">베팅</span>
+                <div class="gav2-bet-val"><span id="bacCurrentBet">10</span> DDRA <small id="bacBetUsdt">≈$5.00</small></div>
               </div>
-              <div class="bet-quick-row">
-                <button class="bet-quick-btn" onclick="setBetAmount('pk', 10)">10</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('pk', 50)">50</button>
-                <button class="bet-quick-btn" onclick="setBetAmount('pk', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('pk')">½</button>
+              <div class="bet-chip-row">
+                <button class="bet-chip" onclick="setBetAmount('bac',10)">10</button>
+                <button class="bet-chip" onclick="setBetAmount('bac',50)">50</button>
+                <button class="bet-chip" onclick="setBetAmount('bac',100)">100</button>
+                <button class="bet-chip" onclick="setBetAmount('bac',500)">500</button>
+                <button class="bet-chip half" onclick="setBetGameHalf('bac')">½ MAX</button>
               </div>
-              <!-- 커뮤니티 카드 -->
-              <div class="poker-community">
-                <div class="poker-label">🎴 커뮤니티 카드 (보드)</div>
-                <div class="poker-cards" id="pkCommunityCards"></div>
-              </div>
-              <!-- 핸드 카드 -->
-              <div class="poker-hands">
-                <div class="poker-hand-col">
-                  <div class="poker-label">🤖 딜러</div>
-                  <div class="poker-cards" id="pkDealerCards"></div>
-                  <div class="poker-hand-name" id="pkDealerHand">-</div>
+
+              <!-- 바카라 그린 테이블 -->
+              <div class="bac-felt-table">
+                <div class="bac-felt-side player-felt">
+                  <div class="bac-felt-label">👤 플레이어</div>
+                  <div class="bac-felt-cards" id="bacPlayerCards"></div>
+                  <div class="bac-felt-score" id="bacPlayerScore">-</div>
+                  <div class="bac-felt-odds">× 2배</div>
                 </div>
-                <div class="poker-hand-col">
-                  <div class="poker-label">👤 나 (플레이어)</div>
-                  <div class="poker-cards" id="pkPlayerCards"></div>
-                  <div class="poker-hand-name" id="pkPlayerHand">-</div>
+                <div class="bac-felt-center">
+                  <div class="bac-felt-vs">VS</div>
+                  <div class="bac-tie-box">
+                    <div class="bac-tie-txt">🤝 타이</div>
+                    <div class="bac-tie-odd">× 8배</div>
+                  </div>
                 </div>
-              </div>
-              <!-- 페이테이블 -->
-              <div class="poker-paytable">
-                <div class="paytable-title">🏆 페이 테이블</div>
-                <div class="paytable-grid">
-                  <span>로열 플러시</span><span>× 100</span>
-                  <span>스트레이트 플러시</span><span>× 50</span>
-                  <span>포카드</span><span>× 25</span>
-                  <span>풀 하우스</span><span>× 9</span>
-                  <span>플러시</span><span>× 6</span>
-                  <span>스트레이트</span><span>× 4</span>
-                  <span>쓰리 카드</span><span>× 3</span>
-                  <span>투 페어</span><span>× 2</span>
-                  <span>원 페어</span><span>× 1.5</span>
-                  <span>하이카드</span><span>패배</span>
+                <div class="bac-felt-side banker-felt">
+                  <div class="bac-felt-label">🏦 뱅커</div>
+                  <div class="bac-felt-cards" id="bacBankerCards"></div>
+                  <div class="bac-felt-score" id="bacBankerScore">-</div>
+                  <div class="bac-felt-odds">× 1.95배</div>
                 </div>
               </div>
-              <!-- 딜 버튼 -->
-              <button class="btn-deal" id="pkDealBtn" onclick="dealPoker()">🂡 딜 (카드 받기)</button>
-              <div id="pkResult" class="game-result hidden"></div>
+
+              <div class="bac-action-row">
+                <button class="bac-action-btn bab-player" id="bacBtnPlayer" onclick="playBaccarat('player')">
+                  <span>👤</span> 플레이어
+                </button>
+                <button class="bac-action-btn bab-tie" id="bacBtnTie" onclick="playBaccarat('tie')">
+                  <span>🤝</span> 타이
+                </button>
+                <button class="bac-action-btn bab-banker" id="bacBtnBanker" onclick="playBaccarat('banker')">
+                  <span>🏦</span> 뱅커
+                </button>
+              </div>
+              <div id="bacResult" class="game-result-v2 hidden"></div>
             </div>
           </div>
 
+          <!-- ===== 포커 게임 ===== -->
+          <div id="gamePoker" class="game-area-v2 hidden">
+            <div class="gav2-header">
+              <div class="gav2-title-wrap">
+                <span class="gav2-icon">♠️</span>
+                <span class="gav2-title">텍사스 홀덤</span>
+              </div>
+              <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="gav2-body">
+              <div class="gav2-bet-row">
+                <span class="gav2-bet-label">앤티 베팅</span>
+                <div class="gav2-bet-val"><span id="pkCurrentBet">10</span> DDRA <small id="pkBetUsdt">≈$5.00</small></div>
+              </div>
+              <div class="bet-chip-row">
+                <button class="bet-chip" onclick="setBetAmount('pk',10)">10</button>
+                <button class="bet-chip" onclick="setBetAmount('pk',50)">50</button>
+                <button class="bet-chip" onclick="setBetAmount('pk',100)">100</button>
+                <button class="bet-chip" onclick="setBetAmount('pk',500)">500</button>
+                <button class="bet-chip half" onclick="setBetGameHalf('pk')">½ MAX</button>
+              </div>
+
+              <!-- 포커 테이블 -->
+              <div class="poker-table-v2">
+                <div class="poker-community-v2">
+                  <div class="poker-section-label">🎴 보드 (커뮤니티)</div>
+                  <div class="poker-cards-v2" id="pkCommunityCards">
+                    <div class="card-placeholder"></div>
+                    <div class="card-placeholder"></div>
+                    <div class="card-placeholder"></div>
+                    <div class="card-placeholder"></div>
+                    <div class="card-placeholder"></div>
+                  </div>
+                </div>
+                <div class="poker-hands-v2">
+                  <div class="poker-hand-v2">
+                    <div class="poker-section-label">🤖 딜러 핸드</div>
+                    <div class="poker-cards-v2" id="pkDealerCards">
+                      <div class="card-placeholder"></div>
+                      <div class="card-placeholder"></div>
+                    </div>
+                    <div class="poker-hand-rank" id="pkDealerHand">-</div>
+                  </div>
+                  <div class="poker-hand-v2">
+                    <div class="poker-section-label">👤 내 핸드</div>
+                    <div class="poker-cards-v2" id="pkPlayerCards">
+                      <div class="card-placeholder"></div>
+                      <div class="card-placeholder"></div>
+                    </div>
+                    <div class="poker-hand-rank player-rank" id="pkPlayerHand">-</div>
+                  </div>
+                </div>
+                <div class="poker-paytable-v2">
+                  <div class="ppt-title">🏆 페이테이블</div>
+                  <div class="ppt-grid">
+                    <div class="ppt-row jackpot"><span>로열 플러시</span><span>×100</span></div>
+                    <div class="ppt-row gold"><span>스트레이트 플러시</span><span>×50</span></div>
+                    <div class="ppt-row gold"><span>포카드</span><span>×25</span></div>
+                    <div class="ppt-row silver"><span>풀 하우스</span><span>×9</span></div>
+                    <div class="ppt-row silver"><span>플러시</span><span>×6</span></div>
+                    <div class="ppt-row bronze"><span>스트레이트</span><span>×4</span></div>
+                    <div class="ppt-row bronze"><span>쓰리 오브 어 카인드</span><span>×3</span></div>
+                    <div class="ppt-row"><span>투 페어</span><span>×2</span></div>
+                    <div class="ppt-row"><span>원 페어</span><span>×1.5</span></div>
+                    <div class="ppt-row lose"><span>하이카드</span><span>패배</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn-deal-v2" id="pkDealBtn" onclick="dealPoker()">
+                ♠️ 딜 (카드 받기)
+              </button>
+              <div id="pkResult" class="game-result-v2 hidden"></div>
+            </div>
+          </div>
+
+          <!-- 게임 기록 -->
           <div class="section-header mt-16">
-            <span class="section-title" data-i18n="recentGameLog">📋 최근 게임 기록</span>
+            <span class="section-title">📋 최근 게임 기록</span>
           </div>
           <div id="gameLogList" class="tx-list">
             <div class="empty-state">
               <i class="fas fa-gamepad"></i>
-              <span data-i18n="gameStart">게임을 시작해보세요!</span>
+              <span>게임을 시작해보세요!</span>
             </div>
           </div>
 

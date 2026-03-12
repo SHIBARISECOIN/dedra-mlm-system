@@ -3,6 +3,101 @@
  * UI 설계안 기반 전면 개편
  */
 
+// ===== 사운드 엔진 (Web Audio API) =====
+const SFX = (() => {
+  let ctx = null;
+  const init = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); };
+
+  const play = (type) => {
+    try {
+      init();
+      if (ctx.state === 'suspended') ctx.resume();
+      const t = ctx.currentTime;
+      switch(type) {
+        case 'click': {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.setValueAtTime(800, t); o.frequency.exponentialRampToValueAtTime(400, t+0.1);
+          g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+          o.start(t); o.stop(t+0.1); break;
+        }
+        case 'coin': {
+          [0,0.05,0.1,0.15,0.2].forEach((d,i) => {
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'sine'; o.frequency.setValueAtTime(1200+i*200, t+d);
+            g.gain.setValueAtTime(0.2, t+d); g.gain.exponentialRampToValueAtTime(0.001, t+d+0.15);
+            o.start(t+d); o.stop(t+d+0.15);
+          }); break;
+        }
+        case 'dice_roll': {
+          for(let i=0;i<6;i++){
+            const b = ctx.createOscillator(); const bg = ctx.createGain();
+            b.connect(bg); bg.connect(ctx.destination);
+            b.type = 'square'; b.frequency.setValueAtTime(200+Math.random()*100, t+i*0.07);
+            bg.gain.setValueAtTime(0.08, t+i*0.07); bg.gain.exponentialRampToValueAtTime(0.001, t+i*0.07+0.06);
+            b.start(t+i*0.07); b.stop(t+i*0.07+0.06);
+          } break;
+        }
+        case 'slot_spin': {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(150,t); o.frequency.linearRampToValueAtTime(80,t+0.8);
+          g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.8);
+          o.start(t); o.stop(t+0.8); break;
+        }
+        case 'card_deal': {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine'; o.frequency.setValueAtTime(600,t);
+          g.gain.setValueAtTime(0.1,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+          o.start(t); o.stop(t+0.08); break;
+        }
+        case 'roulette_spin': {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          const lfo = ctx.createOscillator(); const lfog = ctx.createGain();
+          lfo.connect(lfog); lfog.connect(o.frequency);
+          lfo.frequency.value = 12; lfog.gain.setValueAtTime(30,t); lfog.gain.exponentialRampToValueAtTime(2,t+3);
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sine'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(80,t+3);
+          g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+3);
+          lfo.start(t); o.start(t); lfo.stop(t+3); o.stop(t+3); break;
+        }
+        case 'win': {
+          const notes = [523,659,784,1047];
+          notes.forEach((freq,i) => {
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'sine'; o.frequency.value = freq;
+            g.gain.setValueAtTime(0,t+i*0.12); g.gain.linearRampToValueAtTime(0.25,t+i*0.12+0.05);
+            g.gain.exponentialRampToValueAtTime(0.001,t+i*0.12+0.3);
+            o.start(t+i*0.12); o.stop(t+i*0.12+0.3);
+          }); break;
+        }
+        case 'jackpot': {
+          const notes = [523,587,659,698,784,880,988,1047,1175,1319];
+          notes.forEach((freq,i) => {
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type = 'sine'; o.frequency.value = freq;
+            g.gain.setValueAtTime(0,t+i*0.08); g.gain.linearRampToValueAtTime(0.3,t+i*0.08+0.04);
+            g.gain.exponentialRampToValueAtTime(0.001,t+i*0.08+0.4);
+            o.start(t+i*0.08); o.stop(t+i*0.08+0.4);
+          }); break;
+        }
+        case 'lose': {
+          const o = ctx.createOscillator(); const g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.type = 'sawtooth'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(100,t+0.4);
+          g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+          o.start(t); o.stop(t+0.4); break;
+        }
+      }
+    } catch(e) {}
+  };
+  return { play };
+})();
+
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
@@ -987,7 +1082,7 @@ function renderDiceDots(num) {
   dotsEl.innerHTML = '';
   for (let i = 0; i < 9; i++) {
     const dot = document.createElement('div');
-    dot.className = pattern.includes(i) ? 'dice-dot' : 'dice-dot hidden';
+    dot.className = pattern.includes(i) ? 'dice-dot' : 'dice-dot empty';
     dotsEl.appendChild(dot);
   }
 }
@@ -1578,36 +1673,48 @@ function loadMorePage() {
 }
 
 async function loadTxHistory(typeFilter) {
-  const { collection, query, where, orderBy, getDocs, limit, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   const listEl = document.getElementById('txHistoryList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
 
   try {
-    // ROI 탭: bonuses 컬렉션 (roi_income, direct_bonus, unilevel_bonus)
+    // ROI 탭: bonuses 컬렉션
     if (typeFilter === 'roi') {
       const q = query(
         collection(db, 'bonuses'),
         where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc'),
         limit(40)
       );
       const snap = await getDocs(q);
-      const bonuses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const bonuses = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const ta = a.createdAt?.seconds || a.createdAt?.toMillis?.() / 1000 || 0;
+          const tb = b.createdAt?.seconds || b.createdAt?.toMillis?.() / 1000 || 0;
+          return tb - ta;
+        });
       renderBonusList(bonuses, 'txHistoryList');
       return;
     }
 
-    // 일반 거래내역
+    // 일반 거래내역 - 복합 인덱스 없이 단일 필터로 조회 후 JS 정렬
     let q;
     if (typeFilter === 'all') {
-      q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(30));
+      q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), limit(50));
     } else {
-      q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), orderBy('createdAt', 'desc'), limit(30));
+      q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(50));
     }
     const snap = await getDocs(q);
-    renderTxList(snap.docs.map(d => ({ id: d.id, ...d.data() })), 'txHistoryList');
+    const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt?.seconds || a.createdAt?.toMillis?.() / 1000 || 0;
+        const tb = b.createdAt?.seconds || b.createdAt?.toMillis?.() / 1000 || 0;
+        return tb - ta;
+      })
+      .slice(0, 30);
+    renderTxList(txs, 'txHistoryList');
   } catch (err) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    console.error('loadTxHistory error:', err);
+    if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>거래 내역이 없습니다</div>';
   }
 }
 
@@ -2384,13 +2491,11 @@ function _ddraToUsdt(ddra) { return ddra * (deedraPrice || 0.5); }
 function _usdtToDdra(usdt) { return usdt / (deedraPrice || 0.5); }
 
 function updateGameUI() {
-  // bonusBalance(USDT)를 DDRA로 환산하여 gameBalanceVal에 저장
   const bonus = walletData?.bonusBalance || 0;
   gameBalanceVal = Math.floor(_usdtToDdra(bonus) * 100) / 100; // DDRA
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setEl('gameBalance', fmt(gameBalanceVal) + ' DDRA');
-  setEl('gameBalanceUsdt', fmt(bonus) + ' USDT');
-  setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
+  setEl('gameBalance', fmt(gameBalanceVal));
+  setEl('gameBalanceUsd', '≈ $' + fmt(bonus));
 }
 
 // 충전 모달 관련 함수 - 더 이상 사용 안 함 (하위 호환성 유지)
@@ -2442,9 +2547,9 @@ function closeAllGames() {
 
 window.closeGame = function() {
   closeAllGames();
-  ['oeResult', 'diceResult', 'slotResult', 'rouletteResult'].forEach(id => {
+  ['oeResult', 'diceResult', 'slotResult', 'rouletteResult', 'bacResult', 'pkResult'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.classList.add('hidden'); el.className = 'game-result hidden'; }
+    if (el) { el.classList.add('hidden'); el.className = 'game-result-v2 hidden'; }
   });
 };
 
@@ -2490,6 +2595,7 @@ window.setBetGameHalf = function(type) {
 };
 
 window.playOddEven = function(choice) {
+  SFX.play('coin');
   if (gameBalanceVal < oeBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const btnOdd = document.getElementById('oeBtnOdd');
@@ -2500,7 +2606,7 @@ window.playOddEven = function(choice) {
   const coin = document.getElementById('coinFlip');
   const coinText = document.getElementById('coinResultText');
   if (coin) {
-    coin.classList.add('flipping');
+    coin.classList.add('coin-flipping');
     if (coinText) coinText.textContent = '동전이 날아갑니다...';
   }
 
@@ -2515,15 +2621,16 @@ window.playOddEven = function(choice) {
     updateGameUI();
     updateHomeUI();
 
-    if (coin) coin.classList.remove('flipping');
+    if (coin) coin.classList.remove('coin-flipping');
     if (coinText) {
       coinText.textContent = result === 'odd' ? '🔴 홀 (Odd)' : '🔵 짝 (Even)';
       coinText.style.color = result === 'odd' ? '#90caf9' : '#ef9a9a';
     }
 
     const el = document.getElementById('oeResult');
+    SFX.play(win ? 'win' : 'lose');
     if (el) {
-      el.className = 'game-result ' + (win ? 'win' : 'lose');
+      el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
       el.innerHTML = win
         ? `🎉 <strong>승리!</strong> +${oeBetVal} DDRA (≈+${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`
         : `😢 <strong>패배</strong> -${oeBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`;
@@ -2537,10 +2644,11 @@ window.playOddEven = function(choice) {
 };
 
 window.playDice = function(chosenNum) {
+  SFX.play('dice_roll');
   if (gameBalanceVal < diceBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   // 버튼 비활성화
-  document.querySelectorAll('.dice-num-btn').forEach(b => b.disabled = true);
+  document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = true);
 
   // 초기 주사위 점 렌더링 (1 기본)
   renderDiceDots(1);
@@ -2548,7 +2656,7 @@ window.playDice = function(chosenNum) {
   // 3D 굴리기 애니메이션
   const dice3d = document.getElementById('dice3d');
   if (dice3d) {
-    dice3d.classList.add('rolling');
+    dice3d.classList.add('dice-rolling');
     // 굴리는 동안 랜덤 숫자 표시
     let flickerCount = 0;
     const flickerInterval = setInterval(() => {
@@ -2569,24 +2677,26 @@ window.playDice = function(chosenNum) {
     updateGameUI();
     updateHomeUI();
 
-    if (dice3d) dice3d.classList.remove('rolling');
+    if (dice3d) dice3d.classList.remove('dice-rolling');
     renderDiceDots(result);
 
     const el = document.getElementById('diceResult');
+    SFX.play(win ? 'win' : 'lose');
     if (el) {
-      el.className = 'game-result ' + (win ? 'win' : 'lose');
+      el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
       el.innerHTML = win
         ? `🎉 <strong>적중! ×6</strong> +${diceBetVal * 5} DDRA (≈+${fmt(betUsdt * 5)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`
         : `😢 <strong>빗나감</strong> -${diceBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`;
       el.classList.remove('hidden');
     }
 
-    document.querySelectorAll('.dice-num-btn').forEach(b => b.disabled = false);
+    document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = false);
     logGame('주사위', win, diceBetVal);
   }, 1000);
 };
 
 window.playSpin = function() {
+  SFX.play('slot_spin');
   if (gameBalanceVal < slotBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const spinBtn = document.getElementById('spinBtn');
@@ -2639,14 +2749,15 @@ window.playSpin = function() {
     }
 
     const el = document.getElementById('slotResult');
+    SFX.play(multiplier >= 10 ? 'jackpot' : (win ? 'win' : 'lose'));
     if (el) {
-      el.className = 'game-result ' + (win ? 'win' : 'lose');
+      el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
       el.innerHTML = win
         ? `🎉 <strong>잭팟! ×${multiplier}</strong> +${earned} DDRA (≈+${fmt(betUsdt * multiplier)} USDT)`
         : `😢 <strong>꽝!</strong> -${slotBetVal} DDRA (≈-${fmt(betUsdt)} USDT)`;
       el.classList.remove('hidden');
     }
-    if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '<span class="spin-icon">🎰</span> SPIN!'; }
+    if (spinBtn) { spinBtn.disabled = false; document.getElementById('spinBtnIcon').textContent='🎰'; document.getElementById('spinBtnText').textContent='SPIN!'; spinBtn.disabled = false; }
     logGame('슬롯머신', win, slotBetVal);
   }, 1600);
 };
@@ -2774,10 +2885,10 @@ function initRouletteCanvas() {
   drawRouletteWheel(rlAngle);
   // 결과 초기화
   const res = document.getElementById('rouletteResult');
-  if (res) { res.className = 'game-result hidden'; res.innerHTML = ''; }
+  if (res) { res.className = 'game-result-v2 hidden'; res.innerHTML = ''; }
   // 베팅 초기화
   rlSelectedBet = null;
-  document.querySelectorAll('.rl-simple-btn, .rl-num').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.rl-chip-btn, .rl-num-v2').forEach(b => b.classList.remove('selected'));
   const sv = document.getElementById('rlSelValue');
   if (sv) sv.textContent = '없음';
 }
@@ -2794,7 +2905,7 @@ window.switchRlTab = function(tab) {
 window.selectRlBet = function(type) {
   rlSelectedBet = type;
   // 모든 선택 해제
-  document.querySelectorAll('.rl-simple-btn, .rl-num').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.rl-chip-btn, .rl-num-v2').forEach(b => b.classList.remove('selected'));
   // 해당 버튼 선택
   const btnId = type.startsWith('num') ? 'rlNum' + type.slice(3) : 'rlBtn' + type.charAt(0).toUpperCase() + type.slice(1);
   const btn = document.getElementById(btnId);
@@ -2817,6 +2928,7 @@ window.selectRlBet = function(type) {
 
 /* 스핀 실행 */
 window.playRoulette = function() {
+  SFX.play('roulette_spin');
   if (!rlSelectedBet) { showToast('베팅을 먼저 선택하세요.', 'warning'); return; }
   if (gameBalanceVal < rlBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
   if (rlSpinning) return;
@@ -2899,9 +3011,10 @@ function showRouletteResult(num) {
   if (win && multiplier >= 10) spawnJackpotParticles();
 
   const numColor = isZero ? '#69f0ae' : isRed ? '#ef9a9a' : '#e0e0e0';
+  SFX.play(win ? 'win' : 'lose');
   const el = document.getElementById('rouletteResult');
   if (el) {
-    el.className = 'game-result ' + (win ? 'win' : 'lose');
+    el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
     el.innerHTML = `
       <div class="rl-win-number" style="color:${numColor}">${num}</div>
       <div>${isZero ? '🟢 제로' : isRed ? '🔴 레드' : '⚫ 블랙'}</div>
@@ -3000,16 +3113,17 @@ function initBaccarat() {
     const el = document.getElementById(id); if (el) el.textContent = '-';
   });
   const res = document.getElementById('bacResult');
-  if (res) { res.className = 'game-result hidden'; res.innerHTML = ''; }
-  document.querySelectorAll('.bac-bet-btn').forEach(b => b.disabled = false);
+  if (res) { res.className = 'game-result-v2 hidden'; res.innerHTML = ''; }
+  document.querySelectorAll('.bac-action-btn').forEach(b => b.disabled = false);
 }
 
 window.playBaccarat = async function(betSide) {
+  SFX.play('card_deal');
   if (bacBtnsLocked) return;
   if (gameBalanceVal < bacBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   bacBtnsLocked = true;
-  document.querySelectorAll('.bac-bet-btn').forEach(b => b.disabled = true);
+  document.querySelectorAll('.bac-action-btn').forEach(b => b.disabled = true);
 
   // 카드 딜링
   const pCards = [bacDeck.pop(), bacDeck.pop()];
@@ -3102,7 +3216,8 @@ window.playBaccarat = async function(betSide) {
   // 결과 표시
   const resEl = document.getElementById('bacResult');
   if (resEl) {
-    resEl.className = 'game-result ' + (ddraChange >= 0 ? 'win' : 'lose');
+    SFX.play(ddraChange >= 0 ? 'win' : 'lose');
+    resEl.className = 'game-result-v2 ' + (ddraChange >= 0 ? 'win' : 'lose');
     resEl.innerHTML = `${resultMsg}<br><span style="font-size:12px;color:#94a3b8">플레이어 ${pScore} · 뱅커 ${bScore}</span>`;
     resEl.classList.remove('hidden');
   }
@@ -3112,7 +3227,7 @@ window.playBaccarat = async function(betSide) {
   // 버튼 재활성
   setTimeout(() => {
     bacBtnsLocked = false;
-    document.querySelectorAll('.bac-bet-btn').forEach(b => b.disabled = false);
+    document.querySelectorAll('.bac-action-btn').forEach(b => b.disabled = false);
     if (bacDeck.length < 20) bacDeck = shuffleDeck(makeDeck().concat(makeDeck(), makeDeck(), makeDeck(), makeDeck(), makeDeck()));
   }, 1500);
 };
@@ -3193,12 +3308,13 @@ function initPoker() {
     const el = document.getElementById(id); if (el) el.textContent = '-';
   });
   const res = document.getElementById('pkResult');
-  if (res) { res.className = 'game-result hidden'; res.innerHTML = ''; }
+  if (res) { res.className = 'game-result-v2 hidden'; res.innerHTML = ''; }
   const btn = document.getElementById('pkDealBtn');
   if (btn) { btn.disabled = false; btn.textContent = '🃏 딜 (카드 받기)'; }
 }
 
 window.dealPoker = async function() {
+  SFX.play('card_deal');
   if (pkDealing) return;
   if (gameBalanceVal < pkBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
@@ -3290,7 +3406,8 @@ window.dealPoker = async function() {
 
   const resEl = document.getElementById('pkResult');
   if (resEl) {
-    resEl.className = 'game-result ' + (ddraChange >= 0 ? 'win' : 'lose');
+    SFX.play(ddraChange >= 0 ? (playerResult.rank >= 7 ? 'jackpot' : 'win') : 'lose');
+    resEl.className = 'game-result-v2 ' + (ddraChange >= 0 ? 'win' : 'lose');
     resEl.innerHTML = resultMsg;
     resEl.classList.remove('hidden');
   }
