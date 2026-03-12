@@ -9,6 +9,10 @@ app.use('/static/*', serveStatic({ root: './' }))
 // 테스트 계정 생성 페이지
 app.get('/setup', (c) => c.html(SETUP_HTML()))
 
+// 관리자 페이지
+app.get('/admin', (c) => c.redirect('/static/admin.html'))
+app.get('/admin.html', (c) => c.redirect('/static/admin.html'))
+
 // ─── Main App (SPA) ───────────────────────────────────────────────────────────
 const HTML = () => `<!DOCTYPE html>
 <html lang="ko">
