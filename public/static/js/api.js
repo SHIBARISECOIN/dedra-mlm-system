@@ -125,10 +125,31 @@ export class DedraAPI {
       //   → runDailyROISettlement() 를 통해 일별 정산 시 처리됩니다.
 
       // ── enableAutoPromotion: 입금 승인 시 자동 직급 승진 체크 ──────────────
+      // 입금자 본인 + 위쪽 추천인 체인 전원 동시 체크
       try {
         const settingsR = await this.getRankPromotionSettings();
         if (settingsR.success && settingsR.data.enableAutoPromotion) {
-          await this._checkAndPromoteSingleUser(tx.userId, settingsR.data, adminId);
+          const promoSettings = settingsR.data;
+
+          // 체인 구성: 입금자부터 위로 모든 추천인 수집
+          const usersSnap = await getDocs(collection(this.db, 'users'));
+          const userMap   = Object.fromEntries(
+            usersSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }])
+          );
+
+          const chainIds = [];
+          let cur = tx.userId;
+          const visited = new Set();
+          while (cur && !visited.has(cur)) {
+            visited.add(cur);
+            chainIds.push(cur);
+            cur = userMap[cur]?.referredBy;
+          }
+
+          // 전원 병렬 체크 (입금자 → 최상위 추천인 순)
+          await Promise.allSettled(
+            chainIds.map(uid => this._checkAndPromoteSingleUser(uid, promoSettings, adminId))
+          );
         }
       } catch (promoErr) {
         // 자동 승진 실패해도 입금 승인은 성공으로 처리
