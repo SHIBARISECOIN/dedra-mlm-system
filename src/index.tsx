@@ -106,7 +106,7 @@ const HTML = () => `<!DOCTYPE html>
         <img src="/static/logo-banner.png" class="auth-banner-img" alt="DEEDRA" />
       </div>
       <div class="auth-form-wrap">
-        <p class="auth-tagline" data-i18n="authTagline">🔐 안전하고 스마트한 가상자산 투자</p>
+        <p class="auth-tagline" data-i18n="authTagline">🔐 안전하고 스마트한 FREEZE 자산 운용</p>
         <div class="auth-tabs">
           <button class="auth-tab active" id="loginTab" onclick="switchAuthTab('login')" data-i18n="loginTab">로그인</button>
           <button class="auth-tab" id="registerTab" onclick="switchAuthTab('register')" data-i18n="registerTab">회원가입</button>
@@ -264,7 +264,7 @@ const HTML = () => `<!DOCTYPE html>
             </div>
             <div class="dday-stats">
               <div class="dday-stat">
-                <div class="dday-stat-label" data-i18n="investAmount">투자금</div>
+                <div class="dday-stat-label" data-i18n="investAmount">FREEZE 금액</div>
                 <div class="dday-stat-value" id="ddayAmount">-</div>
               </div>
               <div class="dday-stat">
@@ -1316,10 +1316,10 @@ const SETUP_HTML = () => `<!DOCTYPE html>
 <body>
 <div class="card">
   <h2>🛠️ DEEDRA 초기 데이터 설정</h2>
-  <p>Firebase Firestore에 투자상품, 테스트 계정, 앱 설정값을 일괄 생성합니다.</p>
+  <p>Firebase Firestore에 FREEZE 플랜, 테스트 계정, 앱 설정값을 일괄 생성합니다.</p>
 
   <div class="section">
-    <div class="section-title">📦 생성될 투자 상품</div>
+    <div class="section-title">❌️ 생성될 FREEZE 플랜</div>
     <table>
       <tr><th>이름</th><th>수익률</th><th>기간</th><th>최소</th><th>최대</th></tr>
       <tr><td>Basic</td><td>15%</td><td>30일</td><td>$100</td><td>$1,000</td></tr>
@@ -1358,7 +1358,7 @@ const SETUP_HTML = () => `<!DOCTYPE html>
 
   <div class="btn-row">
     <button class="btn-all" id="btnAll" onclick="runAll()">🚀 전체 초기화 (상품 + 계정 + 설정)</button>
-    <button class="btn-products" id="btnProducts" onclick="createProducts()">📦 투자 상품만 생성</button>
+    <button class="btn-products" id="btnProducts" onclick="createProducts()">❌️ FREEZE 플랜만 생성</button>
     <button class="btn-accounts" id="btnAccounts" onclick="createTestAccounts()">👤 테스트 계정만 생성</button>
     <button class="btn-settings" id="btnSettings" onclick="createSettings()">⚙️ 앱 설정값만 생성</button>
   </div>
@@ -1532,14 +1532,14 @@ window.createSettings = async function() {
     // 공지사항 샘플
     await addDoc(collection(db, 'announcements'), {
       title: '🎉 DEEDRA 앱 v2.0 오픈!',
-      content: 'DEEDRA 투자 앱이 새로운 디자인으로 리뉴얼되었습니다. 더 편리해진 UI로 투자를 시작해보세요!',
+      content: 'DEEDRA FREEZE 서비스가 새로운 디자인으로 리뉴얼되었습니다. 더 편리해진 UI로 FREEZE를 시작해보세요!',
       isActive: true,
       isPinned: true,
       createdAt: serverTimestamp()
     });
     await addDoc(collection(db, 'announcements'), {
-      title: '📋 투자 상품 안내',
-      content: 'Basic(15%/30일), Standard(25%/60일), Premium(40%/90일), VIP(60%/180일) 상품이 출시되었습니다.',
+      title: '💸 FREEZE 플랜 안내',
+      content: 'Basic(0.4%/30일), Standard(0.5%/90일), Premium(0.6%/180일), VIP(0.8%/360일) FREEZE 플랜이 출시되었습니다.',
       isActive: true,
       isPinned: false,
       createdAt: serverTimestamp()

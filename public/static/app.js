@@ -137,8 +137,8 @@ const TRANSLATIONS = {
     recentTx: '💳 최근 거래',
     // 투자
     pageInvest: '❄️ FREEZE',
-    activeInvest: '활성 투자',
-    totalInvest: '총 투자금',
+    activeInvest: '활성 FREEZE',
+    totalInvest: '전체 FREEZE',
     expectedReturnLabel: '예상 수익',
     simTitle: '❄️ FREEZE 수익 시뮬레이터',
     simSelectProduct: '상품 선택',
@@ -148,7 +148,7 @@ const TRANSLATIONS = {
     simRoi: '수익률',
     simEarning: '일 수익 (USDT)',
     simEarningUsd: '총 수익 (USDT)',
-    productListTitle: '💼 투자 상품',
+    productListTitle: '❄️ FREEZE 플랜',
     myInvestTitle: '📋 내 FREEZE 현황',
     // 네트워크
     pageNetwork: '🌐 네트워크',
@@ -361,8 +361,8 @@ const TRANSLATIONS = {
     seeAll: 'See All',
     recentTx: '💳 Recent Transactions',
     pageInvest: '❄️ FREEZE',
-    activeInvest: 'Active',
-    totalInvest: 'Total Invested',
+    activeInvest: 'Active FREEZE',
+    totalInvest: 'Total FREEZE',
     expectedReturnLabel: 'Expected Return',
     simTitle: '❄️ FREEZE Simulator',
     simSelectProduct: 'Select Product',
@@ -372,7 +372,7 @@ const TRANSLATIONS = {
     simRoi: 'ROI',
     simEarning: 'Earnings (USDT)',
     simEarningUsd: 'Total Earnings (USDT)',
-    productListTitle: '💼 Investment Products',
+    productListTitle: '❄️ FREEZE Plans',
     myInvestTitle: '📋 My FREEZE',
     pageNetwork: '🌐 Network',
     directRef: 'Direct Refs',
@@ -547,7 +547,7 @@ const TRANSLATIONS = {
     units: '',
   },
   vi: {
-    authTagline: '🔐 Đầu tư tiền điện tử an toàn & thông minh',
+    authTagline: '🔐 FREEZE tài sản số an toàn & thông minh',
     loginTab: 'Đăng nhập',
     registerTab: 'Đăng ký',
     labelEmail: 'Email',
@@ -572,16 +572,16 @@ const TRANSLATIONS = {
     btnWithdraw: 'Rút DDRA',
     deedraPrice: 'Giá DDRA hiện tại',
     recentUpdated: 'Cập nhật: ',
-    investingNow: '📈 Đầu tư đang hoạt động',
-    investAmount: 'Đầu tư',
+    investingNow: '❄️ FREEZE đang hoạt động',
+    investAmount: 'FREEZE',
     expectedReturn: 'Lợi nhuận dự kiến',
     remaining: 'Còn lại',
     announcements: '📢 Thông báo',
     seeAll: 'Xem tất cả',
     recentTx: '💳 Giao dịch gần đây',
     pageInvest: '📈 Đầu tư',
-    activeInvest: 'Đang hoạt động',
-    totalInvest: 'Tổng đầu tư',
+    activeInvest: 'Đang FREEZE',
+    totalInvest: 'Tổng FREEZE',
     expectedReturnLabel: 'Lợi nhuận dự kiến',
     simTitle: 'Máy tính lợi nhuận',
     simSelectProduct: 'Chọn sản phẩm',
@@ -591,7 +591,7 @@ const TRANSLATIONS = {
     simRoi: 'ROI',
     simEarning: 'Thu nhập (USDT)',
     simEarningUsd: 'Thu nhập tổng cộng (USDT)',
-    productListTitle: '💼 Sản phẩm đầu tư',
+    productListTitle: '❄️ FREEZE Plans',
     myInvestTitle: '📋 Đầu tư của tôi',
     pageNetwork: '🌐 Mạng lưới',
     directRef: 'Giới thiệu trực tiếp',
@@ -766,7 +766,7 @@ const TRANSLATIONS = {
     units: '',
   },
   th: {
-    authTagline: '🔐 ลงทุนคริปโตอย่างปลอดภัยและชาญฉลาด',
+    authTagline: '🔐 FREEZE สินทรัพย์ดิจิทัลอย่างปลอดภัย',
     loginTab: 'เข้าสู่ระบบ',
     registerTab: 'สมัครสมาชิก',
     labelEmail: 'อีเมล',
@@ -791,16 +791,16 @@ const TRANSLATIONS = {
     btnWithdraw: 'ถอน DDRA',
     deedraPrice: 'ราคา DDRA ปัจจุบัน',
     recentUpdated: 'อัปเดต: ',
-    investingNow: '📈 การลงทุนที่กำลังดำเนินการ',
-    investAmount: 'ลงทุน',
+    investingNow: '❄️ FREEZE ที่ดำเนินการอยู่',
+    investAmount: 'FREEZE',
     expectedReturn: 'ผลตอบแทนที่คาดหวัง',
     remaining: 'เหลือ',
     announcements: '📢 ประกาศ',
     seeAll: 'ดูทั้งหมด',
     recentTx: '💳 รายการล่าสุด',
     pageInvest: '📈 ลงทุน',
-    activeInvest: 'กำลังดำเนินการ',
-    totalInvest: 'ลงทุนรวม',
+    activeInvest: 'FREEZE ที่ใช้งาน',
+    totalInvest: 'FREEZE ทั้งหมด',
     expectedReturnLabel: 'ผลตอบแทนที่คาดหวัง',
     simTitle: 'เครื่องคำนวณผลตอบแทน',
     simSelectProduct: 'เลือกผลิตภัณฑ์',
@@ -810,7 +810,7 @@ const TRANSLATIONS = {
     simRoi: 'ROI',
     simEarning: 'รายได้ (USDT)',
     simEarningUsd: 'รายได้รวม (USDT)',
-    productListTitle: '💼 ผลิตภัณฑ์การลงทุน',
+    productListTitle: '❄️ FREEZE Plans',
     myInvestTitle: '📋 การลงทุนของฉัน',
     pageNetwork: '🌐 เครือข่าย',
     directRef: 'แนะนำโดยตรง',
@@ -1627,7 +1627,7 @@ async function loadDDayCard() {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
     setEl('ddayBadge', 'D-' + remainDays);
-    setEl('ddayName', inv.productName || '투자 진행 중');
+    setEl('ddayName', inv.productName || 'FREEZE 진행 중');
     setEl('ddayStart', fmtDateShort(startTs));
     setEl('ddayEnd', fmtDateShort(endTs));
     setEl('ddayAmount', fmt(inv.amount) + ' USDT');
@@ -1858,7 +1858,7 @@ function renderBonusList(bonuses, containerId) {
   }
 
   const typeLabel = {
-    roi_income:    '📈 투자 ROI 수익',
+    roi_income:    '❄️ FREEZE ROI 수익',
     direct_bonus:  '👥 직접 추천 보너스',
     unilevel_bonus:'🌐 유니레벨 보너스',
     rank_bonus:    '🏆 직급 보너스',
@@ -1869,7 +1869,7 @@ function renderBonusList(bonuses, containerId) {
     const dateStr = fmtDate(b.createdAt);
     const details = b.settlementDate ? `정산일: ${b.settlementDate}` : (b.reason || '');
     const level   = b.level ? ` · ${b.level}단계` : '';
-    const base    = b.baseIncome ? ` · 기준 D: $${fmt(b.baseIncome)}` : (b.investAmount ? ` · 투자 $${fmt(b.investAmount)}` : '');
+    const base    = b.baseIncome ? ` · 기준 D: $${fmt(b.baseIncome)}` : (b.investAmount ? ` · FREEZE $${fmt(b.investAmount)}` : '');
 
     return `
     <div class="tx-item">
@@ -2227,8 +2227,8 @@ async function autoCompleteExpiredInvestments(investDocs) {
       await addDoc(collection(db, 'notifications'), {
         userId: currentUser.uid,
         type: 'invest',
-        title: '✅ 투자 만기 완료',
-        message: `[${inv.productName}] 투자 계약이 만료되었습니다. 원금 ${fmt(inv.amount)} USDT가 지갑에 반환되었습니다.`,
+        title: '✅ FREEZE 만기 완료',
+        message: `[${inv.productName}] FREEZE 계약이 만료되었습니다. 원금 ${fmt(inv.amount)} USDT가 지갑에 언프리즈되었습니다.`,
         isRead: false,
         createdAt: serverTimestamp()
       });
@@ -2244,7 +2244,7 @@ async function autoCompleteExpiredInvestments(investDocs) {
     // 만기 처리 후 지갑 UI 갱신
     updateWalletUI();
     updateHomeUI();
-    showToast(`📋 만기 투자 ${expired.length}건의 원금이 반환되었습니다.`, 'success');
+    showToast(`❄️ 만기 FREEZE ${expired.length}건의 원금이 언프리즈되었습니다.`, 'success');
   }
 }
 
@@ -2279,7 +2279,7 @@ async function loadMyInvestments() {
     setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/일');
 
     if (!invests.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i>진행 중인 투자가 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>진행 중인 FREEZE가 없습니다</div>';
       return;
     }
 
@@ -2298,7 +2298,7 @@ async function loadMyInvestments() {
       return `
       <div class="invest-item">
         <div class="invest-item-header">
-          <span class="invest-item-name">${inv.productName || '투자'}</span>
+          <span class="invest-item-name">${inv.productName || 'FREEZE'}</span>
           <span class="invest-item-amount">$${fmt(inv.amount)}</span>
         </div>
         <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
@@ -2475,8 +2475,8 @@ function updateRankUI() {
         const cur = selfInvest;
         const req = crit.minSelfInvest;
         progressPct  = Math.min(100, (cur / req) * 100);
-        needed       = req - cur > 0 ? `투자 $${(req - cur).toFixed(0)} 더 필요` : '투자 조건 달성!';
-        progressDesc = `투자 $${cur.toFixed(0)}/$${req}`;
+        needed       = req - cur > 0 ? `FREEZE $${(req - cur).toFixed(0)} 더 필요` : 'FREEZE 조건 달성!';
+        progressDesc = `FREEZE $${cur.toFixed(0)}/$${req}`;
       } else {
         progressPct  = 100;
         progressDesc = '조건 미설정';
@@ -2486,7 +2486,7 @@ function updateRankUI() {
       // 다음 직급 표시
       const modeLabel = mode === 'any' ? '[OR]' : '[AND]';
       const condParts = [];
-      if (hasInvestCond)  condParts.push(`투자 $${crit.minSelfInvest}`);
+      if (hasInvestCond)  condParts.push(`FREEZE $${crit.minSelfInvest}`);
       if (hasSalesCond)   condParts.push(`매출 $${crit.minNetworkSales}`);
       if (hasMemberCond)  condParts.push(`인원 ${crit.minNetworkMembers}명`);
       const condStr = condParts.length ? condParts.join(' / ') : '조건 없음';
@@ -2684,7 +2684,7 @@ window.shareReferralLink = function() {
   const code = userData?.referralCode || '';
   const url = location.origin + '?ref=' + code;
   if (navigator.share) {
-    navigator.share({ title: 'DEEDRA 투자앱 초대', text: '추천 코드: ' + code, url });
+    navigator.share({ title: 'DEEDRA 초대', text: '추천 코드: ' + code, url });
   } else {
     navigator.clipboard.writeText(url).then(() => showToast('초대 링크 복사 완료!', 'success'));
   }
@@ -2711,7 +2711,7 @@ window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
 window.startGame = function(type) {
   if (gameBalanceVal <= 0) {
-    showToast('게임 가능 DDRA가 없습니다. 투자 수익이 발생하면 바로 게임 가능합니다.', 'warning');
+    showToast('게임 가능 DDRA가 없습니다. FREEZE 수익이 발생하면 바로 게임 가능합니다.', 'warning');
     return;
   }
   closeAllGames();
@@ -3959,7 +3959,7 @@ function getDaysLaterStr(days) {
 }
 
 function getTxTypeName(type) {
-  const map = { deposit: 'USDT 입금', withdrawal: 'DEEDRA 출금', bonus: '보너스 지급', invest: '투자 신청', game: '게임', referral: '추천 보너스' };
+  const map = { deposit: 'USDT 입금', withdrawal: 'DEEDRA 출금', bonus: '보너스 지급', invest: 'FREEZE 신청', game: '게임', referral: '추천 보너스' };
   return map[type] || type;
 }
 
@@ -3990,15 +3990,20 @@ function getAuthErrorMsg(code) {
 
 // ===== 토스트 =====
 let toastTimer = null;
+let toastShowTimer = null;
 function showToast(msg, type = 'info') {
   const el = document.getElementById('toast');
   if (!el) return;
-  if (toastTimer) { clearTimeout(toastTimer); el.classList.remove('show'); }
-  setTimeout(() => {
-    el.textContent = msg;
-    el.className = `toast show ${type}`;
-    toastTimer = setTimeout(() => { el.classList.remove('show'); }, 3200);
-  }, 50);
+  // 진행 중인 모든 타이머 취소
+  if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+  if (toastShowTimer) { clearTimeout(toastShowTimer); toastShowTimer = null; }
+  // 즉시 메시지 설정 후 표시 (50ms 지연 타이머 중복 방지)
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  toastTimer = setTimeout(() => { 
+    el.classList.remove('show');
+    toastTimer = null;
+  }, 3200);
 }
 
 console.log('✅ DEEDRA app.js v2.0 로드 완료');
