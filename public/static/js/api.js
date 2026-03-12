@@ -510,7 +510,7 @@ export class DedraAPI {
    *   회원 A가 투자 상품에서 오늘 D USDT 수익 발생
    *   → 1대 추천인에게 D × unilevelRate[0] 지급
    *   → 2대 추천인에게 D × unilevelRate[1] 지급
-   *   → ... (최대 10단계)
+   *   → ... (최대 10단계) — 직급 체크 없이 모든 추천인에게 분배
    *   → 직급 차이 보너스 포함
    *
    * @param {string} investUserId  투자(수익 발생) 회원 uid
@@ -609,6 +609,104 @@ export class DedraAPI {
       return totalPaid;
     } catch(e) {
       console.error('_processUnilevelBonus error:', e);
+      return 0;
+    }
+  }
+
+  /**
+   * ─────────────────────────────────────────────────────────────────
+   * Policy B — 2세대 고정 직접 추천 보너스 (직급 무관)
+   * ─────────────────────────────────────────────────────────────────
+   * enableDirectBonus2Gen = true 일 때 유니레벨 로직과 **별개로** 추가 실행됩니다.
+   *
+   * 규칙:
+   *   - 투자자 기준 1대 위 추천인 → 투자자의 당일 ROI D × gen1Rate% 지급
+   *   - 투자자 기준 2대 위 추천인 → 투자자의 당일 ROI D × gen2Rate% 지급
+   *   - 직급 조건 없음 (무조건 지급)
+   *   - 2대까지만 (3대 이상은 미지급)
+   *
+   * @param {string} investUserId
+   * @param {number} dailyIncome   당일 ROI D
+   * @param {object} rates         { enableDirectBonus2Gen, directBonus2GenRate1, directBonus2GenRate2 }
+   * @param {object} db
+   * @param {string} triggerBy
+   * @param {string} settlementDate
+   */
+  async _processDirectBonus2Gen(investUserId, dailyIncome, rates, db, triggerBy, settlementDate) {
+    try {
+      if (!dailyIncome || dailyIncome <= 0) return 0;
+      if (!rates.enableDirectBonus2Gen) return 0;
+
+      const gen1Rate = (rates.directBonus2GenRate1 ?? 10) / 100;  // 기본 10%
+      const gen2Rate = (rates.directBonus2GenRate2 ?? 5)  / 100;  // 기본 5%
+      if (gen1Rate <= 0 && gen2Rate <= 0) return 0;
+
+      // 전체 회원 로드 (추천 체인 구성용)
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const userMap   = Object.fromEntries(
+        usersSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }])
+      );
+
+      const investor = userMap[investUserId];
+      if (!investor) return 0;
+
+      let totalPaid = 0;
+      const GEN_RATES = [gen1Rate, gen2Rate];
+
+      let currentId = investor.referredBy;
+      for (let gen = 1; gen <= 2; gen++) {
+        if (!currentId) break;
+        const ancestor = userMap[currentId];
+        if (!ancestor || ancestor.role === 'admin') break;
+
+        const rate = GEN_RATES[gen - 1];
+        if (rate > 0) {
+          const bonusAmt = parseFloat((dailyIncome * rate).toFixed(8));
+
+          // 지갑 잔액 증가 (wallets/{uid} 직접 접근)
+          const walletRef = doc(db, 'wallets', ancestor.id);
+          const wSnap = await getDoc(walletRef);
+          if (wSnap.exists()) {
+            await updateDoc(walletRef, {
+              dedraBalance:  increment(bonusAmt),
+              totalEarnings: increment(bonusAmt),
+            });
+          } else {
+            // 레거시 fallback
+            const walletQ = query(collection(db, 'wallets'), where('userId', '==', ancestor.id));
+            const wsSnap  = await getDocs(walletQ);
+            if (!wsSnap.empty) {
+              await updateDoc(wsSnap.docs[0].ref, {
+                dedraBalance:  increment(bonusAmt),
+                totalEarnings: increment(bonusAmt),
+              });
+            }
+          }
+
+          // 보너스 이력 기록
+          await addDoc(collection(db, 'bonuses'), {
+            userId:         ancestor.id,
+            fromUserId:     investUserId,
+            amount:         bonusAmt,
+            type:           'direct2gen_bonus',  // Policy B 전용 타입
+            level:          gen,
+            baseIncome:     dailyIncome,
+            rate,
+            settlementDate: settlementDate || '',
+            reason:         `직접추천 ${gen}대 보너스 [PolicyB] (${(rate*100).toFixed(1)}% × D${dailyIncome.toFixed(4)})`,
+            grantedBy:      triggerBy || 'system',
+            createdAt:      serverTimestamp(),
+          });
+
+          totalPaid += bonusAmt;
+        }
+
+        currentId = ancestor.referredBy;
+      }
+
+      return totalPaid;
+    } catch(e) {
+      console.error('_processDirectBonus2Gen error:', e);
       return 0;
     }
   }
@@ -743,11 +841,19 @@ export class DedraAPI {
           roiPaidCount++;
           totalRoiAmount += D;
 
-          // ── 유니레벨 보너스 분배 (D 기준) ──
+          // ── Policy A: 유니레벨 보너스 분배 (D 기준, 직급별 10단계) ──
           const bonusPaid = await this._processUnilevelBonus(
             inv.userId, D, rates, db, adminId, dateStr
           );
           if (bonusPaid > 0) { bonusPaidCount++; totalBonusAmount += bonusPaid; }
+
+          // ── Policy B: 2세대 고정 직접 보너스 (직급 무관, 1대/2대만) ──
+          if (rates.enableDirectBonus2Gen) {
+            const bonusPaidB = await this._processDirectBonus2Gen(
+              inv.userId, D, rates, db, adminId, dateStr
+            );
+            if (bonusPaidB > 0) { totalBonusAmount += bonusPaidB; }
+          }
 
           // ── 횟수 제한 차감 ──
           if (productCfg?.paymentDurationType === 'LIMITED_COUNTS') {
@@ -817,7 +923,24 @@ export class DedraAPI {
   async getRates() {
     try {
       const snap = await getDoc(doc(this.db, 'settings', 'rates'));
-      return ok(snap.exists() ? snap.data() : { dedraRate: 0.5, usdKrw: 1350 });
+      const defaults = {
+        dedraRate: 0.5, usdKrw: 1350,
+        enableDirectBonus: true,
+        directBonus1: 5, directBonus2: 2,
+        enableUnilevel: true,
+        unilevelRates: [10,7,5,4,3,2,2,1,1,1],
+        enableRankDiffBonus: false, rankDiffBonusRate: 0,
+        enableRankBonus: false,
+        // Policy B: 2세대 고정 직접 보너스
+        enableDirectBonus2Gen: false,
+        directBonus2GenRate1: 10,   // 1대 위 추천인에게 D × 10%
+        directBonus2GenRate2: 5,    // 2대 위 추천인에게 D × 5%
+        // 자동 정산 설정
+        autoSettlement: false,      // true = 자동 정산 활성화
+        autoSettlementHour: 0,      // 정산 실행 시각 (0~23, UTC 기준)
+        autoSettlementMinute: 0,
+      };
+      return ok(snap.exists() ? { ...defaults, ...snap.data() } : defaults);
     } catch(e) { return err(e); }
   }
 
