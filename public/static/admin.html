@@ -1273,6 +1273,10 @@ canvas{width:100% !important;}
           <div style="font-size:11px;font-weight:700;color:#0284c7;text-transform:uppercase;letter-spacing:.5px;">시스템</div>
           <div id="auditStat_system" style="font-size:26px;font-weight:900;color:#0c4a6e;margin-top:4px;">-</div>
         </div>
+        <div style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:14px;padding:16px 18px;">
+          <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;">회원 수정</div>
+          <div id="auditStat_member" style="font-size:26px;font-weight:900;color:#4c1d95;margin-top:4px;">-</div>
+        </div>
       </div>
 
       <!-- 필터 바 -->
@@ -4159,7 +4163,7 @@ window.editNotice = async (noticeId) => {
 };
 
 window.deleteNotice = async (noticeId) => {
-    if (!confirm('공지사항을 삭제하시겠습니까? (비공개 처리됩니다)')) return;
+    if (!await _adminConfirm('공지사항을 삭제하시겠습니까? (비공개 처리됩니다)')) return;
     const r = await api.deleteAnnouncement(currentAdmin.uid, noticeId);
     if (r.success) { showToast('🗑️ 공지사항이 삭제되었습니다.'); loadNotices(); }
     else { alert('❌ ' + r.error); }
@@ -4358,7 +4362,7 @@ window.editNews = async (newsId) => {
 };
 
 window.deleteNews = async (newsId) => {
-    if (!confirm('뉴스를 삭제하시겠습니까? (비공개 처리됩니다)')) return;
+    if (!await _adminConfirm('뉴스를 삭제하시겠습니까? (비공개 처리됩니다)')) return;
     const r = await api.deleteNews(currentAdmin.uid, newsId);
     if (r.success) { showToast('🗑️ 뉴스가 삭제되었습니다.'); loadNews(); }
     else { alert('❌ ' + r.error); }
@@ -4772,31 +4776,48 @@ function renderAuditLogs(logs) {
     }
     const groups = {};
     logs.forEach(log => {
-        const ts = log.timestamp?.toDate ? log.timestamp.toDate() : new Date((log.timestamp?.seconds||0)*1000);
+        // timestamp(신규) 또는 createdAt(구형) 모두 지원
+        const tsField = log.timestamp || log.createdAt;
+        const ts = tsField?.toDate ? tsField.toDate()
+                 : tsField?.seconds  ? new Date(tsField.seconds * 1000)
+                 : new Date();
         const dateKey = ts.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push({ ...log, _ts: ts });
     });
-    wrap.innerHTML = Object.entries(groups).map(([date, items]) => {
+    // 날짜 그룹을 최신 순으로 정렬
+    const sortedEntries = Object.entries(groups).sort((a, b) => {
+        const ta = a[1][0]._ts.getTime();
+        const tb = b[1][0]._ts.getTime();
+        return tb - ta;
+    });
+    wrap.innerHTML = sortedEntries.map(([date, items]) => {
         const rows = items.map(log => {
             const cat  = log.category || 'etc';
             const cfg  = AUDIT_CAT_CONFIG[cat] || AUDIT_CAT_CONFIG.etc;
             const ts   = log._ts;
-            const time = ts.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-            const adminShort = (log.adminId||' system').substring(0,12);
-            const actionIcon = (AUDIT_ACTION_MAP[log.action]||' 📝').substring(0,2);
+            // 날짜+시간 모두 표시
+            const timeStr = ts.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
+            const adminShort = (log.adminId || 'system').substring(0, 14);
+            const actionLabel = AUDIT_ACTION_MAP[log.action] || log.action || '-';
+            const actionIcon  = actionLabel.substring(0, 2);
+            // rawCategory 있으면 원본 카테고리도 뱃지로 표시
+            const rawBadge = log.rawCategory && log.rawCategory !== log.category
+              ? '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#f1f5f9;color:#64748b;font-weight:600;margin-left:4px;">' + log.rawCategory + '</span>'
+              : '';
             return '<div style="padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:14px;" onmouseover="this.style.background=\'#fafafa\'" onmouseout="this.style.background=\'\'">' +
               '<div style="width:4px;flex-shrink:0;align-self:stretch;border-radius:4px;background:' + cfg.color + ';"></div>' +
               '<div style="width:36px;height:36px;flex-shrink:0;border-radius:10px;background:' + cfg.bg + ';border:1.5px solid ' + cfg.border + ';display:flex;align-items:center;justify-content:center;font-size:18px;">'  + actionIcon + '</div>' +
               '<div style="flex:1;min-width:0;">' +
                 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">' +
-                  '<span style="font-size:13px;font-weight:800;color:#1e293b;">'  + (AUDIT_ACTION_MAP[log.action]||log.action) + '</span>' +
+                  '<span style="font-size:13px;font-weight:800;color:#1e293b;">'  + actionLabel + '</span>' +
                   '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:' + cfg.bg + ';color:' + cfg.color + ';font-weight:700;border:1px solid ' + cfg.border + ';">' + cfg.label + '</span>' +
+                  rawBadge +
                 '</div>' +
                 renderAuditDetail(log) +
                 '<div style="margin-top:5px;display:flex;gap:12px;flex-wrap:wrap;">' +
                   '<span style="font-size:11px;color:#94a3b8;">🛡 관리자: <strong style="color:#64748b;">'  + adminShort + '</strong></span>' +
-                  '<span style="font-size:11px;color:#94a3b8;">🕐 ' + time + '</span>' +
+                  '<span style="font-size:11px;color:#94a3b8;">🕐 ' + timeStr + '</span>' +
                 '</div>' +
               '</div></div>';
         }).join('');
@@ -4821,6 +4842,7 @@ async function loadAuditLog() {
     if (el('auditStat_asset'))  el('auditStat_asset').textContent  = (countBycat.asset||0).toLocaleString();
     if (el('auditStat_auth'))   el('auditStat_auth').textContent   = (countBycat.auth||0).toLocaleString();
     if (el('auditStat_system')) el('auditStat_system').textContent = (countBycat.system||0).toLocaleString();
+    if (el('auditStat_member')) el('auditStat_member').textContent = (countBycat.member||0).toLocaleString();
     if (!_auditAllLogs.length) {
         wrap.innerHTML = '<div style="padding:48px;text-align:center;color:#94a3b8;font-size:14px;">📭 기록된 감사 로그가 없습니다</div>';
         return;
@@ -5179,7 +5201,7 @@ window.showMemberDetail = async (userId) => {
     // ── 센터장 임명 버튼 ──
     document.getElementById('appointCenterManagerBtn').onclick = async () => {
         const memberName = document.getElementById('me_name').value.trim() || currentMember.name;
-        if (!confirm(`"${memberName}" 회원을 센터장으로 임명하시겠습니까?\n\n임명 시 "${memberName} 센터"가 자동 생성됩니다.`)) return;
+        if (!await _adminConfirm(`"${memberName}" 회원을 센터장으로 임명하시겠습니까?\n\n임명 시 "${memberName} 센터"가 자동 생성됩니다.`, '👑')) return;
         const btn = document.getElementById('appointCenterManagerBtn');
         btn.disabled = true; btn.textContent = '처리 중...';
         const r = await api.appointCenterManager(currentAdmin.uid, currentMember.id, memberName);
@@ -5202,7 +5224,7 @@ window.showMemberDetail = async (userId) => {
 
     // ── 센터장 해임 버튼 ──
     document.getElementById('revokeCenterManagerBtn').onclick = async () => {
-        if (!confirm('센터장을 해임하시겠습니까?\n(센터는 유지됩니다)')) return;
+        if (!await _adminConfirm('센터장을 해임하시겠습니까?\n(센터는 유지됩니다)', '🔻')) return;
         const btn = document.getElementById('revokeCenterManagerBtn');
         btn.disabled = true; btn.textContent = '처리 중...';
         const r = await api.revokeCenterManager(currentAdmin.uid, currentMember.id);
@@ -5351,7 +5373,7 @@ function setupEvents() {
     document.getElementById('approveDepositBtn').addEventListener('click', async () => {
         const amount = (currentTx.amount||0).toFixed(2);
         const memo   = document.getElementById('depAdminMemo')?.value.trim() || '';
-        if (!confirm(`✅ 입금 승인하시겠습니까?\n\n금액: ${amount} USDT\n승인 즉시 회원 잔액에 충전됩니다.`)) return;
+        if (!await _adminConfirm(`✅ 입금 승인하시겠습니까?\n\n금액: ${amount} USDT\n승인 즉시 회원 잔액에 충전됩니다.`)) return;
         const btn = document.getElementById('approveDepositBtn');
         btn.disabled=true; btn.textContent='처리 중...';
         const r = await api.approveDeposit(currentTx.id, currentAdmin.uid, memo);
@@ -5395,7 +5417,7 @@ function setupEvents() {
         const memo   = document.getElementById('wdAdminMemo')?.value.trim() || '';
         const dedraAmt = (currentTx.amount||0).toFixed(4);
         const wallet  = currentTx.walletAddress || '주소 없음';
-        if (!confirm(`✅ 출금 승인하시겠습니까?\n\n금액: ${dedraAmt} DDRA\n지갑: ${wallet}\nTXID: ${txid}`)) return;
+        if (!await _adminConfirm(`✅ 출금 승인하시겠습니까?\n\n금액: ${dedraAmt} DDRA\n지갑: ${wallet}\nTXID: ${txid}`)) return;
         const btn = document.getElementById('approveWithdrawalBtn');
         btn.disabled=true; btn.textContent='처리 중...';
         const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, txid, memo);
@@ -5445,7 +5467,7 @@ function setupEvents() {
         };
         if (!newVal || isNaN(newVal)) { showWA('error','⚠️ 유효한 숫자를 입력하세요.'); return; }
         if (!reason) { showWA('error','⚠️ 수정 사유를 입력하세요.'); return; }
-        if (!confirm(`${currentMember.name}의 [${field}]를 ${newVal}로 수정하시겠습니까?`)) return;
+        if (!await _adminConfirm(`${currentMember.name}의 [${field}]를 ${newVal}로 수정하시겠습니까?`)) return;
         const btn = document.getElementById('adjustWalletBtn');
         btn.disabled=true; btn.textContent='처리 중...';
         const r = await api.adjustWalletBalance(currentAdmin.uid, currentMember.id, field, newVal, reason);
@@ -5631,7 +5653,7 @@ function setupEvents() {
 
     // ── 문의 종결 ──
     document.getElementById('closeTicketBtn').addEventListener('click', async () => {
-        if (!confirm('이 문의를 종결 처리하시겠습니까?')) return;
+        if (!await _adminConfirm('이 문의를 종결 처리하시겠습니까?')) return;
         const r = await api.closeTicket(currentAdmin.uid, currentTicket.id);
         if (r.success) {
             alert('✅ 종결 처리되었습니다.');
@@ -6120,7 +6142,7 @@ function renderRankMemberList(rankFilter) {
 }
 
 window.applyRankUpgrade = async (userId, newRank, name) => {
-    if (!confirm(`${name}을(를) ${newRank}로 승격하시겠습니까?`)) return;
+    if (!await _adminConfirm(`${name}을(를) ${newRank}로 승격하시겠습니까?`)) return;
     const r = await api.updateUserRank(userId, newRank, currentAdmin.uid);
     if (r.success) {
         alert(`✅ ${name}의 직급이 ${newRank}로 변경되었습니다.`);
@@ -6130,7 +6152,7 @@ window.applyRankUpgrade = async (userId, newRank, name) => {
 
 async function runAutoRankUpgrade() {
     // api.runBatchRankPromotion()을 활용해 전체 일괄 승격 실행
-    if (!confirm('설정된 직급 승진 조건으로 전체 회원을 즉시 재계산합니다.\n계속하시겠습니까?')) return;
+    if (!await _adminConfirm('설정된 직급 승진 조건으로 전체 회원을 즉시 재계산합니다.\n계속하시겠습니까?')) return;
 
     const r = await api.runBatchRankPromotion(currentAdmin.uid);
     if (r.success) {
@@ -6862,7 +6884,7 @@ window.sendInstantBroadcast = async function() {
     }
 
     // 발송 확인
-    if (!confirm(`[${target === 'all' ? '전체 회원' : target}]에게 즉시 알림을 발송하시겠습니까?\n\n제목: ${title}\n내용: ${message.slice(0,60)}...`)) return;
+    if (!await _adminConfirm(`[${target === 'all' ? '전체 회원' : target}]에게 즉시 알림을 발송하시겠습니까?\n\n제목: ${title}\n내용: ${message.slice(0,60)}...`)) return;
 
     const btn = document.getElementById('bcInstantSendBtn');
     btn.disabled = true;
@@ -6992,14 +7014,14 @@ window.loadScheduledList = async function() {
 }
 
 window.cancelSch = async function(id) {
-    if (!confirm('이 예약 알림을 취소하시겠습니까?')) return;
+    if (!await _adminConfirm('이 예약 알림을 취소하시겠습니까?')) return;
     const r = await api.cancelScheduledBroadcast(currentAdmin.uid, id);
     if (r.success) { showToast('✅ 예약 알림이 취소되었습니다.'); await loadScheduledList(); await loadBcSummary(); }
     else showToast('❌ ' + r.error);
 };
 
 window.executeSchNow = async function(id) {
-    if (!confirm('지금 즉시 발송하시겠습니까?')) return;
+    if (!await _adminConfirm('지금 즉시 발송하시겠습니까?')) return;
     const r = await api.executeScheduledBroadcast(currentAdmin.uid, id);
     if (r.success) { showToast(`✅ ${r.count}명에게 즉시 발송했습니다.`); await loadScheduledList(); await loadBcSummary(); }
     else showToast('❌ ' + r.error);
@@ -7121,7 +7143,7 @@ window.toggleAutoRule = async function(id, activate) {
 };
 
 window.deleteAutoRule = async function(id) {
-    if (!confirm('이 자동 규칙을 삭제하시겠습니까?')) return;
+    if (!await _adminConfirm('이 자동 규칙을 삭제하시겠습니까?')) return;
     const r = await api.deleteAutoRule(currentAdmin.uid, id);
     if (r.success) { showToast('🗑 규칙이 삭제되었습니다.'); await loadAutoRulesList(); await loadBcSummary(); }
     else showToast('❌ ' + r.error);
@@ -7584,7 +7606,7 @@ function setupRateButtons() {
     const rankAchieveBtn = document.getElementById('runRankAchieveBonusBtn');
     if (rankAchieveBtn) {
         rankAchieveBtn.onclick = async () => {
-            if (!confirm('오늘 날짜 기준으로 직급 달성 보너스를 즉시 실행합니다.\n계속하시겠습니까?')) return;
+            if (!await _adminConfirm('오늘 날짜 기준으로 직급 달성 보너스를 즉시 실행합니다.\n계속하시겠습니까?')) return;
             rankAchieveBtn.disabled = true;
             rankAchieveBtn.textContent = '실행 중...';
             const resultEl = document.getElementById('rankAchieveBonusResult');
@@ -7620,7 +7642,7 @@ function setupRateButtons() {
     const batchBtn = document.getElementById('batchRankPromoBtn');
     if (batchBtn) {
         batchBtn.onclick = async () => {
-            if (!confirm('설정된 조건으로 전체 회원의 직급을 즉시 재계산합니다.\n계속하시겠습니까?')) return;
+            if (!await _adminConfirm('설정된 조건으로 전체 회원의 직급을 즉시 재계산합니다.\n계속하시겠습니까?')) return;
             batchBtn.disabled = true;
             batchBtn.textContent = '처리 중...';
             const r = await api.runBatchRankPromotion(currentAdmin.uid);
@@ -8306,7 +8328,7 @@ async function runDailySettlement() {
   const dateInput = document.getElementById('settlementDateInput');
   const dateStr = dateInput?.value || null;
 
-  if (!confirm(`${dateStr || '오늘'} 일일 ROI 정산을 실행하시겠습니까?\n\n⚠️ 같은 날짜는 중복 실행이 차단됩니다.`)) return;
+  if (!await _adminConfirm(`${dateStr || '오늘'} 일일 ROI 정산을 실행하시겠습니까?\n\n⚠️ 같은 날짜는 중복 실행이 차단됩니다.`)) return;
 
   runBtn.disabled = true;
   runBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;margin-right:8px;vertical-align:middle;"></span>정산 중...';
@@ -8533,7 +8555,7 @@ function closeCenterModal() {
 window.closeCenterModal = closeCenterModal;
 
 async function deleteCenter(id, name) {
-    if (!confirm(`"${name}" 센터를 삭제하시겠습니까?`)) return;
+    if (!await _adminConfirm(`"${name}" 센터를 삭제하시겠습니까?`)) return;
     const r = await api.deleteCenter(currentAdmin.uid, id);
     if (r.success) { showToast('✅ 센터가 삭제되었습니다.'); loadCenters(); }
     else alert('삭제 실패: ' + r.error);
@@ -8897,7 +8919,7 @@ window.togglePlan = async function(id, isActive) {
     }
 };
 window.deletePlan = async function(id, name) {
-    if (!confirm(`"${name}" 항목을 삭제하시겠습니까?`)) return;
+    if (!await _adminConfirm(`"${name}" 항목을 삭제하시겠습니까?`)) return;
     const r = await api.deleteProduct(currentAdmin.uid, id);
     if (r.success) { showToast('삭제됨'); loadProductPlans(); }
     else showToast('삭제 실패: '+r.error,'error');
@@ -9153,7 +9175,41 @@ window.orgZoom              = orgZoom;
 window.orgZoomReset         = orgZoomReset;
 window.showCustomerDetail   = (id) => showMemberDetail(id); // 조직도에서 호출
 
+// ===== 커스텀 Confirm 다이얼로그 (브라우저 alert/confirm 대체) =====
+window._adminConfirm = function(msg, icon = '⚠️') {
+  return new Promise(resolve => {
+    const modal = document.getElementById('adminConfirmModal');
+    if (!modal) { resolve(window._nativeConfirm(msg)); return; }
+    document.getElementById('adminConfirmIcon').textContent = icon;
+    document.getElementById('adminConfirmMsg').innerHTML = msg.replace(/\n/g, '<br>');
+    modal.style.display = 'flex';
+    const okBtn     = document.getElementById('adminConfirmOk');
+    const cancelBtn = document.getElementById('adminConfirmCancel');
+    const cleanup = () => { modal.style.display = 'none'; };
+    const onOk     = () => { cleanup(); okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); modal.removeEventListener('click',onBg); resolve(true); };
+    const onCancel = () => { cleanup(); okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); modal.removeEventListener('click',onBg); resolve(false); };
+    const onBg     = (e) => { if (e.target === modal) onCancel(); };
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBg);
+  });
+};
+// 원본 confirm 백업 후 교체 (admin.html 범위 전용)
+window._nativeConfirm = window.confirm;
+
 </script>
 </div><!-- /adminMain -->
+
+<!-- Admin Confirm Modal -->
+<div id="adminConfirmModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border-radius:18px;padding:28px 24px 20px;width:90%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);text-align:center;">
+    <div id="adminConfirmIcon" style="font-size:38px;margin-bottom:12px;">⚠️</div>
+    <div id="adminConfirmMsg" style="color:#f1f5f9;font-size:15px;font-weight:600;margin-bottom:22px;line-height:1.6;word-break:keep-all;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="adminConfirmCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#94a3b8;font-size:14px;font-weight:600;cursor:pointer;">취소</button>
+      <button id="adminConfirmOk" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">확인</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

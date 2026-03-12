@@ -351,7 +351,12 @@ export class DedraAPI {
     try {
       const snap = await getDocs(query(collection(this.db, 'auditLogs'), limit(maxCount)));
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        // timestamp(신규) 또는 createdAt(구형) 둘 다 지원
+        .sort((a, b) => {
+          const ta = a.timestamp?.seconds || a.createdAt?.seconds || 0;
+          const tb = b.timestamp?.seconds || b.createdAt?.seconds || 0;
+          return tb - ta;
+        });
       return ok(data);
     } catch(e) { return err(e); }
   }
@@ -1890,11 +1895,33 @@ export class DedraAPI {
   // ─────────────────────────────────────────────────
   // 내부 감사 로그 기록
   // ─────────────────────────────────────────────────
-  async _auditLog(adminId, category, action, meta = {}) {
+  async _auditLog(adminId, rawCategory, action, meta = {}) {
     try {
+      // rawCategory → UI 통계 탭(rank/asset/auth/member/system/notify/support/etc)으로 정규화
+      const CAT_MAP = {
+        rank:         'rank',
+        wallet_adjust:'asset',
+        bonus:        'asset',
+        deposit:      'asset',
+        withdrawal:   'asset',
+        settlement:   'asset',
+        member:       'member',
+        auth:         'auth',
+        system:       'system',
+        settings:     'system',
+        product:      'system',
+        broadcast:    'notify',
+        notify:       'notify',
+        ticket:       'support',
+        support:      'support',
+        notice:       'system',
+        news:         'system',
+        wallet:       'asset',
+      };
+      const category = CAT_MAP[rawCategory] || rawCategory;
       await addDoc(collection(this.db, 'auditLogs'), {
-        adminId, category, action, meta,
-        createdAt: serverTimestamp()
+        adminId, category, rawCategory, action, meta,
+        timestamp: serverTimestamp()   // ← createdAt → timestamp 로 통일
       });
     } catch(_) { /* 감사 로그 실패는 무시 */ }
   }
