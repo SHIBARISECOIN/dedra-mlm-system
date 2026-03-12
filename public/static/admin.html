@@ -2410,43 +2410,106 @@ canvas{width:100% !important;}
       </div>
 
       <!-- 센터 추가/편집 모달 -->
-      <div id="centerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
-        <div style="background:#fff;border-radius:16px;padding:28px;max-width:560px;width:90%;max-height:90vh;overflow-y:auto;">
-          <div style="font-size:18px;font-weight:700;margin-bottom:20px;" id="centerModalTitle">➕ 센터 추가</div>
-          <div id="centerModalAlert"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div>
-              <label class="settings-label">센터명 *</label>
-              <input type="text" class="settings-input" id="cm_name" placeholder="센터명">
+      <div id="centerModal" style="display:none;position:fixed;inset:0;background:rgba(10,10,30,.72);backdrop-filter:blur(8px);z-index:2000;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:#fff;border-radius:24px;width:100%;max-width:580px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 100px rgba(0,0,0,.28);">
+
+          <!-- 모달 헤더 -->
+          <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);padding:28px 32px 24px;position:relative;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="width:48px;height:48px;background:rgba(255,255,255,.18);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;">🏢</div>
+              <div>
+                <div id="centerModalTitle" style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-.3px;">센터 추가</div>
+                <div style="font-size:13px;color:rgba(255,255,255,.65);margin-top:2px;">센터 정보를 입력해주세요</div>
+              </div>
             </div>
-            <div>
-              <label class="settings-label">지역</label>
-              <input type="text" class="settings-input" id="cm_region" placeholder="서울, 부산 등">
+            <button onclick="closeCenterModal()" style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,.15);border:none;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;color:#fff;display:flex;align-items:center;justify-content:center;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.28)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">×</button>
+          </div>
+
+          <!-- 모달 바디 -->
+          <div style="padding:28px 32px;overflow-y:auto;flex:1;">
+            <div id="centerModalAlert" style="margin-bottom:0;"></div>
+
+            <!-- 섹션: 기본 정보 -->
+            <div style="margin-bottom:24px;">
+              <div style="font-size:11px;font-weight:800;color:#6366f1;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px;">
+                <div style="width:16px;height:2px;background:#6366f1;border-radius:2px;"></div> 기본 정보
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div style="grid-column:span 2;">
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">센터명 <span style="color:#ef4444;">*</span></label>
+                  <input type="text" id="cm_name" placeholder="예) 서울 강남 센터"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'">
+                </div>
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">지역</label>
+                  <input type="text" id="cm_region" placeholder="예) 서울, 부산"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'">
+                </div>
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">주소</label>
+                  <input type="text" id="cm_address" placeholder="센터 주소"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'">
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="settings-label">담당자명</label>
-              <input type="text" class="settings-input" id="cm_managerName" placeholder="담당자 이름">
-            </div>
-            <div>
-              <label class="settings-label">담당자 이메일</label>
-              <input type="email" class="settings-input" id="cm_managerEmail" placeholder="manager@example.com">
-            </div>
-            <div>
-              <label class="settings-label">담당자 전화</label>
-              <input type="text" class="settings-input" id="cm_managerPhone" placeholder="010-0000-0000">
-            </div>
-            <div>
-              <label class="settings-label">주소</label>
-              <input type="text" class="settings-input" id="cm_address" placeholder="센터 주소">
-            </div>
-            <div style="grid-column:span 2;">
-              <label class="settings-label">메모/설명</label>
-              <textarea class="settings-input" id="cm_description" rows="2" placeholder="센터 설명"></textarea>
+
+            <!-- 섹션: 담당자 정보 -->
+            <div style="margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:800;color:#6366f1;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px;">
+                <div style="width:16px;height:2px;background:#6366f1;border-radius:2px;"></div> 담당자 정보
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">담당자명</label>
+                  <input type="text" id="cm_managerName" placeholder="담당자 이름"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'">
+                </div>
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">담당자 전화</label>
+                  <input type="text" id="cm_managerPhone" placeholder="010-0000-0000"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'">
+                </div>
+                <div style="grid-column:span 2;">
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">담당자 이메일</label>
+                  <input type="email" id="cm_managerEmail" placeholder="manager@example.com"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'">
+                </div>
+                <div style="grid-column:span 2;">
+                  <label style="display:block;font-size:12px;font-weight:700;color:#374151;margin-bottom:6px;">메모 / 설명</label>
+                  <textarea id="cm_description" rows="3" placeholder="센터에 대한 간단한 설명을 입력해주세요"
+                    style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;color:#0f172a;background:#f8fafc;outline:none;box-sizing:border-box;resize:vertical;transition:border-color .2s,box-shadow .2s;"
+                    onfocus="this.style.borderColor='#6366f1';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)';this.style.background='#fff'"
+                    onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#f8fafc'"></textarea>
+                </div>
+              </div>
             </div>
           </div>
-          <div style="display:flex;gap:10px;margin-top:18px;">
-            <button class="btn btn-primary" id="saveCenterBtn">저장</button>
-            <button class="btn btn-gray" onclick="closeCenterModal()">취소</button>
+
+          <!-- 모달 푸터 -->
+          <div style="padding:20px 32px;border-top:1px solid #f1f5f9;display:flex;gap:10px;justify-content:flex-end;background:#fafbff;border-radius:0 0 24px 24px;flex-shrink:0;">
+            <button onclick="closeCenterModal()"
+              style="padding:11px 24px;background:#f1f5f9;border:none;border-radius:10px;font-size:14px;font-weight:700;color:#64748b;cursor:pointer;transition:all .2s;"
+              onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+              취소
+            </button>
+            <button id="saveCenterBtn"
+              style="padding:11px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:10px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:7px;box-shadow:0 4px 14px rgba(99,102,241,.35);"
+              onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
+              <span id="saveCenterBtnIcon">💾</span>
+              <span id="saveCenterBtnText">저장하기</span>
+            </button>
           </div>
         </div>
       </div>
@@ -6790,18 +6853,23 @@ async function loadCenters() {
 
 function openAddCenter() {
     editingCenterId = null;
-    document.getElementById('centerModalTitle').textContent = '➕ 센터 추가';
+    document.getElementById('centerModalTitle').textContent = '센터 추가';
+    document.getElementById('saveCenterBtnText').textContent = '저장하기';
+    document.getElementById('saveCenterBtnIcon').textContent = '💾';
     ['cm_name','cm_region','cm_managerName','cm_managerEmail','cm_managerPhone','cm_address','cm_description']
         .forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('centerModalAlert').innerHTML = '';
     document.getElementById('centerModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('cm_name').focus(), 100);
 }
 
 async function editCenter(id) {
     const center = allCentersCache.find(c => c.id === id);
     if (!center) return;
     editingCenterId = id;
-    document.getElementById('centerModalTitle').textContent = '✏️ 센터 수정';
+    document.getElementById('centerModalTitle').textContent = '센터 수정';
+    document.getElementById('saveCenterBtnText').textContent = '수정 저장';
+    document.getElementById('saveCenterBtnIcon').textContent = '✏️';
     document.getElementById('cm_name').value = center.name || '';
     document.getElementById('cm_region').value = center.region || '';
     document.getElementById('cm_managerName').value = center.managerName || '';
@@ -6854,38 +6922,57 @@ function closeCenterMembersModal() {
     document.getElementById('centerMembersModal').style.display = 'none';
 }
 
-// 센터 저장 버튼
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('saveCenterBtn')?.addEventListener('click', async () => {
+// 센터 저장 버튼 — DOMContentLoaded 제거, 직접 바인딩
+function bindCenterSaveBtn() {
+    const btn = document.getElementById('saveCenterBtn');
+    if (!btn || btn._centerBound) return;
+    btn._centerBound = true;
+    btn.addEventListener('click', async () => {
         const name = document.getElementById('cm_name').value.trim();
+        const alertEl = document.getElementById('centerModalAlert');
         if (!name) {
-            document.getElementById('centerModalAlert').innerHTML = '<div class="inline-alert error">센터명을 입력해주세요.</div>';
+            alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:12px;">⚠️ 센터명을 입력해주세요.</div>';
+            document.getElementById('cm_name').focus();
             return;
         }
-        const btn = document.getElementById('saveCenterBtn');
-        btn.disabled = true; btn.textContent = '저장 중...';
+        alertEl.innerHTML = '';
+        const btnEl = document.getElementById('saveCenterBtn');
+        const btnText = document.getElementById('saveCenterBtnText');
+        const btnIcon = document.getElementById('saveCenterBtnIcon');
+        btnEl.disabled = true;
+        btnText.textContent = '저장 중...';
+        btnIcon.textContent = '⏳';
         const data = {
             name,
-            region: document.getElementById('cm_region').value.trim(),
-            managerName: document.getElementById('cm_managerName').value.trim(),
+            region:       document.getElementById('cm_region').value.trim(),
+            managerName:  document.getElementById('cm_managerName').value.trim(),
             managerEmail: document.getElementById('cm_managerEmail').value.trim(),
             managerPhone: document.getElementById('cm_managerPhone').value.trim(),
-            address: document.getElementById('cm_address').value.trim(),
-            description: document.getElementById('cm_description').value.trim()
+            address:      document.getElementById('cm_address').value.trim(),
+            description:  document.getElementById('cm_description').value.trim(),
+            isActive: true
         };
         let result;
-        if (editingCenterId) result = await api.updateCenter(currentAdmin.uid, editingCenterId, data);
-        else result = await api.createCenter(currentAdmin.uid, data);
-        btn.disabled = false; btn.textContent = '저장';
+        try {
+            if (editingCenterId) result = await api.updateCenter(currentAdmin.uid, editingCenterId, data);
+            else result = await api.createCenter(currentAdmin.uid, data);
+        } catch(e) {
+            result = { success: false, error: e.message };
+        }
+        btnEl.disabled = false;
+        btnText.textContent = editingCenterId ? '수정 저장' : '저장하기';
+        btnIcon.textContent = editingCenterId ? '✏️' : '💾';
         if (result.success) {
             closeCenterModal();
             showToast(`✅ 센터가 ${editingCenterId ? '수정' : '추가'}되었습니다.`);
             loadCenters();
         } else {
-            document.getElementById('centerModalAlert').innerHTML = `<div class="inline-alert error">❌ ${result.error}</div>`;
+            alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:12px;">❌ ${result.error || '저장에 실패했습니다.'}</div>`;
         }
     });
-});
+}
+// 페이지 로드 시 바인딩
+bindCenterSaveBtn();
 
 // ══════════════════════════════════════════════════
 // ══════════════════════════════════════════════════
