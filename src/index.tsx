@@ -484,11 +484,11 @@ const HTML = () => `<!DOCTYPE html>
               <div class="game-name" data-i18n="gameSlot">슬롯머신</div>
               <div class="game-desc" data-i18n="gameSlotDesc">잭팟 최대 50배</div>
             </div>
-            <div class="game-card coming-soon">
-              <div class="game-badge badge-soon" data-i18n="gameSoon">준비중</div>
-              <div class="game-thumb baccarat">🃏</div>
+            <div class="game-card" onclick="startGame('baccarat')">
+              <div class="game-badge badge-hot">HOT</div>
+              <div class="game-thumb baccarat" style="font-size:32px;">🃏</div>
               <div class="game-name" data-i18n="gameBaccarat">바카라</div>
-              <div class="game-desc" data-i18n="gameBaccaratDesc">라이브 카지노</div>
+              <div class="game-desc" data-i18n="gameBaccaratDesc">뱅커/플레이어 베팅</div>
             </div>
             <div class="game-card" onclick="startGame('roulette')">
               <div class="game-badge badge-new">NEW</div>
@@ -496,9 +496,9 @@ const HTML = () => `<!DOCTYPE html>
               <div class="game-name" data-i18n="gameRoulette">룰렛</div>
               <div class="game-desc" data-i18n="gameRouletteDesc">숫자/색상 베팅</div>
             </div>
-            <div class="game-card coming-soon">
-              <div class="game-badge badge-soon" data-i18n="gameSoon">준비중</div>
-              <div class="game-thumb poker">🂡</div>
+            <div class="game-card" onclick="startGame('poker')">
+              <div class="game-badge badge-new">NEW</div>
+              <div class="game-thumb poker" style="font-size:32px;">🂡</div>
               <div class="game-name" data-i18n="gamePoker">포커</div>
               <div class="game-desc" data-i18n="gamePokerDesc">텍사스 홀덤</div>
             </div>
@@ -710,6 +710,111 @@ const HTML = () => `<!DOCTYPE html>
               <div id="rouletteResult" class="game-result hidden"></div>
             </div>
           </div>
+          <!-- ======== 바카라 게임 ======== -->
+          <div id="gameBaccarat" class="game-area hidden">
+            <div class="game-area-header">
+              <span class="game-area-title">🃏 바카라</span>
+              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="game-body">
+              <!-- 베팅 금액 -->
+              <div class="bet-info-row">
+                <span class="bet-info-label">💰 베팅 금액</span>
+                <span class="bet-info-value"><span id="bacCurrentBet">10</span> DDRA <span id="bacBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
+              </div>
+              <div class="bet-quick-row">
+                <button class="bet-quick-btn" onclick="setBetAmount('bac', 10)">10</button>
+                <button class="bet-quick-btn" onclick="setBetAmount('bac', 50)">50</button>
+                <button class="bet-quick-btn" onclick="setBetAmount('bac', 100)">100</button>
+                <button class="bet-quick-btn" onclick="setBetGameHalf('bac')">½</button>
+              </div>
+              <!-- 바카라 테이블 -->
+              <div class="bac-table">
+                <div class="bac-side" id="bacPlayerSide">
+                  <div class="bac-side-label">👤 플레이어</div>
+                  <div class="bac-cards" id="bacPlayerCards"></div>
+                  <div class="bac-score" id="bacPlayerScore">-</div>
+                  <div class="bac-odds">× 2배</div>
+                </div>
+                <div class="bac-tie-col">
+                  <div class="bac-tie-label">🤝 타이</div>
+                  <div class="bac-odds" style="color:#fbbf24;">× 8배</div>
+                </div>
+                <div class="bac-side" id="bacBankerSide">
+                  <div class="bac-side-label">🏦 뱅커</div>
+                  <div class="bac-cards" id="bacBankerCards"></div>
+                  <div class="bac-score" id="bacBankerScore">-</div>
+                  <div class="bac-odds">× 1.95배</div>
+                </div>
+              </div>
+              <!-- 베팅 선택 버튼 -->
+              <div class="bac-bet-row">
+                <button class="bac-bet-btn player" id="bacBtnPlayer" onclick="playBaccarat('player')">👤 플레이어 베팅</button>
+                <button class="bac-bet-btn tie" id="bacBtnTie" onclick="playBaccarat('tie')">🤝 타이 베팅</button>
+                <button class="bac-bet-btn banker" id="bacBtnBanker" onclick="playBaccarat('banker')">🏦 뱅커 베팅</button>
+              </div>
+              <div id="bacResult" class="game-result hidden"></div>
+            </div>
+          </div>
+
+          <!-- ======== 포커 게임 (텍사스 홀덤) ======== -->
+          <div id="gamePoker" class="game-area hidden">
+            <div class="game-area-header">
+              <span class="game-area-title">🂡 텍사스 홀덤 포커</span>
+              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="game-body">
+              <!-- 베팅 금액 -->
+              <div class="bet-info-row">
+                <span class="bet-info-label">💰 베팅 금액 (앤티)</span>
+                <span class="bet-info-value"><span id="pkCurrentBet">10</span> DDRA <span id="pkBetUsdt" style="font-size:11px;color:#94a3b8;">≈$5.00</span></span>
+              </div>
+              <div class="bet-quick-row">
+                <button class="bet-quick-btn" onclick="setBetAmount('pk', 10)">10</button>
+                <button class="bet-quick-btn" onclick="setBetAmount('pk', 50)">50</button>
+                <button class="bet-quick-btn" onclick="setBetAmount('pk', 100)">100</button>
+                <button class="bet-quick-btn" onclick="setBetGameHalf('pk')">½</button>
+              </div>
+              <!-- 커뮤니티 카드 -->
+              <div class="poker-community">
+                <div class="poker-label">🎴 커뮤니티 카드 (보드)</div>
+                <div class="poker-cards" id="pkCommunityCards"></div>
+              </div>
+              <!-- 핸드 카드 -->
+              <div class="poker-hands">
+                <div class="poker-hand-col">
+                  <div class="poker-label">🤖 딜러</div>
+                  <div class="poker-cards" id="pkDealerCards"></div>
+                  <div class="poker-hand-name" id="pkDealerHand">-</div>
+                </div>
+                <div class="poker-hand-col">
+                  <div class="poker-label">👤 나 (플레이어)</div>
+                  <div class="poker-cards" id="pkPlayerCards"></div>
+                  <div class="poker-hand-name" id="pkPlayerHand">-</div>
+                </div>
+              </div>
+              <!-- 페이테이블 -->
+              <div class="poker-paytable">
+                <div class="paytable-title">🏆 페이 테이블</div>
+                <div class="paytable-grid">
+                  <span>로열 플러시</span><span>× 100</span>
+                  <span>스트레이트 플러시</span><span>× 50</span>
+                  <span>포카드</span><span>× 25</span>
+                  <span>풀 하우스</span><span>× 9</span>
+                  <span>플러시</span><span>× 6</span>
+                  <span>스트레이트</span><span>× 4</span>
+                  <span>쓰리 카드</span><span>× 3</span>
+                  <span>투 페어</span><span>× 2</span>
+                  <span>원 페어</span><span>× 1.5</span>
+                  <span>하이카드</span><span>패배</span>
+                </div>
+              </div>
+              <!-- 딜 버튼 -->
+              <button class="btn-deal" id="pkDealBtn" onclick="dealPoker()">🂡 딜 (카드 받기)</button>
+              <div id="pkResult" class="game-result hidden"></div>
+            </div>
+          </div>
+
           <div class="section-header mt-16">
             <span class="section-title" data-i18n="recentGameLog">📋 최근 게임 기록</span>
           </div>

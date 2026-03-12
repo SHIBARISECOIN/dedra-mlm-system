@@ -941,6 +941,8 @@ let oeBetVal = 10;
 let diceBetVal = 10;
 let slotBetVal = 10;
 let rlBetVal   = 10;   // 룰렛 베팅
+let bacBetVal  = 10;   // 바카라 베팅
+let pkBetVal   = 10;   // 포커 베팅
 let rlSelectedBet = null; // 룰렛 선택 베팅 유형
 let deedraPrice = 0.50; // DEEDRA 시세 (관리자 설정값)
 let currentTheme = 'dark';
@@ -2401,7 +2403,7 @@ window.startGame = function(type) {
     return;
   }
   closeAllGames();
-  const gameMap = { oddeven: 'gameOddEven', dice: 'gameDice', slot: 'gameSlot', roulette: 'gameRoulette' };
+  const gameMap = { oddeven: 'gameOddEven', dice: 'gameDice', slot: 'gameSlot', roulette: 'gameRoulette', baccarat: 'gameBaccarat', poker: 'gamePoker' };
   const el = document.getElementById(gameMap[type]);
   if (el) el.classList.remove('hidden');
 
@@ -2409,6 +2411,14 @@ window.startGame = function(type) {
   const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
   const slider = document.getElementById(type === 'oddeven' ? 'oeBetSlider' : type === 'dice' ? 'diceBetSlider' : 'slotBetSlider');
   if (slider) slider.max = maxDdra;
+
+  // 게임별 초기화
+  if (type === 'baccarat') {
+    initBaccarat();
+  }
+  if (type === 'poker') {
+    initPoker();
+  }
 
   // 게임별 초기화
   if (type === 'dice') {
@@ -2424,7 +2434,7 @@ window.startGame = function(type) {
 };
 
 function closeAllGames() {
-  ['gameOddEven', 'gameDice', 'gameSlot', 'gameRoulette'].forEach(id => {
+  ['gameOddEven', 'gameDice', 'gameSlot', 'gameRoulette', 'gameBaccarat', 'gamePoker'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -2459,6 +2469,14 @@ window.updateBetDisplay = function(type, val) {
     rlBetVal = val;
     const el = document.getElementById('rlCurrentBet'); if (el) el.textContent = val;
     const eu = document.getElementById('rlBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'bac') {
+    bacBetVal = val;
+    const el = document.getElementById('bacCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('bacBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'pk') {
+    pkBetVal = val;
+    const el = document.getElementById('pkCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('pkBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
   }
 };
 
@@ -2923,6 +2941,388 @@ function logGame(gameName, win, bet) {
     </div>`;
   listEl.insertBefore(item, listEl.firstChild);
 }
+
+function logGame(gameName, win, bet) {
+  const listEl = document.getElementById('gameLogList');
+  if (!listEl) return;
+
+  const emptyEl = listEl.querySelector('.empty-state');
+  if (emptyEl) emptyEl.remove();
+
+  const item = document.createElement('div');
+  item.className = 'tx-item';
+  item.innerHTML = `
+    <div class="tx-icon game">${win ? '🎉' : '😢'}</div>
+    <div class="tx-info">
+      <div class="tx-title">${gameName} ${win ? '승리' : '패배'}</div>
+      <div class="tx-date">${new Date().toLocaleTimeString('ko-KR')}</div>
+    </div>
+    <div class="tx-amount ${win ? 'plus' : 'minus'}">
+      ${win ? '+' : '-'}${fmt(bet)} DDRA
+    </div>`;
+  listEl.insertBefore(item, listEl.firstChild);
+}
+
+// ============================================================
+// ===== 카드 덱 유틸리티 (바카라/포커 공용) =====
+// ============================================================
+const CARD_SUITS  = ['♠', '♥', '♦', '♣'];
+const CARD_RANKS  = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const CARD_IS_RED = new Set(['♥','♦']);
+
+function makeDeck() {
+  const deck = [];
+  for (const s of CARD_SUITS)
+    for (const r of CARD_RANKS)
+      deck.push({ suit: s, rank: r });
+  return deck;
+}
+function shuffleDeck(deck) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+function cardHTML(card, delay = 0) {
+  if (!card) return '<div class="play-card face-down"></div>';
+  const isRed = CARD_IS_RED.has(card.suit);
+  const colorCls = isRed ? 'red' : 'black';
+  return `<div class="play-card ${colorCls} card-flip-in" style="animation-delay:${delay}s">
+    <span class="card-rank">${card.rank}</span>
+    <span class="card-suit">${card.suit}</span>
+    <span class="card-rank-bot">${card.rank}</span>
+  </div>`;
+}
+
+// ============================================================
+// ===== 바카라 =====
+// ============================================================
+let bacDeck = [];
+let bacBtnsLocked = false;
+
+function bacCardValue(card) {
+  if (['J','Q','K'].includes(card.rank)) return 0;
+  if (card.rank === 'A') return 1;
+  return Math.min(parseInt(card.rank), 9);
+}
+function bacHandScore(cards) {
+  return cards.reduce((s, c) => s + bacCardValue(c), 0) % 10;
+}
+function bacNaturalCheck(score) { return score >= 8; }
+
+function initBaccarat() {
+  bacDeck = shuffleDeck(makeDeck().concat(makeDeck(), makeDeck(), makeDeck(), makeDeck(), makeDeck())); // 6덱
+  bacBtnsLocked = false;
+  ['bacPlayerCards','bacBankerCards'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = '';
+  });
+  ['bacPlayerScore','bacBankerScore'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '-';
+  });
+  const res = document.getElementById('bacResult');
+  if (res) { res.className = 'game-result hidden'; res.innerHTML = ''; }
+  document.querySelectorAll('.bac-bet-btn').forEach(b => b.disabled = false);
+}
+
+window.playBaccarat = async function(betSide) {
+  if (bacBtnsLocked) return;
+  if (gameBalanceVal < bacBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+
+  bacBtnsLocked = true;
+  document.querySelectorAll('.bac-bet-btn').forEach(b => b.disabled = true);
+
+  // 카드 딜링
+  const pCards = [bacDeck.pop(), bacDeck.pop()];
+  const bCards = [bacDeck.pop(), bacDeck.pop()];
+  let pScore = bacHandScore(pCards);
+  let bScore = bacHandScore(bCards);
+
+  // 렌더링 (딜레이 애니)
+  const pcEl = document.getElementById('bacPlayerCards');
+  const bcEl = document.getElementById('bacBankerCards');
+  if (pcEl) pcEl.innerHTML = cardHTML(pCards[0], 0) + cardHTML(pCards[1], 0.15);
+  if (bcEl) bcEl.innerHTML = cardHTML(bCards[0], 0.3) + cardHTML(bCards[1], 0.45);
+
+  const psEl = document.getElementById('bacPlayerScore');
+  const bsEl = document.getElementById('bacBankerScore');
+  if (psEl) psEl.textContent = pScore;
+  if (bsEl) bsEl.textContent = bScore;
+
+  await new Promise(r => setTimeout(r, 600));
+
+  // 3번째 카드 규칙 (미니 바카라 표준)
+  let p3, b3;
+  if (!bacNaturalCheck(pScore) && !bacNaturalCheck(bScore)) {
+    // 플레이어: 합 0-5이면 한 장 더
+    if (pScore <= 5) {
+      p3 = bacDeck.pop();
+      pCards.push(p3);
+      pScore = bacHandScore(pCards);
+      if (pcEl) pcEl.innerHTML += cardHTML(p3, 0);
+      if (psEl) psEl.textContent = pScore;
+      await new Promise(r => setTimeout(r, 350));
+    }
+    // 뱅커 규칙
+    let bankerDraw = false;
+    if (p3 === undefined) {
+      bankerDraw = bScore <= 5;
+    } else {
+      const p3v = bacCardValue(p3);
+      if (bScore <= 2) bankerDraw = true;
+      else if (bScore === 3 && p3v !== 8) bankerDraw = true;
+      else if (bScore === 4 && p3v >= 2 && p3v <= 7) bankerDraw = true;
+      else if (bScore === 5 && p3v >= 4 && p3v <= 7) bankerDraw = true;
+      else if (bScore === 6 && p3v >= 6 && p3v <= 7) bankerDraw = true;
+    }
+    if (bankerDraw) {
+      b3 = bacDeck.pop();
+      bCards.push(b3);
+      bScore = bacHandScore(bCards);
+      if (bcEl) bcEl.innerHTML += cardHTML(b3, 0);
+      if (bsEl) bsEl.textContent = bScore;
+      await new Promise(r => setTimeout(r, 350));
+    }
+  }
+
+  // 승패 판정
+  let outcome = pScore > bScore ? 'player' : bScore > pScore ? 'banker' : 'tie';
+
+  // 배당 계산
+  let win = false, multiplier = 0, resultMsg = '';
+  if (betSide === 'player' && outcome === 'player') {
+    win = true; multiplier = 2;
+    resultMsg = `🎉 <strong>플레이어 승리!</strong> +${bacBetVal} DDRA`;
+  } else if (betSide === 'banker' && outcome === 'banker') {
+    win = true; multiplier = 1.95;
+    resultMsg = `🎉 <strong>뱅커 승리!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5% 수수료)`;
+  } else if (betSide === 'tie' && outcome === 'tie') {
+    win = true; multiplier = 8;
+    resultMsg = `🎉 <strong>타이!</strong> +${bacBetVal * 8} DDRA`;
+  } else if (outcome === 'tie') {
+    win = false; multiplier = 0;
+    resultMsg = `🤝 <strong>타이 - 푸쉬</strong> (베팅 반환)`;
+    // 타이일 때 플레이어/뱅커 베팅은 환불
+    win = true; multiplier = 1; // 원금 반환
+  } else {
+    resultMsg = outcome === 'player' ? `😢 <strong>플레이어 승, 뱅커 베팅 패배</strong> -${bacBetVal} DDRA`
+                                     : `😢 <strong>뱅커 승, 플레이어 베팅 패배</strong> -${bacBetVal} DDRA`;
+  }
+
+  // 잔액 변경 (원금 반환은 변화 없음)
+  const earned = win ? Math.floor(bacBetVal * multiplier) : 0;
+  const ddraChange = win ? (earned - (multiplier === 1 ? 0 : bacBetVal)) : -bacBetVal;
+  const usdtChange = _ddraToUsdt(ddraChange);
+  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+  updateGameUI();
+  updateHomeUI();
+
+  // 승리 파티클
+  if (win && multiplier >= 4) spawnJackpotParticles();
+
+  // 결과 표시
+  const resEl = document.getElementById('bacResult');
+  if (resEl) {
+    resEl.className = 'game-result ' + (ddraChange >= 0 ? 'win' : 'lose');
+    resEl.innerHTML = `${resultMsg}<br><span style="font-size:12px;color:#94a3b8">플레이어 ${pScore} · 뱅커 ${bScore}</span>`;
+    resEl.classList.remove('hidden');
+  }
+
+  logGame('바카라', ddraChange >= 0, Math.abs(ddraChange));
+
+  // 버튼 재활성
+  setTimeout(() => {
+    bacBtnsLocked = false;
+    document.querySelectorAll('.bac-bet-btn').forEach(b => b.disabled = false);
+    if (bacDeck.length < 20) bacDeck = shuffleDeck(makeDeck().concat(makeDeck(), makeDeck(), makeDeck(), makeDeck(), makeDeck()));
+  }, 1500);
+};
+
+// ============================================================
+// ===== 텍사스 홀덤 포커 =====
+// ============================================================
+let pkDeck = [];
+let pkDealing = false;
+
+// 카드 숫자값 (포커용)
+function pkCardValue(card) {
+  if (card.rank === 'A') return 14;
+  if (card.rank === 'K') return 13;
+  if (card.rank === 'Q') return 12;
+  if (card.rank === 'J') return 11;
+  return parseInt(card.rank);
+}
+
+// 핸드 평가 (7장 중 최강 5장)
+function evaluatePokerHand(cards) {
+  // 숫자값 + 수트 분류
+  const vals = cards.map(pkCardValue).sort((a,b) => b-a);
+  const suits = cards.map(c => c.suit);
+  const suitCounts = {};
+  suits.forEach(s => suitCounts[s] = (suitCounts[s]||0)+1);
+  const flushSuit = Object.entries(suitCounts).find(([,v])=>v>=5)?.[0];
+
+  // 숫자 카운트
+  const valCounts = {};
+  vals.forEach(v => valCounts[v] = (valCounts[v]||0)+1);
+  const counts = Object.values(valCounts).sort((a,b)=>b-a);
+  const uniqueVals = [...new Set(vals)].sort((a,b)=>b-a);
+
+  // 플러시 카드 추출
+  const flushCards = flushSuit ? cards.filter(c=>c.suit===flushSuit).map(pkCardValue).sort((a,b)=>b-a) : [];
+
+  // 스트레이트 체크 (Ace 로우 포함)
+  function isStraight(sortedVals) {
+    const u = [...new Set(sortedVals)];
+    // A-2-3-4-5 (휠)
+    if (u.includes(14) && u.includes(2) && u.includes(3) && u.includes(4) && u.includes(5)) return 5;
+    for (let i=0; i<=u.length-5; i++) {
+      if (u[i]-u[i+4]===4 && new Set(u.slice(i,i+5)).size===5) return u[i];
+    }
+    return 0;
+  }
+
+  const straight = isStraight(vals);
+  const straightFlush = flushSuit ? isStraight(flushCards) : 0;
+  const royalFlush = straightFlush === 14;
+
+  if (royalFlush)    return { rank: 9, name: '🏆 로열 플러시', multiplier: 100 };
+  if (straightFlush) return { rank: 8, name: '💎 스트레이트 플러시', multiplier: 50 };
+  if (counts[0]===4) return { rank: 7, name: '🎴 포카드', multiplier: 25 };
+  if (counts[0]===3 && counts[1]===2) return { rank: 6, name: '🏠 풀 하우스', multiplier: 9 };
+  if (flushSuit)     return { rank: 5, name: '🌊 플러시', multiplier: 6 };
+  if (straight)      return { rank: 4, name: '📈 스트레이트', multiplier: 4 };
+  if (counts[0]===3) return { rank: 3, name: '🎲 쓰리 카드', multiplier: 3 };
+  if (counts[0]===2 && counts[1]===2) return { rank: 2, name: '✌️ 투 페어', multiplier: 2 };
+  if (counts[0]===2) {
+    // 원 페어: J이상이면 1.5배, 아니면 패배
+    const pairVal = parseInt(Object.entries(valCounts).find(([,v])=>v===2)?.[0]);
+    if (pairVal >= 11) return { rank: 1, name: `🃏 원 페어 (${pairVal===11?'J':pairVal===12?'Q':pairVal===13?'K':'A'}+)`, multiplier: 1.5 };
+  }
+  // 하이카드
+  const highCardName = uniqueVals[0]===14?'A':uniqueVals[0]===13?'K':uniqueVals[0]===12?'Q':uniqueVals[0]===11?'J':String(uniqueVals[0]);
+  return { rank: 0, name: `❌ 하이카드 (${highCardName})`, multiplier: 0 };
+}
+
+function initPoker() {
+  pkDeck = shuffleDeck(makeDeck());
+  pkDealing = false;
+  ['pkCommunityCards','pkDealerCards','pkPlayerCards'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = '';
+  });
+  ['pkDealerHand','pkPlayerHand'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '-';
+  });
+  const res = document.getElementById('pkResult');
+  if (res) { res.className = 'game-result hidden'; res.innerHTML = ''; }
+  const btn = document.getElementById('pkDealBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '🃏 딜 (카드 받기)'; }
+}
+
+window.dealPoker = async function() {
+  if (pkDealing) return;
+  if (gameBalanceVal < pkBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+
+  pkDealing = true;
+  const btn = document.getElementById('pkDealBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '🃏 딜링...'; }
+
+  if (pkDeck.length < 20) pkDeck = shuffleDeck(makeDeck());
+
+  // 카드 배분 (딜러2 + 플레이어2 + 커뮤니티5)
+  const playerHand = [pkDeck.pop(), pkDeck.pop()];
+  const dealerHand = [pkDeck.pop(), pkDeck.pop()];
+  const community  = [pkDeck.pop(), pkDeck.pop(), pkDeck.pop(), pkDeck.pop(), pkDeck.pop()];
+
+  // 딜러 핸드 - 처음엔 뒤집어서 표시
+  const dcEl = document.getElementById('pkDealerCards');
+  if (dcEl) dcEl.innerHTML = '<div class="play-card face-down"></div><div class="play-card face-down"></div>';
+
+  // 플레이어 카드 표시
+  const pcEl = document.getElementById('pkPlayerCards');
+  if (pcEl) pcEl.innerHTML = cardHTML(playerHand[0], 0) + cardHTML(playerHand[1], 0.15);
+
+  await new Promise(r => setTimeout(r, 500));
+
+  // 커뮤니티 카드 순차 공개 (플롭→턴→리버)
+  const ccEl = document.getElementById('pkCommunityCards');
+  if (ccEl) {
+    ccEl.innerHTML = '';
+    for (let i = 0; i < 5; i++) {
+      await new Promise(r => setTimeout(r, i < 3 ? 200 : 400));
+      ccEl.innerHTML += cardHTML(community[i], 0);
+    }
+  }
+
+  await new Promise(r => setTimeout(r, 400));
+
+  // 딜러 카드 공개
+  if (dcEl) dcEl.innerHTML = cardHTML(dealerHand[0], 0) + cardHTML(dealerHand[1], 0.15);
+
+  await new Promise(r => setTimeout(r, 400));
+
+  // 핸드 평가 (플레이어: 2 + 커뮤니티5 = 7장 중 최강)
+  const playerResult = evaluatePokerHand([...playerHand, ...community]);
+  const dealerResult = evaluatePokerHand([...dealerHand, ...community]);
+
+  const phEl = document.getElementById('pkPlayerHand');
+  const dhEl = document.getElementById('pkDealerHand');
+  if (phEl) phEl.textContent = playerResult.name;
+  if (dhEl) dhEl.textContent = dealerResult.name;
+
+  // 승패: 플레이어 핸드 랭크 vs 딜러 핸드 랭크
+  // 딜러는 원 페어 미만이면 퀄리파이 실패 → 앤티만 돌려받음
+  let win = false, ddraChange = 0, resultMsg = '';
+  const dealerQualified = dealerResult.rank >= 1; // 원 페어 이상
+
+  if (!dealerQualified) {
+    // 딜러 퀄리파이 실패: 앤티 반환 (원금 유지)
+    ddraChange = 0;
+    resultMsg = `🤝 <strong>딜러 퀄리파이 실패!</strong> 앤티 반환<br><span style="font-size:11px;color:#94a3b8">딜러: ${dealerResult.name}</span>`;
+    win = true;
+  } else if (playerResult.multiplier === 0) {
+    // 하이카드 패배
+    ddraChange = -pkBetVal;
+    resultMsg = `😢 <strong>패배</strong> -${pkBetVal} DDRA<br><span style="font-size:11px;color:#94a3b8">내 패: ${playerResult.name}</span>`;
+  } else if (playerResult.rank > dealerResult.rank) {
+    // 플레이어 승 → 배당 지급
+    const earned = Math.floor(pkBetVal * playerResult.multiplier);
+    ddraChange = earned - pkBetVal; // 순이익
+    win = true;
+    resultMsg = `🎉 <strong>${playerResult.name}!</strong> +${ddraChange} DDRA (×${playerResult.multiplier})<br><span style="font-size:11px;color:#94a3b8">딜러: ${dealerResult.name}</span>`;
+  } else if (playerResult.rank < dealerResult.rank) {
+    // 딜러 승
+    ddraChange = -pkBetVal;
+    resultMsg = `😢 <strong>딜러 승</strong> -${pkBetVal} DDRA<br><span style="font-size:11px;color:#94a3b8">딜러: ${dealerResult.name} · 나: ${playerResult.name}</span>`;
+  } else {
+    // 동점: 원금 반환
+    ddraChange = 0;
+    resultMsg = `🤝 <strong>동점 - 타이!</strong> 베팅 반환<br><span style="font-size:11px;color:#94a3b8">${playerResult.name}</span>`;
+    win = true;
+  }
+
+  // 잔액 업데이트
+  const usdtChange = _ddraToUsdt(ddraChange);
+  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+  updateGameUI();
+  updateHomeUI();
+
+  if (win && playerResult.rank >= 7) spawnJackpotParticles();
+
+  const resEl = document.getElementById('pkResult');
+  if (resEl) {
+    resEl.className = 'game-result ' + (ddraChange >= 0 ? 'win' : 'lose');
+    resEl.innerHTML = resultMsg;
+    resEl.classList.remove('hidden');
+  }
+
+  logGame('포커', ddraChange >= 0, Math.abs(ddraChange));
+
+  setTimeout(() => {
+    pkDealing = false;
+    if (btn) { btn.disabled = false; btn.textContent = '🃏 다시 딜!'; }
+  }, 1000);
+};
 
 // ===== 마이페이지 (More 탭 내) =====
 window.showProfileEdit = function() {
