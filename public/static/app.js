@@ -4574,13 +4574,13 @@ async function _loadNepTab(tab) {
 /** 💳 거래내역 탭 */
 async function _loadNepTxTab(contentEl) {
   contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
-  const { collection, query, where, getDocs, orderBy, limit, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
 
   try {
+    // 단일 where만 사용 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'transactions'),
-      where('userId', '==', currentUser.uid),
-      limit(50)
+      where('userId', '==', currentUser.uid)
     );
     const snap = await getDocs(q);
     const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -4661,30 +4661,27 @@ async function _loadNepGenTab(contentEl, gen) {
     for (let i = 0; i < memberIds.length; i += 10) chunks.push(memberIds.slice(i, i + 10));
 
     for (const chunk of chunks) {
-      // 오늘 내가 받은 보너스: fromUserId in chunk (단일 where) → JS로 userId·날짜 필터
-      const bq = query(
-        collection(db, 'bonuses'),
-        where('fromUserId', 'in', chunk)
-      );
-      const bs = await getDocs(bq);
-      bs.docs.forEach(d => {
-        const data = d.data();
-        if (data.userId !== currentUser.uid) return;       // 내 보너스만
-        if (data.settlementDate !== today) return;          // 오늘 것만
-        const uid = data.fromUserId;
-        todayMap[uid] = (todayMap[uid] || 0) + (data.amount || 0);
-      });
+      // 매출: userId in chunk (단일 where) → JS 필터
+      if (chunk.length > 0) {
+        const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
+        const txs = await getDocs(txq);
+        txs.docs.forEach(d => {
+          const data = d.data();
+          if (data.type === 'deposit' && data.status === 'approved')
+            totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
+        });
+      }
+    }
 
-      // 해당 멤버들 입금 총액: userId in chunk 단일 where → JS로 type·status 필터
-      const txq = query(
-        collection(db, 'transactions'),
-        where('userId', 'in', chunk)
-      );
-      const txs = await getDocs(txq);
-      txs.docs.forEach(d => {
+    // 당일 내 보너스: userId == 나 단일 where → JS로 fromUserId·날짜 필터
+    if (memberIds.length > 0) {
+      const myBonusQ = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
+      const myBonusSnap = await getDocs(myBonusQ);
+      myBonusSnap.docs.forEach(d => {
         const data = d.data();
-        if (data.type !== 'deposit' || data.status !== 'approved') return;
-        totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
+        if (data.settlementDate !== today) return;
+        if (!data.fromUserId || !memberIds.includes(data.fromUserId)) return;
+        todayMap[data.fromUserId] = (todayMap[data.fromUserId] || 0) + (data.amount || 0);
       });
     }
 
@@ -4817,26 +4814,27 @@ async function _loadNepDeepTab(contentEl) {
       for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
       for (const chunk of chunks) {
         // 매출: userId in chunk 단일 where → JS 필터
-        const txq = query(collection(db, 'transactions'),
-          where('userId', 'in', chunk));
-        const txs = await getDocs(txq);
-        txs.docs.forEach(d => {
+        if (chunk.length > 0) {
+          const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
+          const txs = await getDocs(txq);
+          txs.docs.forEach(d => {
+            const data = d.data();
+            if (data.type === 'deposit' && data.status === 'approved')
+              genSales[g] += (data.amount || 0);
+          });
+        }
+      }
+      // 당일 내 보너스: userId == 나 단일 where → JS로 날짜·fromUserId 필터
+      if (ids.length > 0) {
+        const myBQ = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
+        const myBS = await getDocs(myBQ);
+        myBS.docs.forEach(d => {
           const data = d.data();
-          if (data.type === 'deposit' && data.status === 'approved')
-            genSales[g] += (data.amount || 0);
-        });
-
-        // 당일 내가 받은 보너스: fromUserId in chunk 단일 where → JS 필터
-        const bq = query(collection(db, 'bonuses'),
-          where('fromUserId', 'in', chunk));
-        const bs = await getDocs(bq);
-        bs.docs.forEach(d => {
-          const data = d.data();
-          if (data.userId === currentUser.uid && data.settlementDate === today)
+          if (data.settlementDate === today && ids.includes(data.fromUserId))
             genTodayEarn[g] += (data.amount || 0);
         });
       }
-    }
+    } // end for genGroups
 
     // 전체 합산
     const totalDeep = deepIds.length;
