@@ -4,7 +4,13 @@ import { cors } from 'hono/cors'
 
 const app = new Hono()
 
-// Static files
+// Static files - no-cache 헤더 추가
+app.use('/static/*', async (c, next) => {
+  await next()
+  c.res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+  c.res.headers.set('Pragma', 'no-cache')
+  c.res.headers.set('Expires', '0')
+})
 app.use('/static/*', serveStatic({ root: './' }))
 
 // ─── Firebase Auth 프록시 (sandbox 도메인 우회) ───────────────────────
@@ -1116,8 +1122,8 @@ const HTML = () => `<!DOCTYPE html>
 <div id="toast" class="toast"></div>
 
 <!-- Firebase SDK -->
-<script type="module" src="/static/firebase.js"></script>
-<script src="/static/app.js"></script>
+<script type="module" src="/static/firebase.js?v=${Date.now()}"></script>
+<script src="/static/app.js?v=${Date.now()}"></script>
 </body>
 </html>`
 

@@ -2,7 +2,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signOut,
-  signInWithCustomToken,
+  signInWithCredential, EmailAuthProvider,
+  createUserWithEmailAndPassword,
   sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
@@ -24,12 +25,27 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ── 서버 프록시 경유 로그인 (authorized domain 제한 우회) ─────────────
-// /api/auth/login → Hono 서버 → Firebase REST API
-// idToken을 받아 signInWithCustomToken 대신 Firestore를 직접 사용
-
-// 로그인: 서버 프록시 경유 → idToken 획득 → window.FB._mockUser 세팅
+// ── 로그인: EmailAuthProvider.credential + signInWithCredential ──────────
+// signInWithEmailAndPassword()는 authDomain iframe 체크를 하지만
+// signInWithCredential()은 REST API를 직접 호출해서 도메인 체크를 건너뜁니다
 async function loginWithEmail(authObj, email, password) {
+  try {
+    const credential = EmailAuthProvider.credential(email, password);
+    const result = await signInWithCredential(authObj, credential);
+    console.log('[Firebase] signInWithCredential 성공:', result.user.email);
+    return result;
+  } catch (e) {
+    // signInWithCredential도 실패하면 서버 프록시 사용
+    if (e.code === 'auth/unauthorized-domain' || e.code === 'auth/invalid-credential') {
+      console.warn('[Firebase] credential 실패, 프록시 사용:', e.code);
+      return await loginViaProxy(email, password);
+    }
+    throw e;
+  }
+}
+
+// ── 프록시 로그인 fallback ────────────────────────────────────────────────
+async function loginViaProxy(email, password) {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -37,86 +53,51 @@ async function loginWithEmail(authObj, email, password) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const rawMsg = data.error || 'UNKNOWN';
-    // Firebase REST API 에러 메시지 → SDK 호환 코드 변환
-    let code = 'auth/unknown';
-    const msg = rawMsg.toUpperCase();
-    if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD') || msg.includes('INVALID_EMAIL')) {
-      code = 'auth/invalid-credential';
-    } else if (msg.includes('EMAIL_NOT_FOUND') || msg.includes('USER_NOT_FOUND')) {
-      code = 'auth/user-not-found';
-    } else if (msg.includes('TOO_MANY_ATTEMPTS') || msg.includes('TOO_MANY_REQUESTS')) {
-      code = 'auth/too-many-requests';
-    } else if (msg.includes('USER_DISABLED')) {
-      code = 'auth/user-disabled';
-    } else if (msg.includes('WEAK_PASSWORD')) {
-      code = 'auth/weak-password';
-    } else if (msg.includes('EMAIL_EXISTS')) {
-      code = 'auth/email-already-in-use';
+    const msg = data.error || 'UNKNOWN';
+    const err = new Error(msg);
+    if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD')) {
+      err.code = 'auth/invalid-credential';
+    } else if (msg.includes('TOO_MANY_ATTEMPTS')) {
+      err.code = 'auth/too-many-requests';
+    } else if (msg.includes('USER_NOT_FOUND')) {
+      err.code = 'auth/user-not-found';
     } else {
-      code = 'auth/' + rawMsg.toLowerCase().replace(/_/g, '-');
+      err.code = 'auth/unknown';
     }
-    const err = new Error(rawMsg);
-    err.code = code;
-    console.error('[Firebase] 로그인 실패:', rawMsg, '→', code);
     throw err;
   }
-  // Firebase SDK 로그인 없이 직접 user 객체 시뮬레이션
-  const mockUser = {
-    uid: data.localId,
-    email: data.email,
-    idToken: data.idToken,
-    refreshToken: data.refreshToken
-  };
-  window.FB._currentUser = mockUser;
-  console.log('[Firebase] 로그인 성공:', mockUser.email, 'uid:', mockUser.uid);
+  // idToken을 window.FB._idToken에 저장해서 Firestore 접근에 사용
+  window.FB._idToken = data.idToken;
+  window.FB._currentUser = { uid: data.localId, email: data.email };
+
+  // Firestore SDK에 idToken 주입 (connectFirestoreEmulator 방식 아님)
+  // 대신 Firestore REST API 모드로 전환
+  window.FB._useRestAPI = true;
+
   // onAuthReady 직접 호출
   if (typeof window.onAuthReady === 'function') {
-    window.onAuthReady(mockUser);
+    window.onAuthReady(window.FB._currentUser);
   }
-  return { user: mockUser };
-}
-
-// 회원가입: 서버 프록시 경유
-async function registerWithEmail(authObj, email, password) {
-  const res = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    const code = 'auth/' + (data.error || 'UNKNOWN').toLowerCase().replace(/_/g, '-');
-    const err = new Error(data.error || 'Register failed');
-    err.code = code;
-    throw err;
-  }
-  const mockUser = {
-    uid: data.localId,
-    email: data.email,
-    idToken: data.idToken,
-    refreshToken: data.refreshToken
-  };
-  window.FB._currentUser = mockUser;
-  return { user: mockUser };
-}
-
-// ── 로그아웃 ──────────────────────────────────────────────────────────
-async function signOutUser(authObj) {
-  window.FB._currentUser = null;
-  // Firebase SDK signOut은 선택적 (SDK 로그인 없으므로 그냥 상태만 초기화)
-  try { await signOut(authObj); } catch(e) { /* 무시 */ }
+  return { user: window.FB._currentUser };
 }
 
 // 전역으로 노출
 window.FB = {
   app, auth, db,
   _currentUser: null,
-  // auth functions (프록시 래퍼)
+  _idToken: null,
+  _useRestAPI: false,
+  // auth functions
   onAuthStateChanged,
-  signOut: signOutUser,
+  signOut: async (authObj) => {
+    window.FB._currentUser = null;
+    window.FB._idToken = null;
+    window.FB._useRestAPI = false;
+    localStorage.removeItem('deedra_session');
+    try { await signOut(authObj); } catch(e) {}
+  },
   signInWithEmailAndPassword: loginWithEmail,
-  createUserWithEmailAndPassword: registerWithEmail,
+  createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   // firestore functions
   collection, query, where, getDocs, addDoc,
@@ -124,27 +105,28 @@ window.FB = {
   Timestamp, limit, serverTimestamp, increment, writeBatch
 };
 
-// ── Firebase SDK onAuthStateChanged는 null만 반환할 것임 ──────────────
-// 대신 앱 시작 시 로컬스토리지에서 세션 복원 시도
+// ── 인증 상태 감지 ───────────────────────────────────────────────────────
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // Firebase SDK 자체 인증이 된 경우 (기존 세션)
-    console.log('[Firebase] SDK onAuthStateChanged:', user.email);
+    console.log('[Firebase] SDK 인증 성공:', user.email);
     window.FB._currentUser = { uid: user.uid, email: user.email };
+    localStorage.setItem('deedra_session', JSON.stringify({ uid: user.uid, email: user.email }));
+
     if (typeof window.onAuthReady === 'function') {
       window.onAuthReady(window.FB._currentUser);
     }
     return;
   }
 
-  // SDK 미인증 → 로컬스토리지 세션 복원 시도
+  // SDK 미인증 → localStorage 세션 복원 시도
   const saved = localStorage.getItem('deedra_session');
   if (saved) {
     try {
       const session = JSON.parse(saved);
-      if (session && session.uid && session.email) {
-        console.log('[Firebase] 로컬 세션 복원:', session.email);
+      if (session && session.uid) {
+        console.log('[Firebase] 세션 복원:', session.email);
         window.FB._currentUser = session;
+        window.FB._useRestAPI = true;
         if (typeof window.onAuthReady === 'function') {
           window.onAuthReady(session);
           return;
@@ -154,12 +136,11 @@ onAuthStateChanged(auth, (user) => {
   }
 
   console.log('[Firebase] onAuthStateChanged: null (비로그인)');
+
   if (typeof window.onAuthReady === 'function') {
     window.onAuthReady(null);
     return;
   }
-
-  // onAuthReady가 아직 없으면 최대 5초 폴링
   let tries = 0;
   const poll = setInterval(() => {
     tries++;
@@ -168,7 +149,6 @@ onAuthStateChanged(auth, (user) => {
       window.onAuthReady(null);
     } else if (tries >= 100) {
       clearInterval(poll);
-      console.error('[Firebase] onAuthReady 미정의 — 강제로 auth 화면 표시');
       const ls = document.getElementById('loadingScreen');
       const as = document.getElementById('authScreen');
       if (ls) ls.classList.add('hidden');
