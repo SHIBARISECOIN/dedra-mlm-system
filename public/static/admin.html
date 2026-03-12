@@ -6401,23 +6401,8 @@ function cancelEditDedraRate() {}
 window.cancelEditDedraRate = cancelEditDedraRate;
 function initDedraRatePreview() {}
 
-
-    const r = await api.saveDedraRate(currentAdmin.uid, val);
-    btn.disabled = false; btn.textContent = '저장';
-    if (r.success) {
-        _cachedDedraRate = val;
-        _updateDedraRateDisplay(val);
-        cancelEditDedraRate();
-        if (alert) { alert.style.color='#10b981'; alert.textContent='✓ 저장됨'; setTimeout(()=>{alert.textContent='';},2000); }
-        await loadWithdrawals(currentWithdrawalStatus);
-    } else {
-        if (alert) { alert.style.color='#ef4444'; alert.textContent='저장 실패: '+r.error; }
-    }
-}
-window.saveDedraRate = saveDedraRate;
-
 /** 하위 호환 — 더 이상 사용 안 하지만 다른 코드에서 호출될 수 있어 유지 */
-function initDedraRatePreview() {}
+function initDedraRatePreview2() {}
 
 // ══════════════════════════════════════════════════
 // 시스템 설정
