@@ -8767,8 +8767,15 @@ window.savePlanRow = async function(id, type) {
     }
 };
 window.togglePlan = async function(id, isActive) {
-    const r = await api.updateProduct(currentAdmin.uid, id, { isActive: !isActive });
-    if (r.success) { showToast(isActive?'비활성화됨':'활성화됨'); loadProductPlans(); }
+    const newState = !isActive;
+    const r = await api.updateProduct(currentAdmin.uid, id, { isActive: newState });
+    if (r.success) {
+        showToast(newState ? '✅ 활성화됨' : '⏸ 비활성화됨', newState ? 'success' : 'info');
+        loadProductPlans();
+    } else {
+        showToast('❌ 변경 실패: ' + (r.error || '권한 오류'), 'error');
+        console.error('[togglePlan] 오류:', r.error);
+    }
 };
 window.deletePlan = async function(id, name) {
     if (!confirm(`"${name}" 항목을 삭제하시겠습니까?`)) return;

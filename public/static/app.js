@@ -1328,10 +1328,10 @@ async function loadHomeEarn() {
     const snap = await getDocs(collection(db, 'products'));
     const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     console.log('[EARN] 전체 상품 수:', allDocs.length, allDocs.map(p => ({name:p.name, isActive:p.isActive, type:p.type})));
-    // isActive 필터 (true / "true" / undefined 모두 허용)
+    // type=investment 이거나 type 없는 것만, isActive 체크 없이 전체 표시
     const products = allDocs
-      .filter(p => p.isActive !== false)
-      .sort((a, b) => (a.minAmount || a.sortOrder || 0) - (b.minAmount || b.sortOrder || 0));
+      .filter(p => !p.type || p.type === 'investment')
+      .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
     console.log('[EARN] 필터 후 상품 수:', products.length);
     productsCache = products;
     renderHomeEarn(products);
@@ -2099,8 +2099,8 @@ async function loadProducts() {
     const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     console.log('[Products] 전체 상품:', allDocs.length, allDocs.map(p=>({name:p.name,isActive:p.isActive,type:p.type})));
     productsCache = allDocs
-      .filter(p => p.isActive !== false)
-      .sort((a, b) => (a.minAmount || a.sortOrder || 0) - (b.minAmount || b.sortOrder || 0));
+      .filter(p => !p.type || p.type === 'investment')
+      .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
 
     if (!productsCache.length) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i>투자 상품이 없습니다</div>';
