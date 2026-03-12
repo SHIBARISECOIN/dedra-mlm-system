@@ -1133,7 +1133,7 @@ const SETUP_HTML = () => `<!DOCTYPE html>
       <input id="adminName" type="text" placeholder="이름" value="관리자"
         style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:120px;"/>
     </div>
-    <button id="btnAdmin" onclick="createAdmin()"
+    <button id="btnAdmin"
       style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">
       🔐 관리자 계정 생성
     </button>
@@ -1183,14 +1183,14 @@ function log(msg, color='#d1fae5') {
   el.scrollTop = el.scrollHeight;
 }
 
-window.createAdmin = async function() {
+async function createAdmin() {
   const email = document.getElementById('adminEmail').value.trim();
   const pass  = document.getElementById('adminPass').value.trim();
   const name  = document.getElementById('adminName').value.trim() || '관리자';
   if (!email || !pass) { log('❌ 이메일과 비밀번호를 입력해주세요.', '#fca5a5'); return; }
   const btn = document.getElementById('btnAdmin');
   btn.disabled = true;
-  log('\n🔐 [관리자 계정 생성 시작]', '#fcd34d');
+  log('\\n🔐 [관리자 계정 생성 시작]', '#fcd34d');
   log('  이메일: ' + email, '#e5e7eb');
   try {
     let uid;
@@ -1212,7 +1212,7 @@ window.createAdmin = async function() {
       phone: '', createdAt: serverTimestamp()
     }, { merge: true });
     log('  ✅ Firestore users 저장 완료 (role: admin)', '#86efac');
-    log('\n✅✅ 관리자 계정 생성 완료!', '#fcd34d');
+    log('\\n✅✅ 관리자 계정 생성 완료!', '#fcd34d');
     log('  📧 이메일: ' + email, '#fcd34d');
     log('  🔑 비밀번호: ' + pass, '#fcd34d');
     log('  👉 /admin 에서 로그인하세요', '#fcd34d');
@@ -1221,7 +1221,9 @@ window.createAdmin = async function() {
   } finally {
     btn.disabled = false;
   }
-};
+}
+
+document.getElementById('btnAdmin').addEventListener('click', createAdmin);
 
 function disableAll(v) {
   ['btnAll','btnProducts','btnAccounts','btnSettings'].forEach(id => {
