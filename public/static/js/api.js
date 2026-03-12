@@ -102,24 +102,10 @@ export class DedraAPI {
       await batch.commit();
       await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
 
-      // ── 유니레벨 보너스 자동 지급 ──
-      try {
-        const [ratesR, bpR] = await Promise.all([
-          this.getRates(),
-          this.getBonusPaymentConfig(),
-        ]);
-        const rates    = ratesR.success ? ratesR.data   : {};
-        const bpConfig = bpR.success    ? bpR.data      : {};
-
-        // 전역 옵션 확인: 보너스 지급이 활성화되어 있을 때만 실행
-        const enableDirectBonus = rates.enableDirectBonus !== false;
-        const enableUnilevel    = rates.enableUnilevel    !== false;
-        if (enableDirectBonus || enableUnilevel) {
-          await this._processUnilevelBonus(tx.userId, tx.amount || 0, rates, bpConfig, db, adminId);
-        }
-      } catch(bonusErr) {
-        console.warn('입금 승인 후 보너스 지급 오류 (비치명적):', bonusErr);
-      }
+      // ※ 유니레벨 보너스는 입금 즉시가 아니라,
+      //   회원이 USDT로 투자 상품을 구매하고
+      //   그 상품에서 매일 발생하는 ROI(D)를 기준으로 지급됩니다.
+      //   → runDailyROISettlement() 를 통해 일별 정산 시 처리됩니다.
 
       return ok(true);
     } catch(e) { return err(e); }
@@ -489,19 +475,29 @@ export class DedraAPI {
   }
 
   /**
-   * 입금 승인 시 유니레벨 보너스 지급 (Policy A)
-   * - 설정에 따라 동적 계산 or 고정 비율 사용
-   * @param {string} depositUserId  입금 회원 uid
-   * @param {number} depositAmount  입금 금액 (USDT)
-   * @param {object} rates          getRates() 결과 데이터
-   * @param {object} bpConfig       getBonusPaymentConfig() 결과 데이터
+   * ─────────────────────────────────────────────────────────────────
+   * 핵심 보너스 분배 로직 (Policy A — 유니레벨)
+   * ─────────────────────────────────────────────────────────────────
+   * 호출 시점: 매일 정산 배치(runDailyROISettlement)에서 각 회원의
+   *           일일 ROI 수익 D가 확정된 후 호출됩니다.
+   *
+   * 흐름:
+   *   회원 A가 투자 상품에서 오늘 D USDT 수익 발생
+   *   → 1대 추천인에게 D × unilevelRate[0] 지급
+   *   → 2대 추천인에게 D × unilevelRate[1] 지급
+   *   → ... (최대 10단계)
+   *   → 직급 차이 보너스 포함
+   *
+   * @param {string} investUserId  투자(수익 발생) 회원 uid
+   * @param {number} dailyIncome   해당 회원의 당일 ROI 수익 D (USDT 기준)
+   * @param {object} rates         getRates() 결과 데이터
    * @param {object} db
-   * @param {string} adminId
-   * @returns {number} 총 지급된 보너스 금액
+   * @param {string} triggerBy     'daily_settlement' 등
+   * @param {string} settlementDate  'YYYY-MM-DD' 정산 날짜
    */
-  async _processUnilevelBonus(depositUserId, depositAmount, rates, bpConfig, db, adminId) {
+  async _processUnilevelBonus(investUserId, dailyIncome, rates, db, triggerBy, settlementDate) {
     try {
-      if (!depositAmount || depositAmount <= 0) return 0;
+      if (!dailyIncome || dailyIncome <= 0) return 0;
 
       const enableDirectBonus   = rates.enableDirectBonus   !== false;
       const enableUnilevel      = rates.enableUnilevel      !== false;
@@ -511,20 +507,23 @@ export class DedraAPI {
       const directBonus2        = rates.directBonus2        ?? 2;
       const rankDiffRate        = rates.rankDiffBonusRate   ?? 0;
 
+      if (!enableDirectBonus && !enableUnilevel) return 0;
+
       // 전체 회원 로드 (추천 체인 구성용)
       const usersSnap = await getDocs(collection(db, 'users'));
-      const allUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const userMap   = Object.fromEntries(allUsers.map(u => [u.id, u]));
+      const userMap   = Object.fromEntries(
+        usersSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }])
+      );
 
-      const depositor = userMap[depositUserId];
-      if (!depositor) return 0;
+      const investor = userMap[investUserId];
+      if (!investor) return 0;
 
       const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
-      const rankIdx = (r) => RANK_ORDER.indexOf(r || 'G0');
+      const rankIdx = (r) => Math.max(0, RANK_ORDER.indexOf(r || 'G0'));
 
-      let totalPaid = 0;
-      let currentId = depositor.referredBy;
-      let level = 1;
+      let totalPaid  = 0;
+      let currentId  = investor.referredBy;
+      let level      = 1;
 
       while (currentId && level <= 10) {
         const ancestor = userMap[currentId];
@@ -532,6 +531,7 @@ export class DedraAPI {
 
         let bonusRate = 0;
 
+        // Policy A — 단계별 이율 결정
         if (level === 1 && enableDirectBonus) {
           bonusRate = directBonus1 / 100;
         } else if (level === 2 && enableDirectBonus) {
@@ -540,46 +540,250 @@ export class DedraAPI {
           bonusRate = (unilevelRates[level - 1] || 0) / 100;
         }
 
-        // 직급 차이 보너스
+        // 직급 차이 보너스 (상위 추천인 직급 > 투자자 직급일 때 추가)
         if (enableRankDiffBonus && rankDiffRate > 0) {
-          const diff = rankIdx(ancestor.rank) - rankIdx(depositor.rank);
+          const diff = rankIdx(ancestor.rank) - rankIdx(investor.rank);
           if (diff > 0) bonusRate += (diff * rankDiffRate) / 100;
         }
 
         if (bonusRate > 0) {
-          const bonusAmt = parseFloat((depositAmount * bonusRate).toFixed(8));
-          // 지갑 업데이트
+          const bonusAmt = parseFloat((dailyIncome * bonusRate).toFixed(8));
+
+          // 지갑 잔액 증가
           const walletQ = query(collection(db, 'wallets'), where('userId', '==', ancestor.id));
           const wSnap   = await getDocs(walletQ);
           if (!wSnap.empty) {
             await updateDoc(wSnap.docs[0].ref, {
-              dedraBalance: increment(bonusAmt),
+              dedraBalance:  increment(bonusAmt),
               totalEarnings: increment(bonusAmt),
             });
           }
-          // 보너스 기록
+
+          // 보너스 이력 기록
           await addDoc(collection(db, 'bonuses'), {
-            userId: ancestor.id,
-            fromUserId: depositUserId,
-            amount: bonusAmt,
-            type: level <= 2 && enableDirectBonus ? 'direct_bonus' : 'unilevel_bonus',
+            userId:         ancestor.id,
+            fromUserId:     investUserId,
+            amount:         bonusAmt,
+            type:           level <= 2 && enableDirectBonus ? 'direct_bonus' : 'unilevel_bonus',
             level,
-            depositAmount,
-            reason: `유니레벨 ${level}단계 보너스`,
-            grantedBy: adminId || 'system',
-            createdAt: serverTimestamp(),
+            baseIncome:     dailyIncome,    // 기준이 된 투자자의 D 값
+            rate:           bonusRate,
+            settlementDate: settlementDate || '',
+            reason:         `유니레벨 ${level}단계 보너스 (정산일: ${settlementDate||'수동'})`,
+            grantedBy:      triggerBy || 'system',
+            createdAt:      serverTimestamp(),
           });
+
           totalPaid += bonusAmt;
         }
 
         currentId = ancestor.referredBy;
         level++;
       }
+
       return totalPaid;
     } catch(e) {
       console.error('_processUnilevelBonus error:', e);
       return 0;
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 일일 ROI 정산 배치
+  // ─────────────────────────────────────────────────────────────────
+  /**
+   * 관리자가 매일 실행하는 정산 배치.
+   * 실행 흐름:
+   *   1. 전체 활성(active) 투자 조회
+   *   2. 투자 상품별 지급 패턴(bonusPaymentConfig) 체크
+   *   3. 오늘이 지급일이면 D = 투자금액 × dailyRoi% 계산
+   *   4. 회원 지갑에 D 적립 (본인 ROI 수익)
+   *   5. D를 기준으로 추천 체인에 유니레벨 보너스 분배
+   *   6. 투자 만료(기간/횟수) 처리
+   *
+   * @param {string} adminId
+   * @param {string|null} targetDateStr  'YYYY-MM-DD' (null이면 오늘)
+   */
+  async runDailyROISettlement(adminId, targetDateStr = null) {
+    try {
+      const db = this.db;
+
+      // 정산 날짜 설정
+      const targetDate = targetDateStr ? new Date(targetDateStr + 'T00:00:00') : new Date();
+      const dateStr    = targetDate.toISOString().slice(0, 10); // YYYY-MM-DD
+
+      // 중복 정산 방지: 같은 날 이미 실행했으면 차단
+      const settlementDocRef = doc(db, 'settlements', dateStr);
+      const existingSnap = await getDoc(settlementDocRef);
+      if (existingSnap.exists()) {
+        return ok({ skipped: true, reason: `${dateStr} 정산이 이미 실행되었습니다.`, date: dateStr });
+      }
+
+      // 이율 설정 및 지급 패턴 설정 로드
+      const [ratesR, bpR] = await Promise.all([
+        this.getRates(),
+        this.getBonusPaymentConfig(),
+      ]);
+      const rates    = ratesR.success ? ratesR.data : {};
+      const bpConfig = bpR.success    ? bpR.data    : {};
+      const bpProducts    = bpConfig.products    || {};
+      const globalOptions = bpConfig.globalOptions|| {};
+
+      // 모든 활성 투자 조회
+      const invSnap = await getDocs(
+        query(collection(db, 'investments'), where('status', '==', 'active'))
+      );
+      const activeInvestments = invSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      let roiPaidCount   = 0;
+      let bonusPaidCount = 0;
+      let totalRoiAmount = 0;
+      let totalBonusAmount = 0;
+      const details = [];
+
+      for (const inv of activeInvestments) {
+        try {
+          // ── 투자 만료 체크 ──
+          const endDate = inv.endDate instanceof Date ? inv.endDate
+            : inv.endDate?.toDate ? inv.endDate.toDate()
+            : new Date(inv.endDate);
+          if (targetDate > endDate) {
+            // 만료 처리
+            await updateDoc(doc(db, 'investments', inv.id), {
+              status: 'completed', completedAt: serverTimestamp()
+            });
+            continue;
+          }
+
+          // ── 지급 패턴 체크 ──
+          const productCfg = globalOptions.usePaymentPattern ? bpProducts[inv.productId] : null;
+          if (productCfg && productCfg.isActive) {
+            // 지급 시작일 체크
+            const rawStart = inv.startDate?.toDate ? inv.startDate.toDate()
+              : inv.startDate instanceof Date ? inv.startDate
+              : new Date(inv.startDate || Date.now());
+            const paymentStartDate = productCfg.paymentStartType === 'PURCHASE_DAY'
+              ? rawStart
+              : new Date(rawStart.getTime() + 86400000); // 익일
+            if (!this._isPaymentDay(productCfg, targetDate, paymentStartDate)) continue;
+
+            // 횟수 제한 체크
+            if (productCfg.paymentDurationType === 'LIMITED_COUNTS') {
+              const remaining = inv.remainingPayments ?? productCfg.durationValue ?? 999;
+              if (remaining <= 0) {
+                await updateDoc(doc(db, 'investments', inv.id), { status: 'completed', completedAt: serverTimestamp() });
+                continue;
+              }
+            }
+          }
+
+          // ── D 계산: 일일 ROI 수익 ──
+          // 상품별 이율 우선, 없으면 inv.roiPercent 사용
+          let dailyRoiRate = 0;
+          if (globalOptions.useProductRate && productCfg?.baseRate) {
+            dailyRoiRate = productCfg.baseRate / 100;
+          } else {
+            dailyRoiRate = (inv.roiPercent || inv.dailyRoi || 0) / 100;
+          }
+
+          const D = parseFloat((inv.amount * dailyRoiRate).toFixed(8));
+          if (D <= 0) continue;
+
+          // ── 회원 지갑에 ROI 적립 ──
+          const walletQ = query(collection(db, 'wallets'), where('userId', '==', inv.userId));
+          const wSnap   = await getDocs(walletQ);
+          if (!wSnap.empty) {
+            await updateDoc(wSnap.docs[0].ref, {
+              dedraBalance:  increment(D),
+              totalEarnings: increment(D),
+            });
+          }
+
+          // ROI 수익 이력 기록
+          await addDoc(collection(db, 'bonuses'), {
+            userId:         inv.userId,
+            amount:         D,
+            type:           'roi_income',
+            investmentId:   inv.id,
+            productId:      inv.productId,
+            productName:    inv.productName || '',
+            investAmount:   inv.amount,
+            rate:           dailyRoiRate,
+            settlementDate: dateStr,
+            reason:         `투자 ROI 수익 (${inv.productName||'상품'} × ${(dailyRoiRate*100).toFixed(2)}%)`,
+            grantedBy:      adminId,
+            createdAt:      serverTimestamp(),
+          });
+
+          roiPaidCount++;
+          totalRoiAmount += D;
+
+          // ── 유니레벨 보너스 분배 (D 기준) ──
+          const bonusPaid = await this._processUnilevelBonus(
+            inv.userId, D, rates, db, adminId, dateStr
+          );
+          if (bonusPaid > 0) { bonusPaidCount++; totalBonusAmount += bonusPaid; }
+
+          // ── 횟수 제한 차감 ──
+          if (productCfg?.paymentDurationType === 'LIMITED_COUNTS') {
+            const remaining = inv.remainingPayments ?? (productCfg.durationValue ?? 999);
+            await updateDoc(doc(db, 'investments', inv.id), {
+              remainingPayments: Math.max(0, remaining - 1)
+            });
+          }
+
+          details.push({ userId: inv.userId, investId: inv.id, D, bonusPaid });
+
+        } catch(invErr) {
+          console.warn(`투자 정산 오류 [${inv.id}]:`, invErr);
+        }
+      }
+
+      // 정산 완료 기록 (중복 방지용)
+      await setDoc(settlementDocRef, {
+        date: dateStr,
+        executedBy: adminId,
+        executedAt: serverTimestamp(),
+        roiPaidCount,
+        bonusPaidCount,
+        totalRoiAmount,
+        totalBonusAmount,
+        totalInvestments: activeInvestments.length,
+      });
+
+      await this._auditLog(adminId, 'settlement',
+        `일일 ROI 정산 완료 [${dateStr}]: ROI ${roiPaidCount}건 / 보너스 ${bonusPaidCount}건`,
+        { date: dateStr, totalRoiAmount, totalBonusAmount }
+      );
+
+      return ok({
+        date: dateStr,
+        roiPaidCount,
+        bonusPaidCount,
+        totalRoiAmount,
+        totalBonusAmount,
+        totalInvestments: activeInvestments.length,
+        details,
+      });
+    } catch(e) { return err(e); }
+  }
+
+  /**
+   * 정산 이력 조회
+   * Firestore: settlements/{YYYY-MM-DD}
+   */
+  async getSettlementHistory(maxCount = 30) {
+    try {
+      const snap = await getDocs(query(collection(this.db, 'settlements'), limit(maxCount)));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          // 날짜 문자열 내림차순
+          if (a.date > b.date) return -1;
+          if (a.date < b.date) return 1;
+          return 0;
+        });
+      return ok(data);
+    } catch(e) { return err(e); }
   }
 
   // ─────────────────────────────────────────────────

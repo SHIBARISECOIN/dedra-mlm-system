@@ -723,6 +723,7 @@ const HTML = () => `<!DOCTYPE html>
               <button class="tx-tab" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
               <button class="tx-tab" onclick="switchTxTab('withdrawal', this)" data-i18n="txWithdraw">출금</button>
               <button class="tx-tab" onclick="switchTxTab('invest', this)" data-i18n="txInvest">투자</button>
+              <button class="tx-tab" onclick="switchTxTab('roi', this)">ROI 수익</button>
             </div>
             <div id="txHistoryList" class="tx-list">
               <div class="skeleton-item"></div>

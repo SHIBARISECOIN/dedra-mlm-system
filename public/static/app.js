@@ -1528,6 +1528,21 @@ async function loadTxHistory(typeFilter) {
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
 
   try {
+    // ROI 탭: bonuses 컬렉션 (roi_income, direct_bonus, unilevel_bonus)
+    if (typeFilter === 'roi') {
+      const q = query(
+        collection(db, 'bonuses'),
+        where('userId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc'),
+        limit(40)
+      );
+      const snap = await getDocs(q);
+      const bonuses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBonusList(bonuses, 'txHistoryList');
+      return;
+    }
+
+    // 일반 거래내역
     let q;
     if (typeFilter === 'all') {
       q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(30));
@@ -1539,6 +1554,48 @@ async function loadTxHistory(typeFilter) {
   } catch (err) {
     if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
+}
+
+/**
+ * bonuses 컬렉션 내역 렌더링
+ * type: roi_income (본인 ROI), direct_bonus, unilevel_bonus
+ */
+function renderBonusList(bonuses, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!bonuses.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-coins"></i>수익 내역이 없습니다<br><span style="font-size:12px;color:var(--text2);">관리자가 일일 정산을 실행하면 여기에 표시됩니다.</span></div>';
+    return;
+  }
+
+  const typeLabel = {
+    roi_income:    '📈 투자 ROI 수익',
+    direct_bonus:  '👥 직접 추천 보너스',
+    unilevel_bonus:'🌐 유니레벨 보너스',
+    rank_bonus:    '🏆 직급 보너스',
+  };
+
+  el.innerHTML = bonuses.map(b => {
+    const label = typeLabel[b.type] || b.type || '보너스';
+    const dateStr = fmtDate(b.createdAt);
+    const details = b.settlementDate ? `정산일: ${b.settlementDate}` : (b.reason || '');
+    const level   = b.level ? ` · ${b.level}단계` : '';
+    const base    = b.baseIncome ? ` · 기준 D: $${fmt(b.baseIncome)}` : (b.investAmount ? ` · 투자 $${fmt(b.investAmount)}` : '');
+
+    return `
+    <div class="tx-item">
+      <div class="tx-icon bonus">💰</div>
+      <div class="tx-info">
+        <div class="tx-title">${label}${level}</div>
+        <div class="tx-date">${dateStr}${base}</div>
+        <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
+      </div>
+      <div>
+        <div class="tx-amount plus">+${fmt(b.amount)} DEEDRA</div>
+        <div class="tx-status" style="color:var(--green)">완료</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 window.switchTxTab = function(type, el) {
@@ -1775,14 +1832,22 @@ async function loadMyInvestments() {
       const progress = Math.min(100, ((now - start) / (end - start)) * 100);
       const remainDays = Math.max(0, Math.ceil((end - now) / 86400000));
 
+      // 일일 ROI 수익 D = 투자금 × roiPercent%
+      const dailyRoiRate = (inv.roiPercent || inv.dailyRoi || 0) / 100;
+      const dailyD = inv.amount * dailyRoiRate;
+
       return `
       <div class="invest-item">
         <div class="invest-item-header">
           <span class="invest-item-name">${inv.productName || '투자'}</span>
           <span class="invest-item-amount">$${fmt(inv.amount)}</span>
         </div>
-        <div class="invest-item-detail">
-          수익: +${fmt(inv.expectedReturn || 0)} DEEDRA · 잔여 ${remainDays}일
+        <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
+          <span>📈 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
+          <span>잔여 ${remainDays}일</span>
+        </div>
+        <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
+          총 예상수익: +${fmt(inv.expectedReturn || 0)} DEEDRA
         </div>
         <div class="invest-progress">
           <div class="invest-progress-fill" style="width:${progress.toFixed(1)}%"></div>

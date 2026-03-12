@@ -2487,6 +2487,65 @@ canvas{width:100% !important;}
         <div id="rankPromoAlert" style="margin-top:10px;"></div>
       </div>
 
+      <!-- ══════════════════════════════════════════════
+           일일 ROI 정산 실행 카드
+      ══════════════════════════════════════════════ -->
+      <div id="dailySettlementCard" style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
+
+        <!-- 헤더 -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+          <span style="font-size:24px;">📊</span>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#1e293b;">일일 ROI 정산 실행</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">
+              회원이 구매한 투자 상품에서 매일 발생하는 ROI 수익을 정산하고,
+              그 수익을 기준으로 추천 체인 위로 유니레벨 보너스를 분배합니다.
+            </div>
+          </div>
+        </div>
+
+        <!-- 안내 박스 -->
+        <div style="background:#f0f9ff;border:1.5px solid #7dd3fc;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+          <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:8px;">⚙️ 정산 흐름 안내</div>
+          <div style="font-size:12px;color:#0c4a6e;line-height:1.8;">
+            1️⃣ 활성 투자 조회 → 각 투자의 <strong>D = 투자금 × 일일ROI%</strong> 계산<br>
+            2️⃣ 투자 상품별 지급 패턴(주기, 시작일, 횟수 제한) 체크<br>
+            3️⃣ 회원 지갑에 <strong>D(ROI 수익)</strong> 적립<br>
+            4️⃣ D를 기준으로 추천 체인 10단계까지 <strong>유니레벨 보너스</strong> 분배<br>
+            5️⃣ 직급 차이 보너스 포함 · 당일 정산 중복 실행 방지
+          </div>
+        </div>
+
+        <!-- 정산 날짜 및 실행 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:16px;">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#4338ca;margin-bottom:6px;">📅 정산 날짜</label>
+            <input type="date" id="settlementDateInput"
+              style="width:100%;padding:9px 12px;border:2px solid #c7d2fe;border-radius:8px;font-size:14px;color:#1e293b;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">비워두면 오늘 날짜로 실행</div>
+          </div>
+          <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px;">
+            <button id="runSettlementBtn"
+              style="padding:10px 22px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;">
+              ▶️ 정산 실행
+            </button>
+            <button id="loadSettlementHistoryBtn"
+              style="padding:8px 16px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+              📋 정산 이력 조회
+            </button>
+          </div>
+        </div>
+
+        <!-- 정산 결과 표시 -->
+        <div id="settlementResult" style="margin-top:10px;"></div>
+
+        <!-- 정산 이력 -->
+        <div id="settlementHistoryWrap" style="display:none;margin-top:18px;">
+          <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">📋 최근 정산 이력</div>
+          <div id="settlementHistoryList"></div>
+        </div>
+      </div>
+
       <!-- 저장/재로드 -->
       <div style="display:flex;gap:10px;max-width:960px;margin-bottom:24px;">
         <button class="btn btn-primary" id="saveRatesBtn" style="min-width:140px;">💾 전체 이율 저장</button>
@@ -6720,6 +6779,7 @@ async function loadRates() {
     await loadRateHistory();
     await loadRankPromotionSettings();
     await loadBonusPaymentConfig();
+    initDailySettlementUI();
     setupRateButtons();
 }
 
@@ -7447,6 +7507,185 @@ function setupBonusPaymentButtons() {
             <div class="audit-time">${fmtDate(h.createdAt)}</div>
         </div>`;
     }).join('');
+}
+
+// ══════════════════════════════════════════════════
+// 일일 ROI 정산 (Daily ROI Settlement)
+// ══════════════════════════════════════════════════
+
+/**
+ * 일일 ROI 정산 UI 초기화
+ * - 오늘 날짜를 기본값으로 설정
+ * - 버튼 이벤트 바인딩
+ */
+function initDailySettlementUI() {
+  // 오늘 날짜를 input 기본값으로
+  const dateInput = document.getElementById('settlementDateInput');
+  if (dateInput && !dateInput.value) {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm   = String(today.getMonth() + 1).padStart(2, '0');
+    const dd   = String(today.getDate()).padStart(2, '0');
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
+
+  const runBtn = document.getElementById('runSettlementBtn');
+  if (runBtn && !runBtn._bound) {
+    runBtn._bound = true;
+    runBtn.addEventListener('click', runDailySettlement);
+  }
+
+  const histBtn = document.getElementById('loadSettlementHistoryBtn');
+  if (histBtn && !histBtn._bound) {
+    histBtn._bound = true;
+    histBtn.addEventListener('click', toggleSettlementHistory);
+  }
+}
+
+/**
+ * 정산 실행
+ */
+async function runDailySettlement() {
+  const runBtn  = document.getElementById('runSettlementBtn');
+  const resultEl = document.getElementById('settlementResult');
+  const dateInput = document.getElementById('settlementDateInput');
+  const dateStr = dateInput?.value || null;
+
+  if (!confirm(`${dateStr || '오늘'} 일일 ROI 정산을 실행하시겠습니까?\n\n⚠️ 같은 날짜는 중복 실행이 차단됩니다.`)) return;
+
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;margin-right:8px;vertical-align:middle;"></span>정산 중...';
+  resultEl.innerHTML = `
+    <div style="padding:16px;background:#f0f9ff;border-radius:10px;display:flex;align-items:center;gap:10px;color:#0369a1;font-size:13px;">
+      <div class="spinner" style="width:16px;height:16px;border-width:2px;flex-shrink:0;"></div>
+      활성 투자 목록을 조회하고 정산을 진행하는 중입니다...
+    </div>`;
+
+  try {
+    const r = await api.runDailyROISettlement(currentAdmin.uid, dateStr);
+
+    if (!r.success) {
+      resultEl.innerHTML = `
+        <div style="padding:14px 18px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:13px;">
+          ❌ 정산 실패: ${r.error}
+        </div>`;
+      return;
+    }
+
+    const d = r.data;
+
+    if (d.skipped) {
+      resultEl.innerHTML = `
+        <div style="padding:14px 18px;background:#fffbeb;border:1.5px solid #fde047;border-radius:10px;color:#92400e;font-size:13px;">
+          ⚠️ ${d.reason}
+        </div>`;
+      return;
+    }
+
+    resultEl.innerHTML = `
+      <div style="padding:18px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;">
+        <div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:12px;">
+          ✅ ${d.date} 정산 완료
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#059669;">${d.roiPaidCount}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">ROI 수익 지급 건</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#059669;">${(d.totalRoiAmount||0).toFixed(4)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">ROI 총액 (USDT)</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#7c3aed;">${d.bonusPaidCount}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">추천 보너스 지급 건</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#7c3aed;">${(d.totalBonusAmount||0).toFixed(4)}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">보너스 총액 (DEEDRA)</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+            <div style="font-size:22px;font-weight:800;color:#0ea5e9;">${d.totalInvestments}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px;">처리 투자 건 수</div>
+          </div>
+        </div>
+        ${(d.details && d.details.length > 0) ? `
+        <details style="cursor:pointer;">
+          <summary style="font-size:12px;font-weight:600;color:#374151;padding:6px 0;">상세 내역 보기 (${d.details.length}건)</summary>
+          <div style="overflow-x:auto;margin-top:8px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:#f1f5f9;">
+                  <th style="padding:6px 10px;text-align:left;color:#64748b;">회원 ID</th>
+                  <th style="padding:6px 10px;text-align:right;color:#64748b;">ROI (D)</th>
+                  <th style="padding:6px 10px;text-align:right;color:#64748b;">보너스 합계</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${d.details.map(row => `
+                  <tr style="border-top:1px solid #f1f5f9;">
+                    <td style="padding:6px 10px;color:#374151;">${row.userId.slice(0,10)}...</td>
+                    <td style="padding:6px 10px;text-align:right;color:#059669;">+${(row.D||0).toFixed(6)}</td>
+                    <td style="padding:6px 10px;text-align:right;color:#7c3aed;">+${(row.bonusPaid||0).toFixed(6)}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </details>` : ''}
+      </div>`;
+
+  } catch(e) {
+    resultEl.innerHTML = `
+      <div style="padding:14px 18px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:13px;">
+        ❌ 오류: ${e.message || String(e)}
+      </div>`;
+  } finally {
+    runBtn.disabled = false;
+    runBtn.innerHTML = '▶️ 정산 실행';
+  }
+}
+
+/**
+ * 정산 이력 토글/로드
+ */
+async function toggleSettlementHistory() {
+  const wrap = document.getElementById('settlementHistoryWrap');
+  if (!wrap) return;
+  const isHidden = wrap.style.display === 'none' || wrap.style.display === '';
+  if (isHidden) {
+    wrap.style.display = 'block';
+    await loadSettlementHistory();
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+async function loadSettlementHistory() {
+  const listEl = document.getElementById('settlementHistoryList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="loading" style="padding:20px;"><div class="spinner"></div></div>';
+  try {
+    const r = await api.getSettlementHistory();
+    const records = r.success ? r.data : [];
+    if (!records.length) {
+      listEl.innerHTML = '<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">정산 이력이 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = records.map(rec => `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;background:#fafafa;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:14px;color:#1e293b;">📅 ${rec.date}</div>
+          <div style="font-size:11px;color:#64748b;">${rec.executedBy || '-'}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#374151;">
+          <span>🟢 ROI: ${rec.roiPaidCount||0}건 / ${(rec.totalRoiAmount||0).toFixed(4)} USDT</span>
+          <span>🟣 보너스: ${rec.bonusPaidCount||0}건 / ${(rec.totalBonusAmount||0).toFixed(4)} DEEDRA</span>
+          <span>📦 투자 ${rec.totalInvestments||0}건</span>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:12px;">이력 조회 오류: ${e.message}</div>`;
+  }
 }
 
 // ══════════════════════════════════════════════════
