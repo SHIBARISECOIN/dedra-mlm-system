@@ -101,6 +101,26 @@ export class DedraAPI {
       }
       await batch.commit();
       await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
+
+      // ── 유니레벨 보너스 자동 지급 ──
+      try {
+        const [ratesR, bpR] = await Promise.all([
+          this.getRates(),
+          this.getBonusPaymentConfig(),
+        ]);
+        const rates    = ratesR.success ? ratesR.data   : {};
+        const bpConfig = bpR.success    ? bpR.data      : {};
+
+        // 전역 옵션 확인: 보너스 지급이 활성화되어 있을 때만 실행
+        const enableDirectBonus = rates.enableDirectBonus !== false;
+        const enableUnilevel    = rates.enableUnilevel    !== false;
+        if (enableDirectBonus || enableUnilevel) {
+          await this._processUnilevelBonus(tx.userId, tx.amount || 0, rates, bpConfig, db, adminId);
+        }
+      } catch(bonusErr) {
+        console.warn('입금 승인 후 보너스 지급 오류 (비치명적):', bonusErr);
+      }
+
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -388,6 +408,178 @@ export class DedraAPI {
       await this._auditLog(adminId, 'settings', `DEEDRA 시세 변경: $${price}`, { price });
       return ok(true);
     } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
+  // 보너스 지급 패턴 설정 (Bonus Payment Config)
+  // Firestore: settings/bonusPaymentConfig
+  // ─────────────────────────────────────────────────
+
+  /**
+   * 전역 옵션 + 상품별 지급 패턴 설정 가져오기
+   * 구조: {
+   *   globalOptions: { usePaymentPattern, useProductRate, useDynamicCalc },
+   *   products: { [productId]: { paymentStartType, paymentFrequency, customPattern,
+   *                              paymentDurationType, durationValue, isActive,
+   *                              baseRate, policyARate, policyBRate } }
+   * }
+   */
+  async getBonusPaymentConfig() {
+    try {
+      const snap = await getDoc(doc(this.db, 'settings', 'bonusPaymentConfig'));
+      if (snap.exists()) return ok(snap.data());
+      // 기본값
+      return ok({
+        globalOptions: {
+          usePaymentPattern: false,   // 지급 패턴 설정 사용
+          useProductRate:    false,   // 상품별 이율 관리 사용
+          useDynamicCalc:    false,   // 구매 이력 기반 동적 계산 사용
+        },
+        products: {}
+      });
+    } catch(e) { return err(e); }
+  }
+
+  /**
+   * 전역 옵션 + 상품별 지급 패턴 설정 저장
+   */
+  async saveBonusPaymentConfig(adminId, config) {
+    try {
+      await setDoc(doc(this.db, 'settings', 'bonusPaymentConfig'), {
+        ...config, updatedAt: serverTimestamp(), updatedBy: adminId
+      });
+      await this._auditLog(adminId, 'settings', '보너스 지급 패턴 설정 변경', config.globalOptions || {});
+      return ok(true);
+    } catch(e) { return err(e); }
+  }
+
+  /**
+   * 특정 날짜(Date)가 지급 패턴에 해당하는 날인지 체크
+   * @param {object} productConfig  products[productId]
+   * @param {Date}   targetDate
+   * @param {Date}   purchaseStartDate  수익 지급 시작일
+   * @returns {boolean}
+   */
+  _isPaymentDay(productConfig, targetDate, purchaseStartDate) {
+    if (!productConfig || !productConfig.isActive) return false;
+    if (targetDate < purchaseStartDate) return false;
+
+    const freq = productConfig.paymentFrequency || 'DAILY';
+    if (freq === 'DAILY') return true;
+
+    const dayNames = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const dow = dayNames[targetDate.getDay()];
+
+    if (freq === 'WEEKLY') {
+      // customPattern: ['MON'] 등 요일 1개
+      const pattern = productConfig.customPattern || ['MON'];
+      return pattern.includes(dow);
+    }
+    if (freq === 'MONTHLY') {
+      // customPattern: [1] 등 일자
+      const pattern = productConfig.customPattern || [1];
+      return pattern.includes(targetDate.getDate());
+    }
+    if (freq === 'CUSTOM_PATTERN') {
+      // customPattern: ['MON','WED','FRI'] 등 복수 요일
+      const pattern = productConfig.customPattern || [];
+      return pattern.includes(dow);
+    }
+    return true;
+  }
+
+  /**
+   * 입금 승인 시 유니레벨 보너스 지급 (Policy A)
+   * - 설정에 따라 동적 계산 or 고정 비율 사용
+   * @param {string} depositUserId  입금 회원 uid
+   * @param {number} depositAmount  입금 금액 (USDT)
+   * @param {object} rates          getRates() 결과 데이터
+   * @param {object} bpConfig       getBonusPaymentConfig() 결과 데이터
+   * @param {object} db
+   * @param {string} adminId
+   * @returns {number} 총 지급된 보너스 금액
+   */
+  async _processUnilevelBonus(depositUserId, depositAmount, rates, bpConfig, db, adminId) {
+    try {
+      if (!depositAmount || depositAmount <= 0) return 0;
+
+      const enableDirectBonus   = rates.enableDirectBonus   !== false;
+      const enableUnilevel      = rates.enableUnilevel      !== false;
+      const enableRankDiffBonus = rates.enableRankDiffBonus !== false;
+      const unilevelRates       = rates.unilevelRates       || [10,7,5,4,3,2,2,1,1,1];
+      const directBonus1        = rates.directBonus1        ?? 5;
+      const directBonus2        = rates.directBonus2        ?? 2;
+      const rankDiffRate        = rates.rankDiffBonusRate   ?? 0;
+
+      // 전체 회원 로드 (추천 체인 구성용)
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const allUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const userMap   = Object.fromEntries(allUsers.map(u => [u.id, u]));
+
+      const depositor = userMap[depositUserId];
+      if (!depositor) return 0;
+
+      const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+      const rankIdx = (r) => RANK_ORDER.indexOf(r || 'G0');
+
+      let totalPaid = 0;
+      let currentId = depositor.referredBy;
+      let level = 1;
+
+      while (currentId && level <= 10) {
+        const ancestor = userMap[currentId];
+        if (!ancestor || ancestor.role === 'admin') break;
+
+        let bonusRate = 0;
+
+        if (level === 1 && enableDirectBonus) {
+          bonusRate = directBonus1 / 100;
+        } else if (level === 2 && enableDirectBonus) {
+          bonusRate = directBonus2 / 100;
+        } else if (enableUnilevel) {
+          bonusRate = (unilevelRates[level - 1] || 0) / 100;
+        }
+
+        // 직급 차이 보너스
+        if (enableRankDiffBonus && rankDiffRate > 0) {
+          const diff = rankIdx(ancestor.rank) - rankIdx(depositor.rank);
+          if (diff > 0) bonusRate += (diff * rankDiffRate) / 100;
+        }
+
+        if (bonusRate > 0) {
+          const bonusAmt = parseFloat((depositAmount * bonusRate).toFixed(8));
+          // 지갑 업데이트
+          const walletQ = query(collection(db, 'wallets'), where('userId', '==', ancestor.id));
+          const wSnap   = await getDocs(walletQ);
+          if (!wSnap.empty) {
+            await updateDoc(wSnap.docs[0].ref, {
+              dedraBalance: increment(bonusAmt),
+              totalEarnings: increment(bonusAmt),
+            });
+          }
+          // 보너스 기록
+          await addDoc(collection(db, 'bonuses'), {
+            userId: ancestor.id,
+            fromUserId: depositUserId,
+            amount: bonusAmt,
+            type: level <= 2 && enableDirectBonus ? 'direct_bonus' : 'unilevel_bonus',
+            level,
+            depositAmount,
+            reason: `유니레벨 ${level}단계 보너스`,
+            grantedBy: adminId || 'system',
+            createdAt: serverTimestamp(),
+          });
+          totalPaid += bonusAmt;
+        }
+
+        currentId = ancestor.referredBy;
+        level++;
+      }
+      return totalPaid;
+    } catch(e) {
+      console.error('_processUnilevelBonus error:', e);
+      return 0;
+    }
   }
 
   // ─────────────────────────────────────────────────

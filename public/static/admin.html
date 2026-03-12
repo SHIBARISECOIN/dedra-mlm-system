@@ -2383,8 +2383,41 @@ canvas{width:100% !important;}
       </div>
 
       <!-- ══════════════════════════════════════════════
-           직급 승진 조건 설정 카드
+           보너스 지급 패턴 설정 카드 (SECTION 1~3)
       ══════════════════════════════════════════════ -->
+      <div id="bonusPaymentCard" style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
+
+        <!-- 헤더 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:24px;">⏱️</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#1e293b;">유니레벨 보너스 지급 패턴 설정</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">상품별 지급 시작일 · 주기 · 한도 및 이율을 세밀하게 설정합니다.</div>
+            </div>
+          </div>
+          <button id="saveBonusPaymentBtn" class="btn btn-primary btn-sm" style="min-width:130px;">💾 패턴 설정 저장</button>
+        </div>
+
+        <!-- ── 전역 옵션 ON/OFF ── -->
+        <div style="background:#f0f9ff;border:1.5px solid #7dd3fc;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+          <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:12px;">⚙️ 전역 기능 ON/OFF</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;" id="globalOptionGrid">
+            <!-- JS로 렌더링 -->
+          </div>
+        </div>
+
+        <!-- ── 상품별 패턴 설정 탭 ── -->
+        <div id="bonusProductTabsWrap">
+          <div style="font-size:12px;color:#94a3b8;text-align:center;padding:20px;">
+            <div class="spinner" style="margin:0 auto 8px;"></div>상품 목록 불러오는 중...
+          </div>
+        </div>
+
+        <div id="bonusPaymentAlert" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- 직급 승진 조건 설정 카드 (기존) -->
       <div id="rankPromoCard" style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
         <!-- 헤더 -->
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
@@ -6686,6 +6719,7 @@ async function loadRates() {
     await loadProductRates();
     await loadRateHistory();
     await loadRankPromotionSettings();
+    await loadBonusPaymentConfig();
     setupRateButtons();
 }
 
@@ -7021,7 +7055,370 @@ async function saveRankPromotionSettings() {
 
 window.saveRankPromotionSettings = saveRankPromotionSettings;
 
-async function loadRateHistory() {
+// ══════════════════════════════════════════════════
+// 보너스 지급 패턴 설정 (Bonus Payment Config)
+// ══════════════════════════════════════════════════
+let currentBonusPaymentConfig = null;
+let bonusPaymentProductList   = [];
+let activeBonusProductTab     = null;
+
+const GLOBAL_OPTIONS_DEF = [
+  { id: 'usePaymentPattern', label: '⏱️ 지급 패턴 설정 사용',
+    desc: 'OFF 시 모든 보너스를 입금 즉시 매일 지급' },
+  { id: 'useProductRate',    label: '💹 상품별 이율 관리 사용',
+    desc: 'OFF 시 이율관리 탭 전역 설정 사용' },
+  { id: 'useDynamicCalc',   label: '🔄 구매 이력 기반 동적 계산',
+    desc: 'OFF 시 고정 daily_income 값 사용' },
+];
+
+const FREQ_OPTIONS = [
+  { value: 'DAILY',           label: '📅 매일 (Daily)',        detail: '' },
+  { value: 'WEEKLY',          label: '📆 매주 (Weekly)',        detail: '요일 선택' },
+  { value: 'MONTHLY',         label: '🗓️ 매월 (Monthly)',       detail: '일자 선택' },
+  { value: 'CUSTOM_PATTERN',  label: '🎛️ 커스텀 (복수 요일)',   detail: '요일 복수 선택' },
+];
+
+const DAY_NAMES = [
+  { v: 'MON', l: '월' }, { v: 'TUE', l: '화' }, { v: 'WED', l: '수' },
+  { v: 'THU', l: '목' }, { v: 'FRI', l: '금' }, { v: 'SAT', l: '토' },
+  { v: 'SUN', l: '일' },
+];
+
+async function loadBonusPaymentConfig() {
+  try {
+    // 상품 목록과 설정 병렬 로드
+    const [productsR, configR] = await Promise.all([
+      api.getProducts('investment'),
+      api.getBonusPaymentConfig(),
+    ]);
+
+    bonusPaymentProductList = productsR.success ? productsR.data : [];
+    currentBonusPaymentConfig = configR.success ? configR.data : { globalOptions: {}, products: {} };
+
+    renderGlobalOptions(currentBonusPaymentConfig.globalOptions || {});
+    renderBonusProductTabs();
+    setupBonusPaymentButtons();
+  } catch(e) {
+    console.warn('loadBonusPaymentConfig error:', e);
+  }
+}
+
+function renderGlobalOptions(opts) {
+  const grid = document.getElementById('globalOptionGrid');
+  if (!grid) return;
+  grid.innerHTML = GLOBAL_OPTIONS_DEF.map(o => {
+    const on = opts[o.id] === true;
+    return `
+    <label style="display:flex;align-items:center;gap:12px;background:${on?'#f0fdf4':'#f8fafc'};
+      border:1.5px solid ${on?'#86efac':'#cbd5e1'};border-radius:10px;padding:12px 16px;cursor:pointer;
+      transition:all .2s;">
+      <input type="checkbox" id="go_${o.id}" ${on?'checked':''} onchange="updateGlobalOptionStyle('${o.id}',this.checked)"
+        style="width:18px;height:18px;cursor:pointer;accent-color:#0ea5e9;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:${on?'#15803d':'#475569'}">${o.label}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${o.desc}</div>
+      </div>
+      <span id="go_badge_${o.id}" style="font-size:11px;padding:2px 8px;border-radius:8px;
+        background:${on?'#dcfce7':'#f1f5f9'};color:${on?'#16a34a':'#94a3b8'};font-weight:700;white-space:nowrap;">
+        ${on?'ON':'OFF'}
+      </span>
+    </label>`;
+  }).join('');
+}
+
+window.updateGlobalOptionStyle = function(id, checked) {
+  const badge = document.getElementById(`go_badge_${id}`);
+  const label = document.getElementById(`go_${id}`)?.closest('label');
+  if (badge) {
+    badge.textContent = checked ? 'ON' : 'OFF';
+    badge.style.background = checked ? '#dcfce7' : '#f1f5f9';
+    badge.style.color       = checked ? '#16a34a' : '#94a3b8';
+  }
+  if (label) {
+    label.style.background    = checked ? '#f0fdf4' : '#f8fafc';
+    label.style.borderColor   = checked ? '#86efac' : '#cbd5e1';
+  }
+};
+
+function renderBonusProductTabs() {
+  const wrap = document.getElementById('bonusProductTabsWrap');
+  if (!wrap) return;
+
+  if (!bonusPaymentProductList.length) {
+    wrap.innerHTML = `<div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;font-size:13px;color:#92400e;">
+      ⚠️ 등록된 투자 상품이 없습니다. 상품 관리 탭에서 상품을 먼저 추가하세요.</div>`;
+    return;
+  }
+
+  const products = bonusPaymentProductList;
+  if (!activeBonusProductTab) activeBonusProductTab = products[0].id;
+
+  // 탭 헤더
+  const tabHeaders = products.map(p => `
+    <button onclick="switchBonusProductTab('${p.id}')" id="bptab_${p.id}"
+      style="padding:8px 18px;border:none;cursor:pointer;font-size:13px;font-weight:600;
+      border-radius:8px 8px 0 0;transition:all .15s;
+      background:${activeBonusProductTab===p.id?'#6366f1':'#f1f5f9'};
+      color:${activeBonusProductTab===p.id?'#fff':'#64748b'};">
+      ${p.icon||'💼'} ${p.name}
+    </button>`).join('');
+
+  // 탭 컨텐츠 (현재 탭만 렌더)
+  const activeProduct = products.find(p => p.id === activeBonusProductTab);
+  const cfg = (currentBonusPaymentConfig.products || {})[activeBonusProductTab] || {};
+
+  wrap.innerHTML = `
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0;border-bottom:2px solid #e2e8f0;padding-bottom:0;">
+      ${tabHeaders}
+    </div>
+    <div style="background:#f8faff;border:1.5px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:20px;">
+      ${renderBonusProductPanel(activeProduct, cfg)}
+    </div>`;
+}
+
+window.switchBonusProductTab = function(productId) {
+  activeBonusProductTab = productId;
+  renderBonusProductTabs();
+};
+
+function renderBonusProductPanel(product, cfg) {
+  if (!product) return '';
+  const pid = product.id;
+
+  // 현재 설정값
+  const startType  = cfg.paymentStartType    || 'NEXT_DAY';
+  const freq       = cfg.paymentFrequency    || 'DAILY';
+  const durType    = cfg.paymentDurationType || 'UNLIMITED';
+  const durVal     = cfg.durationValue       || 30;
+  const isActive   = cfg.isActive             !== false;
+  const baseRate   = cfg.baseRate             ?? (product.dailyRoi ?? 1);
+  const policyARate= cfg.policyARate          ?? 0;
+  const policyBRate= cfg.policyBRate          ?? 0;
+  const pattern    = cfg.customPattern        || [];
+
+  // 요일 체크박스 HTML
+  const dayCheckboxes = DAY_NAMES.map(d =>
+    `<label style="display:inline-flex;align-items:center;gap:4px;margin:4px;cursor:pointer;">
+      <input type="checkbox" id="bp_day_${pid}_${d.v}" ${pattern.includes(d.v)?'checked':''}
+        style="width:15px;height:15px;accent-color:#6366f1;">
+      <span style="font-size:13px;font-weight:600;">${d.l}</span>
+    </label>`).join('');
+
+  // 월간 일자 체크박스
+  const monthDays = Array.from({length:31},(_,i)=>i+1);
+  const monthDayCheckboxes = monthDays.map(d =>
+    `<label style="display:inline-flex;align-items:center;gap:2px;margin:2px 4px;cursor:pointer;font-size:11px;">
+      <input type="checkbox" id="bp_mday_${pid}_${d}" ${pattern.includes(d)?'checked':''}
+        style="width:14px;height:14px;accent-color:#6366f1;">${d}일
+    </label>`).join('');
+
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <!-- 활성화 스위치 -->
+    <div style="grid-column:span 2;display:flex;align-items:center;gap:12px;background:${isActive?'#f0fdf4':'#fef2f2'};
+      border:1.5px solid ${isActive?'#86efac':'#fca5a5'};border-radius:10px;padding:12px 16px;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
+        <input type="checkbox" id="bp_active_${pid}" ${isActive?'checked':''}
+          style="width:20px;height:20px;accent-color:#16a34a;cursor:pointer;"
+          onchange="updateBonusProductActiveStyle('${pid}',this.checked)">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:${isActive?'#15803d':'#dc2626'}">
+            ${isActive?'✅ 이 상품 패턴 설정 활성화':'❌ 이 상품 패턴 설정 비활성화'}
+          </div>
+          <div style="font-size:11px;color:#94a3b8;">비활성 시 전역 설정에 따라 처리</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- 지급 시작일 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+      <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:12px;">📅 지급 시작일</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+        <input type="radio" name="bp_start_${pid}" id="bp_start_same_${pid}" value="PURCHASE_DAY"
+          ${startType==='PURCHASE_DAY'?'checked':''} style="accent-color:#6366f1;">
+        <span style="font-size:13px;">당일 즉시 시작</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="radio" name="bp_start_${pid}" id="bp_start_next_${pid}" value="NEXT_DAY"
+          ${startType==='NEXT_DAY'?'checked':''} style="accent-color:#6366f1;">
+        <span style="font-size:13px;">익일(다음날) 시작</span>
+      </label>
+    </div>
+
+    <!-- 지급 주기 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+      <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:12px;">🔁 지급 주기</div>
+      ${FREQ_OPTIONS.map(f=>`
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+          <input type="radio" name="bp_freq_${pid}" value="${f.value}"
+            ${freq===f.value?'checked':''} style="accent-color:#6366f1;"
+            onchange="onBonusFreqChange('${pid}','${f.value}')">
+          <span style="font-size:13px;">${f.label}</span>
+        </label>`).join('')}
+
+      <!-- 커스텀 패턴 패널 -->
+      <div id="bp_dayPanel_${pid}" style="margin-top:10px;padding:10px;background:#f8faff;border-radius:8px;
+        display:${['WEEKLY','CUSTOM_PATTERN'].includes(freq)?'block':'none'};">
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;">요일 선택 (복수 가능):</div>
+        ${dayCheckboxes}
+      </div>
+      <!-- 월간 패널 -->
+      <div id="bp_mdayPanel_${pid}" style="margin-top:10px;padding:10px;background:#f8faff;border-radius:8px;
+        display:${freq==='MONTHLY'?'block':'none'};max-height:120px;overflow-y:auto;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:6px;">날짜 선택 (복수 가능):</div>
+        ${monthDayCheckboxes}
+      </div>
+    </div>
+
+    <!-- 지급 기간/한도 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+      <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:12px;">⏳ 지급 기간/한도</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+        <input type="radio" name="bp_dur_${pid}" value="UNLIMITED"
+          ${durType==='UNLIMITED'?'checked':''} style="accent-color:#6366f1;"
+          onchange="onBonusDurChange('${pid}','UNLIMITED')">
+        <span style="font-size:13px;">무제한</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+        <input type="radio" name="bp_dur_${pid}" value="LIMITED_DAYS"
+          ${durType==='LIMITED_DAYS'?'checked':''} style="accent-color:#6366f1;"
+          onchange="onBonusDurChange('${pid}','LIMITED_DAYS')">
+        <span style="font-size:13px;">기간 제한 (일)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="radio" name="bp_dur_${pid}" value="LIMITED_COUNTS"
+          ${durType==='LIMITED_COUNTS'?'checked':''} style="accent-color:#6366f1;"
+          onchange="onBonusDurChange('${pid}','LIMITED_COUNTS')">
+        <span style="font-size:13px;">횟수 제한 (회)</span>
+      </label>
+      <div id="bp_durValWrap_${pid}" style="margin-top:10px;display:${durType!=='UNLIMITED'?'flex':'none'};align-items:center;gap:8px;">
+        <input type="number" id="bp_durVal_${pid}" value="${durVal}" min="1" step="1"
+          style="width:80px;padding:7px;border:1.5px solid #c7d2fe;border-radius:8px;font-size:14px;font-weight:700;text-align:center;">
+        <span id="bp_durUnit_${pid}" style="font-size:13px;color:#64748b;">${durType==='LIMITED_COUNTS'?'회':'일간'}</span>
+      </div>
+    </div>
+
+    <!-- 이율 설정 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+      <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:12px;">💹 상품 이율 설정</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;">기본 데일리 이율</div>
+          <input type="number" id="bp_baseRate_${pid}" value="${baseRate}" step="0.01" min="0" max="100"
+            style="width:100%;padding:7px;border:1.5px solid #c7d2fe;border-radius:8px;font-size:13px;font-weight:700;text-align:center;">
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">%</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Policy A 이율</div>
+          <input type="number" id="bp_policyA_${pid}" value="${policyARate}" step="0.01" min="0" max="100"
+            style="width:100%;padding:7px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:13px;font-weight:700;text-align:center;">
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">%</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Policy B 이율</div>
+          <input type="number" id="bp_policyB_${pid}" value="${policyBRate}" step="0.01" min="0" max="100"
+            style="width:100%;padding:7px;border:1.5px solid #ddd6fe;border-radius:8px;font-size:13px;font-weight:700;text-align:center;">
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 실시간 미리보기 -->
+    <div style="grid-column:span 2;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1.5px solid #7dd3fc;
+      border-radius:10px;padding:16px;">
+      <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:10px;">👁️ 설정 미리보기</div>
+      <div style="font-size:12px;color:#0c4a6e;line-height:1.8;">
+        <span>📦 상품: <strong>${product.name}</strong></span> &nbsp;|&nbsp;
+        <span>📅 시작: <strong>${startType==='PURCHASE_DAY'?'당일':'익일'}</strong></span> &nbsp;|&nbsp;
+        <span>🔁 주기: <strong>${FREQ_OPTIONS.find(f=>f.value===freq)?.label||freq}</strong></span><br>
+        <span>⏳ 한도: <strong>${durType==='UNLIMITED'?'무제한':durType==='LIMITED_DAYS'?durVal+'일간':durVal+'회'}</strong></span> &nbsp;|&nbsp;
+        <span>💹 이율: <strong>${baseRate}%</strong> (A:${policyARate}% / B:${policyBRate}%)</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.updateBonusProductActiveStyle = function(pid, checked) {
+  // 탭 패널 색상 갱신
+  const label = document.getElementById(`bp_active_${pid}`)?.closest('label');
+  if (!label) return;
+  const txt = label.querySelector('div > div:first-child');
+  if (txt) txt.textContent = checked ? '✅ 이 상품 패턴 설정 활성화' : '❌ 이 상품 패턴 설정 비활성화';
+};
+
+window.onBonusFreqChange = function(pid, freq) {
+  const dayPanel  = document.getElementById(`bp_dayPanel_${pid}`);
+  const mdayPanel = document.getElementById(`bp_mdayPanel_${pid}`);
+  if (dayPanel)  dayPanel.style.display  = ['WEEKLY','CUSTOM_PATTERN'].includes(freq) ? 'block' : 'none';
+  if (mdayPanel) mdayPanel.style.display = freq === 'MONTHLY' ? 'block' : 'none';
+};
+
+window.onBonusDurChange = function(pid, durType) {
+  const wrap = document.getElementById(`bp_durValWrap_${pid}`);
+  const unit = document.getElementById(`bp_durUnit_${pid}`);
+  if (wrap) wrap.style.display = durType !== 'UNLIMITED' ? 'flex' : 'none';
+  if (unit) unit.textContent = durType === 'LIMITED_COUNTS' ? '회' : '일간';
+};
+
+function collectBonusPaymentConfig() {
+  // 전역 옵션
+  const globalOptions = {};
+  GLOBAL_OPTIONS_DEF.forEach(o => {
+    globalOptions[o.id] = document.getElementById(`go_${o.id}`)?.checked === true;
+  });
+
+  // 상품별 설정
+  const products = {};
+  bonusPaymentProductList.forEach(p => {
+    const pid = p.id;
+    // 주기별 패턴 수집
+    const freq = document.querySelector(`input[name="bp_freq_${pid}"]:checked`)?.value || 'DAILY';
+    let customPattern = [];
+    if (['WEEKLY','CUSTOM_PATTERN'].includes(freq)) {
+      customPattern = DAY_NAMES.filter(d => document.getElementById(`bp_day_${pid}_${d.v}`)?.checked).map(d => d.v);
+    } else if (freq === 'MONTHLY') {
+      customPattern = Array.from({length:31},(_,i)=>i+1).filter(d => document.getElementById(`bp_mday_${pid}_${d}`)?.checked);
+    }
+    const durType = document.querySelector(`input[name="bp_dur_${pid}"]:checked`)?.value || 'UNLIMITED';
+
+    products[pid] = {
+      isActive:            document.getElementById(`bp_active_${pid}`)?.checked !== false,
+      paymentStartType:    document.querySelector(`input[name="bp_start_${pid}"]:checked`)?.value || 'NEXT_DAY',
+      paymentFrequency:    freq,
+      customPattern,
+      paymentDurationType: durType,
+      durationValue:       parseInt(document.getElementById(`bp_durVal_${pid}`)?.value) || 30,
+      baseRate:            parseFloat(document.getElementById(`bp_baseRate_${pid}`)?.value) || 0,
+      policyARate:         parseFloat(document.getElementById(`bp_policyA_${pid}`)?.value) || 0,
+      policyBRate:         parseFloat(document.getElementById(`bp_policyB_${pid}`)?.value) || 0,
+    };
+  });
+
+  return { globalOptions, products };
+}
+
+function setupBonusPaymentButtons() {
+  const btn = document.getElementById('saveBonusPaymentBtn');
+  if (btn && !btn._bound) {
+    btn._bound = true;
+    btn.onclick = async () => {
+      const config = collectBonusPaymentConfig();
+      btn.disabled = true;
+      btn.textContent = '저장 중...';
+      const r = await api.saveBonusPaymentConfig(currentAdmin.uid, config);
+      btn.disabled = false;
+      btn.textContent = '💾 패턴 설정 저장';
+      const alertEl = document.getElementById('bonusPaymentAlert');
+      if (r.success) {
+        currentBonusPaymentConfig = config;
+        alertEl.innerHTML = '<div class="inline-alert success">✅ 보너스 지급 패턴 설정이 저장되었습니다.</div>';
+        setTimeout(() => { alertEl.innerHTML = ''; }, 3000);
+      } else {
+        alertEl.innerHTML = `<div class="inline-alert error">❌ ${r.error}</div>`;
+      }
+    };
+  }
+}
     const list = document.getElementById('rateHistoryList');
     list.innerHTML = '<div class="loading" style="padding:10px;"><div class="spinner"></div></div>';
     const r = await api.getRateHistory(15);
