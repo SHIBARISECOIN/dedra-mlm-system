@@ -6885,6 +6885,7 @@ function closeCenterModal() {
     document.getElementById('centerModal').style.display = 'none';
     editingCenterId = null;
 }
+window.closeCenterModal = closeCenterModal;
 
 async function deleteCenter(id, name) {
     if (!confirm(`"${name}" 센터를 삭제하시겠습니까?`)) return;
@@ -6921,6 +6922,10 @@ async function showCenterMembers(centerId, centerName) {
 function closeCenterMembersModal() {
     document.getElementById('centerMembersModal').style.display = 'none';
 }
+window.closeCenterMembersModal = closeCenterMembersModal;
+window.editCenter = editCenter;
+window.deleteCenter = deleteCenter;
+window.showCenterMembers = showCenterMembers;
 
 // 센터 저장 버튼 — DOMContentLoaded 제거, 직접 바인딩
 function bindCenterSaveBtn() {
@@ -7483,6 +7488,18 @@ function showToast(msg, type = 'default') {
     clearTimeout(toast._t);
     toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
 }
+
+// ── window 전역 노출 (type="module" 안의 함수를 HTML onclick에서 호출 가능하도록) ──
+window.loadDashboardCharts  = loadDashboardCharts;
+window.loadNotices          = loadNotices;
+window.loadNews             = loadNews;
+window.loadAuditLog         = loadAuditLog;
+window.loadInvestAnalytics  = loadInvestAnalytics;
+window.loadInvestmentList   = loadInvestmentList;
+window.saveProductRate      = saveProductRate;
+window.orgZoom              = orgZoom;
+window.orgZoomReset         = orgZoomReset;
+window.showCustomerDetail   = (id) => showMemberDetail(id); // 조직도에서 호출
 
 </script>
 </div><!-- /adminMain -->
