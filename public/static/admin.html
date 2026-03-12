@@ -845,6 +845,95 @@ canvas{width:100% !important;}
       <div class="page-title">입금 관리</div>
       <div class="page-desc">회원 입금 신청을 확인하고 승인/거부하세요</div>
 
+      <!-- ══════ USDT 직접 수정 패널 ══════ -->
+      <div style="background:linear-gradient(135deg,#1e293b,#334155);border-radius:16px;padding:24px;max-width:960px;margin-bottom:28px;box-shadow:0 4px 20px rgba(0,0,0,.18);">
+        <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px;">⚡ USDT 잔액 직접 수정</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:20px;">아이디·이름·이메일 한 글자만 입력해도 즉시 검색됩니다</div>
+
+        <!-- 검색창 -->
+        <div style="position:relative;max-width:480px;margin-bottom:16px;">
+          <input type="text" id="usdtEditSearch" placeholder="🔍  아이디 / 이름 / 이메일 입력..."
+            style="width:100%;padding:12px 16px;border-radius:10px;border:2px solid #475569;background:#0f172a;color:#f1f5f9;font-size:14px;outline:none;box-sizing:border-box;"
+            oninput="onUsdtSearchInput(this.value)" autocomplete="off">
+          <!-- 자동완성 드롭다운 -->
+          <div id="usdtSearchDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1.5px solid #475569;border-radius:10px;margin-top:4px;z-index:999;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
+        </div>
+
+        <!-- 결과 카드 (선택 후 표시) -->
+        <div id="usdtEditCard" style="display:none;">
+          <div style="background:#0f172a;border-radius:12px;padding:20px;border:1.5px solid #334155;">
+            <!-- 회원 정보 헤더 -->
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+              <div style="width:44px;height:44px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👤</div>
+              <div>
+                <div style="font-size:15px;font-weight:700;color:#f1f5f9;" id="usdtEditName">-</div>
+                <div style="font-size:12px;color:#64748b;" id="usdtEditId">-</div>
+              </div>
+              <div style="margin-left:auto;text-align:right;">
+                <div style="font-size:11px;color:#64748b;margin-bottom:2px;">활성 투자</div>
+                <div style="font-size:13px;font-weight:700;" id="usdtEditInvest">-</div>
+              </div>
+            </div>
+
+            <!-- 현재 잔액 표시 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+              <div style="background:#1e293b;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">💵 전체 USDT</div>
+                <div style="font-size:20px;font-weight:800;color:#34d399;" id="usdtEditCurrent">$0.00</div>
+              </div>
+              <div style="background:#1e293b;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">🔒 인출불가</div>
+                <div style="font-size:18px;font-weight:700;color:#f59e0b;" id="usdtEditLocked">$0.00</div>
+              </div>
+              <div style="background:#1e293b;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">✅ 인출가능</div>
+                <div style="font-size:18px;font-weight:700;color:#60a5fa;" id="usdtEditFree">$0.00</div>
+              </div>
+            </div>
+
+            <!-- 수정 입력 -->
+            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:14px;">
+              <div>
+                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;font-weight:600;">새 USDT 금액 입력</label>
+                <input type="number" id="usdtEditNewVal" min="0" step="0.01" placeholder="0.00"
+                  style="width:100%;padding:12px 14px;border-radius:8px;border:2px solid #475569;background:#1e293b;color:#f1f5f9;font-size:18px;font-weight:700;outline:none;box-sizing:border-box;"
+                  oninput="onUsdtNewValInput(this.value)">
+              </div>
+              <div style="font-size:24px;padding-bottom:10px;color:#64748b;" id="usdtEditDelta"></div>
+            </div>
+
+            <!-- 인출 구분 토글 -->
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+              <button id="usdtEditBtnWithdrawable" onclick="setUsdtWithdrawable(true)"
+                style="flex:1;padding:10px;border-radius:8px;border:2px solid #22c55e;background:#14532d;color:#86efac;font-size:13px;font-weight:700;cursor:pointer;">
+                ✅ 인출 가능
+              </button>
+              <button id="usdtEditBtnLocked" onclick="setUsdtWithdrawable(false)"
+                style="flex:1;padding:10px;border-radius:8px;border:2px solid #475569;background:#1e293b;color:#64748b;font-size:13px;font-weight:700;cursor:pointer;">
+                🔒 인출 불가 (상품 구매만)
+              </button>
+            </div>
+
+            <!-- 메모 -->
+            <input type="text" id="usdtEditReason" placeholder="수정 사유 (선택 입력)"
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid #334155;background:#1e293b;color:#94a3b8;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:14px;">
+
+            <!-- 저장 버튼 -->
+            <div style="display:flex;gap:10px;">
+              <button onclick="doUsdtEdit()"
+                style="flex:1;padding:13px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:.5px;">
+                💾 저장
+              </button>
+              <button onclick="clearUsdtEditPanel()"
+                style="padding:13px 20px;background:#334155;color:#94a3b8;border:none;border-radius:10px;font-size:14px;cursor:pointer;">
+                ✕
+              </button>
+            </div>
+            <div id="usdtEditAlert" style="margin-top:10px;font-size:13px;text-align:center;"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ── 회사 입금 지갑 주소 설정 카드 ── -->
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header">
@@ -10044,6 +10133,157 @@ window.executeScheduledBroadcastWithTranslation = async function(id) {
     loadBcSummary();
   } catch(e) { showToast('❌ ' + e.message, 'error'); }
 };
+
+// ══════════════════════════════════════════════════
+// USDT 직접 수정 패널 로직
+// ══════════════════════════════════════════════════
+let _usdtEditUser       = null;  // 현재 선택된 회원 { id, name, email }
+let _usdtEditWallet     = null;  // 현재 지갑 정보
+let _usdtWithdrawable   = true;  // 인출 가능 여부
+let _usdtSearchTimer    = null;  // 디바운스 타이머
+
+// 입력 디바운스 (150ms)
+async function onUsdtSearchInput(val) {
+  clearTimeout(_usdtSearchTimer);
+  const drop = document.getElementById('usdtSearchDrop');
+  if (!val.trim()) { drop.style.display = 'none'; return; }
+  _usdtSearchTimer = setTimeout(async () => {
+    const r = await api.searchUsersByKeyword(val);
+    if (!r.success || r.data.length === 0) {
+      drop.innerHTML = '<div style="padding:14px 16px;color:#64748b;font-size:13px;">검색 결과 없음</div>';
+      drop.style.display = 'block';
+      return;
+    }
+    drop.innerHTML = r.data.map(u => `
+      <div onclick="selectUsdtUser('${u.id}')"
+        style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #334155;display:flex;align-items:center;gap:10px;"
+        onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#f1f5f9;">${u.name || '(이름없음)'}</div>
+          <div style="font-size:11px;color:#64748b;">${u.email || u.id}</div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;color:#94a3b8;">${u.rank || 'G0'}</div>
+      </div>`).join('');
+    drop.style.display = 'block';
+  }, 150);
+}
+
+// 회원 선택
+async function selectUsdtUser(userId) {
+  document.getElementById('usdtSearchDrop').style.display = 'none';
+  document.getElementById('usdtEditAlert').textContent = '';
+  showToast('⏳ 잔액 조회 중...');
+
+  const usersSnap = await api.searchUsersByKeyword(userId);
+  // userId로 직접 조회
+  const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+  // api 내부 db 접근 — getUserWalletInfo 사용
+  const r = await api.getUserWalletInfo(userId);
+  if (!r.success) { showToast('❌ ' + r.error); return; }
+
+  // 이름/이메일은 검색 결과에서 찾기
+  const searchR = await api.searchUsersByKeyword(userId);
+  const userInfo = searchR.success ? searchR.data.find(u => u.id === userId) : null;
+
+  _usdtEditUser   = { id: userId, name: userInfo?.name || userId, email: userInfo?.email || '' };
+  _usdtEditWallet = r.data;
+  _usdtWithdrawable = true; // 기본값 인출가능
+
+  // 검색창 업데이트
+  document.getElementById('usdtEditSearch').value = `${_usdtEditUser.name}  (${_usdtEditUser.email || userId})`;
+
+  // 카드 표시
+  const usdt    = r.data.usdtBalance   || 0;
+  const locked  = r.data.lockedBalance  || 0;
+  const free    = Math.max(0, usdt - locked);
+
+  document.getElementById('usdtEditName').textContent    = _usdtEditUser.name;
+  document.getElementById('usdtEditId').textContent      = userId;
+  document.getElementById('usdtEditInvest').innerHTML    = r.data.hasActiveInvestment
+    ? `<span style="color:#34d399;">✅ $${r.data.totalInvested.toFixed(2)} 운용중</span>`
+    : `<span style="color:#f87171;">❌ 없음</span>`;
+  document.getElementById('usdtEditCurrent').textContent = `$${usdt.toFixed(2)}`;
+  document.getElementById('usdtEditLocked').textContent  = `$${locked.toFixed(2)}`;
+  document.getElementById('usdtEditFree').textContent    = `$${free.toFixed(2)}`;
+  document.getElementById('usdtEditNewVal').value        = usdt.toFixed(2);
+  document.getElementById('usdtEditDelta').textContent   = '';
+  document.getElementById('usdtEditReason').value        = '';
+  document.getElementById('usdtEditCard').style.display  = 'block';
+  setUsdtWithdrawable(true);
+}
+
+// 새 금액 입력 시 차이 표시
+function onUsdtNewValInput(val) {
+  if (!_usdtEditWallet) return;
+  const cur = _usdtEditWallet.usdtBalance || 0;
+  const nv  = parseFloat(val) || 0;
+  const diff = nv - cur;
+  const el = document.getElementById('usdtEditDelta');
+  if (diff > 0)      { el.textContent = `+$${diff.toFixed(2)}`; el.style.color = '#34d399'; }
+  else if (diff < 0) { el.textContent = `-$${Math.abs(diff).toFixed(2)}`; el.style.color = '#f87171'; }
+  else               { el.textContent = '±0'; el.style.color = '#64748b'; }
+}
+
+// 인출 가능 여부 토글
+function setUsdtWithdrawable(val) {
+  _usdtWithdrawable = val;
+  const btnY = document.getElementById('usdtEditBtnWithdrawable');
+  const btnN = document.getElementById('usdtEditBtnLocked');
+  if (val) {
+    btnY.style.borderColor = '#22c55e'; btnY.style.background = '#14532d'; btnY.style.color = '#86efac';
+    btnN.style.borderColor = '#475569'; btnN.style.background = '#1e293b'; btnN.style.color = '#64748b';
+  } else {
+    btnY.style.borderColor = '#475569'; btnY.style.background = '#1e293b'; btnY.style.color = '#64748b';
+    btnN.style.borderColor = '#f59e0b'; btnN.style.background = '#451a03'; btnN.style.color = '#fcd34d';
+  }
+}
+
+// 저장
+async function doUsdtEdit() {
+  if (!_usdtEditUser) return;
+  const newVal = parseFloat(document.getElementById('usdtEditNewVal').value);
+  if (isNaN(newVal) || newVal < 0) { showToast('❌ 금액을 올바르게 입력하세요'); return; }
+  const reason = document.getElementById('usdtEditReason').value.trim() || '관리자 직접 수정';
+
+  const alertEl = document.getElementById('usdtEditAlert');
+  alertEl.style.color = '#94a3b8';
+  alertEl.textContent = '저장 중...';
+
+  const r = await api.setUsdtBalanceDirect(
+    currentAdmin.uid, _usdtEditUser.id, newVal, _usdtWithdrawable, reason
+  );
+  if (r.success) {
+    const typeLabel = _usdtWithdrawable ? '인출가능' : '인출불가(상품구매전용)';
+    alertEl.style.color = '#34d399';
+    alertEl.textContent = `✅ 저장 완료! $${r.data.oldUsdt.toFixed(2)} → $${r.data.newUsdt.toFixed(2)} (${typeLabel})`;
+    // 잔액 카드 갱신
+    _usdtEditWallet.usdtBalance = newVal;
+    document.getElementById('usdtEditCurrent').textContent = `$${newVal.toFixed(2)}`;
+    document.getElementById('usdtEditDelta').textContent   = '';
+    showToast(`✅ ${_usdtEditUser.name} USDT $${newVal.toFixed(2)} 저장 완료`);
+  } else {
+    alertEl.style.color = '#f87171';
+    alertEl.textContent = '❌ ' + r.error;
+    showToast('❌ ' + r.error);
+  }
+}
+
+// 패널 초기화
+function clearUsdtEditPanel() {
+  _usdtEditUser = null; _usdtEditWallet = null;
+  document.getElementById('usdtEditSearch').value = '';
+  document.getElementById('usdtEditCard').style.display = 'none';
+  document.getElementById('usdtSearchDrop').style.display = 'none';
+}
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#usdtEditSearch') && !e.target.closest('#usdtSearchDrop')) {
+    const drop = document.getElementById('usdtSearchDrop');
+    if (drop) drop.style.display = 'none';
+  }
+});
 
 </script>
 </div><!-- /adminMain -->

@@ -250,6 +250,111 @@ export class DedraAPI {
     } catch(e) { return err(e); }
   }
 
+  // ─────────────────────────────────────────────────
+  // 회원 키워드 검색 (아이디/이름/이메일 한두 글자도 검색)
+  // ─────────────────────────────────────────────────
+  async searchUsersByKeyword(keyword) {
+    try {
+      const db = this.db;
+      const snap = await getDocs(query(collection(db, 'users'), where('role', '!=', 'admin')));
+      const kw = (keyword || '').trim().toLowerCase();
+      if (!kw) return ok([]);
+      const results = [];
+      for (const d of snap.docs) {
+        const u = { id: d.id, ...d.data() };
+        const idMatch    = (u.id || '').toLowerCase().includes(kw);
+        const nameMatch  = (u.name || '').toLowerCase().includes(kw);
+        const emailMatch = (u.email || '').toLowerCase().includes(kw);
+        if (idMatch || nameMatch || emailMatch) results.push(u);
+        if (results.length >= 20) break; // 최대 20명
+      }
+      return ok(results);
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
+  // 회원 USDT 잔액 직접 수정
+  //   - sourceType: 'manual_add' | 'manual_set'
+  //   - withdrawable: true = 인출 가능 / false = 인출 불가 (상품 구매만 가능)
+  // ─────────────────────────────────────────────────
+  async setUsdtBalanceDirect(adminId, userId, newAmount, withdrawable, reason) {
+    try {
+      const db = this.db;
+      const amt = parseFloat(newAmount);
+      if (isNaN(amt) || amt < 0) throw new Error('유효하지 않은 금액입니다');
+
+      // 지갑 조회
+      const walletQ = query(collection(db, 'wallets'), where('userId', '==', userId));
+      const wSnap   = await getDocs(walletQ);
+      if (wSnap.empty) throw new Error('지갑이 없습니다');
+      const wRef  = wSnap.docs[0].ref;
+      const wData = wSnap.docs[0].data();
+
+      const oldUsdt   = wData.usdtBalance   || 0;
+      const oldLocked = wData.lockedBalance  || 0; // 인출불가 누적
+
+      // 인출 불가 금액은 lockedBalance 에 따로 누적
+      // usdtBalance 는 항상 전체 잔액 (인출가능 + 불가 합산)
+      const updateData = {
+        usdtBalance:  amt,
+        updatedAt:    serverTimestamp(),
+      };
+      if (!withdrawable) {
+        // 기존 lockedBalance + 증가분을 누적
+        const delta  = amt - oldUsdt;
+        const newLocked = Math.max(0, oldLocked + (delta > 0 ? delta : 0));
+        updateData.lockedBalance = newLocked;
+      }
+
+      await updateDoc(wRef, updateData);
+
+      // 트랜잭션 이력 기록
+      await addDoc(collection(db, 'transactions'), {
+        userId,
+        type:           'admin_adjust',
+        amount:         amt,
+        prevAmount:     oldUsdt,
+        delta:          amt - oldUsdt,
+        withdrawable:   withdrawable === true,
+        reason:         reason || '관리자 직접 수정',
+        status:         'approved',
+        adminId,
+        createdAt:      serverTimestamp(),
+        approvedAt:     serverTimestamp(),
+      });
+
+      await this._auditLog(adminId, 'wallet_adjust',
+        `USDT 직접 수정: ${oldUsdt.toFixed(2)} → ${amt.toFixed(2)} USDT (${withdrawable ? '인출가능' : '인출불가'})`,
+        { userId, oldUsdt, newUsdt: amt, withdrawable, reason }
+      );
+      return ok({ oldUsdt, newUsdt: amt });
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
+  // 회원 지갑 정보 + 활성 투자 여부 조회 (USDT 수정 패널용)
+  // ─────────────────────────────────────────────────
+  async getUserWalletInfo(userId) {
+    try {
+      const db = this.db;
+      const [walletSnap, invSnap] = await Promise.all([
+        getDocs(query(collection(db, 'wallets'), where('userId', '==', userId))),
+        getDocs(query(collection(db, 'investments'), where('userId', '==', userId), where('status', '==', 'active'))),
+      ]);
+      if (walletSnap.empty) throw new Error('지갑 없음');
+      const wallet = walletSnap.docs[0].data();
+      const hasActiveInvestment = !invSnap.empty;
+      const totalInvested = invSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+      return ok({
+        usdtBalance:   wallet.usdtBalance   || 0,
+        lockedBalance: wallet.lockedBalance  || 0,
+        bonusBalance:  wallet.bonusBalance   || 0,
+        hasActiveInvestment,
+        totalInvested,
+      });
+    } catch(e) { return err(e); }
+  }
+
   async giveManualBonus(adminId, userId, amount, reason) {
     try {
       const db = this.db;
