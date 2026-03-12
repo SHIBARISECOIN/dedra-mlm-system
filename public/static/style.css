@@ -967,6 +967,11 @@ body {
   color: #ff6b6b; border: 1px solid rgba(244,67,54,0.4);
 }
 .badge-soon { background: var(--bg4); color: var(--text3); border: 1px solid var(--border); }
+.badge-new  {
+  background: linear-gradient(90deg, rgba(255,183,0,0.25), rgba(255,100,0,0.15));
+  color: #ffd740; border: 1px solid rgba(255,183,0,0.45);
+  animation: livePulse 1.8s ease-in-out infinite;
+}
 
 /* ===== 게임 플레이 영역 ===== */
 .game-area {
@@ -1658,3 +1663,187 @@ body {
 /* 게임 카드 이모지 호버 효과 */
 .game-thumb span { display: block; transition: transform 0.3s; }
 .game-card:hover .game-thumb span { transform: scale(1.15) rotate(-5deg); }
+
+/* ============================================
+   ROULETTE  –  고화질 룰렛 게임
+============================================ */
+
+/* 바퀴 래퍼 */
+.roulette-body { padding: 16px; }
+
+.roulette-wheel-wrap {
+  position: relative;
+  width: 300px; height: 300px;
+  margin: 0 auto 20px;
+}
+
+/* 황금 외부 링 */
+.roulette-outer-ring {
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #b8860b 0deg, #ffd700 20deg, #b8860b 40deg,
+    #ffd700 60deg, #b8860b 80deg, #ffd700 100deg,
+    #b8860b 120deg, #ffd700 140deg, #b8860b 160deg,
+    #ffd700 180deg, #b8860b 200deg, #ffd700 220deg,
+    #b8860b 240deg, #ffd700 260deg, #b8860b 280deg,
+    #ffd700 300deg, #b8860b 320deg, #ffd700 340deg,
+    #b8860b 360deg
+  );
+  padding: 8px;
+  box-shadow:
+    0 0 0 2px #7a5800,
+    0 0 30px rgba(255,215,0,0.35),
+    0 0 60px rgba(255,215,0,0.15),
+    inset 0 0 20px rgba(0,0,0,0.4);
+  box-sizing: border-box;
+}
+
+/* 내부 그림자 링 */
+.roulette-inner-shadow {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  background: #111;
+  box-shadow: inset 0 4px 16px rgba(0,0,0,0.7);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Canvas */
+#rouletteCanvas {
+  width: 100%; height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+/* 포인터 화살표 */
+.roulette-pointer {
+  position: absolute;
+  top: -6px; left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.9), 0 2px 6px rgba(0,0,0,0.8);
+  z-index: 10;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px #ffd700);
+}
+
+/* 베팅 탭 */
+.rl-bet-tabs {
+  display: flex; gap: 6px; margin-bottom: 12px;
+}
+.rl-tab {
+  flex: 1; padding: 10px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 10px; font-size: 13px; font-weight: 700;
+  color: var(--text2); cursor: pointer; transition: all 0.2s;
+}
+.rl-tab.active {
+  background: linear-gradient(135deg, rgba(255,183,0,0.2), rgba(255,100,0,0.1));
+  border-color: rgba(255,183,0,0.5); color: #ffd740;
+  box-shadow: 0 0 10px rgba(255,183,0,0.15);
+}
+
+/* 간단 베팅 그리드 */
+.rl-simple-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rl-simple-btn {
+  padding: 13px 8px; border-radius: 12px;
+  font-size: 13px; font-weight: 800;
+  border: 1.5px solid transparent;
+  cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+.rl-simple-btn::before {
+  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.07), transparent);
+}
+.rl-simple-btn.red    { background: linear-gradient(135deg,#7f0000,#c62828); color:#ffcdd2; border-color:rgba(198,40,40,.5); }
+.rl-simple-btn.black  { background: linear-gradient(135deg,#111,#37474f);    color:#cfd8dc; border-color:rgba(96,125,139,.5); }
+.rl-simple-btn.green  { background: linear-gradient(135deg,#1b5e20,#2e7d32); color:#b9f6ca; border-color:rgba(46,125,50,.5); }
+.rl-simple-btn.blue   { background: linear-gradient(135deg,#0d47a1,#1565c0); color:#bbdefb; border-color:rgba(21,101,192,.5); }
+.rl-simple-btn.orange { background: linear-gradient(135deg,#e65100,#f57c00); color:#ffe0b2; border-color:rgba(245,124,0,.5); }
+.rl-simple-btn.purple { background: linear-gradient(135deg,#4a148c,#6a1b9a); color:#e1bee7; border-color:rgba(106,27,154,.5); }
+.rl-simple-btn:hover  { transform: translateY(-2px) scale(1.03); filter: brightness(1.15); }
+.rl-simple-btn:active { transform: scale(0.95); }
+.rl-simple-btn.selected {
+  filter: brightness(1.25);
+  box-shadow: 0 0 14px rgba(255,255,255,0.25), inset 0 0 8px rgba(255,255,255,0.1);
+  transform: scale(1.04);
+}
+
+/* 숫자 베팅 보드 */
+.rl-number-board {
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.rl-num.zero {
+  width: 36px; flex-shrink: 0;
+  padding: 0; height: 100%;
+  min-height: 180px;
+  background: linear-gradient(180deg,#1b5e20,#2e7d32);
+  color: #b9f6ca; border: 1px solid rgba(46,125,50,.6);
+  border-radius: 8px; font-size: 15px; font-weight: 900;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.rl-num-grid {
+  flex: 1;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.rl-num {
+  padding: 9px 4px; border-radius: 7px;
+  font-size: 12px; font-weight: 800; text-align: center;
+  cursor: pointer; border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.rl-num.red   { background: #c62828; color: #fff; border-color: rgba(255,255,255,.1); }
+.rl-num.black { background: #212121; color: #fff; border-color: rgba(255,255,255,.1); }
+.rl-num:hover { filter: brightness(1.3); transform: scale(1.08); }
+.rl-num.selected {
+  outline: 2px solid #ffd700;
+  filter: brightness(1.4);
+  box-shadow: 0 0 8px rgba(255,215,0,.5);
+}
+
+/* 선택 베팅 표시줄 */
+.rl-selected-bet {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,183,0,.08); border: 1px solid rgba(255,183,0,.2);
+  border-radius: 10px; padding: 10px 14px; margin: 12px 0;
+}
+.rl-sel-label { font-size: 12px; color: var(--text3); }
+.rl-sel-value { font-size: 14px; font-weight: 800; color: #ffd740; }
+
+/* 스핀 버튼 */
+.btn-roulette-spin {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg, #7a3800 0%, #c85000 50%, #e65100 100%);
+  border: none; border-radius: 14px;
+  font-size: 18px; font-weight: 900; color: #fff;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(230,81,0,0.5), 0 0 0 1px rgba(255,183,0,0.3);
+  text-shadow: 0 0 10px rgba(255,255,255,0.4);
+  letter-spacing: 0.5px;
+}
+.btn-roulette-spin:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a84e00, #e65100, #ff6d00);
+  box-shadow: 0 6px 28px rgba(230,81,0,0.7), 0 0 20px rgba(255,183,0,0.3);
+  transform: translateY(-2px);
+}
+.btn-roulette-spin:active:not(:disabled) { transform: scale(0.97); }
+.btn-roulette-spin:disabled {
+  background: var(--bg3); color: var(--text3); box-shadow: none; cursor: not-allowed;
+}
+
+/* 당첨 번호 표시 */
+.rl-win-number {
+  font-size: 64px; font-weight: 900; text-align: center;
+  padding: 12px 0 4px;
+  text-shadow: 0 0 20px currentColor;
+  animation: winPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}

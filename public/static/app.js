@@ -13,6 +13,8 @@ let gameBalanceVal = 0;
 let oeBetVal = 10;
 let diceBetVal = 10;
 let slotBetVal = 10;
+let rlBetVal   = 10;   // 룰렛 베팅
+let rlSelectedBet = null; // 룰렛 선택 베팅 유형
 let deedraPrice = 0.50; // DEEDRA 시세 (관리자 설정값)
 let currentTheme = 'dark';
 let productsCache = [];
@@ -1150,7 +1152,7 @@ window.startGame = function(type) {
     return;
   }
   closeAllGames();
-  const gameMap = { oddeven: 'gameOddEven', dice: 'gameDice', slot: 'gameSlot' };
+  const gameMap = { oddeven: 'gameOddEven', dice: 'gameDice', slot: 'gameSlot', roulette: 'gameRoulette' };
   const el = document.getElementById(gameMap[type]);
   if (el) el.classList.remove('hidden');
 
@@ -1166,10 +1168,13 @@ window.startGame = function(type) {
     const coinText = document.getElementById('coinResultText');
     if (coinText) { coinText.textContent = '홀 또는 짝을 선택하세요'; coinText.style.color = ''; }
   }
+  if (type === 'roulette') {
+    initRouletteCanvas();
+  }
 };
 
 function closeAllGames() {
-  ['gameOddEven', 'gameDice', 'gameSlot'].forEach(id => {
+  ['gameOddEven', 'gameDice', 'gameSlot', 'gameRoulette'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -1177,7 +1182,7 @@ function closeAllGames() {
 
 window.closeGame = function() {
   closeAllGames();
-  ['oeResult', 'diceResult', 'slotResult'].forEach(id => {
+  ['oeResult', 'diceResult', 'slotResult', 'rouletteResult'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.classList.add('hidden'); el.className = 'game-result hidden'; }
   });
@@ -1188,6 +1193,7 @@ window.updateBetDisplay = function(type, val) {
   if (type === 'oe') { oeBetVal = val; const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val; }
   else if (type === 'dice') { diceBetVal = val; const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val; }
   else if (type === 'slot') { slotBetVal = val; const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val; }
+  else if (type === 'rl')   { rlBetVal   = val; const el = document.getElementById('rlCurrentBet');   if (el) el.textContent = val; }
 };
 
 window.setBetAmount = function(type, val) {
@@ -1195,6 +1201,7 @@ window.setBetAmount = function(type, val) {
   if (type === 'oe') { oeBetVal = val; const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val; }
   else if (type === 'dice') { diceBetVal = val; const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val; }
   else if (type === 'slot') { slotBetVal = val; const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val; }
+  else if (type === 'rl')   { rlBetVal   = val; const el = document.getElementById('rlCurrentBet');   if (el) el.textContent = val; }
 };
 
 window.setBetGameHalf = function(type) {
@@ -1353,6 +1360,271 @@ window.playSpin = function() {
     logGame('슬롯머신', win, slotBetVal);
   }, 1600);
 };
+
+// ===== 룰렛 =====
+
+// 유럽식 룰렛 37칸 순서 (0 포함)
+const ROULETTE_ORDER = [
+  0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,
+  24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26
+];
+const RL_RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+let rlAngle = 0;           // 현재 각도
+let rlAnimId = null;       // requestAnimationFrame id
+let rlSpinning = false;
+
+/* 숫자 → 색상 */
+function rlColor(n) {
+  if (n === 0) return '#1b5e20';
+  return RL_RED.has(n) ? '#c62828' : '#212121';
+}
+
+/* Canvas 바퀴 그리기 */
+function drawRouletteWheel(angle) {
+  const canvas = document.getElementById('rouletteCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const R = W / 2 - 2;   // 바깥 반지름
+  const rInner = R * 0.28; // 중앙 원 반지름
+  const count = ROULETTE_ORDER.length; // 37
+  const arc = (Math.PI * 2) / count;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ── 칸 그리기 ──
+  for (let i = 0; i < count; i++) {
+    const num = ROULETTE_ORDER[i];
+    const startA = angle + i * arc - Math.PI / 2;
+    const endA   = startA + arc;
+
+    // 부채꼴 채우기
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, startA, endA);
+    ctx.closePath();
+    ctx.fillStyle = rlColor(num);
+    ctx.fill();
+
+    // 칸 테두리
+    ctx.strokeStyle = 'rgba(255,215,0,0.35)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // 숫자 텍스트
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(startA + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${num === 0 ? 12 : 11}px sans-serif`;
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(String(num), R - 6, 4);
+    ctx.restore();
+  }
+
+  // ── 구분선(금색 다이아몬드) 포인트 ──
+  for (let i = 0; i < count; i++) {
+    const a = angle + i * arc - Math.PI / 2;
+    const x = cx + Math.cos(a) * (R - 2);
+    const y = cy + Math.sin(a) * (R - 2);
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffd700';
+    ctx.fill();
+  }
+
+  // ── 내부 원 ──
+  // 그라데이션 배경
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rInner);
+  grad.addColorStop(0, '#2a1040');
+  grad.addColorStop(0.6, '#1a0828');
+  grad.addColorStop(1, '#0d0515');
+  ctx.beginPath();
+  ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // 내부 원 테두리
+  ctx.beginPath();
+  ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // 중앙 로고 텍스트
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.shadowColor = '#ffd700';
+  ctx.shadowBlur = 8;
+  ctx.fillText('DEEDRA', cx, cy - 7);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = 'rgba(255,215,0,0.6)';
+  ctx.shadowBlur = 0;
+  ctx.fillText('ROULETTE', cx, cy + 8);
+  ctx.restore();
+
+  // ── 외부 링 그림자 ──
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,215,0,0.5)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+}
+
+/* 초기화 */
+function initRouletteCanvas() {
+  rlAngle = 0;
+  drawRouletteWheel(rlAngle);
+  // 결과 초기화
+  const res = document.getElementById('rouletteResult');
+  if (res) { res.className = 'game-result hidden'; res.innerHTML = ''; }
+  // 베팅 초기화
+  rlSelectedBet = null;
+  document.querySelectorAll('.rl-simple-btn, .rl-num').forEach(b => b.classList.remove('selected'));
+  const sv = document.getElementById('rlSelValue');
+  if (sv) sv.textContent = '없음';
+}
+
+/* 베팅 탭 전환 */
+window.switchRlTab = function(tab) {
+  document.getElementById('rlPanelSimple').classList.toggle('hidden', tab !== 'simple');
+  document.getElementById('rlPanelNumber').classList.toggle('hidden', tab !== 'number');
+  document.getElementById('rlTabSimple').classList.toggle('active', tab === 'simple');
+  document.getElementById('rlTabNumber').classList.toggle('active', tab === 'number');
+};
+
+/* 베팅 선택 */
+window.selectRlBet = function(type) {
+  rlSelectedBet = type;
+  // 모든 선택 해제
+  document.querySelectorAll('.rl-simple-btn, .rl-num').forEach(b => b.classList.remove('selected'));
+  // 해당 버튼 선택
+  const btnId = type.startsWith('num') ? 'rlNum' + type.slice(3) : 'rlBtn' + type.charAt(0).toUpperCase() + type.slice(1);
+  const btn = document.getElementById(btnId);
+  if (btn) btn.classList.add('selected');
+
+  const labels = {
+    red:'🔴 레드', black:'⚫ 블랙', zero:'🟢 제로(0)',
+    odd:'홀수', even:'짝수', low:'1~18', high:'19~36',
+    dozen1:'1st 12(1-12)', dozen2:'2nd 12(13-24)', dozen3:'3rd 12(25-36)'
+  };
+  const sv = document.getElementById('rlSelValue');
+  if (sv) {
+    if (type.startsWith('num')) {
+      sv.textContent = `숫자 ${type.slice(3)} (×35)`;
+    } else {
+      sv.textContent = labels[type] || type;
+    }
+  }
+};
+
+/* 스핀 실행 */
+window.playRoulette = function() {
+  if (!rlSelectedBet) { showToast('베팅을 먼저 선택하세요.', 'warning'); return; }
+  if (gameBalanceVal < rlBetVal) { showToast('잔액 부족', 'error'); return; }
+  if (rlSpinning) return;
+
+  rlSpinning = true;
+  const spinBtn = document.getElementById('rlSpinBtn');
+  if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span style="display:inline-block;animation:spinRotate 0.4s linear infinite">🎡</span> 스피닝...'; }
+
+  // 결과 먼저 뽑기
+  const resultNum = ROULETTE_ORDER[Math.floor(Math.random() * ROULETTE_ORDER.length)];
+
+  // 결과 번호가 바퀴 상단(포인터 위치)에 오도록 목표 각도 계산
+  const count = ROULETTE_ORDER.length;
+  const arc   = (Math.PI * 2) / count;
+  const idx   = ROULETTE_ORDER.indexOf(resultNum);
+  // 목표: 해당 칸의 중앙이 -π/2(=상단)에 오도록 → angle = -(idx*arc + arc/2)
+  const targetOffset = -(idx * arc + arc / 2);
+  // 현재 각도 + 여러 바퀴(5~8 바퀴) + targetOffset
+  const rounds = (5 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+  const targetAngle = rlAngle + rounds + (targetOffset - ((rlAngle) % (Math.PI * 2)));
+
+  const duration = 5000; // 5초
+  const startAngle = rlAngle;
+  const startTime = performance.now();
+
+  // easeOutCubic 감속
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    rlAngle = startAngle + (targetAngle - startAngle) * easeOut(t);
+    drawRouletteWheel(rlAngle);
+
+    if (t < 1) {
+      rlAnimId = requestAnimationFrame(animate);
+    } else {
+      // 스핀 완료
+      rlAngle = targetAngle;
+      drawRouletteWheel(rlAngle);
+      rlSpinning = false;
+      showRouletteResult(resultNum);
+      if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '🎡 다시 스핀!'; }
+    }
+  }
+
+  rlAnimId = requestAnimationFrame(animate);
+};
+
+/* 결과 판정 */
+function showRouletteResult(num) {
+  const isRed   = RL_RED.has(num);
+  const isBlack = num !== 0 && !isRed;
+  const isZero  = num === 0;
+
+  let win = false, multiplier = 0;
+  const bet = rlSelectedBet;
+
+  if (bet === 'red'    && isRed)               { win = true; multiplier = 2; }
+  else if (bet === 'black'  && isBlack)         { win = true; multiplier = 2; }
+  else if (bet === 'zero'   && isZero)          { win = true; multiplier = 35; }
+  else if (bet === 'odd'    && num !== 0 && num % 2 === 1) { win = true; multiplier = 2; }
+  else if (bet === 'even'   && num !== 0 && num % 2 === 0) { win = true; multiplier = 2; }
+  else if (bet === 'low'    && num >= 1 && num <= 18)      { win = true; multiplier = 2; }
+  else if (bet === 'high'   && num >= 19 && num <= 36)     { win = true; multiplier = 2; }
+  else if (bet === 'dozen1' && num >= 1 && num <= 12)      { win = true; multiplier = 3; }
+  else if (bet === 'dozen2' && num >= 13 && num <= 24)     { win = true; multiplier = 3; }
+  else if (bet === 'dozen3' && num >= 25 && num <= 36)     { win = true; multiplier = 3; }
+  else if (bet === 'num' + num)                            { win = true; multiplier = 35; }
+
+  const earned = win ? rlBetVal * multiplier : 0;
+  gameBalanceVal = win ? gameBalanceVal + earned : gameBalanceVal - rlBetVal;
+  updateGameUI();
+
+  if (win && multiplier >= 10) spawnJackpotParticles();
+
+  const numColor = isZero ? '#69f0ae' : isRed ? '#ef9a9a' : '#e0e0e0';
+  const el = document.getElementById('rouletteResult');
+  if (el) {
+    el.className = 'game-result ' + (win ? 'win' : 'lose');
+    el.innerHTML = `
+      <div class="rl-win-number" style="color:${numColor}">${num}</div>
+      <div>${isZero ? '🟢 제로' : isRed ? '🔴 레드' : '⚫ 블랙'}</div>
+      <div style="margin-top:6px;font-size:16px">
+        ${win ? `🎉 <strong>승리! ×${multiplier} → +${fmt(earned)} DEEDRA</strong>` : `😢 <strong>패배 -${fmt(rlBetVal)} DEEDRA</strong>`}
+      </div>`;
+    el.classList.remove('hidden');
+  }
+
+  // 당첨 번호 하이라이트
+  const numBtn = document.getElementById('rlNum' + num);
+  if (numBtn) {
+    numBtn.classList.add('selected');
+    setTimeout(() => numBtn.classList.remove('selected'), 3000);
+  }
+
+  logGame('룰렛', win, rlBetVal);
+}
 
 function logGame(gameName, win, bet) {
   const listEl = document.getElementById('gameLogList');

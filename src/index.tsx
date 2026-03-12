@@ -421,11 +421,11 @@ const HTML = () => `<!DOCTYPE html>
               <div class="game-name">바카라</div>
               <div class="game-desc">라이브 카지노</div>
             </div>
-            <div class="game-card coming-soon">
-              <div class="game-badge badge-soon">준비중</div>
+            <div class="game-card" onclick="startGame('roulette')">
+              <div class="game-badge badge-new">NEW</div>
               <div class="game-thumb roulette">🎡</div>
               <div class="game-name">룰렛</div>
-              <div class="game-desc">클래식 룰렛</div>
+              <div class="game-desc">숫자/색상 베팅</div>
             </div>
             <div class="game-card coming-soon">
               <div class="game-badge badge-soon">준비중</div>
@@ -561,7 +561,88 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- 게임 기록 -->
+          <!-- ======== 룰렛 게임 ======== -->
+          <div id="gameRoulette" class="game-area hidden">
+            <div class="game-area-header">
+              <span class="game-area-title">🎡 룰렛</span>
+              <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="game-body roulette-body">
+
+              <!-- 베팅 금액 + 빠른 버튼 -->
+              <div class="bet-info-row">
+                <span class="bet-info-label">💰 베팅 금액</span>
+                <span class="bet-info-value"><span id="rlCurrentBet">10</span> DEEDRA</span>
+              </div>
+              <div class="bet-quick-row">
+                <button class="bet-quick-btn" onclick="setBetAmount('rl', 10)">10</button>
+                <button class="bet-quick-btn" onclick="setBetAmount('rl', 50)">50</button>
+                <button class="bet-quick-btn" onclick="setBetAmount('rl', 100)">100</button>
+                <button class="bet-quick-btn" onclick="setBetGameHalf('rl')">½</button>
+              </div>
+
+              <!-- 룰렛 바퀴 Canvas -->
+              <div class="roulette-wheel-wrap">
+                <div class="roulette-outer-ring">
+                  <div class="roulette-inner-shadow">
+                    <canvas id="rouletteCanvas" width="300" height="300"></canvas>
+                  </div>
+                </div>
+                <!-- 상단 포인터 -->
+                <div class="roulette-pointer">▼</div>
+              </div>
+
+              <!-- 베팅 선택 탭 -->
+              <div class="rl-bet-tabs">
+                <button class="rl-tab active" onclick="switchRlTab('simple')" id="rlTabSimple">간단 베팅</button>
+                <button class="rl-tab" onclick="switchRlTab('number')" id="rlTabNumber">숫자 베팅</button>
+              </div>
+
+              <!-- 간단 베팅 판 -->
+              <div id="rlPanelSimple" class="rl-bet-panel">
+                <div class="rl-simple-grid">
+                  <button class="rl-simple-btn red"   onclick="selectRlBet('red')"   id="rlBtnRed">🔴 레드 ×2</button>
+                  <button class="rl-simple-btn black" onclick="selectRlBet('black')" id="rlBtnBlack">⚫ 블랙 ×2</button>
+                  <button class="rl-simple-btn green" onclick="selectRlBet('zero')"  id="rlBtnZero">🟢 제로 ×35</button>
+                  <button class="rl-simple-btn blue"  onclick="selectRlBet('odd')"   id="rlBtnOdd">홀수 ×2</button>
+                  <button class="rl-simple-btn blue"  onclick="selectRlBet('even')"  id="rlBtnEven">짝수 ×2</button>
+                  <button class="rl-simple-btn orange" onclick="selectRlBet('low')"  id="rlBtnLow">1-18 ×2</button>
+                  <button class="rl-simple-btn orange" onclick="selectRlBet('high')" id="rlBtnHigh">19-36 ×2</button>
+                  <button class="rl-simple-btn purple" onclick="selectRlBet('dozen1')" id="rlBtnDoz1">1-12 ×3</button>
+                  <button class="rl-simple-btn purple" onclick="selectRlBet('dozen2')" id="rlBtnDoz2">13-24 ×3</button>
+                  <button class="rl-simple-btn purple" onclick="selectRlBet('dozen3')" id="rlBtnDoz3">25-36 ×3</button>
+                </div>
+              </div>
+
+              <!-- 숫자 베팅 판 (0~36) -->
+              <div id="rlPanelNumber" class="rl-bet-panel hidden">
+                <div class="rl-number-board">
+                  <button class="rl-num zero" onclick="selectRlBet('num0')" id="rlNum0">0</button>
+                  <div class="rl-num-grid">
+                    ${Array.from({length:36},(_,i)=>{
+                      const n=i+1;
+                      const reds=[1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+                      const cls=reds.includes(n)?'red':'black';
+                      return `<button class="rl-num ${cls}" onclick="selectRlBet('num${n}')" id="rlNum${n}">${n}</button>`;
+                    }).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 현재 선택 베팅 표시 -->
+              <div class="rl-selected-bet" id="rlSelectedBet">
+                <span class="rl-sel-label">선택한 베팅:</span>
+                <span class="rl-sel-value" id="rlSelValue">없음</span>
+              </div>
+
+              <!-- 스핀 버튼 -->
+              <button class="btn-roulette-spin" onclick="playRoulette()" id="rlSpinBtn">
+                <span id="rlSpinBtnIcon">🎡</span> 스핀!
+              </button>
+
+              <div id="rouletteResult" class="game-result hidden"></div>
+            </div>
+          </div>
           <div class="section-header mt-16">
             <span class="section-title">📋 최근 게임 기록</span>
           </div>
