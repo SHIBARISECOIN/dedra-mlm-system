@@ -224,16 +224,25 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- DDRA 시세사 -->
-          <div class="price-ticker-card">
-            <div class="price-ticker-coin">💎</div>
-            <div class="price-ticker-info">
-              <div class="price-ticker-name" data-i18n="deedraPrice">DDRA 현재 시세</div>
-              <div class="price-ticker-value" id="deedraPrice">$0.50</div>
-              <div class="price-ticker-sub" id="deedraUpdated"></div>
+          <!-- 홈 분할 패널: 왼쪽 DDRA 시세 / 오른쪽 EARN -->
+          <div class="home-split-panel">
+            <!-- 왼쪽: DDRA 현재 시세 -->
+            <div class="split-left">
+              <div class="split-label">💎 DDRA 현재 시세</div>
+              <div class="split-price" id="deedraPrice">$0.50</div>
+              <div class="split-price-sub" id="deedraChange">1 DDRA = $0.5000</div>
+              <div class="split-price-updated" id="deedraUpdated"></div>
             </div>
-            <div class="price-ticker-change">
-              <div class="price-change-value up" id="deedraChange">1 DDRA = $0.5000 USDT</div>
+            <!-- 오른쪽: EARN 상품 -->
+            <div class="split-right">
+              <div class="split-earn-header">
+                <span class="split-earn-title">EARN</span>
+                <button class="split-earn-more" onclick="switchPage('invest')">전체보기 ›</button>
+              </div>
+              <div id="homeEarnList" class="home-earn-list">
+                <div class="earn-skeleton"></div>
+                <div class="earn-skeleton"></div>
+              </div>
             </div>
           </div>
 

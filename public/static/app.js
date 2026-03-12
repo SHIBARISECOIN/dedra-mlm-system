@@ -1210,6 +1210,7 @@ async function initApp() {
     loadAnnouncements();
     loadRecentTransactions();
     loadDDayCard();
+    loadHomeEarn();
     startNotificationListener();
 
     // 테마 복원
@@ -1288,8 +1289,7 @@ function updatePriceTicker(price, updatedAt) {
   if (el) el.textContent = '$' + price.toFixed(4);
   if (subEl) subEl.textContent = updatedAt ? '업데이트: ' + fmtDate(updatedAt) : '';
   if (changeEl) {
-    changeEl.textContent = '1 DDRA = $' + price.toFixed(4) + ' USDT';
-    changeEl.className = 'price-change-value up';
+    changeEl.textContent = '1 DDRA = $' + price.toFixed(4);
   }
 
   // DDRA 가격 변경 시 관련 UI 업데이트
@@ -1312,6 +1312,50 @@ function updatePriceTicker(price, updatedAt) {
     // 출금 모달 DDRA 환산 업데이트
     updateWithdrawDdraCalc && updateWithdrawDdraCalc();
   }
+}
+
+// ===== 홈 EARN 패널 - 상품 미리보기 로드 =====
+async function loadHomeEarn() {
+  const listEl = document.getElementById('homeEarnList');
+  if (!listEl) return;
+  // 이미 캐시된 상품이 있으면 바로 렌더
+  if (productsCache && productsCache.length > 0) {
+    renderHomeEarn(productsCache);
+    return;
+  }
+  try {
+    const { collection, query, where, orderBy, getDocs, db } = window.FB;
+    const q = query(collection(db, 'products'), where('isActive', '==', true), orderBy('minAmount', 'asc'));
+    const snap = await getDocs(q);
+    const products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    productsCache = products;
+    renderHomeEarn(products);
+  } catch (e) {
+    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 로딩 실패</div>';
+  }
+}
+
+function renderHomeEarn(products) {
+  const listEl = document.getElementById('homeEarnList');
+  if (!listEl) return;
+  if (!products || !products.length) {
+    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 없음</div>';
+    return;
+  }
+  // 최대 3개만 표시
+  const show = products.slice(0, 3);
+  listEl.innerHTML = show.map(p => `
+    <div class="earn-item" onclick="switchPage('invest')">
+      <div>
+        <div class="earn-item-name">${p.name}</div>
+        <div class="earn-item-period">${p.durationDays}일 · 최소 $${fmt(p.minAmount)}</div>
+      </div>
+      <div>
+        <div class="earn-item-roi">${p.roiPercent}%</div>
+        <div class="earn-item-roi-label">일 수익률</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ===== 테마 =====

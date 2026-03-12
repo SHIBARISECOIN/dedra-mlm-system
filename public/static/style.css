@@ -459,6 +459,136 @@ body {
   color: var(--red);
 }
 
+/* ===== 홈 분할 패널 (DDRA 시세 + EARN) ===== */
+.home-split-panel {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  min-height: 180px;
+}
+
+/* 왼쪽: DDRA 시세 */
+.split-left {
+  flex: 1;
+  background: linear-gradient(145deg, #0d1b2a, #1a2e44);
+  border: 1px solid rgba(13,71,161,0.4);
+  border-radius: var(--radius-lg);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.split-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+.split-price {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+}
+.split-price-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4ade80;
+  background: rgba(74,222,128,0.12);
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: inline-block;
+  width: fit-content;
+  margin-top: 4px;
+}
+.split-price-updated {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 2px;
+}
+
+/* 오른쪽: EARN */
+.split-right {
+  flex: 1;
+  background: linear-gradient(145deg, #0d2218, #1a3a28);
+  border: 1px solid rgba(16,185,129,0.35);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.split-earn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.split-earn-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #4ade80;
+  letter-spacing: 1px;
+}
+.split-earn-more {
+  font-size: 10px;
+  color: rgba(74,222,128,0.7);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+.home-earn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow: hidden;
+}
+.earn-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(74,222,128,0.15);
+  border-radius: 8px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.earn-item:active { background: rgba(74,222,128,0.1); }
+.earn-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.earn-item-period {
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 1px;
+}
+.earn-item-roi {
+  font-size: 15px;
+  font-weight: 900;
+  color: #4ade80;
+  text-align: right;
+}
+.earn-item-roi-label {
+  font-size: 9px;
+  color: rgba(74,222,128,0.6);
+  text-align: right;
+  margin-top: 1px;
+}
+.earn-skeleton {
+  height: 42px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  animation: pulse 1.4s infinite;
+}
+
 /* ===== D-Day 투자 현황 카드 ===== */
 .dday-card {
   background: var(--bg2);
