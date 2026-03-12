@@ -1083,14 +1083,18 @@ async function loadGameOdds() {
     const snap = await getDoc(doc(db, 'settings', 'gameOdds'));
     if (snap.exists()) {
       const data = snap.data();
-      // 저장된 값으로 gameOdds 덮어쓰기
-      if (data.global   !== undefined) gameOdds.global.houseWinRate   = Number(data.global);
-      if (data.oddeven  !== undefined) gameOdds.oddeven.houseWinRate  = Number(data.oddeven);
-      if (data.dice     !== undefined) gameOdds.dice.houseWinRate     = Number(data.dice);
-      if (data.slot     !== undefined) gameOdds.slot.houseWinRate     = Number(data.slot);
-      if (data.roulette !== undefined) gameOdds.roulette.houseWinRate = Number(data.roulette);
-      if (data.baccarat !== undefined) gameOdds.baccarat.houseWinRate = Number(data.baccarat);
-      if (data.poker    !== undefined) gameOdds.poker.houseWinRate    = Number(data.poker);
+      // _fmt:'user' = 유저 승률로 저장된 새 형식 → houseWinRate = 100 - 유저승률
+      // _fmt 없음 = 구버전(houseWinRate 직접 저장)
+      const isUserFmt = data._fmt === 'user';
+      const toHouseRate = (v) => isUserFmt ? (100 - Number(v)) : Number(v);
+
+      if (data.global   !== undefined) gameOdds.global.houseWinRate   = toHouseRate(data.global);
+      if (data.oddeven  !== undefined) gameOdds.oddeven.houseWinRate  = toHouseRate(data.oddeven);
+      if (data.dice     !== undefined) gameOdds.dice.houseWinRate     = toHouseRate(data.dice);
+      if (data.slot     !== undefined) gameOdds.slot.houseWinRate     = toHouseRate(data.slot);
+      if (data.roulette !== undefined) gameOdds.roulette.houseWinRate = toHouseRate(data.roulette);
+      if (data.baccarat !== undefined) gameOdds.baccarat.houseWinRate = toHouseRate(data.baccarat);
+      if (data.poker    !== undefined) gameOdds.poker.houseWinRate    = toHouseRate(data.poker);
       // useGlobal: true이면 모든 게임에 global 값 적용
       if (data.useGlobal) {
         const g = gameOdds.global.houseWinRate;
