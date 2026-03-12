@@ -1272,55 +1272,109 @@ async function loadWalletData() {
   gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
 }
 
-// ===== DEEDRA 시세 로드 =====
+// ===== DEEDRA 실시간 가격 시스템 =====
+let _livePrice_timer    = null;
+let _livePrice_enabled  = false;
+let _livePrice_mint     = '';
+
+// Firestore에서 설정 로드 + 실시간이면 폴링 시작
 async function loadDeedraPrice() {
   try {
     const { doc, getDoc, db } = window.FB;
     const snap = await getDoc(doc(db, 'settings', 'deedraPrice'));
     if (snap.exists()) {
-      deedraPrice = snap.data().price || 0.50;
-      const updatedAt = snap.data().updatedAt;
-      updatePriceTicker(deedraPrice, updatedAt);
+      const d = snap.data();
+      deedraPrice        = d.price || 0.50;
+      _livePrice_enabled = d.liveEnabled || false;
+      _livePrice_mint    = d.mintAddress || '';
+      updatePriceTicker(deedraPrice, d.updatedAt, d.source, d.priceChange24h, _livePrice_enabled);
+      // 실시간 ON + 토큰 주소 있으면 폴링 시작
+      if (_livePrice_enabled && _livePrice_mint) {
+        _startClientLivePolling(_livePrice_mint);
+      }
     } else {
-      updatePriceTicker(0.50, null);
+      updatePriceTicker(0.50, null, null, null, false);
     }
   } catch (err) {
-    updatePriceTicker(0.50, null);
+    updatePriceTicker(0.50, null, null, null, false);
   }
 }
 
-function updatePriceTicker(price, updatedAt) {
-  const el = document.getElementById('deedraPrice');
-  const subEl = document.getElementById('deedraUpdated');
+// 앱 측 실시간 폴링 (30초 간격으로 백엔드 프록시 API 호출)
+function _startClientLivePolling(mint) {
+  if (_livePrice_timer) clearInterval(_livePrice_timer);
+  // 즉시 한 번 + 이후 30초마다
+  _fetchAndApplyLivePrice(mint);
+  _livePrice_timer = setInterval(() => _fetchAndApplyLivePrice(mint), 30000);
+}
+
+async function _fetchAndApplyLivePrice(mint) {
+  try {
+    const res  = await fetch(`/api/price/token?mint=${encodeURIComponent(mint)}`);
+    const data = await res.json();
+    if (!data.success || !data.price) return;
+    deedraPrice = data.price;
+    updatePriceTicker(deedraPrice, null, data.source, data.priceChange24h, true);
+    // Firestore에 갱신 (타임스탬프 업데이트)
+    try {
+      const { doc, setDoc, serverTimestamp, db } = window.FB;
+      await setDoc(doc(db, 'settings', 'deedraPrice'), {
+        price: deedraPrice,
+        source: data.source,
+        priceChange24h: data.priceChange24h,
+        liveEnabled: true,
+        mintAddress: mint,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch(_) {}
+  } catch(_) {}
+}
+
+function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled) {
+  const el       = document.getElementById('deedraPrice');
+  const subEl    = document.getElementById('deedraUpdated');
   const changeEl = document.getElementById('deedraChange');
 
-  if (el) el.textContent = '$' + price.toFixed(4);
-  if (subEl) subEl.textContent = updatedAt ? '업데이트: ' + fmtDate(updatedAt) : '';
+  if (el) el.textContent = '$' + (price || 0).toFixed(6);
+  if (subEl) {
+    let subText = updatedAt ? '업데이트: ' + fmtDate(updatedAt) : '';
+    if (source && source !== 'manual') subText += (subText ? ' · ' : '') + '📡 ' + source;
+    if (liveEnabled) subText += (subText ? ' · ' : '') + '🔴 LIVE';
+    subEl.textContent = subText;
+  }
   if (changeEl) {
-    changeEl.textContent = '1 DDRA = $' + price.toFixed(4);
+    const chText = priceChange24h != null
+      ? `1 DDRA = $${(price||0).toFixed(6)} (${priceChange24h >= 0 ? '▲' : '▼'}${Math.abs(priceChange24h).toFixed(2)}%)`
+      : `1 DDRA = $${(price||0).toFixed(6)}`;
+    changeEl.textContent = chText;
+    changeEl.style.color = priceChange24h > 0 ? '#10b981' : priceChange24h < 0 ? '#ef4444' : '';
   }
 
-  // DDRA 가격 변경 시 관련 UI 업데이트
-  if (walletData) {
-    const dedraUsd = (walletData.dedraBalance || 0) * price;
-    const el2 = document.getElementById('splitDedraUsd');
-    if (el2) el2.textContent = '≈ $' + fmt(dedraUsd);
-    const el3 = document.getElementById('moreWalletDedraUsd');
-    if (el3) el3.textContent = '≈ $' + fmt(dedraUsd);
-    // 수익잔액 DDRA 환산 업데이트
-    const bonus = walletData.bonusBalance || 0;
-    const el5 = document.getElementById('splitBonusDdra');
-    if (el5) el5.textContent = '≈ ' + fmt(bonus / (price || 0.5)) + ' DDRA';
-    const el6 = document.getElementById('moreWalletBonusDdra');
-    if (el6) el6.textContent = '≈ ' + fmt(bonus / (price || 0.5)) + ' DDRA';
-    // 게임 잔액 업데이트 (DDRA 단위)
-    gameBalanceVal = Math.floor((bonus / (price || 0.5)) * 100) / 100;
-    const el4 = document.getElementById('gameBalanceUsd');
-    if (el4) el4.textContent = '≈ $' + fmt(bonus) + ' USDT';
-    // 출금 모달 DDRA 환산 업데이트
-    updateWithdrawDdraCalc && updateWithdrawDdraCalc();
-  }
+  // ─── 모든 환율 적용 UI 즉시 갱신 ───────────────────────────────────────
+  if (!walletData) return;
+  const p = price || 0.5;
+
+  // DDRA 보유 USD 환산
+  const dedraUsd = (walletData.dedraBalance || 0) * p;
+  const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  setEl('splitDedraUsd',    '≈ $' + fmt(dedraUsd));
+  setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
+
+  // 수익잔액 DDRA 환산
+  const bonus = walletData.bonusBalance || 0;
+  const bonusDdra = bonus / p;
+  setEl('splitBonusDdra',    '≈ ' + fmt(bonusDdra) + ' DDRA');
+  setEl('moreWalletBonusDdra', '≈ ' + fmt(bonusDdra) + ' DDRA');
+
+  // 게임 잔액 업데이트 (DDRA 단위)
+  gameBalanceVal = Math.floor(bonusDdra * 100) / 100;
+  setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
+
+  // 출금 모달 DDRA 환산 업데이트
+  updateWithdrawDdraCalc && updateWithdrawDdraCalc();
 }
+
+
 
 // ===== 홈 EARN 패널 - 상품 미리보기 로드 =====
 async function loadHomeEarn() {

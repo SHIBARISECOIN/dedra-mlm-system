@@ -86,6 +86,134 @@ app.get('/setup', (c) => c.html(SETUP_HTML()))
 app.get('/admin', (c) => c.html(ADMIN_HTML))
 app.get('/admin.html', (c) => c.html(ADMIN_HTML))
 
+// ─── DEEDRA 실시간 가격 프록시 API ─────────────────────────────────────────
+// CORS 문제 없이 클라이언트→백엔드→DexScreener/Jupiter 형태로 중계
+app.use('/api/price/*', cors())
+
+// DexScreener: 토큰 민트 주소로 가격 조회
+// GET /api/price/dexscreener?mint=<SOLANA_MINT_ADDRESS>
+app.get('/api/price/dexscreener', async (c) => {
+  const mint = c.req.query('mint')
+  if (!mint) return c.json({ success: false, error: 'mint address required' }, 400)
+  try {
+    const url = `https://api.dexscreener.com/tokens/v1/solana/${mint}`
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+      signal: AbortSignal.timeout(8000)
+    })
+    if (!res.ok) throw new Error(`DexScreener HTTP ${res.status}`)
+    const data: any = await res.json()
+    // DexScreener 응답: 배열 형태, 가장 유동성 높은 pair 사용
+    const pairs: any[] = Array.isArray(data) ? data : (data.pairs || [])
+    if (!pairs.length) return c.json({ success: false, error: 'no pairs found' })
+    // 거래량 기준 내림차순 정렬
+    pairs.sort((a: any, b: any) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+    const best = pairs[0]
+    return c.json({
+      success: true,
+      price: parseFloat(best.priceUsd || '0'),
+      priceChange24h: best.priceChange?.h24 || 0,
+      volume24h: best.volume?.h24 || 0,
+      liquidity: best.liquidity?.usd || 0,
+      pairAddress: best.pairAddress,
+      dexId: best.dexId,
+      source: 'dexscreener',
+      updatedAt: Date.now()
+    })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+// Jupiter Price API: 토큰 민트 주소로 가격 조회
+// GET /api/price/jupiter?mint=<SOLANA_MINT_ADDRESS>
+app.get('/api/price/jupiter', async (c) => {
+  const mint = c.req.query('mint')
+  if (!mint) return c.json({ success: false, error: 'mint address required' }, 400)
+  try {
+    const url = `https://api.jup.ag/price/v2?ids=${mint}`
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+      signal: AbortSignal.timeout(8000)
+    })
+    if (!res.ok) throw new Error(`Jupiter HTTP ${res.status}`)
+    const data: any = await res.json()
+    const tokenData = data.data?.[mint]
+    if (!tokenData) return c.json({ success: false, error: 'token not found on Jupiter' })
+    return c.json({
+      success: true,
+      price: parseFloat(tokenData.price || '0'),
+      priceChange24h: null,
+      source: 'jupiter',
+      updatedAt: Date.now()
+    })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+// 두 소스를 순서대로 시도하는 통합 엔드포인트
+// GET /api/price/token?mint=<SOLANA_MINT_ADDRESS>
+app.get('/api/price/token', async (c) => {
+  const mint = c.req.query('mint')
+  if (!mint) return c.json({ success: false, error: 'mint address required' }, 400)
+  // 1순위: DexScreener (무료, API키 불필요)
+  try {
+    const url = `https://api.dexscreener.com/tokens/v1/solana/${mint}`
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+      signal: AbortSignal.timeout(6000)
+    })
+    if (res.ok) {
+      const data: any = await res.json()
+      const pairs: any[] = Array.isArray(data) ? data : (data.pairs || [])
+      if (pairs.length) {
+        pairs.sort((a: any, b: any) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+        const best = pairs[0]
+        const price = parseFloat(best.priceUsd || '0')
+        if (price > 0) {
+          return c.json({
+            success: true,
+            price,
+            priceChange24h: best.priceChange?.h24 || 0,
+            volume24h: best.volume?.h24 || 0,
+            liquidity: best.liquidity?.usd || 0,
+            source: 'dexscreener',
+            updatedAt: Date.now()
+          })
+        }
+      }
+    }
+  } catch (_) {}
+  // 2순위: GeckoTerminal (무료, API키 불필요)
+  try {
+    const url = `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+      signal: AbortSignal.timeout(6000)
+    })
+    if (res.ok) {
+      const data: any = await res.json()
+      const attrs = data.data?.attributes
+      if (attrs) {
+        const price = parseFloat(attrs.price_usd || '0')
+        if (price > 0) {
+          return c.json({
+            success: true,
+            price,
+            priceChange24h: attrs.price_change_percentage?.h24 || null,
+            volume24h: attrs.volume_usd?.h24 || 0,
+            source: 'geckoterminal',
+            updatedAt: Date.now()
+          })
+        }
+      }
+    }
+  } catch (_) {}
+  return c.json({ success: false, error: 'price not available from any source' }, 404)
+})
+
+
 // ─── Main App (SPA) ───────────────────────────────────────────────────────────
 const HTML = () => `<!DOCTYPE html>
 <html lang="ko">

@@ -414,12 +414,19 @@ export class DedraAPI {
     } catch(e) { return err(e); }
   }
 
-  async saveDedraRate(adminId, price) {
+  async saveDedraRate(adminId, price, mintAddress = null, liveEnabled = false, source = null, priceChange24h = null) {
     try {
-      await setDoc(doc(this.db, 'settings', 'deedraPrice'), {
-        price: parseFloat(price), updatedAt: serverTimestamp(), updatedBy: adminId
-      }, { merge: true });
-      await this._auditLog(adminId, 'settings', `DDRA 시세 변경: $${price}`, { price });
+      const data = {
+        price: parseFloat(price),
+        updatedAt: serverTimestamp(),
+        updatedBy: adminId,
+        liveEnabled: !!liveEnabled,
+      };
+      if (mintAddress !== null) data.mintAddress = mintAddress;
+      if (source      !== null) data.source      = source;
+      if (priceChange24h !== null) data.priceChange24h = priceChange24h;
+      await setDoc(doc(this.db, 'settings', 'deedraPrice'), data, { merge: true });
+      await this._auditLog(adminId, 'settings', `DDRA 시세 변경: $${price}${liveEnabled ? ' (실시간)' : ' (수동)'}`, { price, liveEnabled, source });
       return ok(true);
     } catch(e) { return err(e); }
   }

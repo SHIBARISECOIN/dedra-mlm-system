@@ -929,29 +929,71 @@ canvas{width:100% !important;}
       <div class="page-desc">회원 출금 신청을 확인하고 승인/거부하세요</div>
 
       <!-- ── DEEDRA 시세 설정 (단순 한 줄) ── -->
-      <div id="dedraRateCard" style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;margin-bottom:16px;">
-        <span style="font-size:15px;font-weight:600;color:#64748b;white-space:nowrap;">💎 DDRA 시세</span>
-        <!-- 표시 모드 -->
-        <span id="dedraRateDisplay"
-          style="font-size:22px;font-weight:700;color:#6366f1;cursor:pointer;padding:4px 10px;border-radius:8px;transition:background .15s;"
-          title="클릭하여 수정"
-          onmouseenter="this.style.background='#ede9fe'"
-          onmouseleave="this.style.background='transparent'"
-          onclick="startEditDedraRate()">로딩 중...</span>
-        <!-- 편집 모드 (기본 숨김) -->
-        <span id="dedraRateEditWrap" style="display:none;align-items:center;gap:8px;">
-          <span style="font-size:14px;color:#94a3b8;">1 DDRA =</span>
-          <input type="number" id="dedraRateInput" min="0.000001" step="0.000001"
-            style="width:130px;padding:6px 10px;border:2px solid #6366f1;border-radius:8px;font-size:18px;font-weight:700;color:#1e293b;outline:none;"
-            placeholder="0.0433"
-            onkeydown="if(event.key==='Enter')saveDedraRate();if(event.key==='Escape')cancelEditDedraRate();"/>
-          <span style="font-size:14px;color:#94a3b8;">USDT</span>
-          <button onclick="saveDedraRate()" id="saveDedraRateBtn"
-            style="padding:6px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">저장</button>
-          <button onclick="cancelEditDedraRate()"
-            style="padding:6px 12px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;">취소</button>
-        </span>
-        <div id="dedraRateAlert" style="margin-left:8px;font-size:12px;"></div>
+      <div id="dedraRateCard" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;margin-bottom:16px;">
+
+        <!-- 상단: 현재 시세 + 실시간 배지 -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <span style="font-size:15px;font-weight:700;color:#1e293b;">💎 DDRA 시세</span>
+          <span id="dedraRateDisplay"
+            style="font-size:22px;font-weight:800;color:#6366f1;cursor:pointer;padding:4px 10px;border-radius:8px;transition:background .15s;"
+            title="클릭하여 수정"
+            onmouseenter="this.style.background='#ede9fe'"
+            onmouseleave="this.style.background='transparent'"
+            onclick="startEditDedraRate()">로딩 중...</span>
+          <span id="dedraPriceChange" style="font-size:12px;font-weight:700;border-radius:20px;padding:3px 10px;display:none;"></span>
+          <span id="dedraPriceSource" style="font-size:11px;color:#94a3b8;"></span>
+          <!-- 실시간 표시기 -->
+          <span id="dedraLiveBadge" style="display:none;align-items:center;gap:5px;background:#dcfce7;border:1px solid #86efac;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:#15803d;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block;animation:pulse 1.5s infinite;"></span>
+            LIVE
+          </span>
+        </div>
+
+        <!-- 실시간 토글 + 토큰 주소 설정 행 -->
+        <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
+
+          <!-- 실시간 ON/OFF 토글 -->
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
+              <div id="liveToggleWrap" onclick="toggleLivePrice()" style="width:44px;height:24px;border-radius:12px;background:#e2e8f0;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;">
+                <div id="liveToggleThumb" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:left .2s;"></div>
+              </div>
+              <span id="liveToggleLabel" style="font-size:13px;font-weight:600;color:#475569;">실시간 가격 적용</span>
+            </label>
+            <span style="font-size:11px;color:#94a3b8;">ON: 30초마다 자동 갱신 · OFF: 수동 입력값 사용</span>
+          </div>
+
+          <!-- 토큰 민트 주소 입력 -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">Solana 토큰 주소</span>
+            <input type="text" id="dedraMintInput"
+              style="flex:1;min-width:200px;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:monospace;color:#1e293b;outline:none;background:#fff;"
+              placeholder="예: TokenMintAddress...ABC (Solana SPL 토큰 민트 주소)"
+              onchange="saveDedraSettings()"/>
+            <button onclick="fetchLivePrice(true)"
+              style="padding:7px 14px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+              🔍 가격 조회
+            </button>
+          </div>
+
+          <!-- 수동 가격 입력 (OFF 모드일 때 활성) -->
+          <div id="manualPriceRow" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">수동 입력 시세</span>
+            <span id="dedraRateEditWrap" style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:13px;color:#94a3b8;">1 DDRA =</span>
+              <input type="number" id="dedraRateInput" min="0.000001" step="0.000001"
+                style="width:130px;padding:6px 10px;border:2px solid #6366f1;border-radius:8px;font-size:16px;font-weight:700;color:#1e293b;outline:none;"
+                placeholder="0.5"
+                onkeydown="if(event.key==='Enter')saveDedraRate();"/>
+              <span style="font-size:13px;color:#94a3b8;">USDT</span>
+              <button onclick="saveDedraRate()" id="saveDedraRateBtn"
+                style="padding:6px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">저장</button>
+            </span>
+            <div id="dedraRateAlert" style="font-size:12px;"></div>
+          </div>
+
+        </div>
+
         <!-- 숨김 (기존 코드 호환) -->
         <span id="dedraRateBadge" style="display:none;"></span>
         <span id="currentDedraRateDisplay" style="display:none;"></span>
@@ -6168,28 +6210,36 @@ async function runAutoRankUpgrade() {
 // DEEDRA 시세 관리 (출금 관리 페이지)
 // ══════════════════════════════════════════════════
 
-// ── DEEDRA 시세: 단순 인라인 편집 ──────────────────
-function _updateDedraRateDisplay(rate) {
-    const el = document.getElementById('dedraRateDisplay');
-    if (!el) return;
-    if (rate && rate > 0) {
-        el.textContent = `$${rate} USD`;
-        el.title = '클릭하여 수정';
-    } else {
-        el.textContent = '미설정 (클릭하여 입력)';
-    }
-}
+// ══════════════════════════════════════════════════
+// DEEDRA 실시간 가격 관리
+// ══════════════════════════════════════════════════
+let _livePriceEnabled = false;
+let _livePriceTimer   = null;
+let _cachedDedraRate  = null;
 
+// Firestore에서 설정 로드 (mintAddress, liveEnabled, manualPrice)
 async function loadDedraRate() {
     try {
-        const snap = await getDoc(doc(db,'settings','dedra_rate'));
+        // deedraPrice 문서 (app.js와 동일 키)
+        const snap = await getDoc(doc(db, 'settings', 'deedraPrice'));
         if (snap.exists()) {
-            const rate = snap.data().dedraPerUsd;
-            _cachedDedraRate = rate;
-            _updateDedraRateDisplay(rate);
+            const d = snap.data();
+            const price = d.price || d.dedraPerUsd || 0.5;
+            _cachedDedraRate     = price;
+            _livePriceEnabled    = d.liveEnabled || false;
+            const mintAddress    = d.mintAddress || '';
+            const input = document.getElementById('dedraRateInput');
+            if (input) input.value = price;
+            const mintInput = document.getElementById('dedraMintInput');
+            if (mintInput) mintInput.value = mintAddress;
+            _updateDedraRateDisplay(price, d.liveEnabled, d.source, d.priceChange24h);
+            _applyLiveToggleUI(_livePriceEnabled);
+            // 실시간 ON이면 즉시 폴링 시작
+            if (_livePriceEnabled && mintAddress) {
+                _startLivePolling(mintAddress);
+            }
         } else {
-            _cachedDedraRate = null;
-            _updateDedraRateDisplay(null);
+            _updateDedraRateDisplay(0.5, false, null, null);
         }
     } catch(e) {
         const el = document.getElementById('dedraRateDisplay');
@@ -6198,27 +6248,93 @@ async function loadDedraRate() {
 }
 window.loadDedraRate = loadDedraRate;
 
-function startEditDedraRate() {
-    const display  = document.getElementById('dedraRateDisplay');
-    const editWrap = document.getElementById('dedraRateEditWrap');
-    const input    = document.getElementById('dedraRateInput');
-    if (!display || !editWrap) return;
-    if (_cachedDedraRate) input.value = _cachedDedraRate;
-    display.style.display  = 'none';
-    editWrap.style.display = 'flex';
-    input.focus();
-    input.select();
-}
-window.startEditDedraRate = startEditDedraRate;
+// 토글 클릭
+window.toggleLivePrice = function() {
+    _livePriceEnabled = !_livePriceEnabled;
+    _applyLiveToggleUI(_livePriceEnabled);
+    saveDedraSettings();
+    if (_livePriceEnabled) {
+        const mint = document.getElementById('dedraMintInput')?.value?.trim();
+        if (mint) _startLivePolling(mint);
+        else showToast('⚠️ Solana 토큰 주소를 먼저 입력하세요', 'warning');
+    } else {
+        _stopLivePolling();
+    }
+};
 
-function cancelEditDedraRate() {
-    document.getElementById('dedraRateDisplay').style.display  = '';
-    document.getElementById('dedraRateEditWrap').style.display = 'none';
-    const alert = document.getElementById('dedraRateAlert');
-    if (alert) alert.textContent = '';
+// 토글 UI 상태 반영
+function _applyLiveToggleUI(enabled) {
+    const wrap  = document.getElementById('liveToggleWrap');
+    const thumb = document.getElementById('liveToggleThumb');
+    const label = document.getElementById('liveToggleLabel');
+    const badge = document.getElementById('dedraLiveBadge');
+    const manRow = document.getElementById('manualPriceRow');
+    if (wrap)  wrap.style.background  = enabled ? '#6366f1' : '#e2e8f0';
+    if (thumb) thumb.style.left       = enabled ? '22px'   : '2px';
+    if (label) { label.textContent = enabled ? '실시간 가격 적용 중' : '실시간 가격 적용'; label.style.color = enabled ? '#4f46e5' : '#475569'; }
+    if (badge) badge.style.display = enabled ? 'flex' : 'none';
+    if (manRow) manRow.style.opacity = enabled ? '0.4' : '1';
 }
-window.cancelEditDedraRate = cancelEditDedraRate;
 
+// 가격 표시 업데이트
+function _updateDedraRateDisplay(price, liveEnabled, source, priceChange24h) {
+    const el = document.getElementById('dedraRateDisplay');
+    if (el) el.textContent = price ? `$${parseFloat(price).toFixed(6)} USDT` : '미설정';
+    const changeEl = document.getElementById('dedraPriceChange');
+    if (changeEl && priceChange24h !== null && priceChange24h !== undefined) {
+        const ch = parseFloat(priceChange24h);
+        changeEl.style.display = 'inline';
+        changeEl.textContent   = (ch >= 0 ? '▲' : '▼') + ' ' + Math.abs(ch).toFixed(2) + '%';
+        changeEl.style.background = ch >= 0 ? '#dcfce7' : '#fee2e2';
+        changeEl.style.color      = ch >= 0 ? '#15803d' : '#dc2626';
+    } else if (changeEl) {
+        changeEl.style.display = 'none';
+    }
+    const srcEl = document.getElementById('dedraPriceSource');
+    if (srcEl) srcEl.textContent = source ? `📡 ${source}` : '';
+    _applyLiveToggleUI(liveEnabled || false);
+}
+
+// 실시간 가격 조회 (수동 버튼 또는 자동 폴링)
+window.fetchLivePrice = async function(manual = false) {
+    const mint = document.getElementById('dedraMintInput')?.value?.trim();
+    if (!mint) { showToast('⚠️ 토큰 주소를 입력하세요', 'warning'); return; }
+    try {
+        const res  = await fetch(`/api/price/token?mint=${encodeURIComponent(mint)}`);
+        const data = await res.json();
+        if (!data.success) {
+            showToast(`❌ 가격 조회 실패: ${data.error}`, 'error');
+            return;
+        }
+        const price = data.price;
+        _cachedDedraRate = price;
+        _updateDedraRateDisplay(price, _livePriceEnabled, data.source, data.priceChange24h);
+        // Firestore에 저장 (실시간 ON이거나 수동 조회 시)
+        await api.saveDedraRate(currentAdmin.uid, price, mint, _livePriceEnabled, data.source, data.priceChange24h);
+        if (manual) showToast(`✅ ${data.source} 가격 조회: $${price.toFixed(6)}`, 'success');
+    } catch(e) {
+        if (manual) showToast('❌ 조회 실패: ' + e.message, 'error');
+    }
+};
+
+// 폴링 시작 (30초마다)
+function _startLivePolling(mint) {
+    _stopLivePolling();
+    fetchLivePrice(false);  // 즉시 한 번 조회
+    _livePriceTimer = setInterval(() => fetchLivePrice(false), 30000);
+}
+function _stopLivePolling() {
+    if (_livePriceTimer) { clearInterval(_livePriceTimer); _livePriceTimer = null; }
+}
+
+// 설정 저장 (토큰 주소 + 실시간 여부)
+window.saveDedraSettings = async function() {
+    const mint  = document.getElementById('dedraMintInput')?.value?.trim() || '';
+    const price = _cachedDedraRate || parseFloat(document.getElementById('dedraRateInput')?.value) || 0.5;
+    await api.saveDedraRate(currentAdmin.uid, price, mint, _livePriceEnabled, null, null);
+};
+
+// 수동 저장
 async function saveDedraRate() {
     const input = document.getElementById('dedraRateInput');
     const btn   = document.getElementById('saveDedraRateBtn');
@@ -6229,6 +6345,28 @@ async function saveDedraRate() {
         return;
     }
     btn.disabled = true; btn.textContent = '저장 중...';
+    const mint = document.getElementById('dedraMintInput')?.value?.trim() || '';
+    const r = await api.saveDedraRate(currentAdmin.uid, val, mint, _livePriceEnabled, 'manual', null);
+    btn.disabled = false; btn.textContent = '저장';
+    if (r.success) {
+        _cachedDedraRate = val;
+        _updateDedraRateDisplay(val, _livePriceEnabled, 'manual', null);
+        if (alert) { alert.style.color='#10b981'; alert.textContent='✓ 저장됨'; setTimeout(()=>{ alert.textContent=''; },2000); }
+        await loadWithdrawals(currentWithdrawalStatus);
+    } else {
+        if (alert) { alert.style.color='#ef4444'; alert.textContent='저장 실패: '+r.error; }
+    }
+}
+window.saveDedraRate = saveDedraRate;
+
+// 구버전 호환
+function startEditDedraRate() {}
+window.startEditDedraRate = startEditDedraRate;
+function cancelEditDedraRate() {}
+window.cancelEditDedraRate = cancelEditDedraRate;
+function initDedraRatePreview() {}
+
+
     const r = await api.saveDedraRate(currentAdmin.uid, val);
     btn.disabled = false; btn.textContent = '저장';
     if (r.success) {
