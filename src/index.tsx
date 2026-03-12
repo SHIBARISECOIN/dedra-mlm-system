@@ -380,12 +380,15 @@ const HTML = () => `<!DOCTYPE html>
 
           <!-- 게임 지갑 -->
           <div class="game-wallet-bar">
-            <div>
-              <div class="game-wallet-label">게임 지갑 잔액</div>
-              <div class="game-wallet-value"><span id="gameBalance">0.00</span> DEEDRA</div>
-              <div class="game-wallet-sub" id="gameBalanceUsd">≈ $0.00</div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div class="game-wallet-icon">🎮</div>
+              <div>
+                <div class="game-wallet-label">게임 지갑 잔액</div>
+                <div class="game-wallet-value"><span id="gameBalance">0.00</span> <span style="font-size:14px;font-weight:500;opacity:.7">DEEDRA</span></div>
+                <div class="game-wallet-sub" id="gameBalanceUsd">≈ $0.00</div>
+              </div>
             </div>
-            <button class="btn btn-accent" onclick="chargeGameWallet()" style="padding:10px 16px;font-size:13px">
+            <button class="btn btn-accent" onclick="chargeGameWallet()" style="padding:12px 18px;font-size:13px;font-weight:800;border-radius:12px;white-space:nowrap">
               <i class="fas fa-plus"></i> 충전
             </button>
           </div>
@@ -435,12 +438,12 @@ const HTML = () => `<!DOCTYPE html>
           <!-- 홀짝 게임 -->
           <div id="gameOddEven" class="game-area hidden">
             <div class="game-area-header">
-              <span class="game-area-title">🎲 홀짝 게임</span>
+              <span class="game-area-title">🪙 홀짝 게임</span>
               <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="game-body">
               <div class="bet-info-row">
-                <span class="bet-info-label">베팅 금액</span>
+                <span class="bet-info-label">💰 베팅 금액</span>
                 <span class="bet-info-value"><span id="oeCurrentBet">10</span> DEEDRA</span>
               </div>
               <div class="bet-slider-wrap">
@@ -454,14 +457,28 @@ const HTML = () => `<!DOCTYPE html>
                 <button class="bet-quick-btn" onclick="setBetAmount('oe', 10)">10</button>
                 <button class="bet-quick-btn" onclick="setBetAmount('oe', 50)">50</button>
                 <button class="bet-quick-btn" onclick="setBetAmount('oe', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('oe')">1/2</button>
+                <button class="bet-quick-btn" onclick="setBetGameHalf('oe')">½</button>
+              </div>
+              <!-- 동전 애니메이션 영역 -->
+              <div class="coin-arena">
+                <div class="coin-flip-wrap">
+                  <div class="coin-flip" id="coinFlip">
+                    <div class="coin-face front">🪙</div>
+                    <div class="coin-face back">💫</div>
+                  </div>
+                </div>
+                <div class="coin-result-text" id="coinResultText">홀 또는 짝을 선택하세요</div>
               </div>
               <div class="choice-row">
                 <button class="choice-btn odd" id="oeBtnOdd" onclick="playOddEven('odd')">
-                  <i class="fas fa-circle"></i> 홀 (Odd)
+                  <span class="choice-icon">1</span>
+                  <span class="choice-label">홀 (Odd)</span>
+                  <span class="choice-odds">× 2배</span>
                 </button>
                 <button class="choice-btn even" id="oeBtnEven" onclick="playOddEven('even')">
-                  <i class="far fa-circle"></i> 짝 (Even)
+                  <span class="choice-icon">2</span>
+                  <span class="choice-label">짝 (Even)</span>
+                  <span class="choice-odds">× 2배</span>
                 </button>
               </div>
               <div id="oeResult" class="game-result hidden"></div>
@@ -471,21 +488,32 @@ const HTML = () => `<!DOCTYPE html>
           <!-- 주사위 게임 -->
           <div id="gameDice" class="game-area hidden">
             <div class="game-area-header">
-              <span class="game-area-title">🎯 주사위 게임</span>
+              <span class="game-area-title">🎲 주사위 게임</span>
               <button onclick="closeGame()" class="close-game-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="game-body">
               <div class="bet-info-row">
-                <span class="bet-info-label">베팅 금액</span>
+                <span class="bet-info-label">💰 베팅 금액</span>
                 <span class="bet-info-value"><span id="diceCurrentBet">10</span> DEEDRA</span>
               </div>
               <div class="bet-quick-row">
                 <button class="bet-quick-btn" onclick="setBetAmount('dice', 10)">10</button>
                 <button class="bet-quick-btn" onclick="setBetAmount('dice', 50)">50</button>
                 <button class="bet-quick-btn" onclick="setBetAmount('dice', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('dice')">1/2</button>
+                <button class="bet-quick-btn" onclick="setBetGameHalf('dice')">½</button>
               </div>
-              <div class="dice-display" id="diceDisplay">🎲</div>
+              <!-- 3D 주사위 -->
+              <div class="dice-arena">
+                <div class="dice-3d-wrap">
+                  <div class="dice-3d" id="dice3d">
+                    <div class="dice-face-svg" id="diceFaceDisplay">
+                      <div class="dice-dots" id="diceDots">
+                        <!-- JS로 동적 생성 -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="dice-number-row">
                 ${[1,2,3,4,5,6].map(n => `<button class="dice-num-btn" onclick="playDice(${n})">${n}</button>`).join('')}
               </div>
@@ -501,22 +529,33 @@ const HTML = () => `<!DOCTYPE html>
             </div>
             <div class="game-body">
               <div class="bet-info-row">
-                <span class="bet-info-label">베팅 금액</span>
+                <span class="bet-info-label">💰 베팅 금액</span>
                 <span class="bet-info-value"><span id="slotCurrentBet">10</span> DEEDRA</span>
               </div>
               <div class="bet-quick-row">
                 <button class="bet-quick-btn" onclick="setBetAmount('slot', 10)">10</button>
                 <button class="bet-quick-btn" onclick="setBetAmount('slot', 50)">50</button>
                 <button class="bet-quick-btn" onclick="setBetAmount('slot', 100)">100</button>
-                <button class="bet-quick-btn" onclick="setBetGameHalf('slot')">1/2</button>
+                <button class="bet-quick-btn" onclick="setBetGameHalf('slot')">½</button>
               </div>
-              <div class="slot-machine">
-                <div class="slot-reel" id="reel1">🍋</div>
-                <div class="slot-reel" id="reel2">🍋</div>
-                <div class="slot-reel" id="reel3">🍋</div>
+              <!-- 슬롯 캐비넷 -->
+              <div class="slot-cabinet">
+                <div class="slot-title">✦ DEEDRA SLOTS ✦</div>
+                <div class="slot-machine">
+                  <div class="slot-reel" id="reel1">🍋</div>
+                  <div class="slot-reel" id="reel2">🍋</div>
+                  <div class="slot-reel" id="reel3">🍋</div>
+                </div>
+                <!-- 페이테이블 -->
+                <div class="pay-table">
+                  <div class="pay-item">💎💎💎 = <span>×50</span></div>
+                  <div class="pay-item">7️⃣7️⃣7️⃣ = <span>×20</span></div>
+                  <div class="pay-item">⭐⭐⭐ = <span>×10</span></div>
+                  <div class="pay-item">3같은것 = <span>×5</span></div>
+                </div>
               </div>
-              <button class="btn btn-primary btn-full mt-12" onclick="playSpin()" id="spinBtn">
-                <i class="fas fa-play"></i> 스핀!
+              <button class="btn-spin" onclick="playSpin()" id="spinBtn">
+                <span class="spin-icon">🎰</span> SPIN!
               </button>
               <div id="slotResult" class="game-result hidden"></div>
             </div>
@@ -949,29 +988,70 @@ const SETUP_HTML = () => `<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>DEEDRA 테스트 계정 생성</title>
+  <title>DEEDRA 초기 데이터 설정</title>
   <style>
-    body { font-family: sans-serif; padding: 40px; background: #f3f4f6; }
-    .card { background: white; padding: 32px; border-radius: 12px; max-width: 520px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
-    h2 { margin-bottom: 24px; color: #0d47a1; }
-    .log { background: #1f2937; color: #10b981; padding: 16px; border-radius: 8px; font-size: 13px; font-family: monospace; min-height: 200px; white-space: pre-wrap; margin-top: 16px; overflow-y: auto; max-height: 400px; }
-    button { padding: 12px 24px; background: #0d47a1; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 16px; width: 100%; }
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; padding: 24px; background: #f3f4f6; }
+    .card { background: white; padding: 28px; border-radius: 12px; max-width: 560px; margin: 0 auto; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    h2 { margin-bottom: 8px; color: #0d47a1; font-size: 20px; }
+    p { color: #6b7280; font-size: 14px; margin-bottom: 16px; }
+    .btn-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
+    button { padding: 12px 20px; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-all { background: #0d47a1; }
+    .btn-products { background: #1565c0; }
+    .btn-accounts { background: #283593; }
+    .btn-settings { background: #4527a0; }
+    .log { background: #111827; color: #d1fae5; padding: 14px; border-radius: 8px; font-size: 12px; font-family: monospace; min-height: 180px; white-space: pre-wrap; margin-top: 14px; overflow-y: auto; max-height: 500px; line-height: 1.6; }
+    .section { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    .section-title { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    th { background: #f9fafb; padding: 6px 8px; text-align: left; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+    td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
   </style>
 </head>
 <body>
 <div class="card">
-  <h2>🛠️ DEEDRA 테스트 계정 생성</h2>
-  <p style="color:#6b7280;margin-bottom:8px">버튼을 클릭하면 Firebase에 테스트 계정 3개가 생성됩니다.</p>
-  <button id="createBtn" onclick="createTestAccounts()">▶ 테스트 계정 3개 생성 시작</button>
-  <div class="log" id="log">버튼을 클릭하면 테스트 계정이 생성됩니다...</div>
+  <h2>🛠️ DEEDRA 초기 데이터 설정</h2>
+  <p>Firebase Firestore에 투자상품, 테스트 계정, 앱 설정값을 일괄 생성합니다.</p>
+
+  <div class="section">
+    <div class="section-title">📦 생성될 투자 상품</div>
+    <table>
+      <tr><th>이름</th><th>수익률</th><th>기간</th><th>최소</th><th>최대</th></tr>
+      <tr><td>Basic</td><td>15%</td><td>30일</td><td>$100</td><td>$1,000</td></tr>
+      <tr><td>Standard</td><td>25%</td><td>60일</td><td>$500</td><td>$5,000</td></tr>
+      <tr><td>Premium</td><td>40%</td><td>90일</td><td>$1,000</td><td>$20,000</td></tr>
+      <tr><td>VIP</td><td>60%</td><td>180일</td><td>$5,000</td><td>$100,000</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">👤 생성될 테스트 계정</div>
+    <table>
+      <tr><th>이메일</th><th>비밀번호</th><th>직급</th><th>USDT</th><th>DEEDRA</th></tr>
+      <tr><td>test1@deedra.com</td><td>Test1234!</td><td>G1</td><td>1,000</td><td>500</td></tr>
+      <tr><td>test2@deedra.com</td><td>Test1234!</td><td>G0</td><td>500</td><td>200</td></tr>
+      <tr><td>test3@deedra.com</td><td>Test1234!</td><td>G2</td><td>5,000</td><td>2,000</td></tr>
+    </table>
+    <p style="margin:6px 0 0;font-size:11px;color:#9ca3af">출금 PIN: 123456</p>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-all" id="btnAll" onclick="runAll()">🚀 전체 초기화 (상품 + 계정 + 설정)</button>
+    <button class="btn-products" id="btnProducts" onclick="createProducts()">📦 투자 상품만 생성</button>
+    <button class="btn-accounts" id="btnAccounts" onclick="createTestAccounts()">👤 테스트 계정만 생성</button>
+    <button class="btn-settings" id="btnSettings" onclick="createSettings()">⚙️ 앱 설정값만 생성</button>
+  </div>
+  <div class="log" id="log">버튼을 클릭하면 시작됩니다...</div>
 </div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-const app = initializeApp({
+const firebaseApp = initializeApp({
   apiKey: "AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8",
   authDomain: "dedra-mlm.firebaseapp.com",
   projectId: "dedra-mlm",
@@ -979,58 +1059,135 @@ const app = initializeApp({
   messagingSenderId: "990762022325",
   appId: "1:990762022325:web:1b238ef6eca4ffb4b795fc"
 });
-const auth = getAuth(app);
-const db = getFirestore(app);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 
-const testAccounts = [
-  { email:'test1@deedra.com', password:'Test1234!', name:'테스트1호', rank:'G1', usdt:1000, dedra:500, bonus:50, referralCode:'TEST0001' },
-  { email:'test2@deedra.com', password:'Test1234!', name:'테스트2호', rank:'G0', usdt:500,  dedra:200, bonus:20, referralCode:'TEST0002' },
-  { email:'test3@deedra.com', password:'Test1234!', name:'테스트3호', rank:'G2', usdt:5000, dedra:2000,bonus:300,referralCode:'TEST0003' },
+const PRODUCTS = [
+  { id:'product_basic',    name:'Basic',    roiPercent:15, durationDays:30,  minAmount:100,  maxAmount:1000,   isActive:true, order:1 },
+  { id:'product_standard', name:'Standard', roiPercent:25, durationDays:60,  minAmount:500,  maxAmount:5000,   isActive:true, order:2 },
+  { id:'product_premium',  name:'Premium',  roiPercent:40, durationDays:90,  minAmount:1000, maxAmount:20000,  isActive:true, order:3 },
+  { id:'product_vip',      name:'VIP',      roiPercent:60, durationDays:180, minAmount:5000, maxAmount:100000, isActive:true, order:4 },
 ];
 
-function log(msg, color='#d1d5db') {
+const TEST_ACCOUNTS = [
+  { email:'test1@deedra.com', password:'Test1234!', name:'테스트1호', rank:'G1', usdt:1000, dedra:500,  bonus:50,  referralCode:'TEST0001' },
+  { email:'test2@deedra.com', password:'Test1234!', name:'테스트2호', rank:'G0', usdt:500,  dedra:200,  bonus:20,  referralCode:'TEST0002' },
+  { email:'test3@deedra.com', password:'Test1234!', name:'테스트3호', rank:'G2', usdt:5000, dedra:2000, bonus:300, referralCode:'TEST0003' },
+];
+
+function log(msg, color='#d1fae5') {
   const el = document.getElementById('log');
   el.innerHTML += '<span style="color:'+color+'">'+msg+'</span>\\n';
   el.scrollTop = el.scrollHeight;
 }
 
-window.createTestAccounts = async function() {
-  const btn = document.getElementById('createBtn');
-  btn.disabled = true;
-  document.getElementById('log').innerHTML = '';
+function disableAll(v) {
+  ['btnAll','btnProducts','btnAccounts','btnSettings'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = v;
+  });
+}
 
-  for (const a of testAccounts) {
-    log('\\n📋 ['+a.email+'] 처리 중...', '#60a5fa');
+window.runAll = async function() {
+  disableAll(true);
+  document.getElementById('log').innerHTML = '';
+  log('🚀 전체 초기화 시작...', '#93c5fd');
+  await createProducts();
+  await createTestAccounts();
+  await createSettings();
+  log('\\n🎉 전체 초기화 완료!', '#fbbf24');
+  disableAll(false);
+};
+
+window.createProducts = async function() {
+  log('\\n📦 [투자 상품 생성 시작]', '#93c5fd');
+  for (const p of PRODUCTS) {
+    try {
+      await setDoc(doc(db, 'products', p.id), { ...p, createdAt: serverTimestamp() });
+      log('  ✅ ' + p.name + ' (' + p.roiPercent + '% / ' + p.durationDays + '일)', '#86efac');
+    } catch(e) {
+      log('  ❌ ' + p.name + ' 오류: ' + e.message, '#fca5a5');
+    }
+  }
+  log('📦 투자 상품 4종 생성 완료', '#86efac');
+};
+
+window.createTestAccounts = async function() {
+  log('\\n👤 [테스트 계정 생성 시작]', '#93c5fd');
+  for (const a of TEST_ACCOUNTS) {
+    log('  처리중: ' + a.email, '#e5e7eb');
     try {
       let uid;
       try {
         const c = await createUserWithEmailAndPassword(auth, a.email, a.password);
         uid = c.user.uid;
-        log('  ✅ Auth 계정 신규 생성', '#10b981');
+        log('    ✅ 신규 계정 생성', '#86efac');
       } catch(e) {
-        if(e.code==='auth/email-already-in-use') {
+        if (e.code === 'auth/email-already-in-use') {
           const c = await signInWithEmailAndPassword(auth, a.email, a.password);
           uid = c.user.uid;
-          log('  ℹ️ 기존 계정 업데이트', '#60a5fa');
+          log('    ℹ️ 기존 계정 업데이트', '#93c5fd');
         } else throw e;
       }
-      await setDoc(doc(db,'users',uid), { uid, email:a.email, name:a.name, role:'member', rank:a.rank, status:'active', referralCode:a.referralCode, referredBy:null, phone:'', withdrawPin:btoa('123456'), createdAt:serverTimestamp() }, {merge:true});
-      await setDoc(doc(db,'wallets',uid), { userId:uid, usdtBalance:a.usdt, dedraBalance:a.dedra, bonusBalance:a.bonus, totalDeposit:a.usdt, totalWithdrawal:0, totalEarnings:a.bonus, createdAt:serverTimestamp() }, {merge:true});
-      log('  ✅ Firestore 저장 완료 (USDT:'+a.usdt+' / DEEDRA:'+a.dedra+')', '#10b981');
+      await setDoc(doc(db,'users',uid), {
+        uid, email:a.email, name:a.name, role:'member', rank:a.rank,
+        status:'active', referralCode:a.referralCode, referredBy:null,
+        phone:'', withdrawPin:btoa('123456'), referralCount:0,
+        createdAt:serverTimestamp()
+      }, {merge:true});
+      await setDoc(doc(db,'wallets',uid), {
+        userId:uid, usdtBalance:a.usdt, dedraBalance:a.dedra,
+        bonusBalance:a.bonus, totalDeposit:a.usdt, totalWithdrawal:0,
+        totalEarnings:a.bonus, createdAt:serverTimestamp()
+      }, {merge:true});
+      log('    ✅ Firestore 저장 (USDT:' + a.usdt + ' DEEDRA:' + a.dedra + ')', '#86efac');
     } catch(e) {
-      log('  ❌ 오류: '+e.message, '#ef4444');
+      log('    ❌ 오류: ' + e.message, '#fca5a5');
     }
   }
+  log('👤 테스트 계정 3개 완료 (PIN: 123456)', '#86efac');
+};
 
-  log('\\n========================================', '#6b7280');
-  log('🎉 완료! 아래 계정으로 앱에서 로그인하세요', '#f59e0b');
-  log('========================================', '#6b7280');
-  testAccounts.forEach(a => {
-    log('📧 '+a.email+'  🔑 '+a.password, '#10b981');
-    log('   직급:'+a.rank+' | USDT:'+a.usdt+' | DEEDRA:'+a.dedra+' | 출금PIN:123456', '#60a5fa');
-    log('----------------------------------------', '#374151');
-  });
-  btn.disabled = false;
+window.createSettings = async function() {
+  log('\\n⚙️ [앱 설정값 생성 시작]', '#93c5fd');
+  try {
+    // DEEDRA 시세 설정
+    await setDoc(doc(db, 'settings', 'deedraPrice'), {
+      price: 0.50,
+      updatedAt: serverTimestamp(),
+      updatedBy: 'system',
+      note: '초기 설정값 (관리자가 변경 가능)'
+    });
+    log('  ✅ DEEDRA 시세: $0.50', '#86efac');
+
+    // 회사 지갑 주소
+    await setDoc(doc(db, 'settings', 'wallets'), {
+      trc20: 'TRX_WALLET_ADDRESS_SET_BY_ADMIN',
+      updatedAt: serverTimestamp(),
+      note: '관리자가 실제 주소로 변경 필요'
+    });
+    log('  ✅ 회사 지갑 주소 (기본값)', '#86efac');
+
+    // 공지사항 샘플
+    await addDoc(collection(db, 'announcements'), {
+      title: '🎉 DEEDRA 앱 v2.0 오픈!',
+      content: 'DEEDRA 투자 앱이 새로운 디자인으로 리뉴얼되었습니다. 더 편리해진 UI로 투자를 시작해보세요!',
+      isActive: true,
+      isPinned: true,
+      createdAt: serverTimestamp()
+    });
+    await addDoc(collection(db, 'announcements'), {
+      title: '📋 투자 상품 안내',
+      content: 'Basic(15%/30일), Standard(25%/60일), Premium(40%/90일), VIP(60%/180일) 상품이 출시되었습니다.',
+      isActive: true,
+      isPinned: false,
+      createdAt: serverTimestamp()
+    });
+    log('  ✅ 공지사항 2건 생성', '#86efac');
+    log('⚙️ 앱 설정값 생성 완료', '#86efac');
+  } catch(e) {
+    log('  ❌ 오류: ' + e.message, '#fca5a5');
+  }
 };
 </script>
 </body>

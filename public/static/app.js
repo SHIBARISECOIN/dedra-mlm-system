@@ -35,6 +35,48 @@ const RANKS = [
 const SLOT_SYMBOLS = ['🍋', '🍇', '🍎', '🍊', '⭐', '7️⃣', '💎'];
 const DICE_FACES = ['', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣'];
 
+// 주사위 점 배치 패턴 (3x3 grid, 인덱스 0~8)
+const DICE_DOT_PATTERNS = {
+  1: [4],
+  2: [2, 6],
+  3: [2, 4, 6],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8]
+};
+
+// 주사위 점 렌더링
+function renderDiceDots(num) {
+  const dotsEl = document.getElementById('diceDots');
+  if (!dotsEl) return;
+  const pattern = DICE_DOT_PATTERNS[num] || [];
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const dot = document.createElement('div');
+    dot.className = pattern.includes(i) ? 'dice-dot' : 'dice-dot hidden';
+    dotsEl.appendChild(dot);
+  }
+}
+
+// 잭팟 파티클 생성
+function spawnJackpotParticles() {
+  const container = document.createElement('div');
+  container.className = 'jackpot-particles';
+  document.body.appendChild(container);
+  const emojis = ['🎉', '✨', '💎', '⭐', '🌟', '💰', '🎊', '🥇'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'jackpot-particle';
+    p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDelay = Math.random() * 1 + 's';
+    p.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+    p.style.fontSize = (14 + Math.random() * 16) + 'px';
+    container.appendChild(p);
+  }
+  setTimeout(() => container.remove(), 3500);
+}
+
 // USD → KRW 환율 (고정)
 const USD_KRW = 1350;
 
@@ -1115,6 +1157,15 @@ window.startGame = function(type) {
   // 슬라이더 최대값 설정
   const slider = document.getElementById(type === 'oddeven' ? 'oeBetSlider' : type === 'dice' ? 'diceBetSlider' : 'slotBetSlider');
   if (slider) slider.max = Math.floor(gameBalanceVal);
+
+  // 게임별 초기화
+  if (type === 'dice') {
+    renderDiceDots(6); // 기본 6 표시
+  }
+  if (type === 'oddeven') {
+    const coinText = document.getElementById('coinResultText');
+    if (coinText) { coinText.textContent = '홀 또는 짝을 선택하세요'; coinText.style.color = ''; }
+  }
 };
 
 function closeAllGames() {
@@ -1153,57 +1204,129 @@ window.setBetGameHalf = function(type) {
 
 window.playOddEven = function(choice) {
   if (gameBalanceVal < oeBetVal) { showToast('잔액 부족', 'error'); return; }
-  const result = Math.random() < 0.5 ? 'odd' : 'even';
-  const win = choice === result;
-  gameBalanceVal = win ? gameBalanceVal + oeBetVal : gameBalanceVal - oeBetVal;
-  updateGameUI();
 
-  const el = document.getElementById('oeResult');
-  if (el) {
-    el.className = 'game-result ' + (win ? 'win' : 'lose');
-    el.textContent = (win ? '🎉 승리! +' : '😢 패배 -') + oeBetVal + ' DEEDRA · 결과: ' + (result === 'odd' ? '홀' : '짝');
-    el.classList.remove('hidden');
+  // 버튼 비활성화
+  const btnOdd = document.getElementById('oeBtnOdd');
+  const btnEven = document.getElementById('oeBtnEven');
+  if (btnOdd) btnOdd.disabled = true;
+  if (btnEven) btnEven.disabled = true;
+
+  // 동전 플립 애니메이션
+  const coin = document.getElementById('coinFlip');
+  const coinText = document.getElementById('coinResultText');
+  if (coin) {
+    coin.classList.add('flipping');
+    if (coinText) coinText.textContent = '동전이 날아갑니다...';
   }
-  logGame('홀짝', win, oeBetVal);
+
+  setTimeout(() => {
+    const result = Math.random() < 0.5 ? 'odd' : 'even';
+    const win = choice === result;
+    gameBalanceVal = win ? gameBalanceVal + oeBetVal : gameBalanceVal - oeBetVal;
+    updateGameUI();
+
+    if (coin) coin.classList.remove('flipping');
+    if (coinText) {
+      coinText.textContent = result === 'odd' ? '🔴 홀 (Odd)' : '🔵 짝 (Even)';
+      coinText.style.color = result === 'odd' ? '#90caf9' : '#ef9a9a';
+    }
+
+    const el = document.getElementById('oeResult');
+    if (el) {
+      el.className = 'game-result ' + (win ? 'win' : 'lose');
+      el.innerHTML = win
+        ? `🎉 <strong>승리!</strong> +${oeBetVal} DEEDRA &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`
+        : `😢 <strong>패배</strong> -${oeBetVal} DEEDRA &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`;
+      el.classList.remove('hidden');
+    }
+
+    if (btnOdd) btnOdd.disabled = false;
+    if (btnEven) btnEven.disabled = false;
+    logGame('홀짝', win, oeBetVal);
+  }, 900);
 };
 
 window.playDice = function(chosenNum) {
   if (gameBalanceVal < diceBetVal) { showToast('잔액 부족', 'error'); return; }
-  const result = Math.ceil(Math.random() * 6);
-  const win = chosenNum === result;
-  gameBalanceVal = win ? gameBalanceVal + diceBetVal * 5 : gameBalanceVal - diceBetVal;
-  updateGameUI();
 
-  const diceEl = document.getElementById('diceDisplay');
-  if (diceEl) diceEl.textContent = DICE_FACES[result];
+  // 버튼 비활성화
+  document.querySelectorAll('.dice-num-btn').forEach(b => b.disabled = true);
 
-  const el = document.getElementById('diceResult');
-  if (el) {
-    el.className = 'game-result ' + (win ? 'win' : 'lose');
-    el.textContent = (win ? '🎉 적중! +' + diceBetVal * 5 : '😢 빗나감 -' + diceBetVal) + ' DEEDRA · 나온 숫자: ' + result;
-    el.classList.remove('hidden');
+  // 초기 주사위 점 렌더링 (1 기본)
+  renderDiceDots(1);
+
+  // 3D 굴리기 애니메이션
+  const dice3d = document.getElementById('dice3d');
+  if (dice3d) {
+    dice3d.classList.add('rolling');
+    // 굴리는 동안 랜덤 숫자 표시
+    let flickerCount = 0;
+    const flickerInterval = setInterval(() => {
+      const randNum = Math.ceil(Math.random() * 6);
+      renderDiceDots(randNum);
+      flickerCount++;
+      if (flickerCount > 8) clearInterval(flickerInterval);
+    }, 100);
   }
-  logGame('주사위', win, diceBetVal);
+
+  setTimeout(() => {
+    const result = Math.ceil(Math.random() * 6);
+    const win = chosenNum === result;
+    gameBalanceVal = win ? gameBalanceVal + diceBetVal * 5 : gameBalanceVal - diceBetVal;
+    updateGameUI();
+
+    if (dice3d) dice3d.classList.remove('rolling');
+    renderDiceDots(result);
+
+    const el = document.getElementById('diceResult');
+    if (el) {
+      el.className = 'game-result ' + (win ? 'win' : 'lose');
+      el.innerHTML = win
+        ? `🎉 <strong>적중!</strong> +${diceBetVal * 5} DEEDRA &nbsp;·&nbsp; 나온 숫자: ${result}`
+        : `😢 <strong>빗나감</strong> -${diceBetVal} DEEDRA &nbsp;·&nbsp; 나온 숫자: ${result}`;
+      el.classList.remove('hidden');
+    }
+
+    document.querySelectorAll('.dice-num-btn').forEach(b => b.disabled = false);
+    logGame('주사위', win, diceBetVal);
+  }, 1000);
 };
 
 window.playSpin = function() {
   if (gameBalanceVal < slotBetVal) { showToast('잔액 부족', 'error'); return; }
 
   const spinBtn = document.getElementById('spinBtn');
-  if (spinBtn) { spinBtn.disabled = true; spinBtn.textContent = '🎰 스피닝...'; }
+  if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spinRotate 0.3s linear infinite">🎰</span> 스피닝...'; }
 
   const reels = ['reel1', 'reel2', 'reel3'].map(id => document.getElementById(id));
-  reels.forEach(r => { if (r) r.classList.add('spinning'); });
+
+  // 각 릴마다 다른 타이밍으로 스핀 시작
+  reels.forEach((r, i) => {
+    if (r) {
+      setTimeout(() => r.classList.add('spinning'), i * 100);
+    }
+  });
+
+  // 릴별로 다른 시점에 멈춤 (순차적으로)
+  const stopTimes = [800, 1100, 1400];
+  const result = [0,1,2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
+
+  reels.forEach((r, i) => {
+    setTimeout(() => {
+      if (r) {
+        r.classList.remove('spinning');
+        r.textContent = result[i];
+        // 멈출 때 잠깐 바운스
+        r.style.transform = 'scale(1.15)';
+        setTimeout(() => { if (r) r.style.transform = ''; }, 150);
+      }
+    }, stopTimes[i]);
+  });
 
   setTimeout(() => {
-    const result = [0,1,2].map(() => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
-    reels.forEach((r, i) => { if (r) { r.textContent = result[i]; r.classList.remove('spinning'); } });
-
     let multiplier = 0;
     if (result[0] === result[1] && result[1] === result[2]) {
       multiplier = result[0] === '💎' ? 50 : result[0] === '7️⃣' ? 20 : result[0] === '⭐' ? 10 : 5;
-    } else if (result[0] === result[1] || result[1] === result[2]) {
-      multiplier = 0;
     }
 
     const win = multiplier > 0;
@@ -1211,15 +1334,24 @@ window.playSpin = function() {
     gameBalanceVal = win ? gameBalanceVal + earned : gameBalanceVal - slotBetVal;
     updateGameUI();
 
+    // 승리 시 릴 플래시 + 파티클
+    if (win) {
+      reels.forEach(r => { if (r) r.classList.add('win-flash'); });
+      setTimeout(() => reels.forEach(r => { if (r) r.classList.remove('win-flash'); }), 1500);
+      if (multiplier >= 10) spawnJackpotParticles();
+    }
+
     const el = document.getElementById('slotResult');
     if (el) {
       el.className = 'game-result ' + (win ? 'win' : 'lose');
-      el.textContent = win ? `🎉 잭팟! ${multiplier}배 +${earned} DEEDRA` : `😢 꽝 -${slotBetVal} DEEDRA`;
+      el.innerHTML = win
+        ? `🎉 <strong>잭팟! ${multiplier}배</strong> +${earned} DEEDRA`
+        : `😢 <strong>꽝!</strong> -${slotBetVal} DEEDRA`;
       el.classList.remove('hidden');
     }
-    if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '<i class="fas fa-play"></i> 스핀!'; }
+    if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '<span class="spin-icon">🎰</span> SPIN!'; }
     logGame('슬롯머신', win, slotBetVal);
-  }, 1200);
+  }, 1600);
 };
 
 function logGame(gameName, win, bet) {
