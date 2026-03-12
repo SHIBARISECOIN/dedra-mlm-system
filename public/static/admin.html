@@ -4369,12 +4369,11 @@ async function loadGameOddsAdmin() {
     const snap = await api.getRawDoc('settings', 'gameOdds');
     if (snap && snap.exists()) {
       const d = snap.data();
-      const isFmtUser = (d._fmt === 'user');
+      // Firestore에 userWinRate(유저 승률) 로 저장됨 (필드명: oddeven_user, dice_user, ...)
       ODDS_GAME_KEYS.forEach(k => {
-        if (d[k] !== undefined) {
-          const stored = Number(d[k]);
-          // _fmt:'user' → 유저 승률 그대로, 없으면 구버전(houseWinRate) → 변환
-          _oddsData[k] = isFmtUser ? stored : (100 - stored);
+        const fieldName = k + '_user'; // 예: oddeven_user, dice_user
+        if (d[fieldName] !== undefined) {
+          _oddsData[k] = Math.max(0, Math.min(100, Number(d[fieldName])));
         }
       });
     }
@@ -4387,7 +4386,7 @@ async function loadGameOddsAdmin() {
     const input = document.getElementById('oddsInput' + cap);
     const u     = document.getElementById('oddsUser'  + cap);
     const h     = document.getElementById('oddsHouse' + cap);
-    const v     = _oddsData[k] ?? 96;
+    const v     = _oddsData[k];
     if (input) input.value = v;
     if (u) u.textContent = v + '%';
     if (h) h.textContent = (100 - v) + '%';
@@ -4410,8 +4409,15 @@ async function saveGameOdds() {
         _oddsData[k] = Math.max(0, Math.min(100, v));
       }
     });
+    // 유저 승률을 _user 필드명으로 저장, houseWinRate는 _house 필드명으로 함께 저장
     const payload = {
-      _fmt: 'user',
+      oddeven_user:  _oddsData.oddeven,  oddeven_house:  100 - _oddsData.oddeven,
+      dice_user:     _oddsData.dice,     dice_house:     100 - _oddsData.dice,
+      slot_user:     _oddsData.slot,     slot_house:     100 - _oddsData.slot,
+      roulette_user: _oddsData.roulette, roulette_house: 100 - _oddsData.roulette,
+      baccarat_user: _oddsData.baccarat, baccarat_house: 100 - _oddsData.baccarat,
+      poker_user:    _oddsData.poker,    poker_house:    100 - _oddsData.poker,
+      // app.js 호환용 (houseWinRate 기준 단축 필드)
       oddeven:  100 - _oddsData.oddeven,
       dice:     100 - _oddsData.dice,
       slot:     100 - _oddsData.slot,

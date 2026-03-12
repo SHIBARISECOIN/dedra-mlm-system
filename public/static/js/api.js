@@ -22,7 +22,7 @@ export class DedraAPI {
       const [usersSnap, txSnap, gameSnap, invSnap] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'transactions')),
-        getDocs(collection(db, 'gameLogs')),
+        getDocs(collection(db, 'gamelogs')),
         getDocs(collection(db, 'investments')),
       ]);
 
@@ -337,7 +337,7 @@ export class DedraAPI {
   // ─────────────────────────────────────────────────
   async getGameLogs(maxCount = 200) {
     try {
-      const snap = await getDocs(query(collection(this.db, 'gameLogs'), limit(maxCount)));
+      const snap = await getDocs(query(collection(this.db, 'gamelogs'), limit(maxCount)));
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       return ok(data);
