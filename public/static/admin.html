@@ -3067,12 +3067,6 @@ canvas{width:100% !important;}
           </div>
         </div>
 
-        <div class="settings-section">
-          <div class="settings-section-title">🌐 MLM 유니레벨 보너스 비율 설정</div>
-          <div style="font-size:12px;color:var(--gray);margin-bottom:14px;">입금 승인 시 추천인 체인에 지급되는 비율 (소수점: 0.10 = 10%)</div>
-          <div id="unilevelRatesWrap"></div>
-        </div>
-
         <!-- ── 관리자 접근 비밀번호 설정 ── -->
         <div class="settings-section">
           <div class="settings-section-title">🔐 관리자 모드 접근 비밀번호</div>
@@ -5864,11 +5858,6 @@ function setupEvents() {
 
     // ── 시스템 설정 저장 ──
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-        const rates = [];
-        for (let i=0;i<10;i++) {
-            const v = parseFloat(document.getElementById(`rate_${i}`)?.value||0);
-            rates.push(isNaN(v)?0:v);
-        }
         const cfg = {
             depositAddress: document.getElementById('cfg_depositAddress').value.trim(),
             siteName: document.getElementById('cfg_siteName').value.trim(),
@@ -5876,8 +5865,7 @@ function setupEvents() {
             minWithdrawal: parseFloat(document.getElementById('cfg_minWithdrawal').value)||10,
             withdrawalFeeRate: parseFloat(document.getElementById('cfg_withdrawalFeeRate').value)/100 || 0.02,
             maintenanceMode: document.getElementById('cfg_maintenanceMode').value === 'true',
-            siteNotice: document.getElementById('cfg_siteNotice').value.trim(),
-            unilevelRates: rates
+            siteNotice: document.getElementById('cfg_siteNotice').value.trim()
         };
         const btn = document.getElementById('saveSettingsBtn');
         btn.disabled=true; btn.textContent='저장 중...';
@@ -6556,26 +6544,6 @@ async function loadSettings() {
     document.getElementById('cfg_maintenanceMode').value = s.maintenanceMode?'true':'false';
     document.getElementById('cfg_siteNotice').value = s.siteNotice||'';
 
-    // 유니레벨 비율 입력 필드 생성
-    const rates = s.unilevelRates || [0.10,0.07,0.05,0.04,0.03,0.02,0.02,0.01,0.01,0.01];
-    const wrap = document.getElementById('unilevelRatesWrap');
-    wrap.innerHTML = rates.map((rate,i) => `
-        <div class="rate-row">
-          <span class="rate-label">${i+1}단계 추천인 보너스율</span>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="number" class="rate-input" id="rate_${i}" value="${rate}" step="0.01" min="0" max="1">
-            <span style="font-size:12px;color:var(--gray);">(${(rate*100).toFixed(0)}%)</span>
-          </div>
-        </div>`).join('');
-
-    // 비율 변경 시 % 표시 업데이트
-    rates.forEach((_,i) => {
-        const inp = document.getElementById(`rate_${i}`);
-        inp?.addEventListener('input', () => {
-            const v = parseFloat(inp.value)||0;
-            inp.nextElementSibling.textContent = `(${(v*100).toFixed(0)}%)`;
-        });
-    });
 }
 
 // ══════════════════════════════════════════════════
