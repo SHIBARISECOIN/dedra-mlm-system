@@ -2939,10 +2939,21 @@ function getAuthErrorMsg(code) {
     'auth/email-already-in-use': '이미 사용 중인 이메일입니다.',
     'auth/weak-password': '비밀번호가 너무 약합니다. 6자 이상으로 설정하세요.',
     'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
+    'auth/invalid-login-credentials': '이메일 또는 비밀번호가 올바르지 않습니다.',
+    'auth/invalid_login_credentials': '이메일 또는 비밀번호가 올바르지 않습니다.',
     'auth/too-many-requests': '너무 많은 요청이 있었습니다. 잠시 후 다시 시도하세요.',
+    'auth/too-many-attempts-try-later': '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.',
     'auth/network-request-failed': '네트워크 오류가 발생했습니다.',
+    'auth/user-disabled': '비활성화된 계정입니다. 관리자에게 문의하세요.',
   };
-  return map[code] || '오류가 발생했습니다: ' + code;
+  // REST API 에러 코드 직접 매핑 (auth/ 없는 경우)
+  if (!code) return '로그인 중 오류가 발생했습니다.';
+  const normalized = code.toLowerCase().replace(/_/g, '-');
+  if (map[code]) return map[code];
+  if (map['auth/' + normalized]) return map['auth/' + normalized];
+  if (normalized.includes('invalid') && normalized.includes('credential')) return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  if (normalized.includes('too-many')) return '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.';
+  return '오류가 발생했습니다: ' + code;
 }
 
 // ===== 토스트 =====

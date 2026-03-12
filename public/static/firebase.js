@@ -37,9 +37,28 @@ async function loginWithEmail(authObj, email, password) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const code = 'auth/' + (data.error || 'UNKNOWN').toLowerCase().replace(/_/g, '-');
-    const err = new Error(data.error || 'Login failed');
+    const rawMsg = data.error || 'UNKNOWN';
+    // Firebase REST API 에러 메시지 → SDK 호환 코드 변환
+    let code = 'auth/unknown';
+    const msg = rawMsg.toUpperCase();
+    if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD') || msg.includes('INVALID_EMAIL')) {
+      code = 'auth/invalid-credential';
+    } else if (msg.includes('EMAIL_NOT_FOUND') || msg.includes('USER_NOT_FOUND')) {
+      code = 'auth/user-not-found';
+    } else if (msg.includes('TOO_MANY_ATTEMPTS') || msg.includes('TOO_MANY_REQUESTS')) {
+      code = 'auth/too-many-requests';
+    } else if (msg.includes('USER_DISABLED')) {
+      code = 'auth/user-disabled';
+    } else if (msg.includes('WEAK_PASSWORD')) {
+      code = 'auth/weak-password';
+    } else if (msg.includes('EMAIL_EXISTS')) {
+      code = 'auth/email-already-in-use';
+    } else {
+      code = 'auth/' + rawMsg.toLowerCase().replace(/_/g, '-');
+    }
+    const err = new Error(rawMsg);
     err.code = code;
+    console.error('[Firebase] 로그인 실패:', rawMsg, '→', code);
     throw err;
   }
   // Firebase SDK 로그인 없이 직접 user 객체 시뮬레이션
@@ -50,6 +69,7 @@ async function loginWithEmail(authObj, email, password) {
     refreshToken: data.refreshToken
   };
   window.FB._currentUser = mockUser;
+  console.log('[Firebase] 로그인 성공:', mockUser.email, 'uid:', mockUser.uid);
   // onAuthReady 직접 호출
   if (typeof window.onAuthReady === 'function') {
     window.onAuthReady(mockUser);
