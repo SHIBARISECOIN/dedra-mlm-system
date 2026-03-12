@@ -4369,11 +4369,11 @@ async function loadGameOddsAdmin() {
     const snap = await api.getRawDoc('settings', 'gameOdds');
     if (snap && snap.exists()) {
       const d = snap.data();
-      // Firestore에 userWinRate(유저 승률) 로 저장됨 (필드명: oddeven_user, dice_user, ...)
+      // 저장 필드: oddeven_win, dice_win ... (유저 승률 직접 저장)
       ODDS_GAME_KEYS.forEach(k => {
-        const fieldName = k + '_user'; // 예: oddeven_user, dice_user
-        if (d[fieldName] !== undefined) {
-          _oddsData[k] = Math.max(0, Math.min(100, Number(d[fieldName])));
+        const f = k + '_win';
+        if (d[f] !== undefined) {
+          _oddsData[k] = Math.max(0, Math.min(100, Number(d[f])));
         }
       });
     }
@@ -4409,24 +4409,18 @@ async function saveGameOdds() {
         _oddsData[k] = Math.max(0, Math.min(100, v));
       }
     });
-    // 유저 승률을 _user 필드명으로 저장, houseWinRate는 _house 필드명으로 함께 저장
+    // oddeven_win 등 _win 필드에 유저 승률 저장 (덮어쓰기)
     const payload = {
-      oddeven_user:  _oddsData.oddeven,  oddeven_house:  100 - _oddsData.oddeven,
-      dice_user:     _oddsData.dice,     dice_house:     100 - _oddsData.dice,
-      slot_user:     _oddsData.slot,     slot_house:     100 - _oddsData.slot,
-      roulette_user: _oddsData.roulette, roulette_house: 100 - _oddsData.roulette,
-      baccarat_user: _oddsData.baccarat, baccarat_house: 100 - _oddsData.baccarat,
-      poker_user:    _oddsData.poker,    poker_house:    100 - _oddsData.poker,
-      // app.js 호환용 (houseWinRate 기준 단축 필드)
-      oddeven:  100 - _oddsData.oddeven,
-      dice:     100 - _oddsData.dice,
-      slot:     100 - _oddsData.slot,
-      roulette: 100 - _oddsData.roulette,
-      baccarat: 100 - _oddsData.baccarat,
-      poker:    100 - _oddsData.poker,
+      oddeven_win:  _oddsData.oddeven,
+      dice_win:     _oddsData.dice,
+      slot_win:     _oddsData.slot,
+      roulette_win: _oddsData.roulette,
+      baccarat_win: _oddsData.baccarat,
+      poker_win:    _oddsData.poker,
       updatedAt: new Date().toISOString()
     };
-    await api.setRawDoc('settings', 'gameOdds', payload);
+    // merge:false 로 문서 전체 교체 → 이전 필드 완전히 제거
+    await api.setRawDocFull('settings', 'gameOdds', payload);
     if (st) { st.textContent = '저장 완료'; st.className = 'odds-save-status ok'; }
     showToast('게임 확률이 저장되었습니다.', 'success');
     try {

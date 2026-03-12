@@ -1083,24 +1083,14 @@ async function loadGameOdds() {
     const snap = await getDoc(doc(db, 'settings', 'gameOdds'));
     if (snap.exists()) {
       const data = snap.data();
-      // 필드명: oddeven_house, dice_house ... (houseWinRate 직접 저장)
-      // 없으면 구버전 단축 필드명(oddeven, dice...)으로 fallback
-      const get = (k) => {
-        if (data[k + '_house'] !== undefined) return Number(data[k + '_house']);
-        if (data[k]           !== undefined) return Number(data[k]);
-        return null;
-      };
-      ['oddeven','dice','slot','roulette','baccarat','poker'].forEach(k => {
-        const v = get(k);
-        if (v !== null) gameOdds[k].houseWinRate = v;
+      // 필드명: oddeven_win = 유저 승률 → houseWinRate = 100 - win
+      const keys = ['oddeven','dice','slot','roulette','baccarat','poker'];
+      keys.forEach(k => {
+        const win = data[k + '_win'];
+        if (win !== undefined) {
+          gameOdds[k].houseWinRate = 100 - Number(win);
+        }
       });
-      // global 필드
-      if (data.global !== undefined) gameOdds.global.houseWinRate = Number(data.global);
-      // useGlobal: true이면 모든 게임에 global 값 적용
-      if (data.useGlobal) {
-        const g = gameOdds.global.houseWinRate;
-        ['oddeven','dice','slot','roulette','baccarat','poker'].forEach(k => gameOdds[k].houseWinRate = g);
-      }
     }
     gameOddsLoaded = true;
   } catch(e) {

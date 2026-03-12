@@ -1913,6 +1913,11 @@ export class DedraAPI {
     await setDoc(doc(this.db, collectionName, docId), data, { merge: true });
   }
 
+  /** settings/{docId} 문서 완전 교체 (이전 필드 모두 삭제) */
+  async setRawDocFull(collectionName, docId, data) {
+    await setDoc(doc(this.db, collectionName, docId), data);
+  }
+
   /** 감사 로그 공개 인터페이스 */
   async addAuditLog(adminId, action, meta = {}) {
     await this._auditLog(adminId, 'system', action, meta);
