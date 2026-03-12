@@ -1699,18 +1699,21 @@ function updateHomeUI() {
 // ===== D-Day 카드 =====
 async function loadDDayCard() {
   try {
-    const { collection, query, where, orderBy, getDocs, limit, db } = window.FB;
+    const { collection, query, where, getDocs, db } = window.FB;
+    // 단일 where만 사용 → JS에서 필터·정렬 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'investments'),
-      where('userId', '==', currentUser.uid),
-      where('status', '==', 'active'),
-      orderBy('startDate', 'desc'),
-      limit(1)
+      where('userId', '==', currentUser.uid)
     );
     const snap = await getDocs(q);
     if (snap.empty) return;
+    // active 상태만 추려서 startDate 내림차순 → 1건
+    const docs = snap.docs
+      .filter(d => d.data().status === 'active')
+      .sort((a, b) => (b.data().startDate?.seconds || 0) - (a.data().startDate?.seconds || 0));
+    if (!docs.length) return;
 
-    const inv = snap.docs[0].data();
+    const inv = docs[0].data();
     const card = document.getElementById('ddayCard');
     if (!card) return;
     card.classList.remove('hidden');
@@ -1746,20 +1749,26 @@ async function loadDDayCard() {
 
 // ===== 공지사항 =====
 async function loadAnnouncements() {
-  const { collection, query, where, orderBy, getDocs, limit, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   try {
+    // 단일 where만 사용 (복합 인덱스 불필요) → JS로 정렬·필터
     const q = query(
       collection(db, 'announcements'),
-      where('isActive', '==', true),
-      orderBy('isPinned', 'desc'),
-      orderBy('createdAt', 'desc'),
-      limit(5)
+      where('isActive', '==', true)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        // isPinned 내림차순 → createdAt 내림차순
+        if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
+          return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+        return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+      })
+      .slice(0, 5);
     renderAnnouncements(items, 'announcementList');
     renderAnnouncements(items, 'moreAnnouncementList');
   } catch (err) {
+    console.error('[announcements] load error:', err);
     const el = document.getElementById('announcementList');
     if (el) el.innerHTML = '<div class="empty-state">공지사항이 없습니다</div>';
   }
@@ -1783,7 +1792,7 @@ function renderAnnouncements(items, containerId) {
 }
 
 window.showAnnouncementModal = async function() {
-  const { collection, query, where, orderBy, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   const modal = document.getElementById('announcementModal');
   if (modal) modal.classList.remove('hidden');
   const listEl = document.getElementById('announcementFullList');
@@ -1791,12 +1800,15 @@ window.showAnnouncementModal = async function() {
   try {
     const q = query(
       collection(db, 'announcements'),
-      where('isActive', '==', true),
-      orderBy('isPinned', 'desc'),
-      orderBy('createdAt', 'desc')
+      where('isActive', '==', true)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
+          return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+        return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+      });
     renderAnnouncements(items, 'announcementFullList');
   } catch {
     if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
@@ -1828,16 +1840,18 @@ window.showAnnouncementDetail = async function(id) {
 
 // ===== 최근 거래 =====
 async function loadRecentTransactions() {
-  const { collection, query, where, orderBy, getDocs, limit, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   try {
+    // 단일 where → JS 정렬·슬라이스 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'transactions'),
-      where('userId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc'),
-      limit(3)
+      where('userId', '==', currentUser.uid)
     );
     const snap = await getDocs(q);
-    renderTxList(snap.docs.map(d => ({ id: d.id, ...d.data() })), 'recentTxList');
+    const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      .slice(0, 3);
+    renderTxList(txs, 'recentTxList');
   } catch (err) {
     const el = document.getElementById('recentTxList');
     if (el) el.innerHTML = '<div class="empty-state">거래 내역이 없습니다</div>';
@@ -2516,20 +2530,21 @@ async function autoCompleteExpiredInvestments(investDocs) {
 }
 
 async function loadMyInvestments() {
-  const { collection, query, where, orderBy, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   const listEl = document.getElementById('myInvestList');
   const sumItems = { count: 0, total: 0, returns: 0 };
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
 
   try {
+    // 단일 where만 사용 → JS에서 active 필터 + 정렬 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'investments'),
-      where('userId', '==', currentUser.uid),
-      where('status', '==', 'active'),
-      orderBy('startDate', 'desc')
+      where('userId', '==', currentUser.uid)
     );
     const snap = await getDocs(q);
-    const invests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const invests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(inv => inv.status === 'active')
+      .sort((a, b) => (b.startDate?.seconds || 0) - (a.startDate?.seconds || 0));
 
     // 만기 투자 자동 처리
     await autoCompleteExpiredInvestments(snap.docs);
@@ -2787,20 +2802,21 @@ function updateRankUI() {
 }
 
 async function loadReferralList() {
-  const { collection, query, where, orderBy, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   const listEl = document.getElementById('referralList');
   const netBonus = document.getElementById('netBonus');
   const netDirect = document.getElementById('netDirectCount');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
 
   try {
+    // 단일 where만 사용 → JS 정렬 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'users'),
-      where('referredBy', '==', currentUser.uid),
-      orderBy('createdAt', 'desc')
+      where('referredBy', '==', currentUser.uid)
     );
     const snap = await getDocs(q);
-    const refs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const refs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (netDirect) netDirect.textContent = refs.length;
     if (netBonus) netBonus.textContent = fmt(walletData?.totalEarnings || 0) + ' USDT';
@@ -4052,19 +4068,20 @@ window.saveWithdrawPin = async function() {
 };
 
 window.showTickets = async function() {
-  const { collection, query, where, orderBy, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   document.getElementById('ticketModal').classList.remove('hidden');
   const listEl = document.getElementById('ticketList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
 
   try {
+    // 단일 where만 사용 → JS 정렬 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'tickets'),
-      where('userId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', currentUser.uid)
     );
     const snap = await getDocs(q);
-    const tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (!tickets.length) {
       if (listEl) listEl.innerHTML = '<div class="empty-state">문의 내역이 없습니다</div>';
@@ -4113,18 +4130,18 @@ let _notiUnsubscribe = null;
 // 앱 시작 시 실시간 알림 리스너 등록 (initApp에서 호출)
 async function startNotificationListener() {
   if (!currentUser) return;
-  const { collection, query, where, orderBy, onSnapshot, db, limit } = window.FB;
+  const { collection, query, where, onSnapshot, db, limit } = window.FB;
   if (_notiUnsubscribe) _notiUnsubscribe(); // 기존 리스너 해제
   try {
+    // isRead==false + userId 단일 필드 → 복합 인덱스 없이 동작하도록
+    // userId 단일 where로 조회 후 JS에서 필터
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', currentUser.uid),
-      where('isRead', '==', false),
-      orderBy('createdAt', 'desc'),
       limit(50)
     );
     _notiUnsubscribe = onSnapshot(q, (snap) => {
-      const count = snap.size;
+      const count = snap.docs.filter(d => !d.data().isRead).length;
       const badge = document.getElementById('notiBadge');
       if (badge) {
         if (count > 0) { badge.classList.remove('hidden'); badge.textContent = count > 9 ? '9+' : count; }
@@ -4135,21 +4152,22 @@ async function startNotificationListener() {
 }
 
 window.showNotifications = async function() {
-  const { collection, query, where, orderBy, getDocs, doc, updateDoc, writeBatch, db, limit, serverTimestamp } = window.FB;
+  const { collection, query, where, getDocs, doc, updateDoc, writeBatch, db, limit, serverTimestamp } = window.FB;
   const modal = document.getElementById('notiModal');
   if (!modal) return;
   modal.classList.remove('hidden');
   const listEl = document.getElementById('notiList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
   try {
+    // 단일 where만 사용 → JS 정렬 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc'),
       limit(30)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     // 읽지 않은 알림 일괄 읽음 처리
     const unread = snap.docs.filter(d => !d.data().isRead);
     if (unread.length > 0) {
