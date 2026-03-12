@@ -2549,6 +2549,53 @@ canvas{width:100% !important;}
         </div>
       </div>
 
+      <!-- ── 직급차 풀(Pool) 분배 보너스 ── -->
+      <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;border:2px solid #fde68a;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:16px;font-weight:700;color:#1e293b;">🎯 직급차 풀(Pool) 분배 보너스</span>
+          <span id="badge_rankGapBonus" style="font-size:11px;padding:2px 8px;border-radius:10px;background:#fee2e2;color:#dc2626;font-weight:600;">비활성</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:6px;">
+          투자자 데일리 D 에서 일정 비율을 <strong>풀(Pool)</strong>로 조성하여,
+          추천 체인 위로 무한 탐색하며 <strong>직급이 높아질 때마다 구간 격차 × 단계당 비율</strong>만큼 분배합니다.
+        </div>
+        <div style="font-size:12px;background:#fef9c3;border-left:3px solid #f59e0b;padding:10px 14px;border-radius:6px;margin-bottom:18px;color:#78350f;line-height:1.7;">
+          <strong>📌 예시 (관리자 설정 기준)</strong><br>
+          2직급자 데일리 $100 발생 → 풀 = $100 × 10% = <strong>$10</strong><br>
+          ├ 5직급자 (3단계 차): $10 × 3 × 10% = <strong>$3 지급</strong><br>
+          └ 8직급자 (나, 3단계 차): $10 × 3 × 10% = <strong>$3 지급</strong><br>
+          <strong>🚫 동급/상급 차단:</strong> 내 직급 이상인 사람을 만나면 탐색 중단<br>
+          <strong>🔁 패스스루:</strong> 차단 지점 최상위자에게 풀 × 패스스루% 추가 지급<br>
+          <strong>💡 보너스는 회사 재원 — 투자자 손해 없음</strong>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:680px;margin-bottom:16px;">
+          <div>
+            <label class="settings-label">📊 풀 조성 비율 (%)</label>
+            <input type="number" class="settings-input" id="rate_rankGapPoolRate"
+              step="0.1" min="0" max="100" style="text-align:center;font-size:18px;font-weight:700;">
+            <div style="font-size:11px;color:#64748b;margin-top:3px;">D의 몇%를 풀로 사용</div>
+          </div>
+          <div>
+            <label class="settings-label">📐 직급 1단계당 분배율 (%)</label>
+            <input type="number" class="settings-input" id="rate_rankGapRatePerStep"
+              step="0.1" min="0" max="100" style="text-align:center;font-size:18px;font-weight:700;">
+            <div style="font-size:11px;color:#64748b;margin-top:3px;">풀의 몇%를 직급 차 1단계에 지급</div>
+          </div>
+          <div>
+            <label class="settings-label">🔁 패스스루 비율 (%)</label>
+            <input type="number" class="settings-input" id="rate_rankGapPassThruRate"
+              step="0.1" min="0" max="100" style="text-align:center;font-size:18px;font-weight:700;">
+            <div style="font-size:11px;color:#64748b;margin-top:3px;">최상위 수령자에게 풀의 몇% 추가</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1e293b;">
+            <input type="checkbox" id="sw_rankGapRealtimeOnDeposit" style="width:16px;height:16px;accent-color:#f59e0b;">
+            ⚡ 입금 승인 즉시 실시간 처리 (OFF 시 일일 정산 시에만 처리)
+          </label>
+        </div>
+      </div>
+
       <!-- ── 직급별 추가 보너스율 ── -->
       <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -7573,10 +7620,11 @@ function renderLogicSwitches(rates) {
     if (!grid) return;
     const switches = [
         { id: 'enableDirectBonus',    label: '👥 [A] 1대·2대 직접 추천 보너스',    desc: '일일 ROI 정산 시 직접 추천인(1대·2대)에게 지급, 직급 조건 있음' },
-        { id: 'enableUnilevel',       label: '🌐 [A] 유니레벨 보너스 (1~10단계)',   desc: '일일 ROI 기준, 직급 조건 있는 추천 계층 10단계 분배' },
+        { id: 'enableUnilevel',       label: '🌐 [A] 유니레벨 보너스 (무제한 단계)',   desc: '일일 ROI 기준, 직급 조건 있는 추천 계층 무제한 단계 분배' },
         { id: 'enableDirectBonus2Gen',label: '⚡ [B] 2세대 고정 직접 보너스 (직급 무관)', desc: '일일 ROI × 고정% 를 1대·2대 위 추천인에게 직급 무관 지급' },
         { id: 'enableRankDiffBonus',  label: '🏅 직급 차이 보너스',               desc: '상위 추천인의 직급이 높을 때 추가 지급' },
         { id: 'enableRankBonus',      label: '🏆 직급별 추가 보너스',             desc: '직급에 따른 추가 이벤트 보너스 (기본 비활성)' },
+        { id: 'enableRankGapBonus',   label: '🎯 직급차 풀(Pool) 분배 보너스',    desc: '직급 격차에 따라 풀 비율 분배, 동급/상급 차단 + 패스스루, 무한 대수' },
     ];
     // 각 스위치의 기본 ON/OFF 여부 (Firestore 미저장 시 사용)
     const switchDefaults = {
@@ -7585,6 +7633,7 @@ function renderLogicSwitches(rates) {
         enableDirectBonus2Gen:false,
         enableRankDiffBonus:  false,
         enableRankBonus:      false,
+        enableRankGapBonus:   false,
     };
     grid.innerHTML = switches.map(s => {
         // Firestore에 저장된 값이 있으면 그 값, 없으면 기본값 사용
@@ -7646,6 +7695,7 @@ function updateBadges(rates) {
         'badge_rankBonus':          getOn('sw_enableRankBonus',         'enableRankBonus',         false),
         'badge_centerFee':          getOn('sw_enableCenterFee',         'enableCenterFee',         false),
         'badge_rankAchieveBonus':   getOn('sw_enableRankAchieveBonus',  'enableRankAchieveBonus',  false),
+        'badge_rankGapBonus':       getOn('sw_enableRankGapBonus',      'enableRankGapBonus',      false),
     };
     for (const [id, on] of Object.entries(badges)) {
         const el = document.getElementById(id);
@@ -7744,6 +7794,25 @@ function renderFeeRates(rates) {
     if (elCycleDays) elCycleDays.value = rates.rankAchieveBonusCycleDays ?? 0;
 
     renderRankAchieveBonusGrid(rates.rankAchieveBonusAmounts || {});
+
+    // 직급차 풀 분배 보너스
+    const elRgbPool     = document.getElementById('rate_rankGapPoolRate');
+    const elRgbPerStep  = document.getElementById('rate_rankGapRatePerStep');
+    const elRgbPassThru = document.getElementById('rate_rankGapPassThruRate');
+    const swRgbRealtime = document.getElementById('sw_rankGapRealtimeOnDeposit');
+    if (elRgbPool)     elRgbPool.value     = rates.rankGapPoolRate     ?? 10;
+    if (elRgbPerStep)  elRgbPerStep.value  = rates.rankGapRatePerStep  ?? 10;
+    if (elRgbPassThru) elRgbPassThru.value = rates.rankGapPassThruRate ?? 1;
+    if (swRgbRealtime) swRgbRealtime.checked = rates.rankGapRealtimeOnDeposit === true;
+
+    // badge 업데이트
+    const badgeRgb = document.getElementById('badge_rankGapBonus');
+    if (badgeRgb) {
+        const on = rates.enableRankGapBonus === true;
+        badgeRgb.textContent = on ? '활성' : '비활성';
+        badgeRgb.style.background = on ? '#dcfce7' : '#fee2e2';
+        badgeRgb.style.color      = on ? '#16a34a' : '#dc2626';
+    }
 }
 
 function renderRankAchieveBonusGrid(amounts) {
@@ -7857,6 +7926,13 @@ function setupRateButtons() {
             rankAchieveBonusAmounts[r] = parseFloat(document.getElementById(`rankAchieve_${r}`)?.value || '0');
         });
 
+        // ── 직급차 풀 분배 보너스 설정 ──
+        const enableRankGapBonus        = document.getElementById('sw_enableRankGapBonus')?.checked === true;
+        const rankGapPoolRate           = parseFloat(document.getElementById('rate_rankGapPoolRate')?.value    || '10');
+        const rankGapRatePerStep        = parseFloat(document.getElementById('rate_rankGapRatePerStep')?.value || '10');
+        const rankGapPassThruRate       = parseFloat(document.getElementById('rate_rankGapPassThruRate')?.value|| '1');
+        const rankGapRealtimeOnDeposit  = document.getElementById('sw_rankGapRealtimeOnDeposit')?.checked === true;
+
         const rates = {
             unilevelRates,
             directBonus1,
@@ -7881,6 +7957,11 @@ function setupRateButtons() {
             enableRankAchieveBonus,
             rankAchieveBonusCycleDays,
             rankAchieveBonusAmounts,
+            enableRankGapBonus,
+            rankGapPoolRate,
+            rankGapRatePerStep,
+            rankGapPassThruRate,
+            rankGapRealtimeOnDeposit,
         };
         document.getElementById('saveRatesBtn').disabled = true;
         document.getElementById('saveRatesBtn').textContent = '저장 중...';

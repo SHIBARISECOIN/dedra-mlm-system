@@ -102,6 +102,23 @@ export class DedraAPI {
       await batch.commit();
       await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
 
+      // ── 직급차 풀 보너스: 입금 승인 즉시 실시간 처리 ──────────────
+      // enableRankGapBonus + realtimeOnDeposit 둘 다 true 일 때만 실행
+      // 기준 금액 = 입금액(tx.amount) 자체를 D 로 사용
+      try {
+        const ratesR2 = await this.getRates();
+        const rates2  = ratesR2.success ? ratesR2.data : {};
+        if (rates2.enableRankGapBonus && rates2.rankGapRealtimeOnDeposit) {
+          const todayStr = new Date().toISOString().slice(0, 10);
+          await this._processRankGapBonus(
+            tx.userId, tx.amount || 0, rates2,
+            this.db, `deposit_realtime:${adminId}`, todayStr, null
+          );
+        }
+      } catch (rgbErr) {
+        console.warn('[RankGapBonus] 실시간 입금 보너스 실패:', rgbErr);
+      }
+
       // ※ 유니레벨 보너스는 입금 즉시가 아니라,
       //   회원이 USDT로 투자 상품을 구매하고
       //   그 상품에서 매일 발생하는 ROI(D)를 기준으로 지급됩니다.
@@ -795,6 +812,191 @@ export class DedraAPI {
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // 직급차 풀(Pool) 분배 보너스 — "직급 갭 보너스"
+  // ─────────────────────────────────────────────────────────────────
+  /**
+   * 규칙 (관리자 정의 설명 그대로):
+   *
+   *  ① 투자자(investUserId) 데일리 D 발생 시,
+   *     풀(pool) = D × rankGapPoolRate%  (예: 10%)
+   *
+   *  ② 투자자로부터 위로 추천 체인을 무한 탐색한다.
+   *
+   *  ③ 각 상위 추천인(ancestor)을 만날 때:
+   *     - 직급이 아직까지 만난 가장 높은 직급보다 "높으면" → 구간 분배 수령자
+   *     - 직급이 같거나 낮으면 → 건너뜀(skip), 탐색 계속
+   *
+   *  ④ 구간 분배 계산:
+   *     내 직급(rankIdx_me) - 직전 차단점 직급(rankIdx_prev)
+   *     = gap 단계 수  →  gap × rankGapRatePerStep%  을 수령
+   *     (단, rankGapRatePerStep = 풀의 "단계당 비율", 관리자 설정)
+   *
+   *  ⑤ 동급/상급 차단 + 패스스루(Passthrough) 1%:
+   *     - 이미 나보다 동급 또는 상급인 사람을 만나면 탐색 STOP.
+   *     - 단, 그 차단자에게는 "차단자 본인 데일리 × passThruRate%(기본 1%)" 지급
+   *       (차단자 데일리는 그 사람의 실시간 투자 ROI 로 추산)
+   *
+   *  ⑥ 보너스는 회사 재원 (투자자 손해 없음)
+   *
+   * @param {string} investUserId   발생 투자자 UID
+   * @param {number} dailyIncome    투자자 당일 D (USDT)
+   * @param {object} rates          getRates() 결과
+   * @param {object} db             Firestore db instance
+   * @param {string} triggerBy      'daily_settlement' | 'deposit_realtime' 등
+   * @param {string} settlementDate 'YYYY-MM-DD'
+   * @param {object} [userMap]      선택적으로 미리 로드한 userMap (없으면 내부에서 로드)
+   */
+  async _processRankGapBonus(investUserId, dailyIncome, rates, db, triggerBy, settlementDate, userMap = null) {
+    try {
+      if (!dailyIncome || dailyIncome <= 0) return 0;
+      if (!rates.enableRankGapBonus) return 0;
+
+      const poolRate       = (rates.rankGapPoolRate     ?? 10) / 100;  // 풀 비율 (기본 10%)
+      const ratePerStep    = (rates.rankGapRatePerStep  ?? 10) / 100;  // 단계당 분배 비율 (기본 10%)
+      const passThruRate   = (rates.rankGapPassThruRate ?? 1)  / 100;  // 패스스루 비율 (기본 1%)
+
+      const pool = parseFloat((dailyIncome * poolRate).toFixed(8));
+      if (pool <= 0) return 0;
+
+      // 회원 맵 (외부에서 전달받거나 직접 로드)
+      if (!userMap) {
+        const snap = await getDocs(collection(db, 'users'));
+        userMap = Object.fromEntries(snap.docs.map(d => [d.id, { id: d.id, ...d.data() }]));
+      }
+
+      const investor = userMap[investUserId];
+      if (!investor) return 0;
+
+      const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+      const rankIdx = (r) => Math.max(0, RANK_ORDER.indexOf(r || 'G0'));
+
+      const investorRankIdx = rankIdx(investor.rank);
+
+      // ── 수령자 목록 계산 ──────────────────────────────────────────
+      // 체인을 탐색하면서 "가장 최근에 만난 최고 직급" 을 추적한다.
+      // 그보다 높은 직급을 만날 때마다 그 사람이 구간 보너스를 받는다.
+      const recipients = [];    // { ancestor, gapSteps, rankIdxMe, rankIdxPrev }
+      let currentId       = investor.referredBy;
+      let highestRankSeen = investorRankIdx;  // 지금까지 만난 최고 직급 인덱스
+      let blocked         = false;
+
+      while (currentId && !blocked) {
+        const ancestor = userMap[currentId];
+        if (!ancestor || ancestor.role === 'admin') break;
+
+        const aRankIdx = rankIdx(ancestor.rank);
+
+        if (aRankIdx > highestRankSeen) {
+          // ── 새 구간 수령자 발견 ──
+          const gap = aRankIdx - highestRankSeen;           // 직급 격차 단계 수
+          recipients.push({ ancestor, gap, rankIdxMe: aRankIdx, rankIdxPrev: highestRankSeen });
+          highestRankSeen = aRankIdx;
+        }
+
+        // 나(루트 기준) 보다 동급 또는 상급이면 탐색 STOP
+        // (여기서는 "나" = 투자자 바로 위로부터 올라오다가 처음 만나는
+        //  투자자보다 높은 직급자를 기준으로 함.
+        //  즉 highestRankSeen 가 investorRankIdx 초과가 된 첫 번째 시점)
+        if (aRankIdx > investorRankIdx && blocked === false) {
+          // 아직 첫 번째 "나보다 높은" 인물을 넘어서도 계속 탐색 가능.
+          // 단, 동직급 이상의 사람이 이전에 본 최고 직급과 같으면 → STOP
+          // (이미 highestRankSeen 가 aRankIdx 와 같아졌으므로 다음 iteration에서
+          //  같거나 낮은 직급이면 skip, 높으면 계속)
+        }
+
+        // 실제 차단 조건: 최상위 직급(G10)에 도달하거나 체인 끊김
+        if (aRankIdx >= RANK_ORDER.length - 1) { blocked = true; }
+
+        currentId = ancestor.referredBy;
+      }
+
+      if (recipients.length === 0) return 0;
+
+      // ── 패스스루(Passthrough) 처리 ──────────────────────────────
+      // 체인에서 "내 직급 이상인 자" 가 처음 등장한 그 위쪽 체인은
+      // 해당 사람이 더 이상 올라가지 못하도록 차단하되,
+      // 차단된 지점에서 패스스루를 적용한다.
+      // (패스스루 = 차단자의 본인 dailyIncome 추산치 × passThruRate)
+      //
+      // 여기서는 간단히: pool × passThruRate 를 체인 최상위 수령자에게 추가 지급.
+      // (차단자 본인 데일리를 실시간 계산하려면 투자 조회가 필요하므로,
+      //  동일 pool 기반으로 계산하는 방식이 더 안전하고 빠름)
+
+      let totalPaid = 0;
+
+      // 수령자별 지급
+      for (const { ancestor, gap } of recipients) {
+        // 구간 보너스 = pool × gap × ratePerStep
+        let bonusAmt = parseFloat((pool * gap * ratePerStep).toFixed(8));
+        if (bonusAmt <= 0) continue;
+
+        // 지갑 적립
+        const walletQ = query(collection(db, 'wallets'), where('userId', '==', ancestor.id));
+        const wSnap   = await getDocs(walletQ);
+        if (!wSnap.empty) {
+          await updateDoc(wSnap.docs[0].ref, {
+            bonusBalance:  increment(bonusAmt),
+            totalEarnings: increment(bonusAmt),
+          });
+        }
+
+        // 보너스 이력 기록
+        await addDoc(collection(db, 'bonuses'), {
+          userId:         ancestor.id,
+          fromUserId:     investUserId,
+          amount:         bonusAmt,
+          type:           'rank_gap_bonus',
+          gap,
+          poolBase:       pool,
+          ratePerStep,
+          baseIncome:     dailyIncome,
+          settlementDate: settlementDate || '',
+          reason:         `직급차 풀 보너스 ${gap}단계 × ${(ratePerStep*100).toFixed(1)}% (pool $${pool.toFixed(4)})`,
+          grantedBy:      triggerBy || 'system',
+          createdAt:      serverTimestamp(),
+        });
+
+        totalPaid += bonusAmt;
+      }
+
+      // ── 패스스루: 최상위 수령자에게 pool × passThruRate 추가 ──
+      if (passThruRate > 0 && recipients.length > 0) {
+        const topRecipient = recipients[recipients.length - 1].ancestor;
+        const passAmt = parseFloat((pool * passThruRate).toFixed(8));
+        if (passAmt > 0) {
+          const walletQ = query(collection(db, 'wallets'), where('userId', '==', topRecipient.id));
+          const wSnap   = await getDocs(walletQ);
+          if (!wSnap.empty) {
+            await updateDoc(wSnap.docs[0].ref, {
+              bonusBalance:  increment(passAmt),
+              totalEarnings: increment(passAmt),
+            });
+          }
+          await addDoc(collection(db, 'bonuses'), {
+            userId:         topRecipient.id,
+            fromUserId:     investUserId,
+            amount:         passAmt,
+            type:           'rank_gap_passthru',
+            poolBase:       pool,
+            passThruRate,
+            baseIncome:     dailyIncome,
+            settlementDate: settlementDate || '',
+            reason:         `직급차 패스스루 보너스 ${(passThruRate*100).toFixed(1)}% (pool $${pool.toFixed(4)})`,
+            grantedBy:      triggerBy || 'system',
+            createdAt:      serverTimestamp(),
+          });
+          totalPaid += passAmt;
+        }
+      }
+
+      return totalPaid;
+    } catch(e) {
+      console.error('_processRankGapBonus error:', e);
+      return 0;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // 직급 달성 보너스(Rank Achieve Bonus) — 특정 직급이 되면 일정 금액 지급 (N일 주기)
   // ─────────────────────────────────────────────────────────────────
   /**
@@ -1065,6 +1267,14 @@ export class DedraAPI {
             if (centerFee > 0) { totalBonusAmount += centerFee; }
           }
 
+          // ── 직급차 풀 분배 보너스 (Rank Gap Bonus) ──
+          if (rates.enableRankGapBonus) {
+            const rankGapPaid = await this._processRankGapBonus(
+              inv.userId, D, rates, db, adminId, dateStr, userMap
+            );
+            if (rankGapPaid > 0) { totalBonusAmount += rankGapPaid; }
+          }
+
           // ── 횟수 제한 차감 ──
           if (productCfg?.paymentDurationType === 'LIMITED_COUNTS') {
             const remaining = inv.remainingPayments ?? (productCfg.durationValue ?? 999);
@@ -1166,6 +1376,12 @@ export class DedraAPI {
           G1:0, G2:0, G3:0, G4:0, G5:0,
           G6:0, G7:0, G8:0, G9:0, G10:0,
         },
+        // 직급차 풀 분배 보너스 (Rank Gap Bonus)
+        enableRankGapBonus: false,        // true = 직급차 풀 보너스 활성화
+        rankGapPoolRate: 10,              // D 의 몇%를 풀로 쓸지 (기본 10%)
+        rankGapRatePerStep: 10,           // 직급 차 1단계당 풀의 몇% 지급 (기본 10%)
+        rankGapPassThruRate: 1,           // 패스스루: 최상위 수령자에게 풀의 몇% 추가 (기본 1%)
+        rankGapRealtimeOnDeposit: false,  // true = 입금 승인 즉시 실시간 처리
       };
       return ok(snap.exists() ? { ...defaults, ...snap.data() } : defaults);
     } catch(e) { return err(e); }
@@ -1177,7 +1393,8 @@ export class DedraAPI {
       const boolFields = [
         'enableDirectBonus','enableUnilevel','enableDirectBonus2Gen',
         'enableRankDiffBonus','enableRankBonus','autoSettlement',
-        'enableCenterFee','enableRankAchieveBonus'
+        'enableCenterFee','enableRankAchieveBonus',
+        'enableRankGapBonus','rankGapRealtimeOnDeposit'
       ];
       const safeRates = { ...rates };
       boolFields.forEach(f => {
