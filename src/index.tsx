@@ -152,64 +152,104 @@ app.get('/api/price/jupiter', async (c) => {
   }
 })
 
-// 두 소스를 순서대로 시도하는 통합 엔드포인트
-// GET /api/price/token?mint=<SOLANA_MINT_ADDRESS>
+// 통합 가격 조회 엔드포인트
+// GET /api/price/token?pair=<PAIR_ADDRESS>  (페어 주소 우선)
+// GET /api/price/token?mint=<MINT_ADDRESS>  (민트 주소 폴백)
 app.get('/api/price/token', async (c) => {
+  const pair = c.req.query('pair')
   const mint = c.req.query('mint')
-  if (!mint) return c.json({ success: false, error: 'mint address required' }, 400)
-  // 1순위: DexScreener (무료, API키 불필요)
-  try {
-    const url = `https://api.dexscreener.com/tokens/v1/solana/${mint}`
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
-      signal: AbortSignal.timeout(6000)
-    })
-    if (res.ok) {
-      const data: any = await res.json()
-      const pairs: any[] = Array.isArray(data) ? data : (data.pairs || [])
-      if (pairs.length) {
-        pairs.sort((a: any, b: any) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
-        const best = pairs[0]
-        const price = parseFloat(best.priceUsd || '0')
-        if (price > 0) {
-          return c.json({
-            success: true,
-            price,
-            priceChange24h: best.priceChange?.h24 || 0,
-            volume24h: best.volume?.h24 || 0,
-            liquidity: best.liquidity?.usd || 0,
-            source: 'dexscreener',
-            updatedAt: Date.now()
-          })
+  if (!pair && !mint) return c.json({ success: false, error: 'pair or mint address required' }, 400)
+
+  // 1순위: DexScreener 페어 주소 직접 조회 (가장 정확)
+  if (pair) {
+    try {
+      const url = `https://api.dexscreener.com/latest/dex/pairs/solana/${pair}`
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+        signal: AbortSignal.timeout(6000)
+      })
+      if (res.ok) {
+        const data: any = await res.json()
+        const p = data.pair || (data.pairs && data.pairs[0])
+        if (p) {
+          const price = parseFloat(p.priceUsd || '0')
+          if (price > 0) {
+            return c.json({
+              success: true,
+              price,
+              priceChange24h: p.priceChange?.h24 || 0,
+              volume24h: p.volume?.h24 || 0,
+              liquidity: p.liquidity?.usd || 0,
+              pairAddress: p.pairAddress,
+              baseToken: p.baseToken,
+              source: 'dexscreener_pair',
+              updatedAt: Date.now()
+            })
+          }
         }
       }
-    }
-  } catch (_) {}
-  // 2순위: GeckoTerminal (무료, API키 불필요)
-  try {
-    const url = `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`
-    const res = await fetch(url, {
-      headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
-      signal: AbortSignal.timeout(6000)
-    })
-    if (res.ok) {
-      const data: any = await res.json()
-      const attrs = data.data?.attributes
-      if (attrs) {
-        const price = parseFloat(attrs.price_usd || '0')
-        if (price > 0) {
-          return c.json({
-            success: true,
-            price,
-            priceChange24h: attrs.price_change_percentage?.h24 || null,
-            volume24h: attrs.volume_usd?.h24 || 0,
-            source: 'geckoterminal',
-            updatedAt: Date.now()
-          })
+    } catch (_) {}
+  }
+
+  // 2순위: DexScreener 민트 주소 토큰 조회
+  if (mint) {
+    try {
+      const url = `https://api.dexscreener.com/tokens/v1/solana/${mint}`
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+        signal: AbortSignal.timeout(6000)
+      })
+      if (res.ok) {
+        const data: any = await res.json()
+        const pairs: any[] = Array.isArray(data) ? data : (data.pairs || [])
+        if (pairs.length) {
+          pairs.sort((a: any, b: any) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+          const best = pairs[0]
+          const price = parseFloat(best.priceUsd || '0')
+          if (price > 0) {
+            return c.json({
+              success: true,
+              price,
+              priceChange24h: best.priceChange?.h24 || 0,
+              volume24h: best.volume?.h24 || 0,
+              liquidity: best.liquidity?.usd || 0,
+              source: 'dexscreener',
+              updatedAt: Date.now()
+            })
+          }
         }
       }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
+
+  // 3순위: GeckoTerminal (민트 주소)
+  if (mint) {
+    try {
+      const url = `https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}`
+      const res = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'DEEDRA/1.0' },
+        signal: AbortSignal.timeout(6000)
+      })
+      if (res.ok) {
+        const data: any = await res.json()
+        const attrs = data.data?.attributes
+        if (attrs) {
+          const price = parseFloat(attrs.price_usd || '0')
+          if (price > 0) {
+            return c.json({
+              success: true,
+              price,
+              priceChange24h: attrs.price_change_percentage?.h24 || null,
+              volume24h: attrs.volume_usd?.h24 || 0,
+              source: 'geckoterminal',
+              updatedAt: Date.now()
+            })
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   return c.json({ success: false, error: 'price not available from any source' }, 404)
 })
 

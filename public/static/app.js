@@ -1275,7 +1275,7 @@ async function loadWalletData() {
 // ===== DEEDRA 실시간 가격 시스템 =====
 let _livePrice_timer    = null;
 let _livePrice_enabled  = false;
-let _livePrice_mint     = 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu'; // DEEDRA 기본 민트 주소
+let _livePrice_pair     = 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c'; // Raydium DDRA/SOL 페어 주소
 
 // Firestore에서 설정 로드 + 실시간이면 폴링 시작
 async function loadDeedraPrice() {
@@ -1286,11 +1286,11 @@ async function loadDeedraPrice() {
       const d = snap.data();
       deedraPrice        = d.price || 0.50;
       _livePrice_enabled = d.liveEnabled || false;
-      _livePrice_mint    = d.mintAddress || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
+      // pairAddress 우선, mintAddress 폴백 (하위 호환)
+      _livePrice_pair    = d.pairAddress || d.mintAddress || 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c';
       updatePriceTicker(deedraPrice, d.updatedAt, d.source, d.priceChange24h, _livePrice_enabled);
-      // 실시간 ON + 토큰 주소 있으면 폴링 시작
-      if (_livePrice_enabled && _livePrice_mint) {
-        _startClientLivePolling(_livePrice_mint);
+      if (_livePrice_enabled && _livePrice_pair) {
+        _startClientLivePolling(_livePrice_pair);
       }
     } else {
       updatePriceTicker(0.50, null, null, null, false);
@@ -1301,16 +1301,16 @@ async function loadDeedraPrice() {
 }
 
 // 앱 측 실시간 폴링 (30초 간격으로 백엔드 프록시 API 호출)
-function _startClientLivePolling(mint) {
+function _startClientLivePolling(pair) {
   if (_livePrice_timer) clearInterval(_livePrice_timer);
-  // 즉시 한 번 + 이후 30초마다
-  _fetchAndApplyLivePrice(mint);
-  _livePrice_timer = setInterval(() => _fetchAndApplyLivePrice(mint), 30000);
+  _fetchAndApplyLivePrice(pair);
+  _livePrice_timer = setInterval(() => _fetchAndApplyLivePrice(pair), 30000);
 }
 
-async function _fetchAndApplyLivePrice(mint) {
+async function _fetchAndApplyLivePrice(pair) {
   try {
-    const res  = await fetch(`/api/price/token?mint=${encodeURIComponent(mint)}`);
+    // 페어 주소로 직접 조회
+    const res  = await fetch(`/api/price/token?pair=${encodeURIComponent(pair)}`);
     const data = await res.json();
     if (!data.success || !data.price) return;
     deedraPrice = data.price;
@@ -1323,7 +1323,8 @@ async function _fetchAndApplyLivePrice(mint) {
         source: data.source,
         priceChange24h: data.priceChange24h,
         liveEnabled: true,
-        mintAddress: mint,
+        pairAddress: pair,
+        mintAddress: pair, // 하위 호환
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch(_) {}

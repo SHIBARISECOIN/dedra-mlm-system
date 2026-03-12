@@ -963,26 +963,23 @@ canvas{width:100% !important;}
             <span style="font-size:11px;color:#94a3b8;">ON: 30초마다 자동 갱신 · OFF: 수동 입력값 사용</span>
           </div>
 
-          <!-- 토큰 민트 주소 입력 -->
+          <!-- DEX 페어 주소 입력 -->
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">Solana 민트 주소</span>
+            <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;">DEX 페어 주소</span>
             <input type="text" id="dedraMintInput"
               style="flex:1;min-width:200px;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px;font-family:monospace;color:#1e293b;outline:none;background:#fff;"
-              value="ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu"
+              placeholder="Raydium 페어 주소 (예: CCWoFv...)"
+              value="CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c"
               onchange="saveDedraSettings()"/>
             <button onclick="fetchLivePrice(true)"
               style="padding:7px 14px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
               🔍 조회
             </button>
           </div>
+          <div style="font-size:11px;color:#94a3b8;padding-left:2px;">📌 Raydium DDRA/SOL 페어 주소 · <a href="https://dexscreener.com/solana/CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c" target="_blank" style="color:#6366f1;">DexScreener에서 확인</a></div>
 
-          <!-- DEX 등록 상태 안내 -->
-          <div id="dexStatusBanner" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;line-height:1.5;">
-            <strong>⚠️ DEX 유동성 풀 미등록 상태</strong><br>
-            현재 DEEDRA 토큰이 Raydium/Orca 등 DEX에 등록되어 있지 않아 실시간 가격 조회가 불가능합니다.<br>
-            DEX에 유동성 풀 등록 후 <strong>실시간 가격 적용</strong> 토글을 켜면 자동으로 가격을 가져옵니다.<br>
-            <span style="color:#78350f;">현재는 <strong>수동 입력값</strong>을 사용하세요.</span>
-          </div>
+          <!-- DEX 등록 상태 안내 (기본 숨김, 오류시 표시) -->
+          <div id="dexStatusBanner" style="display:none;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;line-height:1.5;"></div>
 
           <!-- 수동 가격 입력 (OFF 모드일 때 활성) -->
           <div id="manualPriceRow" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -6225,35 +6222,33 @@ let _livePriceEnabled = false;
 let _livePriceTimer   = null;
 let _cachedDedraRate  = null;
 
-// Firestore에서 설정 로드 (mintAddress, liveEnabled, manualPrice)
-const DEEDRA_MINT_ADDRESS = 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
+// Firestore에서 설정 로드 (pairAddress, liveEnabled, manualPrice)
+const DEEDRA_PAIR_ADDRESS = 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c'; // Raydium DDRA/SOL pair
 
 async function loadDedraRate() {
     try {
-        // deedraPrice 문서 (app.js와 동일 키)
         const snap = await getDoc(doc(db, 'settings', 'deedraPrice'));
         if (snap.exists()) {
             const d = snap.data();
             const price = d.price || d.dedraPerUsd || 0.5;
-            _cachedDedraRate     = price;
-            _livePriceEnabled    = d.liveEnabled || false;
-            // mintAddress: Firestore 저장값 우선, 없으면 기본값
-            const mintAddress    = d.mintAddress || DEEDRA_MINT_ADDRESS;
+            _cachedDedraRate  = price;
+            _livePriceEnabled = d.liveEnabled || false;
+            // pairAddress: Firestore 저장값 우선, 없으면 기본 페어 주소
+            const pairAddress = d.pairAddress || d.mintAddress || DEEDRA_PAIR_ADDRESS;
             const input = document.getElementById('dedraRateInput');
             if (input) input.value = price;
-            const mintInput = document.getElementById('dedraMintInput');
-            if (mintInput && mintInput.value === '') mintInput.value = mintAddress;
+            const pairInput = document.getElementById('dedraMintInput');
+            if (pairInput) pairInput.value = pairAddress;
             _updateDedraRateDisplay(price, d.liveEnabled, d.source, d.priceChange24h);
             _applyLiveToggleUI(_livePriceEnabled);
             // 실시간 ON이면 즉시 폴링 시작
-            if (_livePriceEnabled && mintAddress) {
-                _startLivePolling(mintAddress);
+            if (_livePriceEnabled) {
+                _startLivePolling(pairAddress);
             }
         } else {
             _updateDedraRateDisplay(0.5, false, null, null);
-            // 첫 로드 시 기본 mint 주소 저장
-            const mintInput = document.getElementById('dedraMintInput');
-            if (mintInput && mintInput.value === '') mintInput.value = DEEDRA_MINT_ADDRESS;
+            const pairInput = document.getElementById('dedraMintInput');
+            if (pairInput) pairInput.value = DEEDRA_PAIR_ADDRESS;
         }
     } catch(e) {
         const el = document.getElementById('dedraRateDisplay');
@@ -6268,9 +6263,9 @@ window.toggleLivePrice = function() {
     _applyLiveToggleUI(_livePriceEnabled);
     saveDedraSettings();
     if (_livePriceEnabled) {
-        const mint = document.getElementById('dedraMintInput')?.value?.trim();
-        if (mint) _startLivePolling(mint);
-        else showToast('⚠️ Solana 토큰 주소를 먼저 입력하세요', 'warning');
+        const pair = document.getElementById('dedraMintInput')?.value?.trim();
+        if (pair) _startLivePolling(pair);
+        else showToast('⚠️ DEX 페어 주소를 먼저 입력하세요', 'warning');
     } else {
         _stopLivePolling();
     }
@@ -6311,39 +6306,38 @@ function _updateDedraRateDisplay(price, liveEnabled, source, priceChange24h) {
 
 // 실시간 가격 조회 (수동 버튼 또는 자동 폴링)
 window.fetchLivePrice = async function(manual = false) {
-    const mint = document.getElementById('dedraMintInput')?.value?.trim();
-    if (!mint) { showToast('⚠️ 토큰 주소를 입력하세요', 'warning'); return; }
+    const pair = document.getElementById('dedraMintInput')?.value?.trim();
+    if (!pair) { showToast('⚠️ DEX 페어 주소를 입력하세요', 'warning'); return; }
     const banner = document.getElementById('dexStatusBanner');
     try {
-        const res  = await fetch(`/api/price/token?mint=${encodeURIComponent(mint)}`);
+        // 페어 주소로 직접 조회 (가장 정확한 방식)
+        const res  = await fetch(`/api/price/token?pair=${encodeURIComponent(pair)}`);
         const data = await res.json();
         if (!data.success) {
-            // DEX 미등록 안내
             if (banner) {
-                banner.style.display = '';
-                banner.innerHTML = `<strong>⚠️ DEX 유동성 풀 미등록 상태</strong><br>
-                현재 DEEDRA 토큰이 Raydium/Orca 등 DEX에 등록되어 있지 않아 실시간 가격 조회가 불가능합니다.<br>
-                DEX에 유동성 풀 등록 후 <strong>실시간 가격 적용</strong> 토글을 켜면 자동으로 가격을 가져옵니다.<br>
-                <span style="color:#78350f;">현재는 <strong>수동 입력값</strong>을 사용하세요.</span>`;
+                banner.style.display = 'block';
+                banner.innerHTML = `<strong>⚠️ 가격 조회 실패</strong><br>DEX 페어 주소를 확인하세요. (${pair})<br><span style="color:#78350f;">현재는 <strong>수동 입력값</strong>을 사용하세요.</span>`;
             }
-            if (manual) showToast('⚠️ DEX 미등록: 수동 입력값을 사용하세요', 'warning');
+            if (manual) showToast('⚠️ 가격 조회 실패: 페어 주소를 확인하세요', 'warning');
             return;
         }
-        // 성공 → 배너 숨김
         if (banner) banner.style.display = 'none';
         const price = data.price;
         _cachedDedraRate = price;
         _updateDedraRateDisplay(price, _livePriceEnabled, data.source, data.priceChange24h);
-        // Firestore에 저장
-        await api.saveDedraRate(currentAdmin.uid, price, mint, _livePriceEnabled, data.source, data.priceChange24h);
-        if (manual) showToast(`✅ ${data.source} 실시간 가격: $${price.toFixed(8)}`, 'success');
+        // Firestore에 저장 (pairAddress 키로 저장)
+        await api.saveDedraRate(currentAdmin.uid, price, pair, _livePriceEnabled, data.source, data.priceChange24h);
+        if (manual) {
+            const ch = data.priceChange24h ? ` (${data.priceChange24h > 0 ? '+' : ''}${parseFloat(data.priceChange24h).toFixed(2)}%)` : '';
+            showToast(`✅ 실시간 가격: $${price.toFixed(6)}${ch}`, 'success');
+        }
     } catch(e) {
         if (manual) showToast('❌ 조회 실패: ' + e.message, 'error');
     }
 };
 
 // 폴링 시작 (30초마다)
-function _startLivePolling(mint) {
+function _startLivePolling(pair) {
     _stopLivePolling();
     fetchLivePrice(false);  // 즉시 한 번 조회
     _livePriceTimer = setInterval(() => fetchLivePrice(false), 30000);
@@ -6352,11 +6346,11 @@ function _stopLivePolling() {
     if (_livePriceTimer) { clearInterval(_livePriceTimer); _livePriceTimer = null; }
 }
 
-// 설정 저장 (토큰 주소 + 실시간 여부)
+// 설정 저장 (페어 주소 + 실시간 여부)
 window.saveDedraSettings = async function() {
-    const mint  = document.getElementById('dedraMintInput')?.value?.trim() || '';
+    const pair  = document.getElementById('dedraMintInput')?.value?.trim() || DEEDRA_PAIR_ADDRESS;
     const price = _cachedDedraRate || parseFloat(document.getElementById('dedraRateInput')?.value) || 0.5;
-    await api.saveDedraRate(currentAdmin.uid, price, mint, _livePriceEnabled, null, null);
+    await api.saveDedraRate(currentAdmin.uid, price, pair, _livePriceEnabled, null, null);
 };
 
 // 수동 저장
@@ -6370,8 +6364,8 @@ async function saveDedraRate() {
         return;
     }
     btn.disabled = true; btn.textContent = '저장 중...';
-    const mint = document.getElementById('dedraMintInput')?.value?.trim() || '';
-    const r = await api.saveDedraRate(currentAdmin.uid, val, mint, _livePriceEnabled, 'manual', null);
+    const pair = document.getElementById('dedraMintInput')?.value?.trim() || DEEDRA_PAIR_ADDRESS;
+    const r = await api.saveDedraRate(currentAdmin.uid, val, pair, _livePriceEnabled, 'manual', null);
     btn.disabled = false; btn.textContent = '저장';
     if (r.success) {
         _cachedDedraRate = val;

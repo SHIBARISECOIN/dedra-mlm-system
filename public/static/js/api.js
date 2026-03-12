@@ -414,7 +414,7 @@ export class DedraAPI {
     } catch(e) { return err(e); }
   }
 
-  async saveDedraRate(adminId, price, mintAddress = null, liveEnabled = false, source = null, priceChange24h = null) {
+  async saveDedraRate(adminId, price, pairAddress = null, liveEnabled = false, source = null, priceChange24h = null) {
     try {
       const data = {
         price: parseFloat(price),
@@ -422,11 +422,15 @@ export class DedraAPI {
         updatedBy: adminId,
         liveEnabled: !!liveEnabled,
       };
-      if (mintAddress !== null) data.mintAddress = mintAddress;
+      // pairAddress: DEX 페어 주소 (Raydium DDRA/SOL 등)
+      if (pairAddress !== null) {
+        data.pairAddress = pairAddress;
+        data.mintAddress = pairAddress; // 하위 호환성 유지
+      }
       if (source      !== null) data.source      = source;
       if (priceChange24h !== null) data.priceChange24h = priceChange24h;
       await setDoc(doc(this.db, 'settings', 'deedraPrice'), data, { merge: true });
-      await this._auditLog(adminId, 'settings', `DDRA 시세 변경: $${price}${liveEnabled ? ' (실시간)' : ' (수동)'}`, { price, liveEnabled, source });
+      await this._auditLog(adminId, 'settings', `DDRA 시세 변경: $${price}${liveEnabled ? ' (실시간)' : ' (수동)'}`, { price, liveEnabled, source, pairAddress });
       return ok(true);
     } catch(e) { return err(e); }
   }
