@@ -935,6 +935,7 @@ let userData = null;
 let walletData = null;
 let currentPage = 'home';
 let selectedProduct = null;
+// gameBalanceVal = bonusBalance(USDT) 직접 미러링 - 별도 게임지갑 없음
 let gameBalanceVal = 0;
 let oeBetVal = 10;
 let diceBetVal = 10;
@@ -1111,7 +1112,8 @@ async function loadWalletData() {
   const { doc, getDoc, db } = window.FB;
   const snap = await getDoc(doc(db, 'wallets', currentUser.uid));
   walletData = snap.exists() ? snap.data() : { usdtBalance: 0, dedraBalance: 0, bonusBalance: 0 };
-  gameBalanceVal = walletData.dedraBalance || 0;
+  // 게임 잔액 = 수익 잔액(bonusBalance) ÷ deedraPrice = DDRA 단위
+  gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
 }
 
 // ===== DEEDRA 시세 로드 =====
@@ -1143,15 +1145,23 @@ function updatePriceTicker(price, updatedAt) {
     changeEl.className = 'price-change-value up';
   }
 
-  // DDRA 게임 잔액 USD 환산 업데이트
+  // DDRA 가격 변경 시 관련 UI 업데이트
   if (walletData) {
     const dedraUsd = (walletData.dedraBalance || 0) * price;
     const el2 = document.getElementById('splitDedraUsd');
     if (el2) el2.textContent = '≈ $' + fmt(dedraUsd);
     const el3 = document.getElementById('moreWalletDedraUsd');
     if (el3) el3.textContent = '≈ $' + fmt(dedraUsd);
+    // 수익잔액 DDRA 환산 업데이트
+    const bonus = walletData.bonusBalance || 0;
+    const el5 = document.getElementById('splitBonusDdra');
+    if (el5) el5.textContent = '≈ ' + fmt(bonus / (price || 0.5)) + ' DDRA';
+    const el6 = document.getElementById('moreWalletBonusDdra');
+    if (el6) el6.textContent = '≈ ' + fmt(bonus / (price || 0.5)) + ' DDRA';
+    // 게임 잔액 업데이트 (DDRA 단위)
+    gameBalanceVal = Math.floor((bonus / (price || 0.5)) * 100) / 100;
     const el4 = document.getElementById('gameBalanceUsd');
-    if (el4) el4.textContent = '≈ $' + fmt(gameBalanceVal * price);
+    if (el4) el4.textContent = '≈ $' + fmt(bonus) + ' USDT';
     // 출금 모달 DDRA 환산 업데이트
     updateWithdrawDdraCalc && updateWithdrawDdraCalc();
   }
@@ -1333,9 +1343,13 @@ function updateWalletUI() {
   // more 페이지가 열려있으면 해당 잔액도 갱신
   if (currentPage === 'more' && walletData) {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const bonus = walletData.bonusBalance || 0;
+    const bonusDdra = bonus / (deedraPrice || 0.5);
     setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
-    setEl('moreWalletBonus', fmt(walletData.bonusBalance || 0) + ' USDT');
-    setEl('moreWalletBonusDdra', '≈ ' + fmt((walletData.bonusBalance||0) / (deedraPrice||0.5)) + ' DDRA');
+    // 수익잔액(bonusBalance)을 DDRA로 표시
+    setEl('moreWalletBonus', fmt(bonusDdra) + ' DDRA');
+    setEl('moreWalletBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
+    // dedraBalance(게임전용)는 내부적으로만 유지
     setEl('moreWalletDedra', fmt(walletData.dedraBalance || 0) + ' DDRA');
     const dedraUsd = (walletData.dedraBalance || 0) * deedraPrice;
     setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
@@ -1368,10 +1382,11 @@ function updateHomeUI() {
   setEl('totalAsset', fmt(total) + ' USDT');
   setEl('totalAssetKrw', '≈ ₩' + fmtInt(total * USD_KRW));
   setEl('splitUsdt', fmt(usdt) + ' USDT');
-  setEl('splitBonus', fmt(bonus) + ' USDT');  // 수익 잔액 (출금 가능)
-  setEl('splitBonusDdra', '≈ ' + fmt(bonus / (deedraPrice||0.5)) + ' DDRA');  // DDRA 환산
-  setEl('splitDedra', fmt(dedra) + ' DDRA');  // 게임용 DDRA
-  setEl('splitDedraUsd', '≈ $' + fmt(dedra * deedraPrice));
+  // splitBonus: DDRA 단위로 표시 (이것이 출금 가능한 수량)
+  const bonusDdra = bonus / (deedraPrice || 0.5);
+  setEl('splitBonus', fmt(bonusDdra) + ' DDRA');
+  setEl('splitBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
+  // splitDedra는 더 이상 별도 UI 없음 (통합됨)
 }
 
 // ===== D-Day 카드 =====
@@ -1696,17 +1711,19 @@ window.submitDeposit = async function() {
 
 // ===== 출금 신청 =====
 window.showWithdrawModal = function() {
-  const bonus = walletData?.bonusBalance || 0;  // 수익 잔액 (USDT, 출금 가능)
+  const bonus = walletData?.bonusBalance || 0;
+  const bonusDdra = bonus / (deedraPrice || 0.5);  // DDRA 환산
+  // 출금 가능 DDRA 표시
   const avEl = document.getElementById('withdrawAvailable');
-  if (avEl) avEl.textContent = fmt(bonus) + ' USDT';
-
-  // DDRA 환산 표시 업데이트
+  if (avEl) avEl.textContent = fmt(bonusDdra);
+  // USDT 환산 부제목
+  const avUsdtEl = document.getElementById('withdrawAvailableUsdt');
+  if (avUsdtEl) avUsdtEl.textContent = '≈ $' + fmt(bonus) + ' USDT';
   updateWithdrawDdraCalc();
-
   document.getElementById('withdrawModal').classList.remove('hidden');
 };
 
-// 출금 모달에서 금액 입력 시 DDRA 환산 실시간 업데이트
+// 출금 모달에서 DDRA 수량 입력 시 USDT 환산 실시간 업데이트
 window.onWithdrawAmountInput = function() {
   updateWithdrawDdraCalc();
 };
@@ -1715,12 +1732,12 @@ function updateWithdrawDdraCalc() {
   const amtEl = document.getElementById('withdrawAmount');
   const calcEl = document.getElementById('withdrawDdraCalc');
   if (!calcEl) return;
-  const amount = parseFloat(amtEl?.value || '0') || 0;
+  const ddrAmt = parseFloat(amtEl?.value || '0') || 0;
   const price = deedraPrice || 0.5;
-  if (amount > 0 && price > 0) {
-    const ddraAmt = amount / price;
-    calcEl.textContent = `≈ ${fmt(ddraAmt)} DDRA (1 DDRA = $${price.toFixed(4)} USDT)`;
-    calcEl.style.color = '#6366f1';
+  if (ddrAmt > 0 && price > 0) {
+    const usdtAmt = ddrAmt * price;
+    calcEl.textContent = `≈ $${fmt(usdtAmt)} USDT (1 DDRA = $${price.toFixed(4)} USDT)`;
+    calcEl.style.color = '#f59e0b';
   } else {
     calcEl.textContent = `1 DDRA = $${price.toFixed(4)} USDT`;
     calcEl.style.color = '#94a3b8';
@@ -1728,18 +1745,23 @@ function updateWithdrawDdraCalc() {
 }
 
 window.submitWithdraw = async function() {
-  const amount = parseFloat(document.getElementById('withdrawAmount').value);
+  // 입력값: DDRA 수량
+  const ddrAmt = parseFloat(document.getElementById('withdrawAmount').value);
   const address = document.getElementById('withdrawAddress').value.trim();
   const pin = document.getElementById('withdrawPin').value;
 
-  if (!amount || amount <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
+  if (!ddrAmt || ddrAmt <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
 
-  // 출금 가능 금액 = bonusBalance (수익만, 원금 인출 불가)
+  const price = deedraPrice || 0.5;
+  const amountUsdt = ddrAmt * price;  // USDT 환산
+
+  // 출금 가능 금액 = bonusBalance(USDT) → DDRA 환산 기준
   const availableBonus = walletData?.bonusBalance || 0;
-  if (availableBonus < amount) {
-    showToast(`출금 가능 수익이 부족합니다. (가능: ${fmt(availableBonus)} USDT)`, 'error'); return;
+  const availableDdra = availableBonus / price;
+  if (availableDdra < ddrAmt) {
+    showToast(`출금 가능 DDRA 부족 (가능: ${fmt(availableDdra)} DDRA)`, 'error'); return;
   }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
@@ -1761,13 +1783,12 @@ window.submitWithdraw = async function() {
         const vipLevel = userData?.vipLevel || 'bronze';
         const discount = vipDiscounts[vipLevel] || 0;
         feeRate = Math.max(0, baseWithdrawFee - discount);
-        feeAmount = amount * feeRate / 100;
+        feeAmount = ddrAmt * feeRate / 100;  // 수수료 DDRA
       }
     } catch(e) { console.warn('[VIP Fee] 수수료 계산 실패, 기본 0% 적용:', e); }
 
-    const netAmount = amount - feeAmount;   // 실 수령 USDT
-    const price = deedraPrice || 0.5;
-    const ddraAmount = netAmount / price;    // DDRA 코인 수량 (실 지급)
+    const netDdra = ddrAmt - feeAmount;        // 수수료 제외 실 지급 DDRA
+    const netUsdt = netDdra * price;            // USDT 환산
 
     // ── 원자적 처리: 출금 신청 생성 + bonusBalance 차감 ─────────────
     const batch = writeBatch(db);
@@ -1776,34 +1797,34 @@ window.submitWithdraw = async function() {
     batch.set(txRef, {
       userId: currentUser.uid, userEmail: currentUser.email,
       type: 'withdrawal',
-      amountUsdt: amount,       // USDT 기준 신청 금액
-      amount: ddraAmount,       // DDRA 코인 환산 수량 (실 지급)
+      amountDdra: ddrAmt,          // 신청 DDRA 수량
+      amountUsdt: amountUsdt,      // USDT 환산
+      amount: netDdra,             // 실 지급 DDRA (수수료 제외)
       currency: 'DDRA',
-      ddraPrice: price,         // 적용 시세
+      ddraPrice: price,            // 적용 시세
       walletAddress: address,
-      feeRate, feeAmount, netAmount,
+      feeRate, feeAmount, netUsdt,
       status: 'pending', createdAt: serverTimestamp(),
     });
 
-    // bonusBalance 차감 (USDT 기준)
+    // bonusBalance 차감 (USDT 기준으로 차감)
     const walletRef = doc(db, 'wallets', currentUser.uid);
     batch.update(walletRef, {
-      bonusBalance: increment(-amount),
-      totalWithdrawal: increment(amount),
+      bonusBalance: increment(-amountUsdt),
+      totalWithdrawal: increment(amountUsdt),
     });
 
     await batch.commit();
 
     // 로컬 walletData 즉시 반영
     if (walletData) {
-      walletData.bonusBalance = (walletData.bonusBalance || 0) - amount;
-      walletData.totalWithdrawal = (walletData.totalWithdrawal || 0) + amount;
+      walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) - amountUsdt);
+      walletData.totalWithdrawal = (walletData.totalWithdrawal || 0) + amountUsdt;
     }
 
     closeModal('withdrawModal');
-    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} USDT)` : '';
-    const ddraMsg = ` → ${fmt(ddraAmount)} DDRA 지급 예정`;
-    showToast(t('toastWithdrawDone') + feeMsg + ddraMsg, 'success');
+    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} DDRA)` : '';
+    showToast(`출금 신청 완료! ${fmt(netDdra)} DDRA${feeMsg} 지급 예정`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
@@ -2354,34 +2375,29 @@ window.shareReferralLink = function() {
 };
 
 // ===== 게임 =====
+// gameBalanceVal = DDRA 단위 (bonusBalance(USDT) ÷ deedraPrice)
+// 베팅값(oeBetVal 등)도 모두 DDRA 단위
+// 실제 USDT 변화 = DDRA수 × deedraPrice
+function _ddraToUsdt(ddra) { return ddra * (deedraPrice || 0.5); }
+function _usdtToDdra(usdt) { return usdt / (deedraPrice || 0.5); }
+
 function updateGameUI() {
+  // bonusBalance(USDT)를 DDRA로 환산하여 gameBalanceVal에 저장
+  const bonus = walletData?.bonusBalance || 0;
+  gameBalanceVal = Math.floor(_usdtToDdra(bonus) * 100) / 100; // DDRA
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setEl('gameBalance', fmt(gameBalanceVal));
-  setEl('gameBalanceUsd', '≈ $' + fmt(gameBalanceVal * deedraPrice));
+  setEl('gameBalance', fmt(gameBalanceVal) + ' DDRA');
+  setEl('gameBalanceUsdt', fmt(bonus) + ' USDT');
+  setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
 }
 
-window.chargeGameWallet = function() {
-  const avEl = document.getElementById('chargeAvailable');
-  if (avEl) avEl.textContent = fmt(walletData?.dedraBalance || 0);
-  document.getElementById('chargeModal').classList.remove('hidden');
-};
-
-window.submitCharge = function() {
-  const amount = parseFloat(document.getElementById('chargeAmount').value);
-  if (!amount || amount <= 0) { showToast('충전 금액을 입력하세요.', 'warning'); return; }
-  if ((walletData?.dedraBalance || 0) < amount) { showToast('잔액이 부족합니다.', 'error'); return; }
-  gameBalanceVal += amount;
-  walletData.dedraBalance -= amount;
-  closeModal('chargeModal');
-  updateGameUI();
-  showToast(fmt(amount) + t('toastChargeDone'), 'success');
-  document.getElementById('chargeAmount').value = '';
-};
+// 충전 모달 관련 함수 - 더 이상 사용 안 함 (하위 호환성 유지)
+window.chargeGameWallet = function() { /* 충전 시스템 제거됨 */ };
+window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
 window.startGame = function(type) {
   if (gameBalanceVal <= 0) {
-    showToast('게임 지갑을 먼저 충전해주세요.', 'warning');
-    chargeGameWallet();
+    showToast('게임 가능 DDRA가 없습니다. 투자 수익이 발생하면 바로 게임 가능합니다.', 'warning');
     return;
   }
   closeAllGames();
@@ -2389,13 +2405,14 @@ window.startGame = function(type) {
   const el = document.getElementById(gameMap[type]);
   if (el) el.classList.remove('hidden');
 
-  // 슬라이더 최대값 설정
+  // 슬라이더 최대값: DDRA 수량 기준
+  const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
   const slider = document.getElementById(type === 'oddeven' ? 'oeBetSlider' : type === 'dice' ? 'diceBetSlider' : 'slotBetSlider');
-  if (slider) slider.max = Math.floor(gameBalanceVal);
+  if (slider) slider.max = maxDdra;
 
   // 게임별 초기화
   if (type === 'dice') {
-    renderDiceDots(6); // 기본 6 표시
+    renderDiceDots(6);
   }
   if (type === 'oddeven') {
     const coinText = document.getElementById('coinResultText');
@@ -2422,36 +2439,46 @@ window.closeGame = function() {
 };
 
 window.updateBetDisplay = function(type, val) {
-  val = parseInt(val);
-  if (type === 'oe') { oeBetVal = val; const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val; }
-  else if (type === 'dice') { diceBetVal = val; const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val; }
-  else if (type === 'slot') { slotBetVal = val; const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val; }
-  else if (type === 'rl')   { rlBetVal   = val; const el = document.getElementById('rlCurrentBet');   if (el) el.textContent = val; }
+  val = Math.max(1, parseInt(val) || 1);
+  const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
+  val = Math.min(val, maxDdra);
+  const usdt = fmt(_ddraToUsdt(val));
+  if (type === 'oe') {
+    oeBetVal = val;
+    const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('oeBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'dice') {
+    diceBetVal = val;
+    const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('diceBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'slot') {
+    slotBetVal = val;
+    const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('slotBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'rl') {
+    rlBetVal = val;
+    const el = document.getElementById('rlCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('rlBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  }
 };
 
 window.setBetAmount = function(type, val) {
-  val = Math.min(val, gameBalanceVal);
-  if (type === 'oe') { oeBetVal = val; const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val; }
-  else if (type === 'dice') { diceBetVal = val; const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val; }
-  else if (type === 'slot') { slotBetVal = val; const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val; }
-  else if (type === 'rl')   { rlBetVal   = val; const el = document.getElementById('rlCurrentBet');   if (el) el.textContent = val; }
+  updateBetDisplay(type, val);
 };
 
 window.setBetGameHalf = function(type) {
-  const half = Math.floor(gameBalanceVal / 2);
-  setBetAmount(type, half);
+  const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
+  setBetAmount(type, Math.max(1, Math.floor(maxDdra / 2)));
 };
 
 window.playOddEven = function(choice) {
-  if (gameBalanceVal < oeBetVal) { showToast('잔액 부족', 'error'); return; }
+  if (gameBalanceVal < oeBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
-  // 버튼 비활성화
   const btnOdd = document.getElementById('oeBtnOdd');
   const btnEven = document.getElementById('oeBtnEven');
   if (btnOdd) btnOdd.disabled = true;
   if (btnEven) btnEven.disabled = true;
 
-  // 동전 플립 애니메이션
   const coin = document.getElementById('coinFlip');
   const coinText = document.getElementById('coinResultText');
   if (coin) {
@@ -2462,8 +2489,13 @@ window.playOddEven = function(choice) {
   setTimeout(() => {
     const result = Math.random() < 0.5 ? 'odd' : 'even';
     const win = choice === result;
-    gameBalanceVal = win ? gameBalanceVal + oeBetVal : gameBalanceVal - oeBetVal;
+    const betUsdt = _ddraToUsdt(oeBetVal);
+    // DDRA 변화 반영 → bonusBalance(USDT) 동기화
+    const ddraChange = win ? oeBetVal : -oeBetVal;
+    const usdtChange = _ddraToUsdt(ddraChange);
+    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
     updateGameUI();
+    updateHomeUI();
 
     if (coin) coin.classList.remove('flipping');
     if (coinText) {
@@ -2475,8 +2507,8 @@ window.playOddEven = function(choice) {
     if (el) {
       el.className = 'game-result ' + (win ? 'win' : 'lose');
       el.innerHTML = win
-        ? `🎉 <strong>승리!</strong> +${oeBetVal} DEEDRA &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`
-        : `😢 <strong>패배</strong> -${oeBetVal} DEEDRA &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`;
+        ? `🎉 <strong>승리!</strong> +${oeBetVal} DDRA (≈+${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`
+        : `😢 <strong>패배</strong> -${oeBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 결과: ${result === 'odd' ? '홀' : '짝'}`;
       el.classList.remove('hidden');
     }
 
@@ -2487,7 +2519,7 @@ window.playOddEven = function(choice) {
 };
 
 window.playDice = function(chosenNum) {
-  if (gameBalanceVal < diceBetVal) { showToast('잔액 부족', 'error'); return; }
+  if (gameBalanceVal < diceBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   // 버튼 비활성화
   document.querySelectorAll('.dice-num-btn').forEach(b => b.disabled = true);
@@ -2512,8 +2544,12 @@ window.playDice = function(chosenNum) {
   setTimeout(() => {
     const result = Math.ceil(Math.random() * 6);
     const win = chosenNum === result;
-    gameBalanceVal = win ? gameBalanceVal + diceBetVal * 5 : gameBalanceVal - diceBetVal;
+    const betUsdt = _ddraToUsdt(diceBetVal);
+    const ddraChange = win ? diceBetVal * 5 : -diceBetVal;
+    const usdtChange = _ddraToUsdt(ddraChange);
+    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
     updateGameUI();
+    updateHomeUI();
 
     if (dice3d) dice3d.classList.remove('rolling');
     renderDiceDots(result);
@@ -2522,8 +2558,8 @@ window.playDice = function(chosenNum) {
     if (el) {
       el.className = 'game-result ' + (win ? 'win' : 'lose');
       el.innerHTML = win
-        ? `🎉 <strong>적중!</strong> +${diceBetVal * 5} DEEDRA &nbsp;·&nbsp; 나온 숫자: ${result}`
-        : `😢 <strong>빗나감</strong> -${diceBetVal} DEEDRA &nbsp;·&nbsp; 나온 숫자: ${result}`;
+        ? `🎉 <strong>적중! ×6</strong> +${diceBetVal * 5} DDRA (≈+${fmt(betUsdt * 5)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`
+        : `😢 <strong>빗나감</strong> -${diceBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`;
       el.classList.remove('hidden');
     }
 
@@ -2533,7 +2569,7 @@ window.playDice = function(chosenNum) {
 };
 
 window.playSpin = function() {
-  if (gameBalanceVal < slotBetVal) { showToast('잔액 부족', 'error'); return; }
+  if (gameBalanceVal < slotBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const spinBtn = document.getElementById('spinBtn');
   if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spinRotate 0.3s linear infinite">🎰</span> 스피닝...'; }
@@ -2571,10 +2607,13 @@ window.playSpin = function() {
 
     const win = multiplier > 0;
     const earned = win ? slotBetVal * multiplier : 0;
-    gameBalanceVal = win ? gameBalanceVal + earned : gameBalanceVal - slotBetVal;
+    const betUsdt = _ddraToUsdt(slotBetVal);
+    const ddraChange = win ? earned : -slotBetVal;
+    const usdtChange = _ddraToUsdt(ddraChange);
+    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
     updateGameUI();
+    updateHomeUI();
 
-    // 승리 시 릴 플래시 + 파티클
     if (win) {
       reels.forEach(r => { if (r) r.classList.add('win-flash'); });
       setTimeout(() => reels.forEach(r => { if (r) r.classList.remove('win-flash'); }), 1500);
@@ -2585,8 +2624,8 @@ window.playSpin = function() {
     if (el) {
       el.className = 'game-result ' + (win ? 'win' : 'lose');
       el.innerHTML = win
-        ? `🎉 <strong>잭팟! ${multiplier}배</strong> +${earned} DEEDRA`
-        : `😢 <strong>꽝!</strong> -${slotBetVal} DEEDRA`;
+        ? `🎉 <strong>잭팟! ×${multiplier}</strong> +${earned} DDRA (≈+${fmt(betUsdt * multiplier)} USDT)`
+        : `😢 <strong>꽝!</strong> -${slotBetVal} DDRA (≈-${fmt(betUsdt)} USDT)`;
       el.classList.remove('hidden');
     }
     if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '<span class="spin-icon">🎰</span> SPIN!'; }
@@ -2761,7 +2800,7 @@ window.selectRlBet = function(type) {
 /* 스핀 실행 */
 window.playRoulette = function() {
   if (!rlSelectedBet) { showToast('베팅을 먼저 선택하세요.', 'warning'); return; }
-  if (gameBalanceVal < rlBetVal) { showToast('잔액 부족', 'error'); return; }
+  if (gameBalanceVal < rlBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
   if (rlSpinning) return;
 
   rlSpinning = true;
@@ -2830,9 +2869,14 @@ function showRouletteResult(num) {
   else if (bet === 'dozen3' && num >= 25 && num <= 36)     { win = true; multiplier = 3; }
   else if (bet === 'num' + num)                            { win = true; multiplier = 35; }
 
-  const earned = win ? rlBetVal * multiplier : 0;
-  gameBalanceVal = win ? gameBalanceVal + earned : gameBalanceVal - rlBetVal;
+  const betUsdt = _ddraToUsdt(rlBetVal);
+  const earnedDdra  = win ? rlBetVal * multiplier : 0;
+  const earnedUsdt = win ? _ddraToUsdt(earnedDdra) : 0;
+  const ddraChange = win ? earnedDdra : -rlBetVal;
+  const usdtChange = _ddraToUsdt(ddraChange);
+  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
   updateGameUI();
+  updateHomeUI();
 
   if (win && multiplier >= 10) spawnJackpotParticles();
 
@@ -2844,7 +2888,7 @@ function showRouletteResult(num) {
       <div class="rl-win-number" style="color:${numColor}">${num}</div>
       <div>${isZero ? '🟢 제로' : isRed ? '🔴 레드' : '⚫ 블랙'}</div>
       <div style="margin-top:6px;font-size:16px">
-        ${win ? `🎉 <strong>승리! ×${multiplier} → +${fmt(earned)} DEEDRA</strong>` : `😢 <strong>패배 -${fmt(rlBetVal)} DEEDRA</strong>`}
+        ${win ? `🎉 <strong>승리! ×${multiplier} → +${fmt(earnedDdra)} DDRA (≈+${fmt(earnedUsdt)} USDT)</strong>` : `😢 <strong>패배 -${fmt(rlBetVal)} DDRA (≈-${fmt(betUsdt)} USDT)</strong>`}
       </div>`;
     el.classList.remove('hidden');
   }
@@ -2875,7 +2919,7 @@ function logGame(gameName, win, bet) {
       <div class="tx-date">${new Date().toLocaleTimeString('ko-KR')}</div>
     </div>
     <div class="tx-amount ${win ? 'plus' : 'minus'}">
-      ${win ? '+' : '-'}${fmt(bet)} DEEDRA
+      ${win ? '+' : '-'}${fmt(bet)} DDRA
     </div>`;
   listEl.insertBefore(item, listEl.firstChild);
 }
