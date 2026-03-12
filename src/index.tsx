@@ -1,17 +1,71 @@
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/cloudflare-workers'
+import { cors } from 'hono/cors'
 
 const app = new Hono()
 
 // Static files
 app.use('/static/*', serveStatic({ root: './' }))
 
+// ─── Firebase Auth 프록시 (sandbox 도메인 우회) ───────────────────────
+const FIREBASE_API_KEY = 'AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8'
+
+app.use('/api/auth/*', cors())
+
+// 로그인 프록시
+app.post('/api/auth/login', async (c) => {
+  const { email, password } = await c.req.json()
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true })
+    }
+  )
+  const data = await res.json() as any
+  if (!res.ok) {
+    return c.json({ error: data?.error?.message || 'UNKNOWN_ERROR' }, 400)
+  }
+  return c.json({
+    idToken: data.idToken,
+    localId: data.localId,
+    email: data.email,
+    refreshToken: data.refreshToken,
+    expiresIn: data.expiresIn
+  })
+})
+
+// 회원가입 프록시
+app.post('/api/auth/register', async (c) => {
+  const { email, password } = await c.req.json()
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true })
+    }
+  )
+  const data = await res.json() as any
+  if (!res.ok) {
+    return c.json({ error: data?.error?.message || 'UNKNOWN_ERROR' }, 400)
+  }
+  return c.json({
+    idToken: data.idToken,
+    localId: data.localId,
+    email: data.email,
+    refreshToken: data.refreshToken
+  })
+})
+
 // 테스트 계정 생성 페이지
 app.get('/setup', (c) => c.html(SETUP_HTML()))
 
-// 관리자 페이지
-app.get('/admin', (c) => c.redirect('/static/admin.html'))
-app.get('/admin.html', (c) => c.redirect('/static/admin.html'))
+// 관리자 페이지 - wrangler가 /static/admin.html 에 308을 내므로
+// /static/admin (확장자 없이) 으로 redirect
+app.get('/admin', (c) => c.redirect('/static/admin', 302))
+app.get('/admin.html', (c) => c.redirect('/static/admin', 302))
 
 // ─── Main App (SPA) ───────────────────────────────────────────────────────────
 const HTML = () => `<!DOCTYPE html>

@@ -1245,8 +1245,19 @@ window.handleLogin = async function() {
   showScreen('loading');
   try {
     const { signInWithEmailAndPassword, auth } = window.FB;
-    await signInWithEmailAndPassword(auth, email, pw);
+    console.log('[Login] 시도:', email);
+    const result = await signInWithEmailAndPassword(auth, email, pw);
+    console.log('[Login] 성공:', result?.user?.email);
+    // 세션 저장 (페이지 새로고침 시 복원용)
+    if (result?.user) {
+      localStorage.setItem('deedra_session', JSON.stringify({
+        uid: result.user.uid,
+        email: result.user.email
+      }));
+    }
+    // 성공 시 loginWithEmail 내부에서 onAuthReady 직접 호출됨
   } catch (err) {
+    console.error('[Login Error] code:', err.code, '| message:', err.message);
     showScreen('auth');
     showToast(getAuthErrorMsg(err.code), 'error');
   }
@@ -1280,7 +1291,11 @@ window.handleRegister = async function() {
       userId: user.uid, usdtBalance: 0, dedraBalance: 0, bonusBalance: 0,
       totalDeposit: 0, totalWithdrawal: 0, totalEarnings: 0, createdAt: serverTimestamp(),
     });
+    // 회원가입 후 자동 로그인 (세션 저장 + 앱 진입)
+    localStorage.setItem('deedra_session', JSON.stringify({ uid: user.uid, email }));
+    window.FB._currentUser = user;
     showToast('회원가입 완료! 환영합니다 🎉', 'success');
+    await window.onAuthReady(user);
   } catch (err) {
     showScreen('auth');
     showToast(getAuthErrorMsg(err.code), 'error');
@@ -1305,6 +1320,7 @@ window.handleLogout = async function() {
   if (!confirm(t('logoutConfirm'))) return;
   const { signOut, auth } = window.FB;
   await signOut(auth);
+  localStorage.removeItem('deedra_session');
   currentUser = null; userData = null; walletData = null;
   showScreen('auth');
 };

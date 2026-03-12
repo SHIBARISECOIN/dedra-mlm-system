@@ -833,8 +833,13 @@ export class DedraAPI {
       if (snap.exists()) return ok(snap.data());
       // 기본값 반환 (추천인 수 기반 레거시와 호환)
       const defaults = {
-        networkDepth: 3,           // 산하 계산 깊이 (1~10)
-        promotionMode: 'all',      // 'all' = 모든 조건 충족, 'any' = 하나라도 충족
+        networkDepth: 3,              // 산하 계산 깊이 (1~10)
+        promotionMode: 'all',         // 'all' = 모든 조건 충족, 'any' = 하나라도 충족
+        enableAutoPromotion: false,   // true = 입금 승인 시 자동 승진 체크
+        preventDowngrade: true,       // true = 이미 획득한 직급 강등 방지
+        requireActiveInvestment: false, // true = 활성 투자가 있어야 직급 유지
+        reCheckIntervalDays: 0,       // 0 = 수동 실행만, N > 0 = N일마다 자동 재검사
+        countOnlyDirectReferrals: false, // true = 직접 추천(1대)만 인원 카운트
         criteria: {
           G1:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 3    },
           G2:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 10   },
@@ -938,6 +943,9 @@ export class DedraAPI {
       const settings  = settingsR.data;
       const criteria  = settings.criteria || {};
       const mode      = settings.promotionMode || 'all';
+      const preventDowngrade        = settings.preventDowngrade !== false;      // 기본 true
+      const requireActiveInvestment = settings.requireActiveInvestment === true; // 기본 false
+      const countOnlyDirect         = settings.countOnlyDirectReferrals === true; // 기본 false
 
       const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
 
@@ -946,33 +954,47 @@ export class DedraAPI {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(u => u.role !== 'admin');
 
-      const depth = settings.networkDepth || 3;
+      const depth = countOnlyDirect ? 1 : (settings.networkDepth || 3);
       // BFS 전체 조직도
       const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      const upgraded = [];
+      const upgraded   = [];
+      const downgraded = [];
       for (const member of members) {
         const curRank    = member.rank || 'G0';
         const curIdx     = RANK_ORDER.indexOf(curRank);
-        if (curIdx < 0 || curIdx >= RANK_ORDER.length - 1) continue;
+        if (curIdx < 0) continue;
 
-        // 산하 계산
+        // 산하 계산 (countOnlyDirectReferrals=true면 1대만)
         const downline = [];
         let lvl = [member.id];
-        for (let d = 0; d < depth; d++) {
+        const scanDepth = countOnlyDirect ? 1 : depth;
+        for (let d = 0; d < scanDepth; d++) {
           const next = allUsers.filter(u => lvl.includes(u.referredBy)).map(u => u.id);
           downline.push(...next);
           lvl = next;
           if (!next.length) break;
         }
 
-        // 본인 투자액 (investments 컬렉션 없이 wallets.totalDeposit 사용 가능하면 사용)
+        // 본인 활성 투자액
         const selfInvSnap = await getDocs(query(
           collection(db, 'investments'),
           where('userId', '==', member.id),
           where('status', '==', 'active')
         ));
         const selfInvest = selfInvSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+
+        // requireActiveInvestment: 활성 투자 없으면 G0으로 강등 가능
+        if (requireActiveInvestment && selfInvest === 0 && curIdx > 0) {
+          if (!preventDowngrade) {
+            // 강등 허용이면 G0으로
+            await updateDoc(doc(db, 'users', member.id), { rank: 'G0', updatedAt: serverTimestamp() });
+            await this._auditLog(adminId, 'rank', `[활성투자 없음 강등] ${member.name||member.id}: ${curRank} → G0`,
+              { userId: member.id, oldRank: curRank, newRank: 'G0', reason: 'no_active_investment' });
+            downgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank: 'G0', reason: '활성 투자 없음' });
+          }
+          continue;
+        }
 
         let networkSales = 0;
         if (downline.length > 0) {
@@ -990,29 +1012,43 @@ export class DedraAPI {
         }
         const networkMembers = downline.length;
 
-        // 달성 가능한 최고 직급 찾기
-        let targetIdx = curIdx;
-        for (let i = RANK_ORDER.length - 1; i > curIdx; i--) {
+        // 달성 가능한 최고 직급 찾기 (전체 범위 스캔)
+        let targetIdx = 0; // 아무 조건도 안 맞으면 G0
+        for (let i = RANK_ORDER.length - 1; i >= 1; i--) {
           const rankId = RANK_ORDER[i];
           const crit   = criteria[rankId];
           if (!crit) continue;
-          const cInvest  = selfInvest  >= (crit.minSelfInvest     || 0);
-          const cSales   = networkSales>= (crit.minNetworkSales    || 0);
-          const cMembers = networkMembers >= (crit.minNetworkMembers || 0);
+          const cInvest  = selfInvest     >= (crit.minSelfInvest     || 0);
+          const cSales   = networkSales   >= (crit.minNetworkSales    || 0);
+          const cMembers = networkMembers >= (crit.minNetworkMembers  || 0);
+          // 조건이 모두 0이면 해당 직급 조건 없음으로 간주 (건너뜀)
+          const hasAnyCrit = (crit.minSelfInvest||0)>0 || (crit.minNetworkSales||0)>0 || (crit.minNetworkMembers||0)>0;
+          if (!hasAnyCrit) continue;
           const pass = mode === 'any' ? (cInvest || cSales || cMembers)
                                       : (cInvest && cSales && cMembers);
           if (pass) { targetIdx = i; break; }
         }
 
-        if (targetIdx > curIdx) {
+        // preventDowngrade: targetIdx < curIdx 이면 강등 방지
+        if (preventDowngrade && targetIdx < curIdx) {
+          targetIdx = curIdx; // 현재 직급 유지
+        }
+
+        if (targetIdx !== curIdx) {
           const newRank = RANK_ORDER[targetIdx];
           await updateDoc(doc(db, 'users', member.id), { rank: newRank, updatedAt: serverTimestamp() });
-          await this._auditLog(adminId, 'rank', `[일괄승격] ${member.name||member.id}: ${curRank} → ${newRank}`,
-            { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, networkMembers });
-          upgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank });
+          if (targetIdx > curIdx) {
+            await this._auditLog(adminId, 'rank', `[일괄승격] ${member.name||member.id}: ${curRank} → ${newRank}`,
+              { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, networkMembers });
+            upgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank });
+          } else {
+            await this._auditLog(adminId, 'rank', `[일괄강등] ${member.name||member.id}: ${curRank} → ${newRank}`,
+              { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, networkMembers });
+            downgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank });
+          }
         }
       }
-      return ok({ upgraded: upgraded.length, details: upgraded });
+      return ok({ upgraded: upgraded.length, downgraded: downgraded.length, details: upgraded, downgradedDetails: downgraded });
     } catch(e) { return err(e); }
   }
 
