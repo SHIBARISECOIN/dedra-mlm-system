@@ -1351,9 +1351,9 @@ function renderHomeEarn(products) {
   // 최대 3개만 표시
   const show = products.slice(0, 3);
   listEl.innerHTML = show.map(p => {
-    // 필드명 호환: dailyRoi(%) or roiPercent(%), duration or durationDays
+    // 필드명 호환: dailyRoi(% 단위 그대로) or roiPercent(%)
     const roi = p.roiPercent != null ? p.roiPercent
-              : p.dailyRoi != null   ? (p.dailyRoi * 100)
+              : p.dailyRoi  != null  ? p.dailyRoi
               : 0;
     const days = p.durationDays != null ? p.durationDays
                : p.duration    != null  ? p.duration
@@ -2111,9 +2111,9 @@ async function loadProducts() {
     const tagMap = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
 
     if (listEl) listEl.innerHTML = productsCache.map(p => {
-      // 필드명 호환: dailyRoi(소수) or roiPercent(%), duration or durationDays
+      // 필드명 호환: dailyRoi(% 단위 그대로) or roiPercent(%)
       const roi = p.roiPercent != null ? p.roiPercent
-                : p.dailyRoi  != null  ? (p.dailyRoi * 100)
+                : p.dailyRoi  != null  ? p.dailyRoi
                 : 0;
       const days = p.durationDays != null ? p.durationDays
                  : p.duration    != null  ? p.duration
@@ -2161,7 +2161,9 @@ function loadSimulatorOptions() {
   if (!sel || !productsCache.length) return;
   sel.innerHTML = '<option value="">상품 선택</option>';
   productsCache.forEach(p => {
-    sel.innerHTML += `<option value="${p.id}" data-roi="${p.roiPercent}" data-days="${p.durationDays}" data-min="${p.minAmount}" data-max="${p.maxAmount}">${p.name} (${p.roiPercent}% / ${p.durationDays}일)</option>`;
+    const roi  = p.roiPercent != null ? p.roiPercent : (p.dailyRoi != null ? p.dailyRoi : 0);
+    const days = p.durationDays != null ? p.durationDays : (p.duration != null ? p.duration : 0);
+    sel.innerHTML += `<option value="${p.id}" data-roi="${roi}" data-days="${days}" data-min="${p.minAmount||0}" data-max="${p.maxAmount||9999}">${p.name} (${roi}% / ${days}일)</option>`;
   });
 }
 
@@ -2289,7 +2291,8 @@ async function loadMyInvestments() {
       const remainDays = Math.max(0, Math.ceil((end - now) / 86400000));
 
       // 일일 ROI 수익 D = 투자금 × roiPercent%
-      const dailyRoiRate = (inv.roiPercent || inv.dailyRoi || 0) / 100;
+      // roiPercent: % 단위, dailyRoi: % 단위 (0.4 = 0.4%)
+      const dailyRoiRate = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
       const dailyD = inv.amount * dailyRoiRate;
 
       return `
