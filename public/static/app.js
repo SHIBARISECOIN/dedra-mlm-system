@@ -1348,18 +1348,26 @@ function renderHomeEarn(products) {
   }
   // 최대 3개만 표시
   const show = products.slice(0, 3);
-  listEl.innerHTML = show.map(p => `
+  listEl.innerHTML = show.map(p => {
+    // 필드명 호환: dailyRoi(%) or roiPercent(%), duration or durationDays
+    const roi = p.roiPercent != null ? p.roiPercent
+              : p.dailyRoi != null   ? (p.dailyRoi * 100)
+              : 0;
+    const days = p.durationDays != null ? p.durationDays
+               : p.duration    != null  ? p.duration
+               : '-';
+    return `
     <div class="earn-item" onclick="switchPage('invest')">
       <div>
-        <div class="earn-item-name">${p.name}</div>
-        <div class="earn-item-period">${p.durationDays}일 · 최소 $${fmt(p.minAmount)}</div>
+        <div class="earn-item-name">${p.name || '-'}</div>
+        <div class="earn-item-period">${days}일 · 최소 $${fmt(p.minAmount || 0)}</div>
       </div>
       <div>
-        <div class="earn-item-roi">${p.roiPercent}%</div>
+        <div class="earn-item-roi">${roi.toFixed(1)}%</div>
         <div class="earn-item-roi-label">일 수익률</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 // ===== 테마 =====
@@ -2101,24 +2109,33 @@ async function loadProducts() {
     const tagMap = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
 
     if (listEl) listEl.innerHTML = productsCache.map(p => {
-      const tier = tierMap[p.name] || 'basic';
-      const tag = tagMap[p.name] || 'tag-basic';
-      const dailyEarning = p.minAmount * p.roiPercent / 100;  // 하루 USDT 수익
+      // 필드명 호환: dailyRoi(소수) or roiPercent(%), duration or durationDays
+      const roi = p.roiPercent != null ? p.roiPercent
+                : p.dailyRoi  != null  ? (p.dailyRoi * 100)
+                : 0;
+      const days = p.durationDays != null ? p.durationDays
+                 : p.duration    != null  ? p.duration
+                 : 0;
+      const tierName = p.name || '';
+      const tierMap2 = ['1개월','Basic'];
+      const tier = tierMap[tierName] || (tierName.includes('1개월') ? 'basic' : tierName.includes('3개월') ? 'standard' : tierName.includes('6개월') ? 'premium' : tierName.includes('12개월') ? 'vip' : 'basic');
+      const tag  = tagMap[tierName]  || ('tag-' + tier);
+      const dailyEarning = (p.minAmount || 0) * roi / 100;
       return `
       <div class="product-card">
         <div class="product-tier-bar tier-${tier}"></div>
         <div class="product-top">
           <div>
-            <div class="product-name">${p.name}</div>
-            <span class="product-tag ${tag}">${p.name}</span>
+            <div class="product-name">${p.name || '-'}</div>
+            <span class="product-tag ${tag}">${p.name || '-'}</span>
           </div>
           <div class="product-roi-block">
-            <div class="product-roi">${p.roiPercent}%</div>
+            <div class="product-roi">${roi.toFixed(1)}%</div>
             <div class="product-roi-label">일 수익률</div>
           </div>
         </div>
         <div class="product-meta">
-          <div class="product-meta-item">기간: <strong>${p.durationDays}일</strong></div>
+          <div class="product-meta-item">기간: <strong>${days}일</strong></div>
           <div class="product-meta-item">최소: <strong>${fmt(p.minAmount)} USDT</strong></div>
           <div class="product-meta-item">최대: <strong>${fmt(p.maxAmount)} USDT</strong></div>
         </div>
@@ -2126,7 +2143,7 @@ async function loadProducts() {
           💡 ${fmt(p.minAmount)} USDT 투자 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
           (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 원금 계약만기 후 출금
         </div>
-        <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name}',${p.roiPercent},${p.durationDays},${p.minAmount},${p.maxAmount})">
+        <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name || ''}',${roi},${days},${p.minAmount||0},${p.maxAmount||9999})">
           투자하기
         </button>
       </div>`;
