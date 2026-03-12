@@ -1324,14 +1324,18 @@ async function loadHomeEarn() {
     return;
   }
   try {
-    const { collection, query, where, orderBy, getDocs, db } = window.FB;
-    const q = query(collection(db, 'products'), where('isActive', '==', true), orderBy('minAmount', 'asc'));
-    const snap = await getDocs(q);
-    const products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const { collection, getDocs, db } = window.FB;
+    // orderBy 없이 전체 로드 후 클라이언트 정렬 (복합인덱스 불필요)
+    const snap = await getDocs(collection(db, 'products'));
+    const products = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.isActive === true)
+      .sort((a, b) => (a.minAmount || 0) - (b.minAmount || 0));
     productsCache = products;
     renderHomeEarn(products);
   } catch (e) {
-    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 로딩 실패</div>';
+    console.warn('[EARN] 상품 로드 오류:', e);
+    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 없음</div>';
   }
 }
 
@@ -2077,13 +2081,16 @@ async function loadInvestPage() {
 }
 
 async function loadProducts() {
-  const { collection, query, where, orderBy, getDocs, db } = window.FB;
+  const { collection, getDocs, db } = window.FB;
   const listEl = document.getElementById('productList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item tall"></div><div class="skeleton-item tall"></div>';
   try {
-    const q = query(collection(db, 'products'), where('isActive', '==', true), orderBy('minAmount', 'asc'));
-    const snap = await getDocs(q);
-    productsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // orderBy 없이 전체 로드 후 클라이언트 정렬 (복합인덱스 불필요)
+    const snap = await getDocs(collection(db, 'products'));
+    productsCache = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.isActive === true)
+      .sort((a, b) => (a.minAmount || 0) - (b.minAmount || 0));
 
     if (!productsCache.length) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i>투자 상품이 없습니다</div>';
