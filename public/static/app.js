@@ -2942,27 +2942,6 @@ function logGame(gameName, win, bet) {
   listEl.insertBefore(item, listEl.firstChild);
 }
 
-function logGame(gameName, win, bet) {
-  const listEl = document.getElementById('gameLogList');
-  if (!listEl) return;
-
-  const emptyEl = listEl.querySelector('.empty-state');
-  if (emptyEl) emptyEl.remove();
-
-  const item = document.createElement('div');
-  item.className = 'tx-item';
-  item.innerHTML = `
-    <div class="tx-icon game">${win ? '🎉' : '😢'}</div>
-    <div class="tx-info">
-      <div class="tx-title">${gameName} ${win ? '승리' : '패배'}</div>
-      <div class="tx-date">${new Date().toLocaleTimeString('ko-KR')}</div>
-    </div>
-    <div class="tx-amount ${win ? 'plus' : 'minus'}">
-      ${win ? '+' : '-'}${fmt(bet)} DDRA
-    </div>`;
-  listEl.insertBefore(item, listEl.firstChild);
-}
-
 // ============================================================
 // ===== 카드 덱 유틸리티 (바카라/포커 공용) =====
 // ============================================================
