@@ -1994,8 +1994,173 @@ window.switchTxTab = function(type, el) {
 };
 
 // ===== 입금 신청 =====
+// ══════════════════════════════════════════════════════════════════
+// 지갑 연동 입금 로직 (Phantom / TokenPocket / Solana Wallet Standard)
+// ══════════════════════════════════════════════════════════════════
+
+// 탭 전환
+window.switchDepTab = function(tab) {
+  const isWallet = tab === 'wallet';
+  document.getElementById('depPanelWallet').style.display = isWallet ? '' : 'none';
+  document.getElementById('depPanelManual').style.display = isWallet ? 'none' : '';
+  document.getElementById('depManualSubmitBtn').style.display = isWallet ? 'none' : '';
+
+  const btnW = document.getElementById('depTabWallet');
+  const btnM = document.getElementById('depTabManual');
+  if (isWallet) {
+    btnW.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)'; btnW.style.color = '#fff';
+    btnM.style.background = 'transparent'; btnM.style.color = '#64748b';
+  } else {
+    btnM.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)'; btnM.style.color = '#fff';
+    btnW.style.background = 'transparent'; btnW.style.color = '#64748b';
+    loadCompanyWallet();
+  }
+};
+
+// 빠른 금액 설정
+window.setDepAmount = function(amt) {
+  const el = document.getElementById('depWalletAmount');
+  if (el) { el.value = amt; updateDepWalletFee(amt); }
+};
+
+// 수수료 안내 업데이트
+window.updateDepWalletFee = function(val) {
+  const amt = parseFloat(val) || 0;
+  const el  = document.getElementById('depWalletFeeNote');
+  if (el && amt > 0) {
+    el.textContent = `전송 금액 $${amt.toFixed(2)} USDT + 네트워크 수수료 ~$0.001`;
+  }
+};
+
+// 지갑 연결
+window.connectSolanaWallet = async function() {
+  const btn = document.getElementById('btnConnectWallet');
+  btn.disabled = true; btn.textContent = '연결 중...';
+  try {
+    // solana-wallet.js 의 SolanaWallet 사용
+    const sw = window.SolanaWallet;
+    if (!sw) throw new Error('지갑 모듈 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+
+    const { address, walletName } = await sw.connect();
+
+    // UI 업데이트
+    document.getElementById('depWalletConnect').style.display    = 'none';
+    document.getElementById('depWalletConnected').style.display  = '';
+    document.getElementById('depWalletName').textContent         = `✅ ${walletName} 연결됨`;
+    document.getElementById('depWalletAddr').textContent         = address;
+
+    // USDT 잔액 조회
+    document.getElementById('depWalletBalance').textContent = '조회중...';
+    const balance = await sw.getUsdtBalance(address);
+    document.getElementById('depWalletBalance').textContent = `$${balance.toFixed(2)} USDT`;
+
+  } catch (e) {
+    if (e.message === 'NO_WALLET') {
+      showToast('❌ 지갑이 감지되지 않습니다.\nPhantom 또는 TokenPocket을 설치해주세요.', 'error');
+    } else if (e.message === 'USER_REJECTED') {
+      showToast('연결을 취소했습니다.', 'warning');
+    } else if (e.message === 'MOBILE_DEEPLINK') {
+      showToast('앱으로 이동합니다...', 'info');
+    } else {
+      showToast('❌ ' + e.message, 'error');
+    }
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<span style="font-size:20px;">👻</span> Phantom / 지갑 연결';
+  }
+};
+
+// 지갑 연결 해제
+window.disconnectSolanaWallet = async function() {
+  await window.SolanaWallet?.disconnect();
+  document.getElementById('depWalletConnect').style.display   = '';
+  document.getElementById('depWalletConnected').style.display = 'none';
+  document.getElementById('depWalletStatus').style.display    = 'none';
+};
+
+// 지갑으로 즉시 전송
+window.doWalletDeposit = async function() {
+  const sw     = window.SolanaWallet;
+  const amount = parseFloat(document.getElementById('depWalletAmount')?.value || 0);
+
+  if (!sw?.publicKey) { showToast('먼저 지갑을 연결하세요.', 'warning'); return; }
+  if (!amount || amount < 1) { showToast('최소 입금액은 $1 USDT입니다.', 'warning'); return; }
+
+  // 회사 지갑 주소 가져오기
+  let toAddress = '';
+  try {
+    const r = await window.api.getCompanyWallets();
+    if (r.success) {
+      const w = (r.data || []).find(w => w.address);
+      toAddress = w?.address || '';
+    }
+  } catch {}
+  if (!toAddress) { showToast('❌ 회사 지갑 주소가 설정되지 않았습니다.', 'error'); return; }
+
+  const btn    = document.getElementById('btnWalletSend');
+  const status = document.getElementById('depWalletStatus');
+
+  const setStatus = (msg, color = '#6366f1') => {
+    status.style.display     = '';
+    status.style.background  = color + '15';
+    status.style.border      = `1.5px solid ${color}40`;
+    status.style.color       = color;
+    status.textContent       = msg;
+  };
+
+  btn.disabled = true; btn.textContent = '⏳ 처리 중...';
+
+  try {
+    // ── Step 1: 서명 + 브로드캐스트
+    setStatus('🔐 지갑 서명 요청 중... (지갑 팝업을 확인하세요)', '#6366f1');
+    const signature = await sw.sendUsdt(toAddress, amount);
+
+    // ── Step 2: Firestore 저장 + 온체인 자동 검증
+    setStatus('📡 온체인 확인 중... (최대 30초 소요)', '#f59e0b');
+    const r = await window.api.submitWalletDeposit(
+      currentUser.uid, currentUser.email,
+      amount, signature,
+      sw.publicKey, toAddress
+    );
+
+    if (r.success) {
+      if (r.data.autoApproved) {
+        setStatus('✅ 입금 완료! 잔액이 자동으로 업데이트되었습니다.', '#16a34a');
+        showToast(`✅ $${amount} USDT 입금 완료!`, 'success');
+        setTimeout(() => { closeModal('depositModal'); refreshWallet?.(); }, 2500);
+      } else {
+        setStatus(`⏳ 전송 완료! 관리자 확인 후 승인됩니다.\n해시: ${signature.slice(0,16)}...`, '#f59e0b');
+        showToast('전송 완료! 관리자 확인 후 승인됩니다.', 'info');
+      }
+    } else {
+      setStatus('❌ ' + r.error, '#dc2626');
+      showToast('❌ ' + r.error, 'error');
+    }
+  } catch (e) {
+    if (e.message === 'USER_REJECTED') {
+      setStatus('서명을 취소했습니다.', '#64748b');
+      showToast('서명을 취소했습니다.', 'warning');
+    } else if (e.message === 'WALLET_NOT_CONNECTED') {
+      setStatus('지갑 연결이 끊겼습니다. 다시 연결해주세요.', '#dc2626');
+    } else if (e.message?.includes('insufficient')) {
+      setStatus('❌ USDT 또는 SOL 잔액이 부족합니다.', '#dc2626');
+      showToast('❌ 잔액이 부족합니다 (USDT 또는 수수료용 SOL 확인)', 'error');
+    } else {
+      setStatus('❌ ' + (e.message || '전송 실패'), '#dc2626');
+      showToast('❌ ' + e.message, 'error');
+    }
+  } finally {
+    btn.disabled = false; btn.innerHTML = '🚀 지갑으로 즉시 전송';
+  }
+};
+
 window.showDepositModal = function() {
   loadCompanyWallet();
+  // 지갑 탭 초기화
+  switchDepTab('wallet');
+  // 상태 초기화
+  const st = document.getElementById('depWalletStatus');
+  if (st) st.style.display = 'none';
+  document.getElementById('depWalletAmount') && (document.getElementById('depWalletAmount').value = '');
   document.getElementById('depositModal').classList.remove('hidden');
 };
 

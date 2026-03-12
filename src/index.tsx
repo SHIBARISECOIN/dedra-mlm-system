@@ -1275,34 +1275,125 @@ const HTML = () => `<!DOCTYPE html>
   <div class="modal-overlay" onclick="closeModal('depositModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title" data-i18n="modalDeposit">💰 USDT 입금 신청</div>
-    <div class="modal-body">
-      <div class="info-box">
-        <div class="info-label" data-i18n="depositAddrLabel">회사 입금 주소 (TRC20)</div>
-        <div class="wallet-address-box">
-          <span id="companyWalletAddr" data-i18n="depositAddrLoading">주소 로딩중...</span>
-          <button onclick="copyWalletAddress()" class="copy-btn" style="padding:8px 12px;font-size:12px">
-            <i class="fas fa-copy"></i>
-          </button>
+    <div class="modal-title">💰 USDT 입금</div>
+    <div class="modal-body" style="padding-bottom:8px;">
+
+      <!-- ── 탭 전환: 지갑연동 / 수동입금 ── -->
+      <div style="display:flex;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:18px;gap:3px;">
+        <button id="depTabWallet" onclick="switchDepTab('wallet')"
+          style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;transition:.2s;">
+          🔗 지갑 연동
+        </button>
+        <button id="depTabManual" onclick="switchDepTab('manual')"
+          style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:#64748b;transition:.2s;">
+          ✏️ 수동 입금
+        </button>
+      </div>
+
+      <!-- ══ 지갑 연동 탭 ══ -->
+      <div id="depPanelWallet">
+
+        <!-- 지갑 연결 전 -->
+        <div id="depWalletConnect">
+          <div style="text-align:center;padding:8px 0 20px;">
+            <div style="font-size:42px;margin-bottom:10px;">👛</div>
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;">지갑을 연결하세요</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:20px;">Phantom, TokenPocket 등 Solana 지갑을 지원합니다</div>
+            <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto;">
+              <button onclick="connectSolanaWallet()" id="btnConnectWallet"
+                style="padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
+                <span style="font-size:20px;">👻</span> Phantom / 지갑 연결
+              </button>
+              <div style="font-size:11px;color:#94a3b8;">지갑이 없으신가요?
+                <a href="https://phantom.app" target="_blank" style="color:#6366f1;">Phantom 설치</a> |
+                <a href="https://tokenpocket.pro" target="_blank" style="color:#6366f1;">TokenPocket 설치</a>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="depositAmountLabel">입금 금액 (USDT)</label>
-        <input type="number" id="depositAmount" class="form-input" placeholder="0.00" min="0" step="0.01" />
-      </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="depositTxidLabel">TXID (트랜잭션 해시)</label>
-        <input type="text" id="depositTxid" class="form-input" placeholder="트랜잭션 해시 입력" data-i18n="depositTxidPlaceholder" data-i18n-attr="placeholder" />
-      </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="depositMemoLabel">메모 (선택)</label>
-        <input type="text" id="depositMemo" class="form-input" placeholder="메모 입력 (선택)" data-i18n="depositMemoPlaceholder" data-i18n-attr="placeholder" />
-      </div>
-      <div class="warning-box" data-i18n="depositWarning">⚠️ 반드시 위 주소로 입금 후 TXID를 입력해주세요. 관리자 승인 후 잔액이 업데이트됩니다.</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('depositModal')" style="flex:1" data-i18n="btnCancel">취소</button>
-      <button class="btn btn-primary" onclick="submitDeposit()" style="flex:2" data-i18n="btnSubmitDeposit">입금 신청</button>
+
+        <!-- 지갑 연결 후 -->
+        <div id="depWalletConnected" style="display:none;">
+          <!-- 연결된 지갑 정보 -->
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:22px;">✅</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:#16a34a;font-weight:700;" id="depWalletName">Phantom</div>
+              <div style="font-size:12px;color:#374151;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="depWalletAddr">-</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:#64748b;">USDT 잔액</div>
+              <div style="font-size:14px;font-weight:700;color:#059669;" id="depWalletBalance">조회중...</div>
+            </div>
+            <button onclick="disconnectSolanaWallet()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;padding:4px;">✕</button>
+          </div>
+
+          <!-- 금액 입력 -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">입금 금액 (USDT)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="number" id="depWalletAmount" class="form-input" placeholder="0.00" min="1" step="0.01"
+                style="flex:1;" oninput="updateDepWalletFee(this.value)">
+            </div>
+            <!-- 빠른 선택 -->
+            <div style="display:flex;gap:6px;margin-top:8px;">
+              <button onclick="setDepAmount(50)"  style="flex:1;padding:6px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;">$50</button>
+              <button onclick="setDepAmount(100)" style="flex:1;padding:6px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;">$100</button>
+              <button onclick="setDepAmount(500)" style="flex:1;padding:6px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;">$500</button>
+              <button onclick="setDepAmount(1000)" style="flex:1;padding:6px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;cursor:pointer;">$1,000</button>
+            </div>
+          </div>
+
+          <!-- 네트워크 수수료 안내 -->
+          <div style="background:#fef9c3;border-radius:8px;padding:10px 12px;font-size:12px;color:#854d0e;margin-bottom:16px;">
+            ⚡ <strong>Solana 네트워크</strong> — 가스비 약 $0.001 (SOL)<br>
+            <span id="depWalletFeeNote">전송 전 소량의 SOL이 지갑에 있어야 합니다.</span>
+          </div>
+
+          <!-- 전송 버튼 -->
+          <button onclick="doWalletDeposit()" id="btnWalletSend"
+            style="width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:8px;">
+            🚀 지갑으로 즉시 전송
+          </button>
+
+          <!-- 진행 상태 -->
+          <div id="depWalletStatus" style="display:none;text-align:center;padding:12px;border-radius:10px;font-size:13px;font-weight:600;"></div>
+        </div>
+
+      </div><!-- /depPanelWallet -->
+
+      <!-- ══ 수동 입금 탭 ══ -->
+      <div id="depPanelManual" style="display:none;">
+        <div class="info-box">
+          <div class="info-label" data-i18n="depositAddrLabel">회사 입금 주소 (Solana USDT)</div>
+          <div class="wallet-address-box">
+            <span id="companyWalletAddr" data-i18n="depositAddrLoading" style="font-size:12px;">주소 로딩중...</span>
+            <button onclick="copyWalletAddress()" class="copy-btn" style="padding:8px 12px;font-size:12px">
+              <i class="fas fa-copy"></i>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="depositAmountLabel">입금 금액 (USDT)</label>
+          <input type="number" id="depositAmount" class="form-input" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="depositTxidLabel">TXID (트랜잭션 해시)</label>
+          <input type="text" id="depositTxid" class="form-input" placeholder="트랜잭션 해시 입력" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="depositMemoLabel">메모 (선택)</label>
+          <input type="text" id="depositMemo" class="form-input" placeholder="메모 입력 (선택)" />
+        </div>
+        <div class="warning-box" data-i18n="depositWarning">⚠️ 반드시 위 주소로 입금 후 TXID를 입력해주세요. 관리자 승인 후 잔액이 업데이트됩니다.</div>
+      </div><!-- /depPanelManual -->
+
+    </div><!-- /modal-body -->
+
+    <div class="modal-footer" id="depFooter">
+      <button class="btn btn-ghost" onclick="closeModal('depositModal')" style="flex:1">취소</button>
+      <!-- 수동 탭일 때만 표시 -->
+      <button class="btn btn-primary" id="depManualSubmitBtn" onclick="submitDeposit()" style="flex:2;display:none;">입금 신청</button>
     </div>
   </div>
 </div>
@@ -1545,6 +1636,11 @@ const HTML = () => `<!DOCTYPE html>
 
 <!-- Firebase SDK -->
 <script type="module" src="/static/firebase.js?v=${Date.now()}"></script>
+<!-- Solana Web3.js (CDN) — 지갑 연동용 -->
+<script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"
+  onload="window.solanaWeb3 = solanaWeb3;" onerror="console.warn('Solana Web3.js 로드 실패')"></script>
+<!-- Solana 지갑 연동 모듈 -->
+<script src="/static/js/solana-wallet.js?v=${Date.now()}"></script>
 <script src="/static/app.js?v=${Date.now()}"></script>
 </body>
 </html>`

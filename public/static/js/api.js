@@ -171,8 +171,109 @@ export class DedraAPI {
   }
 
   // ─────────────────────────────────────────────────
+  // 지갑 연동 입금 제출 + 온체인 검증 후 자동 승인
+  // ─────────────────────────────────────────────────
+  /**
+   * 회원이 Phantom/TokenPocket 으로 전송 완료 후 호출
+   * 1. Firestore에 pending 거래 저장
+   * 2. 온체인 검증 (Solana RPC)
+   * 3. 검증 성공 시 자동 승인 (approveDeposit 호출)
+   *
+   * @param {string} userId
+   * @param {string} userEmail
+   * @param {number} amount       USDT 금액
+   * @param {string} signature    Solana 트랜잭션 서명 해시
+   * @param {string} fromAddress  보낸 지갑 주소
+   * @param {string} toAddress    받는 지갑 주소 (회사)
+   */
+  async submitWalletDeposit(userId, userEmail, amount, signature, fromAddress, toAddress) {
+    try {
+      const db = this.db;
+
+      // 중복 서명 체크
+      const dupQ = await getDocs(query(
+        collection(db, 'transactions'),
+        where('txid', '==', signature),
+        limit(1)
+      ));
+      if (!dupQ.empty) throw new Error('이미 처리된 트랜잭션입니다');
+
+      // 1. Firestore에 거래 저장 (pending)
+      const txRef = await addDoc(collection(db, 'transactions'), {
+        userId, userEmail,
+        type:        'deposit',
+        amount:      parseFloat(amount),
+        currency:    'USDT',
+        txid:        signature,
+        fromAddress,
+        toAddress,
+        source:      'wallet_connect',  // 지갑 연동 입금 표시
+        status:      'pending',
+        createdAt:   serverTimestamp(),
+      });
+      const txId = txRef.id;
+
+      // 2. 온체인 검증 (Solana RPC)
+      const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
+      let verified = false;
+      let verifyError = '';
+
+      try {
+        // 최대 30초 대기 (블록 확인 시간)
+        for (let i = 0; i < 15; i++) {
+          const res = await fetch(SOLANA_RPC, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc:'2.0', id:1, method:'getTransaction',
+              params: [signature, { encoding:'jsonParsed', maxSupportedTransactionVersion:0 }]
+            })
+          });
+          const data = await res.json();
+          const tx = data?.result;
+          if (!tx) { await new Promise(r => setTimeout(r, 2000)); continue; }
+
+          // 에러 확인
+          if (tx.meta?.err) { verifyError = 'TX_ON_CHAIN_ERROR'; break; }
+
+          // SPL Transfer 검증
+          const instructions = tx?.transaction?.message?.instructions || [];
+          let found = false;
+          for (const ix of instructions) {
+            if (ix.program === 'spl-token' && ix.parsed?.type === 'transfer') {
+              const info = ix.parsed.info;
+              const actualAmt = parseFloat(info.tokenAmount?.uiAmount || (parseInt(info.amount || 0) / 1_000_000));
+              if (actualAmt >= amount * 0.999) { found = true; break; }
+            }
+          }
+          if (found) { verified = true; break; }
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      } catch(verErr) {
+        verifyError = verErr.message;
+      }
+
+      // 3. 검증 결과 처리
+      if (verified) {
+        // 자동 승인 (SYSTEM 계정으로)
+        await this.approveDeposit(txId, 'SYSTEM_AUTO_APPROVE');
+        await updateDoc(doc(db, 'transactions', txId), {
+          autoApproved: true, autoApprovedAt: serverTimestamp()
+        });
+        return ok({ txId, autoApproved: true, signature });
+      } else {
+        // 검증 실패 → pending 유지 (관리자 수동 확인)
+        await updateDoc(doc(db, 'transactions', txId), {
+          verifyFailed: true, verifyError, verifyAttemptedAt: serverTimestamp()
+        });
+        return ok({ txId, autoApproved: false, signature, verifyError });
+      }
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
   // 출금 처리
   // ─────────────────────────────────────────────────
+
   async approveWithdrawal(txId, adminId, txid) {
     try {
       const db = this.db;
