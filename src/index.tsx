@@ -832,56 +832,9 @@ const HTML = () => `<!DOCTYPE html>
       <div id="morePage" class="page">
         <div class="page-scroll">
 
-          <!-- 프로필 카드 -->
-          <div class="profile-card">
-            <div class="profile-avatar">👤</div>
-            <div class="profile-info">
-              <div class="profile-name" id="profileName">-</div>
-              <div class="profile-email" id="profileEmail">-</div>
-              <div class="profile-rank-badge" id="profileRank">
-                <i class="fas fa-star" style="font-size:10px"></i> G0
-              </div>
-            </div>
-          </div>
-
-          <!-- 지갑 섹션 -->
-          <div class="menu-section">
-            <div class="menu-section-title" data-i18n="walletSection">💰 지갑</div>
-            <div class="wallet-balance-card">
-              <!-- USDT 원금 (잠금) -->
-              <div class="wb-item">
-                <div class="wb-icon usdt-icon">₮</div>
-                <div class="wb-info">
-                  <div class="wb-label" data-i18n="usdtBalance">USDT 원금 (잠금)</div>
-                  <div class="wb-value" id="moreWalletUsdt">0.00 USDT</div>
-                  <div class="wb-sub" style="color:#f59e0b;">🔒 계약 만기 후 출금 가능</div>
-                </div>
-              </div>
-              <!-- 출금 가능 DDRA (수익) -->
-              <div class="wb-item" style="background:rgba(245,158,11,0.05);border-radius:12px;">
-                <div class="wb-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;font-size:18px;">💎</div>
-                <div class="wb-info">
-                  <div class="wb-label" style="color:#f59e0b;font-weight:600;">출금 가능 DDRA (수익)</div>
-                  <div class="wb-value" id="moreWalletBonus" style="color:#f59e0b;font-size:20px;font-weight:700;">0.00 DDRA</div>
-                  <div class="wb-sub" id="moreWalletBonusDdra" style="color:#94a3b8;">≈ $0.00 USDT</div>
-                </div>
-              </div>
-            </div>
-            <div class="wallet-action-row">
-              <button class="wallet-action-btn deposit" onclick="showDepositModal()">
-                <i class="fas fa-arrow-down"></i>
-                <span data-i18n="btnDeposit">USDT 입금</span>
-              </button>
-              <button class="wallet-action-btn withdraw" onclick="showWithdrawModal()">
-                <i class="fas fa-arrow-up"></i>
-                <span data-i18n="btnWithdraw">DDRA 출금</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 거래 내역 -->
-          <div class="menu-section">
-            <div class="menu-section-title" data-i18n="txHistory">📊 거래 내역</div>
+          <!-- 거래 내역 (상단) -->
+          <div class="menu-section" style="margin-top:0;padding-top:16px;">
+            <div class="menu-section-title large" data-i18n="txHistory">📊 거래 내역</div>
             <div class="tx-tabs">
               <button class="tx-tab active" onclick="switchTxTab('all', this)" data-i18n="txAll">전체</button>
               <button class="tx-tab" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
@@ -895,11 +848,15 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- 공지사항 -->
-          <div class="menu-section">
-            <div class="menu-section-title" data-i18n="moreAnnouncements">📢 공지사항</div>
-            <div id="moreAnnouncementList" class="announcement-list">
-              <div class="skeleton-item"></div>
+          <!-- 프로필 카드 -->
+          <div class="profile-card" style="margin-top:8px;">
+            <div class="profile-avatar">👤</div>
+            <div class="profile-info">
+              <div class="profile-name" id="profileName">-</div>
+              <div class="profile-email" id="profileEmail">-</div>
+              <div class="profile-rank-badge" id="profileRank">
+                <i class="fas fa-star" style="font-size:10px"></i> G0
+              </div>
             </div>
           </div>
 

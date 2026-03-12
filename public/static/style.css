@@ -531,20 +531,24 @@ body {
 .pin-badge { display: inline-block; background: var(--red); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
 
 /* ===== 거래 내역 ===== */
-.tx-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.tx-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 420px; overflow-y: auto; }
+.tx-list::-webkit-scrollbar { width: 4px; }
+.tx-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 .tx-item {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 13px 15px;
-  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 13px;
+  transition: background 0.18s;
 }
+.tx-item:active { background: var(--bg3); }
 
 .tx-icon {
-  width: 40px; height: 40px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px; flex-shrink: 0;
+  font-size: 20px; flex-shrink: 0;
 }
 .tx-icon.deposit { background: var(--green-light); }
 .tx-icon.withdrawal { background: var(--red-light); }
@@ -553,10 +557,11 @@ body {
 
 .tx-info { flex: 1; min-width: 0; }
 .tx-title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tx-date { font-size: 12px; color: var(--text3); margin-top: 2px; }
-.tx-amount { font-size: 15px; font-weight: 700; text-align: right; flex-shrink: 0; }
+.tx-date { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.tx-amount { font-size: 15px; font-weight: 700; text-align: right; flex-shrink: 0; line-height: 1.4; }
 .tx-amount.plus { color: var(--green); }
 .tx-amount.minus { color: var(--red); }
+.tx-amount-sub { font-size: 11px; color: var(--text3); font-weight: 400; display: block; text-align: right; }
 .tx-status { font-size: 11px; color: var(--text3); margin-top: 2px; text-align: right; }
 
 /* ===== 투자 탭 ===== */
@@ -1399,7 +1404,8 @@ body {
 
 /* 메뉴 목록 */
 .menu-section { margin-bottom: 16px; }
-.menu-section-title { font-size: 12px; color: var(--text3); font-weight: 700; margin-bottom: 8px; padding: 0 4px; letter-spacing: 0.5px; }
+.menu-section-title { font-size: 13px; color: var(--text3); font-weight: 700; margin-bottom: 10px; padding: 0 4px; letter-spacing: 0.5px; text-transform: uppercase; }
+.menu-section-title.large { font-size: 16px; color: var(--text); font-weight: 800; letter-spacing: 0; text-transform: none; margin-bottom: 12px; }
 
 .menu-list {
   background: var(--bg2); border: 1px solid var(--border);
@@ -1493,12 +1499,13 @@ body {
 .wallet-action-btn.withdraw { background: var(--red-light); color: #ef9a9a; border: 1px solid rgba(244,67,54,0.3); }
 .wallet-action-btn:active { transform: scale(0.97); }
 
-.tx-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.tx-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+.tx-tabs::-webkit-scrollbar { height: 0; }
 .tx-tab {
   padding: 8px 16px; border: none; background: var(--bg3);
   border-radius: 20px; font-size: 13px; font-weight: 600;
   color: var(--text3); cursor: pointer; transition: all 0.2s;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border); white-space: nowrap; flex-shrink: 0;
 }
 .tx-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 800; }
 
