@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEEDRA 개발 인수인계서</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    line-height: 1.7;
+  }
+  .cover {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1a1040 100%);
+    color: #fff;
+    padding: 60px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 60%);
+    animation: pulse 4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  .cover-inner { position: relative; z-index: 1; }
+  .cover h1 { font-size: 42px; font-weight: 900; letter-spacing: -1px; margin-bottom: 12px; }
+  .cover h1 span { color: #818cf8; }
+  .cover .subtitle { font-size: 18px; color: #94a3b8; margin-bottom: 24px; }
+  .cover .meta { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; }
+  .cover .meta-item { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 20px; font-size: 13px; }
+  .cover .meta-item strong { color: #a5b4fc; display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+
+  .toc-bar {
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 40px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .toc-bar a {
+    font-size: 12px;
+    color: #6366f1;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #eef2ff;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .toc-bar a:hover { background: #c7d2fe; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .section-block {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    padding: 32px 36px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-num {
+    background: #6366f1;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  h3 { font-size: 15px; font-weight: 700; color: #374151; margin: 20px 0 10px; }
+  h4 { font-size: 13px; font-weight: 700; color: #6366f1; margin: 14px 0 8px; }
+  p { font-size: 14px; color: #374151; margin-bottom: 10px; }
+  ul, ol { padding-left: 20px; margin-bottom: 12px; }
+  li { font-size: 14px; color: #374151; margin-bottom: 5px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  th {
+    background: #f1f5f9;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 700;
+    color: #475569;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  td { padding: 10px 14px; border-top: 1px solid #f1f5f9; color: #1e293b; }
+  tr:hover td { background: #fafafa; }
+
+  code {
+    background: #f1f5f9;
+    color: #4f46e5;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 20px 24px;
+    border-radius: 12px;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.8;
+    margin: 12px 0 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+  .badge-yellow { background: #fef9c3; color: #ca8a04; }
+  .badge-blue { background: #dbeafe; color: #2563eb; }
+  .badge-purple { background: #ede9fe; color: #7c3aed; }
+  .badge-gray { background: #f3f4f6; color: #6b7280; }
+
+  .url-card {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    padding: 18px 24px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .url-card .label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .url-card a { color: #fff; font-size: 15px; font-weight: 700; text-decoration: none; word-break: break-all; }
+  .url-card a:hover { text-decoration: underline; }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .info-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .info-item .key { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
+  .info-item .val { font-size: 14px; font-weight: 700; color: #1e293b; word-break: break-all; }
+
+  .alert {
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .alert-red { background: #fff1f2; border: 1px solid #fecaca; color: #991b1b; }
+  .alert-yellow { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .alert-blue { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .feature-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .feature-card .fc-title { font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+  .feature-card .fc-item { font-size: 12px; color: #6b7280; padding: 2px 0; display: flex; gap: 6px; }
+  .feature-card .fc-item::before { content: '✅'; flex-shrink: 0; }
+  .feature-card .fc-item.todo::before { content: '⬜'; }
+  .feature-card .fc-item.partial::before { content: '🔶'; }
+
+  .todo-list { list-style: none; padding: 0; }
+  .todo-list li {
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    border-left: 4px solid;
+    font-size: 13px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .todo-list li.high { background: #fff1f2; border-color: #ef4444; }
+  .todo-list li.mid { background: #fffbeb; border-color: #f59e0b; }
+  .todo-list li.low { background: #eff6ff; border-color: #3b82f6; }
+  .todo-list li .num { font-weight: 800; flex-shrink: 0; }
+
+  .file-tree {
+    background: #0f172a;
+    color: #94a3b8;
+    padding: 20px 24px;
+    border-radius: 12px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+  .file-tree .dir { color: #60a5fa; }
+  .file-tree .important { color: #fbbf24; }
+  .file-tree .comment { color: #4b5563; }
+
+  .flow-box {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 20px 24px;
+    border-radius: 12px;
+    font-family: monospace;
+    font-size: 12.5px;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+
+  .print-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 14px 22px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .print-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(99,102,241,0.5); }
+
+  @media print {
+    .toc-bar, .print-btn { display: none !important; }
+    .section-block { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 표지 -->
+<div class="cover">
+  <div class="cover-inner">
+    <h1>🔄 <span>DEEDRA</span> 개발 인수인계서</h1>
+    <p class="subtitle">MLM 기반 가상자산 투자 플랫폼 — 전체 개발 현황 및 인수인계</p>
+    <div class="meta">
+      <div class="meta-item"><strong>작성일</strong>2026-03-13</div>
+      <div class="meta-item"><strong>최종 커밋</strong>8267248</div>
+      <div class="meta-item"><strong>프로젝트</strong>deedra.pages.dev</div>
+      <div class="meta-item"><strong>개발 환경</strong>GenSpark AI Developer</div>
+    </div>
+  </div>
+</div>
+
+<!-- 목차 네비 -->
+<div class="toc-bar">
+  <strong style="font-size:12px;color:#374151;margin-right:4px;">목차:</strong>
+  <a href="#s1">① 개요</a>
+  <a href="#s2">② URL·계정</a>
+  <a href="#s3">③ 기술스택</a>
+  <a href="#s4">④ 인프라</a>
+  <a href="#s5">⑤ Firebase</a>
+  <a href="#s6">⑥ 파일구조</a>
+  <a href="#s7">⑦ DB구조</a>
+  <a href="#s8">⑧ 완료기능</a>
+  <a href="#s9">⑨ 미완성</a>
+  <a href="#s10">⑩ 정산로직</a>
+  <a href="#s11">⑪ 개발환경</a>
+  <a href="#s12">⑫ 배포</a>
+  <a href="#s13">⑬ 버그·주의</a>
+  <a href="#s14">⑭ 우선작업</a>
+</div>
+
+<div class="container">
+
+<!-- 1. 프로젝트 개요 -->
+<div class="section-block" id="s1">
+  <div class="section-title"><span class="section-num">1</span>프로젝트 개요</div>
+  <table>
+    <tr><th>항목</th><th>내용</th></tr>
+    <tr><td><strong>서비스명</strong></td><td>DEEDRA (디드라)</td></tr>
+    <tr><td><strong>종류</strong></td><td>MLM 기반 가상자산 투자 관리 플랫폼 (SPA)</td></tr>
+    <tr><td><strong>핵심 플로우</strong></td><td>USDT 입금 → FREEZE(투자) → 일일 ROI(DDRA 지급) → 카지노 게임 또는 USDT 출금</td></tr>
+    <tr><td><strong>MLM 구조</strong></td><td>추천인 코드 기반 최대 10레벨 유니레벨 보너스</td></tr>
+    <tr><td><strong>지원 언어</strong></td><td>한국어(ko), English(en), Tiếng Việt(vi), ภาษาไทย(th)</td></tr>
+    <tr><td><strong>코인 구조</strong></td><td>입금: USDT(TRC20) / 보상: DDRA(자체 코인, 현재 $0.5 고정)</td></tr>
+  </table>
+</div>
+
+<!-- 2. URL 및 계정 -->
+<div class="section-block" id="s2">
+  <div class="section-title"><span class="section-num">2</span>접속 URL 및 계정 정보</div>
+
+  <h3>🌐 서비스 URL</h3>
+  <div class="url-card">
+    <div><div class="label">🏠 회원 앱 (메인)</div><a href="https://deedra.pages.dev" target="_blank">https://deedra.pages.dev</a></div>
+    <span class="badge badge-green">운영중</span>
+  </div>
+  <div class="url-card" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+    <div><div class="label">🔐 관리자 패널</div><a href="https://deedra.pages.dev/admin" target="_blank">https://deedra.pages.dev/admin</a></div>
+    <span class="badge badge-red" style="background:rgba(255,255,255,0.2);color:#fff">Admin</span>
+  </div>
+  <div class="url-card" style="background:linear-gradient(135deg,#0f766e,#0d9488)">
+    <div><div class="label">🛠️ 초기 데이터 세팅</div><a href="https://deedra.pages.dev/setup" target="_blank">https://deedra.pages.dev/setup</a></div>
+  </div>
+
+  <h3>🔑 관리자 계정</h3>
+  <div class="alert alert-red">
+    <span class="alert-icon">⚠️</span>
+    <span>실서비스 전환 시 반드시 비밀번호를 변경하세요. 현재 계정 정보가 노출되면 보안 위협이 됩니다.</span>
+  </div>
+  <div class="info-grid">
+    <div class="info-item"><div class="key">이메일</div><div class="val">admin@deedra.com</div></div>
+    <div class="info-item"><div class="key">비밀번호</div><div class="val">Admin1234!</div></div>
+    <div class="info-item"><div class="key">Firebase 역할</div><div class="val">role: "admin"</div></div>
+  </div>
+
+  <h3>☁️ Cloudflare 계정</h3>
+  <div class="info-grid">
+    <div class="info-item"><div class="key">계정 이메일</div><div class="val">Zenesisgp500@gmail.com</div></div>
+    <div class="info-item"><div class="key">Account ID</div><div class="val" style="font-size:12px;">e35626e04599222b1df7a710e862cf91</div></div>
+    <div class="info-item"><div class="key">Pages 프로젝트명</div><div class="val">deedra</div></div>
+    <div class="info-item"><div class="key">배포 도메인</div><div class="val">deedra.pages.dev</div></div>
+  </div>
+</div>
+
+<!-- 3. 기술 스택 -->
+<div class="section-block" id="s3">
+  <div class="section-title"><span class="section-num">3</span>기술 스택</div>
+  <table>
+    <tr><th>레이어</th><th>기술</th><th>버전</th><th>비고</th></tr>
+    <tr><td>Edge 서버</td><td><strong>Hono</strong></td><td>v4.12.7</td><td>Cloudflare Workers 환경</td></tr>
+    <tr><td>프론트엔드</td><td><strong>Vanilla JS</strong></td><td>-</td><td>프레임워크 없음, 순수 JS</td></tr>
+    <tr><td>UI 스타일</td><td><strong>Custom CSS</strong></td><td>-</td><td>public/static/style.css</td></tr>
+    <tr><td>데이터베이스</td><td><strong>Firebase Firestore</strong></td><td>SDK v10.8.0</td><td>NoSQL, 클라이언트 직접 접근</td></tr>
+    <tr><td>인증</td><td><strong>Firebase Auth</strong></td><td>SDK v10.8.0</td><td>Email/Password</td></tr>
+    <tr><td>배포</td><td><strong>Cloudflare Pages</strong></td><td>-</td><td>엣지 배포</td></tr>
+    <tr><td>빌드</td><td><strong>Vite</strong></td><td>v6.3.5</td><td>SSR 번들 (~776KB)</td></tr>
+    <tr><td>차트</td><td><strong>Chart.js</strong></td><td>v4.4.0</td><td>CDN 로드</td></tr>
+    <tr><td>아이콘</td><td><strong>FontAwesome</strong></td><td>v6.4.0</td><td>CDN 로드</td></tr>
+    <tr><td>솔라나 지갑</td><td><strong>Phantom / TokenPocket</strong></td><td>-</td><td>solana-wallet.js</td></tr>
+  </table>
+</div>
+
+<!-- 4. 인프라 구성 -->
+<div class="section-block" id="s4">
+  <div class="section-title"><span class="section-num">4</span>서버·인프라 구성</div>
+  <div class="flow-box"><pre style="background:transparent;padding:0;margin:0;">
+[사용자 브라우저]
+       │  HTTPS
+       ▼
+[Cloudflare Pages]  ← 엣지 배포 (전 세계 CDN)
+   dist/_worker.js   (Hono 백엔드 - src/index.tsx 컴파일)
+   dist/static/      (정적 에셋)
+       │
+       ├── /           → 회원 SPA (5탭)
+       ├── /admin      → 관리자 패널 (admin.html)
+       ├── /setup      → 초기 데이터 세팅
+       └── /api/*      → Hono 라우트 (Firebase Auth 프록시)
+       │
+       ▼
+[Google Firebase] ← 프로젝트: dedra-mlm
+   - Authentication  (이메일/비밀번호 로그인)
+   - Firestore       (메인 DB, 모든 데이터)
+  </pre></div>
+  <div class="alert alert-blue" style="margin-top:14px;">
+    <span class="alert-icon">ℹ️</span>
+    <span><strong>중요:</strong> 모든 DB 쿼리는 <strong>클라이언트(브라우저)에서 직접 Firestore 호출</strong>합니다. 서버(Hono)는 주로 Firebase Auth REST 프록시 역할만 합니다. Firestore 보안 규칙으로 접근을 제어합니다. (<code>firestore.rules</code>)</span>
+  </div>
+</div>
+
+<!-- 5. Firebase 설정 -->
+<div class="section-block" id="s5">
+  <div class="section-title"><span class="section-num">5</span>Firebase 설정</div>
+
+  <h3>Firebase 프로젝트 정보</h3>
+  <div class="info-grid">
+    <div class="info-item"><div class="key">프로젝트 ID</div><div class="val">dedra-mlm</div></div>
+    <div class="info-item"><div class="key">authDomain</div><div class="val" style="font-size:12px;">dedra-mlm.firebaseapp.com</div></div>
+    <div class="info-item"><div class="key">콘솔 URL</div><div class="val" style="font-size:11px;"><a href="https://console.firebase.google.com/project/dedra-mlm" target="_blank">console.firebase.google.com</a></div></div>
+  </div>
+
+  <pre><code>// public/static/firebase.js 에 하드코딩됨
+const firebaseConfig = {
+  apiKey:            "AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8",
+  authDomain:        "dedra-mlm.firebaseapp.com",
+  projectId:         "dedra-mlm",
+  storageBucket:     "dedra-mlm.firebasestorage.app",
+  messagingSenderId: "990762022325",
+  appId:             "1:990762022325:web:1b238ef6eca4ffb4b795fc"
+};</code></pre>
+
+  <h3>⚠️ Firebase Auth 특이사항</h3>
+  <p>Cloudflare Pages 도메인이 Firebase Auth 도메인 허용목록에 없을 경우 <code>signInWithEmailAndPassword()</code>가 실패합니다.</p>
+  <p><strong>우회 방법</strong> (현재 적용됨): <code>signInWithCredential()</code> → 실패 시 Hono <code>/api/auth/login</code> REST 프록시로 폴백</p>
+</div>
+
+<!-- 6. 파일 구조 -->
+<div class="section-block" id="s6">
+  <div class="section-title"><span class="section-num">6</span>파일 구조 및 역할</div>
+  <div class="file-tree">
+<span class="dir">/home/user/webapp/</span>
+│
+├── <span class="dir">src/</span>
+│   ├── <span class="important">index.tsx</span>          ⭐ Hono 백엔드 + 회원 SPA HTML 렌더 (2,030줄)
+│   └── renderer.tsx       Hono 렌더러 헬퍼
+│
+├── <span class="dir">public/</span>
+│   ├── favicon.ico
+│   ├── manifest.json      <span class="comment">PWA 매니페스트</span>
+│   ├── setup.html         <span class="comment">초기 데이터 세팅 페이지</span>
+│   ├── sw.js              <span class="comment">Service Worker (PWA)</span>
+│   └── <span class="dir">static/</span>
+│       ├── <span class="important">admin.html</span>     ⭐ 관리자 패널 전체 (10,992줄 - 단일 파일)
+│       ├── <span class="important">app.js</span>         ⭐ 회원 앱 JS 로직 (4,917줄)
+│       ├── firebase.js    <span class="comment">Firebase 초기화 + 인증 유틸</span>
+│       ├── i18n.js        <span class="comment">다국어(ko/en/vi/th) 번역</span>
+│       ├── style.css      <span class="comment">회원 앱 스타일 (2,661줄)</span>
+│       ├── logo-banner.png
+│       ├── <span class="dir">img/</span>
+│       │   ├── usdt-coin.png  <span class="comment">USDT 코인 이미지</span>
+│       │   └── ddra-coin.png  <span class="comment">DDRA 코인 이미지</span>
+│       └── <span class="dir">js/</span>
+│           ├── <span class="important">api.js</span>         ⭐ DedraAPI 클래스 (2,513줄) - 모든 비즈니스 로직
+│           ├── api.js.bak2    <span class="comment">백업 (삭제 가능)</span>
+│           └── solana-wallet.js  <span class="comment">Phantom/TokenPocket 지갑 연동</span>
+│
+├── wrangler.jsonc         <span class="comment">Cloudflare 설정</span>
+├── vite.config.ts         <span class="comment">Vite 빌드 설정</span>
+├── package.json           <span class="comment">의존성</span>
+├── ecosystem.config.cjs   <span class="comment">PM2 로컬 개발 서버</span>
+├── firestore.rules        <span class="comment">Firestore 보안 규칙</span>
+└── firebase-adminsdk.json <span class="comment">Firebase Admin 키</span>
+  </div>
+
+  <h3>주요 파일 설명</h3>
+  <table>
+    <tr><th>파일</th><th>역할</th><th>라인수</th></tr>
+    <tr><td><code>src/index.tsx</code></td><td>Hono 백엔드 + 회원 앱 HTML 전체 렌더</td><td>2,030</td></tr>
+    <tr><td><code>public/static/app.js</code></td><td>회원 앱 JS (탭전환, Firestore CRUD, 게임 로직)</td><td>4,917</td></tr>
+    <tr><td><code>public/static/admin.html</code></td><td>관리자 패널 전체 (HTML+CSS+JS 단일파일)</td><td>10,992</td></tr>
+    <tr><td><code>public/static/js/api.js</code></td><td>DedraAPI 클래스 (모든 관리 비즈니스 로직)</td><td>2,513</td></tr>
+    <tr><td><code>public/static/style.css</code></td><td>회원 앱 전체 스타일</td><td>2,661</td></tr>
+    <tr><td><code>public/static/i18n.js</code></td><td>4개 언어 번역 사전</td><td>-</td></tr>
+    <tr><td><code>public/static/js/solana-wallet.js</code></td><td>Phantom/TokenPocket 지갑 연동</td><td>352</td></tr>
+    <tr><td><code>firestore.rules</code></td><td>Firestore 보안 규칙 (Firebase 콘솔에도 동기화 필요)</td><td>-</td></tr>
+  </table>
+</div>
+
+<!-- 7. DB 구조 -->
+<div class="section-block" id="s7">
+  <div class="section-title"><span class="section-num">7</span>Firestore 데이터 구조</div>
+
+  <h3>컬렉션 목록</h3>
+  <table>
+    <tr><th>컬렉션</th><th>용도</th><th>주요 필드</th></tr>
+    <tr><td><code>users</code></td><td>회원 정보</td><td>email, name, role, rank(G0~G10), referralCode, referredBy, pin</td></tr>
+    <tr><td><code>wallets</code></td><td>지갑 (userId=문서ID)</td><td>usdtBalance, bonusBalance, deedraBalance, totalEarnings</td></tr>
+    <tr><td><code>investments</code></td><td>FREEZE 투자 기록</td><td>userId, amount, roiPercent, status(active/completed), startDate, endDate</td></tr>
+    <tr><td><code>transactions</code></td><td>입출금 내역</td><td>userId, type(deposit/withdrawal), amount, status(pending/approved/rejected), txid</td></tr>
+    <tr><td><code>bonuses</code></td><td>보너스 지급 이력</td><td>userId, fromUserId, type, amount, rate, level, settlementDate</td></tr>
+    <tr><td><code>products</code></td><td>투자 상품</td><td>name, baseRate, minAmount, maxAmount, durationDays, isActive</td></tr>
+    <tr><td><code>settings</code></td><td>시스템 설정</td><td>rates 문서: dedraRate, unilevelRates[], enableDirectBonus, ...</td></tr>
+    <tr><td><code>notifications</code></td><td>회원 알림 (실시간)</td><td>userId, type, message, isRead, createdAt</td></tr>
+    <tr><td><code>announcements</code></td><td>공지사항</td><td>title, content, isPinned, isActive</td></tr>
+    <tr><td><code>tickets</code></td><td>1:1 문의</td><td>userId, title, content, status, adminReply</td></tr>
+    <tr><td><code>gamelogs</code></td><td>카지노 게임 기록</td><td>userId, gameName, betAmount, win, winAmount, result</td></tr>
+    <tr><td><code>auditLogs</code></td><td>관리자 작업 이력</td><td>adminId, action, targetId, detail, createdAt</td></tr>
+    <tr><td><code>settlements</code></td><td>일일 ROI 정산 기록</td><td>date, adminId, totalRoi, totalBonus, processedCount</td></tr>
+    <tr><td><code>centers</code></td><td>센터(지사)</td><td>name, leaderId, leaderName, memberCount</td></tr>
+    <tr><td><code>rateHistory</code></td><td>DDRA 시세 변경 이력</td><td>price, adminId, createdAt</td></tr>
+  </table>
+
+  <h3>bonus type 값 목록</h3>
+  <table>
+    <tr><th>type 값</th><th>의미</th></tr>
+    <tr><td><code>roi_income</code></td><td>일일 ROI 수익</td></tr>
+    <tr><td><code>direct_bonus</code></td><td>직접 추천 보너스 (1대/2대)</td></tr>
+    <tr><td><code>unilevel_bonus</code></td><td>유니레벨 보너스</td></tr>
+    <tr><td><code>direct2gen_bonus</code></td><td>직접 2세대 고정 보너스</td></tr>
+    <tr><td><code>rank_gap_bonus</code></td><td>직급차 풀 보너스</td></tr>
+    <tr><td><code>rank_gap_passthru</code></td><td>직급차 패스스루 보너스</td></tr>
+    <tr><td><code>manual_bonus</code></td><td>관리자 수동 지급</td></tr>
+  </table>
+</div>
+
+<!-- 8. 완료된 기능 -->
+<div class="section-block" id="s8">
+  <div class="section-title"><span class="section-num">8</span>완료된 기능 목록</div>
+
+  <h3>회원 앱 (5탭 SPA)</h3>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="fc-title">🏠 홈 탭</div>
+      <div class="fc-item">Firebase 이메일/비밀번호 로그인</div>
+      <div class="fc-item">회원가입 (추천인 코드 필수)</div>
+      <div class="fc-item">비밀번호 재설정 이메일</div>
+      <div class="fc-item">총 자산 카드 (USDT+원화 환산)</div>
+      <div class="fc-item">USDT 코인 이미지 (총자산 우측)</div>
+      <div class="fc-item">DDRA 코인 이미지 (출금가능 탭)</div>
+      <div class="fc-item">USDT 입금 모달 (QR코드)</div>
+      <div class="fc-item">DDRA 출금 모달 (PIN 인증)</div>
+      <div class="fc-item">DDRA 현재 시세 표시</div>
+      <div class="fc-item">D-Day 투자 카드</div>
+      <div class="fc-item">공지사항 목록 (상단 고정)</div>
+      <div class="fc-item">최근 거래 내역 3건</div>
+      <div class="fc-item">실시간 알림 (onSnapshot)</div>
+      <div class="fc-item">다국어 전환 (ko/en/vi/th)</div>
+    </div>
+    <div class="feature-card">
+      <div class="fc-title">💼 투자 탭</div>
+      <div class="fc-item">투자 상품 목록 (동적 로드)</div>
+      <div class="fc-item">수익 시뮬레이터</div>
+      <div class="fc-item">FREEZE 투자 신청 모달</div>
+      <div class="fc-item">활성 투자 목록 (진행바)</div>
+      <div class="fc-item">만기 투자 자동 완료 처리</div>
+    </div>
+    <div class="feature-card">
+      <div class="fc-title">🌐 네트워크 탭</div>
+      <div class="fc-item">직접 추천 회원 목록</div>
+      <div class="fc-item">추천 코드 복사/공유</div>
+      <div class="fc-item">직급 현황 및 승급 조건</div>
+      <div class="fc-item">총 네트워크 보너스 수령액</div>
+      <div class="fc-item">조직도 (1세대 트리뷰)</div>
+    </div>
+    <div class="feature-card">
+      <div class="fc-title">🎮 플레이 탭 (카지노)</div>
+      <div class="fc-item">홀짝 게임</div>
+      <div class="fc-item">주사위 게임 (1~6 숫자)</div>
+      <div class="fc-item">슬롯 머신 (5릴)</div>
+      <div class="fc-item">바카라</div>
+      <div class="fc-item">룰렛 (숫자/색상 베팅)</div>
+      <div class="fc-item">포커 (5카드 드로우)</div>
+      <div class="fc-item">게임 배당률 관리자 연동</div>
+      <div class="fc-item">게임 잔액 = DDRA(bonusBalance)</div>
+    </div>
+    <div class="feature-card">
+      <div class="fc-title">☰ 더보기 탭</div>
+      <div class="fc-item">거래 내역 (필터: ROI/입금/출금)</div>
+      <div class="fc-item">프로필 수정 (이름, PIN)</div>
+      <div class="fc-item">언어 설정</div>
+      <div class="fc-item">로그아웃</div>
+    </div>
+  </div>
+
+  <h3>관리자 패널 (20개 섹션)</h3>
+  <table>
+    <tr><th>메뉴</th><th>완료 기능</th></tr>
+    <tr><td>📊 대시보드</td><td>총 회원수, 입금/출금 합계, 활성 투자, 오늘 보너스, 월별 차트</td></tr>
+    <tr><td>📈 통계 차트</td><td>월별 입금/출금/보너스 추이 Chart.js</td></tr>
+    <tr><td>👥 회원 관리</td><td>검색, 상세보기, 지갑 조정, 직급 변경, 정보 수정, 비밀번호 리셋</td></tr>
+    <tr><td>🌐 조직 구조도</td><td>트리 구조 시각화 (무한 뎁스)</td></tr>
+    <tr><td>🏆 직급 모니터</td><td>직급별 인원 현황, 자동/수동 승급</td></tr>
+    <tr><td>🏢 센터 관리</td><td>센터 생성/삭제, 센터장 임명/해제</td></tr>
+    <tr><td>💰 입금 관리</td><td>대기/승인/거절 탭, 승인 시 자동 보너스 정산</td></tr>
+    <tr><td>💸 출금 관리</td><td>대기/처리/거절 탭, 출금 승인/거절</td></tr>
+    <tr><td>🎁 보너스 지급</td><td>수동 보너스, 일일 ROI 정산 (수동 실행)</td></tr>
+    <tr><td>🛍️ 상품 관리</td><td>FREEZE 상품 생성/수정/삭제, 이율 설정</td></tr>
+    <tr><td>📐 이율 관리</td><td>유니레벨/직접추천/센터피 등 전체 보너스 정책 설정</td></tr>
+    <tr><td>💼 투자 관리</td><td>활성/만료 투자 목록, 강제 완료</td></tr>
+    <tr><td>📢 공지사항</td><td>생성/수정/삭제, 상단 고정</td></tr>
+    <tr><td>📰 뉴스</td><td>생성/수정/삭제</td></tr>
+    <tr><td>📣 푸시 발송</td><td>즉시/예약 발송, 특정 회원/전체 발송</td></tr>
+    <tr><td>💬 1:1 문의</td><td>문의 목록, 답변, 완료 처리</td></tr>
+    <tr><td>🎮 게임 로그</td><td>게임별 결과 로그, 손익 집계</td></tr>
+    <tr><td>📋 감사 로그</td><td>관리자 작업 전체 이력</td></tr>
+    <tr><td>⚙️ 시스템 설정</td><td>사이트명, 입금 주소, 수수료, DDRA 시세, 직급 조건</td></tr>
+    <tr><td>🔍 ID 분석 리포트 ⭐최신</td><td>차트, 시뮬레이션, 반대방향 분석, PDF/엑셀 내보내기</td></tr>
+  </table>
+
+  <h3>🔍 ID 분석 리포트 상세 (최신 완성 기능)</h3>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="fc-title">분석 섹션</div>
+      <div class="fc-item">섹션A: 회원 기본 정보 (UID, 직급, 추천인)</div>
+      <div class="fc-item">섹션B: 지갑 잔액 현황</div>
+      <div class="fc-item">섹션C: 활성 FREEZE 및 데일리 ROI</div>
+      <div class="fc-item">섹션D: 상위 체인 보너스 자격 (Lv1~10)</div>
+      <div class="fc-item">섹션E: 보너스 발생 시뮬레이션</div>
+      <div class="fc-item">섹션F: 반대방향 분석 (산하에서 수령)</div>
+      <div class="fc-item">섹션G: 특정 날짜 수령 보너스</div>
+      <div class="fc-item">섹션H: 산하 네트워크 (1~3세대)</div>
+      <div class="fc-item">섹션I: 최근 N일 추이 차트 (Chart.js)</div>
+    </div>
+    <div class="feature-card">
+      <div class="fc-title">추가 기능</div>
+      <div class="fc-item">이메일/추천코드/UID/이름 검색</div>
+      <div class="fc-item">날짜 기준 시뮬레이션 (달력 선택)</div>
+      <div class="fc-item">7/14/30/60/90일 추이 선택</div>
+      <div class="fc-item">엑셀 내보내기 (CSV+BOM)</div>
+      <div class="fc-item">PDF 내보내기 (인쇄 다이얼로그)</div>
+    </div>
+  </div>
+</div>
+
+<!-- 9. 미완성 -->
+<div class="section-block" id="s9">
+  <div class="section-title"><span class="section-num">9</span>미완성·개선 필요 항목</div>
+
+  <h3>🔴 높은 우선순위</h3>
+  <ul class="todo-list">
+    <li class="high"><span class="num">1</span><div><strong>자동 일일 ROI 정산 (Cron) 미구현</strong><br>현재 관리자가 매일 수동으로 "일일 ROI 정산" 버튼 클릭 필요. Cloudflare Workers Cron Trigger로 자동화 가능.</div></li>
+    <li class="high"><span class="num">2</span><div><strong>TRC20 입금 자동 감지 미구현</strong><br>현재 관리자 수동 승인 필요. TronScan API 폴링 또는 웹훅으로 자동화 필요.</div></li>
+    <li class="high"><span class="num">3</span><div><strong>솔라나 지갑 UI 연결 미완성</strong><br><code>solana-wallet.js</code> 완성 상태이나 회원 앱 입금 모달과 실제 연결 안 됨. 연결 코드 작성 필요.</div></li>
+  </ul>
+
+  <h3>🟡 중간 우선순위</h3>
+  <ul class="todo-list">
+    <li class="mid"><span class="num">4</span><div><strong>회원 대시보드 UI 개선</strong><br>거래내역 스크롤 방식, ROI 수익 강조 표시, 보너스 내역 시각화 강화</div></li>
+    <li class="mid"><span class="num">5</span><div><strong>관리자 알림 실시간화</strong><br>현재 30초 폴링 → Firestore onSnapshot 실시간 리스너로 전환 권장</div></li>
+    <li class="mid"><span class="num">6</span><div><strong>다국어 번역 검수</strong><br>en/vi/th 번역 일부 누락 또는 자동번역 수준. 전문가 검수 필요.</div></li>
+    <li class="mid"><span class="num">7</span><div><strong>관리자 패널 모바일 대응</strong><br>admin.html은 데스크탑 전용. 반응형 CSS 추가 필요.</div></li>
+  </ul>
+
+  <h3>🟢 낮은 우선순위</h3>
+  <ul class="todo-list">
+    <li class="low"><span class="num">8</span><div><strong>DDRA 실시간 시세 연동</strong><br>현재 $0.5 고정 수동 관리. Raydium/Jupiter DEX API 연동 구현 필요.</div></li>
+    <li class="low"><span class="num">9</span><div><strong>게임 Provably Fair 구현</strong><br>현재 Math.random() 기반. 서버 시드 기반 공정성 검증 시스템 미구현.</div></li>
+    <li class="low"><span class="num">10</span><div><strong>코드 분리·리팩토링</strong><br>admin.html(10,992줄), app.js(4,917줄) 모듈화 권장. 유지보수성 향상 필요.</div></li>
+  </ul>
+</div>
+
+<!-- 10. 정산 로직 -->
+<div class="section-block" id="s10">
+  <div class="section-title"><span class="section-num">10</span>보너스 정산 로직 상세</div>
+
+  <h3>정산 흐름</h3>
+  <div class="flow-box"><pre style="background:transparent;padding:0;margin:0;">
+관리자 "일일 ROI 정산" 버튼 클릭
+  └→ api.js: runDailyROISettlement(adminId, targetDateStr)
+       ├→ [중복 방지] settlements 컬렉션에서 당일 정산 여부 확인
+       ├→ [데이터 로드] 모든 active 상태의 investments 조회
+       ├→ [각 투자별 처리]
+       │    ├→ 만기 체크 (만기 시 status = 'completed')
+       │    ├→ 지급 패턴 체크 (daily / weekday / custom)
+       │    ├→ D = amount × (roiPercent / 100)  ← 일일 ROI 금액
+       │    ├→ wallet.bonusBalance += D  (ROI 지급)
+       │    ├→ bonuses 컬렉션: { type:'roi_income', amount:D }
+       │    │
+       │    ├→ _processUnilevelBonus(D)
+       │    │    └→ 상위 추천인 최대 10단계 순회
+       │    │       G0 제외, 각 레벨별 요율 × D 지급
+       │    │
+       │    ├→ _processDirectBonus2Gen(D)  ← 설정 enableDirectBonus2Gen=true 시
+       │    │    └→ 1대: directBonus2GenRate1%, 2대: directBonus2GenRate2%
+       │    │
+       │    ├→ _processCenterFee(D)  ← 설정 enableCenterFee=true 시
+       │    │    └→ 해당 센터장에게 centerFeeRate% 지급
+       │    │
+       │    └→ _processRankGapBonus(D)  ← 설정 enableRankGapBonus=true 시
+       │         └→ 직급차 × ratePerStep% 풀 분배
+       │
+       └→ settlements 컬렉션에 정산 기록 저장
+  </pre></div>
+
+  <h3>직급 시스템</h3>
+  <table>
+    <tr><th>직급</th><th>코드</th><th>보너스 수령</th></tr>
+    <tr><td>일반</td><td><span class="badge badge-gray">G0</span></td><td>❌ 자격 없음</td></tr>
+    <tr><td>1직급</td><td><span class="badge badge-green">G1</span></td><td>✅ 수령 가능</td></tr>
+    <tr><td>2~9직급</td><td><span class="badge badge-blue">G2~G9</span></td><td>✅ 수령 가능</td></tr>
+    <tr><td>최고 직급</td><td><span class="badge badge-purple">G10</span></td><td>✅ 수령 가능</td></tr>
+  </table>
+
+  <h3>기본 보너스 요율 (settings/rates)</h3>
+  <table>
+    <tr><th>레벨</th><th>유형</th><th>기본 요율</th></tr>
+    <tr><td>Lv1</td><td>직접 추천 1대</td><td>5%</td></tr>
+    <tr><td>Lv2</td><td>직접 추천 2대</td><td>2%</td></tr>
+    <tr><td>Lv1~Lv10</td><td>유니레벨</td><td>10%, 7%, 5%, 4%, 3%, 2%, 2%, 1%, 1%, 1%</td></tr>
+  </table>
+</div>
+
+<!-- 11. 개발 환경 -->
+<div class="section-block" id="s11">
+  <div class="section-title"><span class="section-num">11</span>개발 환경 세팅 방법</div>
+
+  <h3>전제 조건</h3>
+  <ul>
+    <li>Node.js 18+ 설치</li>
+    <li>npm 설치</li>
+    <li>Cloudflare 계정 및 API 토큰</li>
+    <li>Firebase 프로젝트 <code>dedra-mlm</code> 접근 권한</li>
+  </ul>
+
+  <h3>1단계: 코드 준비</h3>
+  <pre><code># 방법 A: Git 저장소에서 클론
+git clone https://github.com/[저장소주소].git
+cd webapp
+
+# 방법 B: 백업 tar.gz 파일에서 복구
+tar -xzf deedra_backup.tar.gz -C /원하는경로/
+cd /원하는경로/webapp</code></pre>
+
+  <h3>2단계: 의존성 설치</h3>
+  <pre><code>npm install</code></pre>
+
+  <h3>3단계: 로컬 개발 서버 실행</h3>
+  <pre><code># 빌드 먼저
+npm run build
+
+# PM2로 wrangler dev 서버 실행 (포트 3000)
+pm2 start ecosystem.config.cjs
+
+# 또는 직접 실행
+npx wrangler pages dev dist --ip 0.0.0.0 --port 3000
+
+# 상태 확인
+curl http://localhost:3000
+pm2 logs webapp --nostream</code></pre>
+
+  <h3>4단계: 접속 확인</h3>
+  <table>
+    <tr><th>화면</th><th>URL</th></tr>
+    <tr><td>회원 앱</td><td><code>http://localhost:3000</code></td></tr>
+    <tr><td>관리자</td><td><code>http://localhost:3000/admin</code></td></tr>
+    <tr><td>초기설정</td><td><code>http://localhost:3000/setup</code></td></tr>
+  </table>
+</div>
+
+<!-- 12. 배포 -->
+<div class="section-block" id="s12">
+  <div class="section-title"><span class="section-num">12</span>배포 방법</div>
+
+  <h3>Cloudflare Pages 배포</h3>
+  <pre><code># 환경 변수 설정
+export CLOUDFLARE_API_TOKEN=[토큰값]
+# Account ID: e35626e04599222b1df7a710e862cf91
+
+# 빌드
+npm run build
+
+# 배포
+npx wrangler pages deploy dist --project-name deedra
+
+# 접속 확인
+curl https://deedra.pages.dev</code></pre>
+
+  <h3>Firebase 보안 규칙 배포</h3>
+  <pre><code># Firebase CLI 설치 (최초 1회)
+npm install -g firebase-tools
+firebase login
+
+# 규칙 배포
+firebase deploy --only firestore:rules --project dedra-mlm</code></pre>
+
+  <h3>자주 쓰는 명령어</h3>
+  <pre><code># 빌드
+cd /home/user/webapp && npm run build
+
+# 배포
+npx wrangler pages deploy dist --project-name deedra
+
+# PM2 관리
+pm2 start ecosystem.config.cjs
+pm2 logs webapp --nostream
+pm2 restart webapp
+pm2 delete all
+
+# 포트 정리
+fuser -k 3000/tcp 2>/dev/null || true
+
+# Git
+git log --oneline -10
+git status
+git add -A && git commit -m "메시지"</code></pre>
+</div>
+
+<!-- 13. 버그·주의 -->
+<div class="section-block" id="s13">
+  <div class="section-title"><span class="section-num">13</span>알려진 버그·주의사항</div>
+
+  <div class="alert alert-red">
+    <span class="alert-icon">🚨</span>
+    <div><strong>절대 하지 말 것: Firestore 복합 쿼리</strong><br>
+    <code>where + orderBy</code> 조합은 복합 인덱스가 없으면 에러 발생!<br>
+    반드시 <strong>단일 where만 사용</strong>하고 정렬은 <strong>JS에서 처리</strong>하세요.</div>
+  </div>
+
+  <pre><code>// ❌ 금지 - Firestore 인덱스 에러 발생
+query(collection(db,'bonuses'), where('userId','==',uid), orderBy('createdAt','desc'))
+
+// ✅ 올바른 방법 - 단일 where + JS 정렬
+const snap = await getDocs(query(collection(db,'bonuses'), where('userId','==',uid)));
+const sorted = snap.docs.map(d => d.data())
+  .sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));</code></pre>
+
+  <div class="alert alert-yellow">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>admin.html 수정 후 반드시 빌드 필요</strong><br>
+    <code>public/static/admin.html</code> 수정 → <code>npm run build</code> → <code>npx wrangler pages deploy dist</code></div>
+  </div>
+
+  <h3>알려진 버그 목록</h3>
+  <table>
+    <tr><th>버그</th><th>영향 범위</th><th>상태</th></tr>
+    <tr><td>Firebase Auth 도메인 미등록 시 로그인 실패</td><td>로컬 개발 환경</td><td><span class="badge badge-green">우회 처리됨</span></td></tr>
+    <tr><td>구형 iOS Safari에서 structuredClone 오류</td><td>게임 로직 일부</td><td><span class="badge badge-red">미수정</span></td></tr>
+    <tr><td>조직도 100명 이상 시 렌더 느림</td><td>관리자 조직도</td><td><span class="badge badge-yellow">미최적화</span></td></tr>
+    <tr><td>게임 오즈 첫 로드 시 기본값 적용 지연</td><td>카지노 탭</td><td><span class="badge badge-red">미수정</span></td></tr>
+  </table>
+</div>
+
+<!-- 14. 우선 작업 -->
+<div class="section-block" id="s14">
+  <div class="section-title"><span class="section-num">14</span>다음 개발자 우선 작업 권고</div>
+
+  <h3>🔴 즉시 처리 (1순위)</h3>
+  <pre><code>1. 자동 일일 ROI 정산 (Cron Trigger)
+   → wrangler.jsonc에 triggers.crons 추가
+   → src/index.tsx에 /scheduled 핸들러 구현
+   → 매일 자정(UTC) 실행
+   
+   // wrangler.jsonc 추가 예시:
+   "triggers": {
+     "crons": ["0 0 * * *"]  // 매일 00:00 UTC
+   }
+
+2. TRC20 입금 자동 감지
+   → TronScan API: https://api.trongrid.io/v1/accounts/{address}/transactions/trc20
+   → 폴링 주기: 1~5분
+   → 확인 후 transactions 컬렉션 자동 생성 → approveDeposit() 호출
+
+3. 솔라나 지갑 실제 연결
+   → public/static/js/solana-wallet.js 완성 상태
+   → src/index.tsx의 입금 모달 UI에서 window.SolanaWallet.connect() 호출 연결</code></pre>
+
+  <h3>🟡 단기 처리 (2순위)</h3>
+  <pre><code>4. 관리자 알림 onSnapshot 전환
+   → 현재: setInterval(loadAdminNotifications, 30000)
+   → 변경: onSnapshot(query(collection(db,'notifications'),...), callback)
+
+5. 다국어 번역 검수
+   → public/static/i18n.js 파일
+   → en/vi/th 키 누락분 채우기
+
+6. 회원 대시보드 UI 개선
+   → app.js: loadTxHistory() 함수 개선
+   → 무한 스크롤 또는 "더보기" UX 개선</code></pre>
+
+  <h3>🟢 중장기 (3순위)</h3>
+  <pre><code>7. DDRA 실시간 시세 연동 (Raydium/Jupiter DEX API)
+8. 게임 Provably Fair 구현 (서버 시드 기반)
+9. 관리자 패널 반응형 CSS 추가
+10. 코드 분리 리팩토링 (admin.html 10,992줄 → 모듈화)</code></pre>
+</div>
+
+<!-- 마지막 노트 -->
+<div style="background:linear-gradient(135deg,#1e293b,#0f172a);color:#e2e8f0;border-radius:16px;padding:28px 32px;text-align:center;margin-bottom:28px;">
+  <div style="font-size:28px;margin-bottom:10px;">🤝</div>
+  <div style="font-size:18px;font-weight:700;margin-bottom:8px;">수고 많으셨습니다!</div>
+  <div style="font-size:14px;color:#94a3b8;line-height:1.8;">
+    이 인수인계서는 2026-03-13 기준으로 작성되었습니다.<br>
+    최종 커밋: <code style="background:rgba(255,255,255,0.1);padding:2px 8px;border-radius:5px;">8267248</code> — fix: exportBtns 이중 style 속성 수정 + v2 ID분석리포트 최종<br><br>
+    Firebase 프로젝트: <strong>dedra-mlm</strong> | Cloudflare 계정: <strong>Zenesisgp500@gmail.com</strong>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- 출력/다운로드 버튼 -->
+<button class="print-btn" onclick="window.print()">
+  🖨️ PDF로 저장
+</button>
+
+<script>
+  // 부드러운 스크롤
+  document.querySelectorAll('.toc-bar a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>
