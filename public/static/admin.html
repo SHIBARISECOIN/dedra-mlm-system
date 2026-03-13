@@ -3209,22 +3209,57 @@ canvas{width:100% !important;}
     ══════════════════════════════ -->
     <div id="idreportPage" class="page">
       <div class="page-title">🔍 ID 분석 리포트</div>
-      <div class="page-desc">회원 ID를 입력하면 현재 직급·데일리 수익·산하 보너스 흐름을 상세히 분석합니다.</div>
+      <div class="page-desc">회원 ID를 입력하면 직급·데일리 수익·보너스 흐름·산하 네트워크를 상세히 분석합니다.</div>
 
-      <!-- 검색 박스 -->
-      <div style="max-width:680px;margin-bottom:24px;">
-        <div style="display:flex;gap:10px;align-items:center;">
-          <input id="idreportInput" type="text" placeholder="회원 ID (이메일, 추천코드, UID 모두 가능)"
-            style="flex:1;padding:12px 16px;border-radius:10px;border:1.5px solid #d1d5db;background:#fff;color:#111827;font-size:14px;outline:none;position:relative;z-index:1;pointer-events:auto;"
+      <!-- 검색 + 옵션 박스 -->
+      <div style="max-width:860px;margin-bottom:20px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+        <!-- 검색 행 -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+          <input id="idreportInput" type="text" placeholder="회원 ID (이메일, 추천코드, UID, 이름 모두 가능)"
+            style="flex:1;padding:12px 16px;border-radius:10px;border:1.5px solid #d1d5db;background:#fff;color:#111827;font-size:14px;outline:none;"
             onkeydown="if(event.key==='Enter')runIdReport()"
           />
           <button onclick="runIdReport()"
             style="padding:12px 24px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap;">
-            분석 실행
+            🔍 분석 실행
           </button>
         </div>
-        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">
-          예) world1 · khubank888 · abc@email.com · REF12345
+        <!-- 옵션 행 -->
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:12px;color:#6b7280;font-weight:600;">📅 기준 날짜</label>
+            <input id="idreportDate" type="date"
+              style="padding:6px 10px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#111827;font-size:13px;outline:none;"
+            />
+            <button onclick="document.getElementById('idreportDate').value='';runIdReport()"
+              style="padding:5px 10px;border-radius:7px;background:#f3f4f6;border:1px solid #e5e7eb;color:#6b7280;font-size:12px;cursor:pointer;">
+              오늘
+            </button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-size:12px;color:#6b7280;font-weight:600;">📊 추이 일수</label>
+            <select id="idreportDays"
+              style="padding:6px 10px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#111827;font-size:13px;outline:none;">
+              <option value="7">7일</option>
+              <option value="14">14일</option>
+              <option value="30" selected>30일</option>
+              <option value="60">60일</option>
+              <option value="90">90일</option>
+            </select>
+          </div>
+          <div style="margin-left:auto;display:none;gap:8px;" id="idreportExportBtns">
+            <button onclick="exportIdReportExcel()"
+              style="padding:7px 14px;border-radius:8px;background:#10b981;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:600;">
+              📥 엑셀 저장
+            </button>
+            <button onclick="exportIdReportPDF()"
+              style="padding:7px 14px;border-radius:8px;background:#ef4444;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:600;">
+              📄 PDF 저장
+            </button>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:#9ca3af;">
+          예) world1 · khubank888 · abc@email.com · REF12345 &nbsp;|&nbsp; 날짜를 지정하면 해당 날짜 기준 시뮬레이션
         </div>
       </div>
 
@@ -10511,18 +10546,26 @@ function startAdminNotifPolling() {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  ID 분석 리포트  (runIdReport)
+//  ID 분석 리포트  (runIdReport) — v2 : 차트 + 날짜시뮬 + 반대방향 + 내보내기
 // ══════════════════════════════════════════════════════════════
+let _idReportData = null;  // 내보내기용 캐시
+
 window.runIdReport = async function() {
-  const raw = (document.getElementById('idreportInput').value || '').trim();
-  const out = document.getElementById('idreportResult');
+  const raw  = (document.getElementById('idreportInput').value || '').trim();
+  const out  = document.getElementById('idreportResult');
+  const exportBtns = document.getElementById('idreportExportBtns');
   if (!raw) { out.innerHTML = '<div class="inline-alert inline-alert-error">ID를 입력하세요.</div>'; return; }
+
+  const dateInput = document.getElementById('idreportDate').value; // YYYY-MM-DD or ''
+  const days      = parseInt(document.getElementById('idreportDays').value) || 30;
+  const targetDateStr = dateInput || new Date().toISOString().slice(0,10);
 
   out.innerHTML = `<div style="padding:40px;text-align:center;color:#6b7280;">
     <i class="fas fa-spinner fa-spin" style="font-size:28px;margin-bottom:12px;display:block;"></i>분석 중…</div>`;
+  if (exportBtns) exportBtns.style.display = 'none';
 
   try {
-    // ── 1. 회원 검색 ──
+    // ── 1. 전체 회원 로드 ──
     const usersSnap = await getDocs(collection(db, 'users'));
     const allUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     const userMap   = Object.fromEntries(allUsers.map(u => [u.id, u]));
@@ -10530,148 +10573,142 @@ window.runIdReport = async function() {
     const needle = raw.toLowerCase();
     const target = allUsers.find(u =>
       u.id === raw ||
-      (u.email || '').toLowerCase() === needle ||
-      (u.referralCode || '').toLowerCase() === needle ||
-      (u.name || '').toLowerCase() === needle ||
-      (u.username || '').toLowerCase() === needle
+      (u.email||'').toLowerCase()===needle ||
+      (u.referralCode||'').toLowerCase()===needle ||
+      (u.name||'').toLowerCase()===needle ||
+      (u.username||'').toLowerCase()===needle
     );
-
     if (!target) {
-      out.innerHTML = `<div class="inline-alert inline-alert-error">
-        ⚠️ "<b>${raw}</b>" 에 해당하는 회원을 찾을 수 없습니다.</div>`;
+      out.innerHTML = `<div class="inline-alert inline-alert-error">⚠️ "<b>${raw}</b>" 에 해당하는 회원을 찾을 수 없습니다.</div>`;
       return;
     }
 
-    // ── 2. 이율 설정 로드 ──
+    // ── 2. 이율 설정 ──
     const ratesSnap = await getDoc(doc(db, 'settings', 'rates'));
-    const RATE_DEF = {
-      dedraRate:1, enableDirectBonus:true,
-      directBonus1:5, directBonus2:2,
-      enableUnilevel:true,
-      unilevelRates:[10,7,5,4,3,2,2,1,1,1],
-      enableRankDiffBonus:false, rankDiffBonusRate:0,
-      enableDirectBonus2Gen:false, directBonus2GenRate1:10, directBonus2GenRate2:5,
-      enableRankGapBonus:false, rankGapPoolRate:10, rankGapRatePerStep:10, rankGapPassThruRate:1,
-      enableCenterFee:false, centerFeeRate:5,
-    };
+    const RATE_DEF = { dedraRate:1,enableDirectBonus:true,directBonus1:5,directBonus2:2,
+      enableUnilevel:true,unilevelRates:[10,7,5,4,3,2,2,1,1,1],
+      enableRankDiffBonus:false,rankDiffBonusRate:0,
+      enableDirectBonus2Gen:false,directBonus2GenRate1:10,directBonus2GenRate2:5,
+      enableRankGapBonus:false,rankGapPoolRate:10,rankGapRatePerStep:10,rankGapPassThruRate:1 };
     const rates = ratesSnap.exists() ? { ...RATE_DEF, ...ratesSnap.data() } : RATE_DEF;
 
     const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
-    const rankIdx = r => Math.max(0, RANK_ORDER.indexOf(r || 'G0'));
+    const rankIdx = r => Math.max(0, RANK_ORDER.indexOf(r||'G0'));
     const fmt4 = v => (v||0).toFixed(4);
     const fmt2 = v => (v||0).toFixed(2);
-    const pct  = v => (v*100).toFixed(2) + '%';
+    const pct  = v => (v*100).toFixed(2)+'%';
 
-    // ── 3. 활성 투자 조회 ──
-    const invSnap = await getDocs(query(collection(db, 'investments'), where('userId','==',target.id)));
-    const activeInvests = invSnap.docs.map(d=>({id:d.id,...d.data()}))
-      .filter(i => i.status === 'active');
-
+    // ── 3. 활성 투자 ──
+    const invSnap = await getDocs(query(collection(db,'investments'),where('userId','==',target.id)));
+    const activeInvests = invSnap.docs.map(d=>({id:d.id,...d.data()})).filter(i=>i.status==='active');
     let totalD = 0;
     const investRows = activeInvests.map(inv => {
-      const rate = (inv.roiPercent || inv.dailyRoi || 0) / 100;
-      const D = parseFloat((inv.amount * rate).toFixed(8));
+      const rate = (inv.roiPercent||inv.dailyRoi||0)/100;
+      const D = parseFloat((inv.amount*rate).toFixed(8));
       totalD += D;
       return { inv, rate, D };
     });
 
-    // ── 4. 지갑 잔액 조회 ──
-    const walSnap = await getDocs(query(collection(db, 'wallets'), where('userId','==',target.id)));
+    // ── 4. 지갑 ──
+    const walSnap = await getDocs(query(collection(db,'wallets'),where('userId','==',target.id)));
     const wallet  = walSnap.empty ? {} : walSnap.docs[0].data();
 
-    // ── 5. 최근 보너스 이력 ──
-    const bonusSnap = await getDocs(query(collection(db, 'bonuses'), where('userId','==',target.id)));
+    // ── 5. 전체 보너스 이력 (내가 수령) ──
+    const bonusSnap = await getDocs(query(collection(db,'bonuses'),where('userId','==',target.id)));
     const bonuses   = bonusSnap.docs.map(d=>({id:d.id,...d.data()}))
       .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
-    const today = new Date().toISOString().slice(0,10);
-    const todayBonuses = bonuses.filter(b => (b.settlementDate||'').slice(0,10) === today);
 
-    // ── 6. 상위 추천 체인 분석 ──
-    const chain = [];
-    let curId = target.referredBy;
-    let lv = 1;
-    while (curId && lv <= 10) {
-      const anc = userMap[curId];
-      if (!anc || anc.role === 'admin') break;
-      let bonusRate = 0, label = '';
-      if (lv === 1 && rates.enableDirectBonus) {
-        bonusRate = rates.directBonus1 / 100; label = `직접추천 1대 ${pct(bonusRate)}`;
-      } else if (lv === 2 && rates.enableDirectBonus) {
-        bonusRate = rates.directBonus2 / 100; label = `직접추천 2대 ${pct(bonusRate)}`;
-      } else if (rates.enableUnilevel) {
-        bonusRate = ((rates.unilevelRates||[])[lv-1] || 0) / 100;
-        label = `유니레벨 ${lv}단계 ${pct(bonusRate)}`;
+    // 기준날짜 보너스
+    const todayBonuses = bonuses.filter(b=>(b.settlementDate||'').slice(0,10)===targetDateStr);
+
+    // ── 6. 반대방향: 내가 산하 덕분에 수령한 보너스 (fromUserId 기반) ──
+    const earnedFromDownSnap = await getDocs(query(collection(db,'bonuses'),where('userId','==',target.id)));
+    const earnedFromDown = earnedFromDownSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(b => b.fromUserId && b.fromUserId !== target.id)
+      .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+
+    // 내가 직접 산하에 지급한 보너스 (fromUserId = target.id)
+    const paidToDownSnap = await getDocs(query(collection(db,'bonuses'),where('fromUserId','==',target.id)));
+    const paidToDown = paidToDownSnap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+
+    // ── 7. N일 추이 데이터 ──
+    const trendMap = {};
+    bonuses.forEach(b => {
+      const d = (b.settlementDate||'').slice(0,10);
+      if (!d) return;
+      if (!trendMap[d]) trendMap[d] = { roi:0, bonus:0, total:0 };
+      if (b.type==='roi_income') trendMap[d].roi += b.amount||0;
+      else trendMap[d].bonus += b.amount||0;
+      trendMap[d].total += b.amount||0;
+    });
+    // 최근 N일 날짜 배열
+    const trendDates = [];
+    for (let i = days-1; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate()-i);
+      trendDates.push(d.toISOString().slice(0,10));
+    }
+    const trendRoi   = trendDates.map(d => trendMap[d]?.roi   || 0);
+    const trendBonus = trendDates.map(d => trendMap[d]?.bonus || 0);
+    const trendTotal = trendDates.map(d => trendMap[d]?.total || 0);
+
+    // ── 8. 상위 체인 & 시뮬 ──
+    const chain = [], simChain = [];
+    let curId=target.referredBy, lv=1;
+    while(curId && lv<=10){
+      const anc=userMap[curId]; if(!anc||anc.role==='admin') break;
+      let bonusRate=0,label='';
+      if(lv===1&&rates.enableDirectBonus){bonusRate=rates.directBonus1/100;label=`직접1대 ${pct(bonusRate)}`;}
+      else if(lv===2&&rates.enableDirectBonus){bonusRate=rates.directBonus2/100;label=`직접2대 ${pct(bonusRate)}`;}
+      else if(rates.enableUnilevel){bonusRate=((rates.unilevelRates||[])[lv-1]||0)/100;label=`유니레벨${lv}단 ${pct(bonusRate)}`;}
+      if(rates.enableRankDiffBonus&&rates.rankDiffBonusRate>0){
+        const diff=rankIdx(anc.rank)-rankIdx(target.rank);
+        if(diff>0){const ex=(diff*rates.rankDiffBonusRate)/100;bonusRate+=ex;label+=`+직급차${pct(ex)}`;}
       }
-      if (rates.enableRankDiffBonus && rates.rankDiffBonusRate > 0) {
-        const diff = rankIdx(anc.rank) - rankIdx(target.rank);
-        if (diff > 0) { const ex=(diff*rates.rankDiffBonusRate)/100; bonusRate+=ex; label+=` +직급차${pct(ex)}`; }
-      }
-      const eligible = bonusRate > 0 && (anc.rank||'G0') !== 'G0';
-      chain.push({ level:lv, user:anc, bonusRate, label, eligible,
-                   expectedBonus: parseFloat((totalD * bonusRate).toFixed(8)) });
-      curId = anc.referredBy; lv++;
+      const eligible=bonusRate>0&&(anc.rank||'G0')!=='G0';
+      chain.push({level:lv,user:anc,bonusRate,label,eligible,expectedBonus:parseFloat((totalD*bonusRate).toFixed(8))});
+      simChain.push({lv,anc,rate:bonusRate,amt:parseFloat((totalD*bonusRate).toFixed(8)),eligible});
+      curId=anc.referredBy; lv++;
     }
 
-    // ── 7. 산하 네트워크 ──
-    const gen1 = allUsers.filter(u => u.referredBy === target.id);
-    const gen2 = allUsers.filter(u => gen1.some(g => g.id === u.referredBy));
-    const gen3plus_ids = new Set();
-    function collectDeeper(parentIds, depth) {
-      if (depth > 8) return;
-      const children = allUsers.filter(u => parentIds.has(u.referredBy));
-      children.forEach(c => gen3plus_ids.add(c.id));
-      if (children.length) collectDeeper(new Set(children.map(c=>c.id)), depth+1);
-    }
-    collectDeeper(new Set(gen2.map(g=>g.id)), 1);
+    // ── 9. 산하 ──
+    const gen1=allUsers.filter(u=>u.referredBy===target.id);
+    const gen2=allUsers.filter(u=>gen1.some(g=>g.id===u.referredBy));
+    const gen3ids=new Set();
+    function collectDeeper(pids,depth){if(depth>8)return;const ch=allUsers.filter(u=>pids.has(u.referredBy));ch.forEach(c=>gen3ids.add(c.id));if(ch.length)collectDeeper(new Set(ch.map(c=>c.id)),depth+1);}
+    collectDeeper(new Set(gen2.map(g=>g.id)),1);
 
-    // ── 8. 보너스 시뮬레이션 체인 ──
-    const simChain = [];
-    { let cId=target.referredBy, lv2=1;
-      while (cId && lv2<=10) {
-        const anc=userMap[cId];
-        if (!anc || anc.role==='admin') break;
-        let rate=0;
-        if (lv2===1 && rates.enableDirectBonus) rate=rates.directBonus1/100;
-        else if (lv2===2 && rates.enableDirectBonus) rate=rates.directBonus2/100;
-        else if (rates.enableUnilevel) rate=((rates.unilevelRates||[])[lv2-1]||0)/100;
-        if (rates.enableRankDiffBonus && rates.rankDiffBonusRate>0) {
-          const diff=rankIdx(anc.rank)-rankIdx(target.rank);
-          if (diff>0) rate+=(diff*rates.rankDiffBonusRate)/100;
-        }
-        const amt=parseFloat((totalD*rate).toFixed(8));
-        simChain.push({ lv:lv2, anc, rate, amt, eligible:(anc.rank||'G0')!=='G0'&&rate>0 });
-        cId=anc.referredBy; lv2++;
-      }
-    }
+    // ── 캐시 저장 ──
+    _idReportData = { target, wallet, investRows, totalD, chain, bonuses, earnedFromDown, paidToDown, trendDates, trendRoi, trendBonus, trendTotal, gen1, gen2, gen3ids, todayBonuses, targetDateStr, rates, userMap, rankIdx, fmt4, fmt2, pct };
+    if (exportBtns) exportBtns.style.display = 'flex';
 
-    // ── 9. 렌더링 (라이트 테마) ──
-    const card = (title, body) => `
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-        <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;">${title}</div>
-        ${body}
-      </div>`;
+    // ── 렌더링 헬퍼 ──
+    const card = (title, body, extra='') =>
+      `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;">${title}</div>
+          ${extra}
+        </div>${body}</div>`;
+    const rankColor=r=>({G0:'#9ca3af',G1:'#22c55e',G2:'#3b82f6',G3:'#a855f7',G4:'#f59e0b',G5:'#ef4444',G6:'#06b6d4',G7:'#ec4899',G8:'#f97316',G9:'#84cc16',G10:'#fbbf24'}[r]||'#9ca3af');
+    const rankBadge=r=>`<span style="background:${rankColor(r)};color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">${r||'G0'}</span>`;
+    const maskEmail=e=>{if(!e)return'-';const[l,d]=e.split('@');return l.slice(0,3)+'***'+(d?'@'+d:'');};
 
-    const rankColor = r => ({ G0:'#9ca3af',G1:'#22c55e',G2:'#3b82f6',G3:'#a855f7',
-      G4:'#f59e0b',G5:'#ef4444',G6:'#06b6d4',G7:'#ec4899',G8:'#f97316',G9:'#84cc16',G10:'#fbbf24' }[r]||'#9ca3af');
-    const rankBadge = r => `<span style="background:${rankColor(r)};color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;">${r||'G0'}</span>`;
-    const maskEmail = e => { if(!e) return '-'; const [l,d]=e.split('@'); return l.slice(0,3)+'***'+(d?'@'+d:''); };
-
-    // 섹션A: 기본 정보
+    // ── 섹션A: 기본 정보 ──
     const sectionA = card('📋 회원 기본 정보', `
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;">
         ${[['UID',`<code style="font-size:11px;color:#6366f1;">${target.id}</code>`],
            ['이메일',maskEmail(target.email)],['이름',target.name||'-'],['추천코드',target.referralCode||'-'],
            ['현재 직급',rankBadge(target.rank||'G0')],
-           ['추천인',target.referredBy?`<code style="font-size:11px;">${(userMap[target.referredBy]?.name||target.referredBy)}</code>`:'없음'],
+           ['추천인',target.referredBy?`<b>${userMap[target.referredBy]?.name||target.referredBy}</b>`:'없음'],
            ['가입일',target.createdAt?.toDate?target.createdAt.toDate().toLocaleDateString('ko'):'-'],
-           ['상태',target.status==='inactive'?'<span style="color:#ef4444;">비활성</span>':'<span style="color:#22c55e;">활성</span>'],
+           ['기준날짜',`<b style="color:#6366f1;">${targetDateStr}</b>`],
           ].map(([k,v])=>`<div style="background:#f9fafb;border-radius:8px;padding:10px 14px;">
             <div style="font-size:11px;color:#9ca3af;margin-bottom:3px;">${k}</div>
             <div style="font-size:13px;color:#111827;">${v}</div></div>`).join('')}
       </div>`);
 
-    // 섹션B: 지갑
-    const sectionB = card('💰 지갑 잔액', `
+    // ── 섹션B: 지갑 ──
+    const sectionB = card('💰 지갑 잔액',`
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
         ${[['USDT 잔액',`$${fmt2(wallet.usdtBalance)}`,'#f59e0b'],
            ['보너스 잔액',`$${fmt2(wallet.bonusBalance)}`,'#6366f1'],
@@ -10682,156 +10719,214 @@ window.runIdReport = async function() {
             <div style="font-size:15px;font-weight:700;color:${c};">${v}</div></div>`).join('')}
       </div>`);
 
-    // 섹션C: 투자/ROI
-    const investBody = investRows.length===0
-      ? '<div style="color:#9ca3af;font-size:13px;">활성 FREEZE 없음</div>'
-      : `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#f3f4f6;">
-            <th style="text-align:left;padding:8px 10px;color:#6b7280;font-size:11px;font-weight:600;">상품명</th>
-            <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;font-weight:600;">투자금</th>
-            <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;font-weight:600;">ROI율</th>
-            <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;font-weight:600;">데일리 D</th>
-            <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;font-weight:600;">만료일</th>
-          </tr></thead>
-          <tbody>
-            ${investRows.map(({inv,rate,D})=>`<tr style="border-top:1px solid #f3f4f6;">
-              <td style="padding:9px 10px;color:#111827;">${inv.productName||'FREEZE'}</td>
-              <td style="padding:9px 10px;text-align:right;color:#f59e0b;font-weight:600;">$${fmt2(inv.amount)}</td>
-              <td style="padding:9px 10px;text-align:right;color:#8b5cf6;">${pct(rate)}</td>
-              <td style="padding:9px 10px;text-align:right;color:#10b981;font-weight:700;">$${fmt4(D)}</td>
-              <td style="padding:9px 10px;text-align:right;color:#9ca3af;font-size:12px;">${
-                inv.endDate?.toDate?inv.endDate.toDate().toLocaleDateString('ko'):'-'}</td>
-            </tr>`).join('')}
-          </tbody>
-          <tfoot><tr style="background:#f9fafb;border-top:2px solid #e5e7eb;">
-            <td colspan="3" style="padding:10px;font-weight:600;color:#6b7280;">합계 데일리 D</td>
-            <td colspan="2" style="padding:10px;text-align:right;font-size:16px;font-weight:800;color:#10b981;">$${fmt4(totalD)} / 일</td>
-          </tr></tfoot>
-        </table>`;
-    const sectionC = card('❄️ 활성 FREEZE & 데일리 ROI (D)', investBody);
+    // ── 섹션C: 투자/ROI ──
+    const investBody = investRows.length===0?'<div style="color:#9ca3af;font-size:13px;">활성 FREEZE 없음</div>'
+      :`<table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#f3f4f6;">
+          <th style="text-align:left;padding:8px 10px;color:#6b7280;font-size:11px;">상품명</th>
+          <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;">투자금</th>
+          <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;">ROI율</th>
+          <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;">데일리 D</th>
+          <th style="text-align:right;padding:8px 10px;color:#6b7280;font-size:11px;">만료일</th>
+        </tr></thead>
+        <tbody>${investRows.map(({inv,rate,D})=>`<tr style="border-top:1px solid #f3f4f6;">
+          <td style="padding:9px 10px;color:#111827;">${inv.productName||'FREEZE'}</td>
+          <td style="padding:9px 10px;text-align:right;color:#f59e0b;font-weight:600;">$${fmt2(inv.amount)}</td>
+          <td style="padding:9px 10px;text-align:right;color:#8b5cf6;">${pct(rate)}</td>
+          <td style="padding:9px 10px;text-align:right;color:#10b981;font-weight:700;">$${fmt4(D)}</td>
+          <td style="padding:9px 10px;text-align:right;color:#9ca3af;font-size:12px;">${inv.endDate?.toDate?inv.endDate.toDate().toLocaleDateString('ko'):'-'}</td>
+        </tr>`).join('')}</tbody>
+        <tfoot><tr style="background:#f9fafb;border-top:2px solid #e5e7eb;">
+          <td colspan="3" style="padding:10px;font-weight:600;color:#6b7280;">합계 데일리 D</td>
+          <td colspan="2" style="padding:10px;text-align:right;font-size:16px;font-weight:800;color:#10b981;">$${fmt4(totalD)} / 일</td>
+        </tr></tfoot>
+      </table>`;
+    const sectionC = card('❄️ 활성 FREEZE & 데일리 ROI',investBody);
 
-    // 섹션D: 상위 체인
-    const chainBody = chain.length===0
-      ? '<div style="color:#9ca3af;font-size:13px;">추천인 없음 (최상위 회원)</div>'
-      : `<div style="font-size:12px;color:#6b7280;margin-bottom:12px;">
-           ※ <b>${target.name||target.id}</b>의 데일리 D = <b style="color:#10b981;">$${fmt4(totalD)}</b> 기준 상위 체인 보너스 예상
-         </div>
-         ${chain.map(({level,user,label,eligible,expectedBonus})=>`
-           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;
-                       border-radius:10px;background:${eligible?'#eff6ff':'#f9fafb'};
-                       border:1px solid ${eligible?'#bfdbfe':'#e5e7eb'};">
-             <div style="min-width:50px;font-size:12px;font-weight:700;color:#6b7280;">Lv${level}</div>
-             <div style="flex:1;">
-               <span style="font-size:13px;font-weight:600;color:#111827;">${user.name||user.id}</span>
-               <span style="margin-left:6px;font-size:11px;color:#9ca3af;">(${maskEmail(user.email)})</span>
-               <span style="margin-left:6px;">${rankBadge(user.rank||'G0')}</span>
-               ${!eligible?'<span style="margin-left:6px;font-size:11px;color:#ef4444;">→ 수령자격 없음</span>':''}
-             </div>
-             <div style="text-align:right;min-width:150px;">
-               ${eligible
-                 ?`<div style="font-size:11px;color:#6b7280;">${label}</div>
-                   <div style="font-size:14px;font-weight:700;color:#10b981;">+$${fmt4(expectedBonus)}</div>`
-                 :`<div style="font-size:12px;color:#ef4444;">$0.0000</div>`}
-             </div>
-           </div>`).join('')}`;
-    const sectionD = card('📡 상위 추천 체인 보너스 자격', chainBody);
+    // ── 섹션D: 상위 체인 ──
+    const chainBody = chain.length===0?'<div style="color:#9ca3af;font-size:13px;">추천인 없음</div>'
+      :`<div style="font-size:12px;color:#6b7280;margin-bottom:10px;">
+         <b>${target.name||target.id}</b> 데일리 D = <b style="color:#10b981;">$${fmt4(totalD)}</b> 기준
+       </div>
+       ${chain.map(({level,user,label,eligible,expectedBonus})=>`
+         <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;
+              border-radius:10px;background:${eligible?'#eff6ff':'#f9fafb'};border:1px solid ${eligible?'#bfdbfe':'#e5e7eb'};">
+           <div style="min-width:48px;font-size:12px;font-weight:700;color:#6b7280;">Lv${level}</div>
+           <div style="flex:1;">
+             <span style="font-size:13px;font-weight:600;color:#111827;">${user.name||user.id}</span>
+             <span style="margin-left:6px;font-size:11px;color:#9ca3af;">(${maskEmail(user.email)})</span>
+             <span style="margin-left:6px;">${rankBadge(user.rank||'G0')}</span>
+             ${!eligible?'<span style="margin-left:6px;font-size:11px;color:#ef4444;">→ 수령자격 없음</span>':''}
+           </div>
+           <div style="text-align:right;min-width:140px;">
+             ${eligible?`<div style="font-size:11px;color:#6b7280;">${label}</div>
+               <div style="font-size:14px;font-weight:700;color:#10b981;">+$${fmt4(expectedBonus)}</div>`
+             :`<div style="font-size:12px;color:#ef4444;">$0.0000</div>`}
+           </div>
+         </div>`).join('')}`;
+    const sectionD = card('📡 상위 체인 보너스 자격',chainBody);
 
-    // 섹션E: 시뮬레이션 (서술형)
-    const simLines = [];
-    if (totalD <= 0) {
-      simLines.push('<div style="color:#9ca3af;font-size:13px;">활성 투자 없음 → 데일리 보너스 미발생</div>');
-    } else {
-      simLines.push(`<div style="padding:12px 16px;background:#ecfdf5;border-radius:8px;border-left:3px solid #10b981;margin-bottom:12px;font-size:13px;color:#111827;">
-        <b>${target.name||target.id}</b>의 오늘 데일리 ROI(D) = <b style="color:#10b981;">$${fmt4(totalD)}</b> — 이 금액을 기준으로 상위 체인에 아래와 같이 보너스가 발생합니다.
+    // ── 섹션E: 시뮬레이션 ──
+    const simLines=[];
+    if(totalD<=0){simLines.push('<div style="color:#9ca3af;font-size:13px;">활성 투자 없음 → 보너스 미발생</div>');}
+    else{
+      simLines.push(`<div style="padding:10px 16px;background:#ecfdf5;border-radius:8px;border-left:3px solid #10b981;margin-bottom:10px;font-size:13px;color:#111827;">
+        <b>${target.name||target.id}</b>의 <b style="color:#6366f1;">${targetDateStr}</b> 기준 데일리 D = <b style="color:#10b981;">$${fmt4(totalD)}</b>
       </div>`);
       simChain.forEach(({lv:l,anc,rate,amt,eligible})=>{
-        simLines.push(`<div style="padding:10px 14px;margin-bottom:6px;border-radius:8px;
+        simLines.push(`<div style="padding:9px 14px;margin-bottom:5px;border-radius:8px;
           background:${eligible?'#f5f3ff':'#f9fafb'};border:1px solid ${eligible?'#ddd6fe':'#e5e7eb'};font-size:13px;">
           <span style="color:#6366f1;font-weight:700;">Lv${l}</span>
-          <span style="color:#6b7280;margin:0 6px;">추천인:</span>
+          <span style="color:#6b7280;margin:0 5px;">추천인:</span>
           <span style="color:#111827;font-weight:600;">${anc.name||anc.id}</span>
-          <span style="font-size:11px;color:#9ca3af;margin-left:6px;">(grade=${rankIdx(anc.rank)})</span>
-          <span style="margin-left:6px;">${rankBadge(anc.rank||'G0')}</span>
-          ${eligible
-            ?`<span style="color:#6b7280;margin:0 6px;">→</span>
-              <code style="font-size:12px;background:#ede9fe;padding:2px 8px;border-radius:4px;color:#4f46e5;">
-                $${fmt4(totalD)} × ${pct(rate)} = <b style="color:#7c3aed;">$${fmt4(amt)}</b> USDT
-              </code>`
-            :`<span style="color:#ef4444;margin-left:8px;font-size:12px;">→ 수령자격 없음</span>`}
+          <span style="font-size:11px;color:#9ca3af;margin-left:5px;">(grade=${rankIdx(anc.rank)})</span>
+          <span style="margin-left:5px;">${rankBadge(anc.rank||'G0')}</span>
+          ${eligible?`<span style="color:#6b7280;margin:0 5px;">→</span>
+            <code style="font-size:12px;background:#ede9fe;padding:2px 7px;border-radius:4px;color:#4f46e5;">
+              $${fmt4(totalD)} × ${pct(rate)} = <b style="color:#7c3aed;">$${fmt4(amt)}</b>
+            </code>`:`<span style="color:#ef4444;margin-left:8px;font-size:12px;">→ 수령자격 없음</span>`}
         </div>`);
       });
-      if (rates.enableDirectBonus2Gen) {
-        let cId=target.referredBy, out2=[];
-        for(let g=1;g<=2;g++){
-          if(!cId) break; const anc=userMap[cId]; if(!anc) break;
+      if(rates.enableDirectBonus2Gen){
+        let cId=target.referredBy,out2=[];
+        for(let g=1;g<=2;g++){if(!cId)break;const anc=userMap[cId];if(!anc)break;
           const r2=g===1?rates.directBonus2GenRate1/100:rates.directBonus2GenRate2/100;
           const a2=parseFloat((totalD*r2).toFixed(8));
-          out2.push(`<div style="font-size:12px;margin-top:6px;">${g}대: <b>${anc.name||anc.id}</b> ${rankBadge(anc.rank||'G0')} → $${fmt4(totalD)} × ${pct(r2)} = <b style="color:#7c3aed;">$${fmt4(a2)}</b></div>`);
-          cId=anc.referredBy;
-        }
-        simLines.push(`<div style="margin-top:12px;padding:12px 16px;background:#faf5ff;border-radius:8px;border-left:3px solid #a855f7;font-size:13px;color:#111827;">
-          <b style="color:#a855f7;">[Policy B] 직접추천 2세대 고정 보너스</b>${out2.join('')}</div>`);
-      }
-      if (rates.enableRankGapBonus) {
-        const pool=parseFloat((totalD*(rates.rankGapPoolRate/100)).toFixed(8));
-        simLines.push(`<div style="margin-top:10px;padding:12px 16px;background:#fffbeb;border-radius:8px;border-left:3px solid #f59e0b;font-size:13px;color:#111827;">
-          <b style="color:#d97706;">[직급차 풀 보너스]</b> Pool = $${fmt4(totalD)} × ${rates.rankGapPoolRate}% = <b>$${fmt4(pool)}</b>
-          <div style="font-size:12px;color:#6b7280;margin-top:4px;">직급 차이 단계 × ${rates.rankGapRatePerStep}%씩 상위 직급자에게 분배</div>
-        </div>`);
+          out2.push(`<div style="font-size:12px;margin-top:5px;">${g}대: <b>${anc.name||anc.id}</b> ${rankBadge(anc.rank||'G0')} → $${fmt4(totalD)} × ${pct(r2)} = <b style="color:#7c3aed;">$${fmt4(a2)}</b></div>`);
+          cId=anc.referredBy;}
+        simLines.push(`<div style="margin-top:10px;padding:10px 16px;background:#faf5ff;border-radius:8px;border-left:3px solid #a855f7;font-size:13px;">
+          <b style="color:#a855f7;">[Policy B] 직접추천 2세대 고정</b>${out2.join('')}</div>`);
       }
     }
-    const sectionE = card('💸 데일리 보너스 발생 시뮬레이션', simLines.join(''));
+    const sectionE = card(`💸 보너스 발생 시뮬레이션 (${targetDateStr} 기준)`,simLines.join(''));
 
-    // 섹션F: 산하 네트워크
-    const sectionF = card('🌐 산하 네트워크 현황', `
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-        ${[['1세대 (직접추천)',gen1.length,'#6366f1'],['2세대',gen2.length,'#8b5cf6'],['3세대 이하',gen3plus_ids.size,'#a855f7']
-          ].map(([k,v,c])=>`<div style="background:#f9fafb;border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:22px;font-weight:800;color:${c};">${v}명</div>
-            <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${k}</div>
+    // ── 섹션F: 반대방향 분석 ──
+    const totalEarnedFromDown = earnedFromDown.reduce((s,b)=>s+(b.amount||0),0);
+    const totalPaidToDown     = paidToDown.reduce((s,b)=>s+(b.amount||0),0);
+    const reverseTypeLabel = t=>({roi_income:'ROI',direct_bonus:'직접추천',unilevel_bonus:'유니레벨',direct2gen_bonus:'2세대고정',rank_gap_bonus:'직급차풀',rank_gap_passthru:'패스스루',manual_bonus:'수동'}[t]||t);
+
+    // 산하 기여자별 집계
+    const downContrib = {};
+    earnedFromDown.forEach(b=>{
+      if(!b.fromUserId) return;
+      if(!downContrib[b.fromUserId]) downContrib[b.fromUserId]={total:0,count:0,name:userMap[b.fromUserId]?.name||b.fromUserId};
+      downContrib[b.fromUserId].total += b.amount||0;
+      downContrib[b.fromUserId].count++;
+    });
+    const topContrib = Object.entries(downContrib).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
+
+    const reverseBody = earnedFromDown.length===0?'<div style="color:#9ca3af;font-size:13px;">산하 보너스 수령 내역 없음</div>'
+      :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:#ecfdf5;border-radius:10px;padding:14px;text-align:center;">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:4px;">산하에서 수령 누계</div>
+            <div style="font-size:20px;font-weight:800;color:#10b981;">$${fmt2(totalEarnedFromDown)}</div>
+          </div>
+          <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;">
+            <div style="font-size:11px;color:#6b7280;margin-bottom:4px;">산하에 지급한 누계</div>
+            <div style="font-size:20px;font-weight:800;color:#6366f1;">$${fmt2(totalPaidToDown)}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#6b7280;font-weight:600;margin-bottom:8px;">🏆 기여도 TOP 기여자</div>
+        ${topContrib.map(([uid,info])=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:4px;border-radius:8px;background:#f9fafb;border:1px solid #f3f4f6;">
+            <span style="color:#111827;font-weight:600;min-width:80px;font-size:12px;">${info.name}</span>
+            <span style="color:#9ca3af;font-size:11px;">${maskEmail(userMap[uid]?.email)}</span>
+            ${rankBadge(userMap[uid]?.rank||'G0')}
+            <span style="margin-left:auto;font-size:12px;font-weight:700;color:#10b981;">$${fmt2(info.total)}</span>
+            <span style="font-size:11px;color:#9ca3af;">(${info.count}건)</span>
           </div>`).join('')}
+        <details style="margin-top:10px;">
+          <summary style="cursor:pointer;font-size:12px;color:#6366f1;font-weight:600;">최근 수령 내역 전체보기 (${earnedFromDown.length}건)</summary>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+            <thead><tr style="background:#f3f4f6;">
+              <th style="text-align:left;padding:6px 8px;color:#6b7280;">유형</th>
+              <th style="text-align:left;padding:6px 8px;color:#6b7280;">출처</th>
+              <th style="text-align:right;padding:6px 8px;color:#6b7280;">금액</th>
+              <th style="text-align:left;padding:6px 8px;color:#6b7280;">날짜</th>
+            </tr></thead>
+            <tbody>${earnedFromDown.slice(0,50).map(b=>`<tr style="border-top:1px solid #f3f4f6;">
+              <td style="padding:6px 8px;color:#6366f1;">${reverseTypeLabel(b.type)}</td>
+              <td style="padding:6px 8px;color:#6b7280;">${userMap[b.fromUserId]?.name||b.fromUserId?.slice(0,8)||'-'}</td>
+              <td style="padding:6px 8px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amount)}</td>
+              <td style="padding:6px 8px;color:#9ca3af;">${b.settlementDate||b.createdAt?.toDate?.()?new Date(b.createdAt.seconds*1000).toLocaleDateString('ko'):'-'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </details>`;
+    const sectionF = card('🔄 반대방향 분석 — 산하에서 수령한 보너스',reverseBody);
+
+    // ── 섹션G: 오늘/기준일 보너스 ──
+    const sectionG = card(`📅 ${targetDateStr} 수령 보너스`, todayBonuses.length===0
+      ?'<div style="color:#9ca3af;font-size:13px;">해당 날짜 보너스 없음</div>'
+      :`<table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f3f4f6;">
+          <th style="text-align:left;padding:7px 10px;color:#6b7280;">유형</th>
+          <th style="text-align:left;padding:7px 10px;color:#6b7280;">출처</th>
+          <th style="text-align:right;padding:7px 10px;color:#6b7280;">금액</th>
+          <th style="text-align:left;padding:7px 10px;color:#6b7280;">내용</th>
+        </tr></thead>
+        <tbody>${todayBonuses.slice(0,30).map(b=>{
+          const tl={roi_income:'ROI',direct_bonus:'직접추천',unilevel_bonus:'유니레벨',direct2gen_bonus:'2세대',rank_gap_bonus:'직급차',rank_gap_passthru:'패스스루',manual_bonus:'수동'}[b.type]||b.type;
+          return `<tr style="border-top:1px solid #f3f4f6;">
+            <td style="padding:8px 10px;color:#6366f1;font-weight:600;">${tl}</td>
+            <td style="padding:8px 10px;color:#9ca3af;font-size:11px;">${b.fromUserId?(userMap[b.fromUserId]?.name||b.fromUserId.slice(0,8)+'…'):'시스템'}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amount)}</td>
+            <td style="padding:8px 10px;color:#6b7280;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.reason||'-'}</td>
+          </tr>`; }).join('')}</tbody>
+        <tfoot><tr style="background:#f9fafb;border-top:2px solid #e5e7eb;">
+          <td colspan="2" style="padding:8px 10px;color:#6b7280;">합계</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:800;color:#10b981;">$${fmt4(todayBonuses.reduce((s,b)=>s+(b.amount||0),0))}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>`);
+
+    // ── 섹션H: 산하 네트워크 ──
+    const sectionH = card('🌐 산하 네트워크',`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
+        ${[['1세대',gen1.length,'#6366f1'],['2세대',gen2.length,'#8b5cf6'],['3세대 이하',gen3ids.size,'#a855f7']
+          ].map(([k,v,c])=>`<div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:${c};">${v}명</div>
+            <div style="font-size:11px;color:#9ca3af;">${k}</div></div>`).join('')}
       </div>
-      ${gen1.length?`
-        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;font-weight:600;">1세대 멤버 (최대 10명)</div>
-        ${gen1.slice(0,10).map(u=>`
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:4px;border-radius:8px;background:#f9fafb;border:1px solid #f3f4f6;font-size:12px;">
-            <span style="color:#111827;font-weight:600;min-width:80px;">${u.name||u.id}</span>
-            <span style="color:#9ca3af;">${maskEmail(u.email)}</span>
-            ${rankBadge(u.rank||'G0')}
-            <span style="margin-left:auto;color:#9ca3af;font-size:11px;">${u.createdAt?.toDate?u.createdAt.toDate().toLocaleDateString('ko'):'-'}</span>
-          </div>`).join('')}
-        ${gen1.length>10?`<div style="font-size:12px;color:#9ca3af;padding:6px;">… 외 ${gen1.length-10}명</div>`:''}`:''}
-    `);
+      ${gen1.slice(0,8).map(u=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;margin-bottom:3px;border-radius:8px;background:#f9fafb;font-size:12px;">
+          <span style="color:#111827;font-weight:600;min-width:70px;">${u.name||u.id}</span>
+          <span style="color:#9ca3af;">${maskEmail(u.email)}</span>
+          ${rankBadge(u.rank||'G0')}
+          <span style="margin-left:auto;color:#9ca3af;font-size:11px;">${u.createdAt?.toDate?u.createdAt.toDate().toLocaleDateString('ko'):'-'}</span>
+        </div>`).join('')}
+      ${gen1.length>8?`<div style="font-size:12px;color:#9ca3af;padding:5px;">… 외 ${gen1.length-8}명</div>`:''}`);
 
-    // 섹션G: 오늘 보너스
-    const sectionG = card(`📅 오늘(${today}) 수령 보너스`, todayBonuses.length===0
-      ? '<div style="color:#9ca3af;font-size:13px;">오늘 수령 보너스 없음</div>'
-      : `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead><tr style="background:#f3f4f6;">
-            <th style="text-align:left;padding:7px 10px;color:#6b7280;font-weight:600;">유형</th>
-            <th style="text-align:left;padding:7px 10px;color:#6b7280;font-weight:600;">출처</th>
-            <th style="text-align:right;padding:7px 10px;color:#6b7280;font-weight:600;">금액</th>
-            <th style="text-align:left;padding:7px 10px;color:#6b7280;font-weight:600;">내용</th>
-          </tr></thead>
-          <tbody>
-            ${todayBonuses.slice(0,30).map(b=>{
-              const tl={roi_income:'ROI 수익',direct_bonus:'직접추천',unilevel_bonus:'유니레벨',
-                direct2gen_bonus:'2세대고정',rank_gap_bonus:'직급차풀',rank_gap_passthru:'패스스루',manual_bonus:'수동지급'}[b.type]||b.type;
-              return `<tr style="border-top:1px solid #f3f4f6;">
-                <td style="padding:8px 10px;color:#6366f1;font-weight:600;">${tl}</td>
-                <td style="padding:8px 10px;color:#9ca3af;font-size:11px;">${b.fromUserId?(userMap[b.fromUserId]?.name||b.fromUserId.slice(0,8)+'…'):'시스템'}</td>
-                <td style="padding:8px 10px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amount)}</td>
-                <td style="padding:8px 10px;color:#6b7280;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.reason||'-'}</td>
-              </tr>`;}).join('')}
-          </tbody>
-          <tfoot><tr style="background:#f9fafb;border-top:2px solid #e5e7eb;">
-            <td colspan="2" style="padding:8px 10px;color:#6b7280;">합계</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:800;color:#10b981;">$${fmt4(todayBonuses.reduce((s,b)=>s+(b.amount||0),0))}</td>
-            <td></td>
-          </tr></tfoot>
-        </table>`);
+    // ── 섹션I: 추이 차트 ──
+    const sectionI = card(`📊 최근 ${days}일 보너스 추이`,
+      `<canvas id="idreportTrendChart" height="120"></canvas>`);
 
-    out.innerHTML = sectionA + sectionB + sectionC + sectionD + sectionE + sectionF + sectionG;
+    // ── 최종 출력 ──
+    out.innerHTML = sectionA + sectionB + sectionC + sectionD + sectionE + sectionF + sectionG + sectionH + sectionI;
+
+    // 차트 렌더링 (다음 틱에)
+    setTimeout(() => {
+      const ctx = document.getElementById('idreportTrendChart');
+      if (!ctx || typeof Chart === 'undefined') return;
+      if (ctx._chartInst) ctx._chartInst.destroy();
+      ctx._chartInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: trendDates.map(d=>d.slice(5)),
+          datasets: [
+            { label:'ROI 수익', data:trendRoi,   backgroundColor:'rgba(16,185,129,0.7)', stack:'a' },
+            { label:'보너스',   data:trendBonus, backgroundColor:'rgba(99,102,241,0.7)',  stack:'a' },
+          ]
+        },
+        options: {
+          responsive:true, plugins:{ legend:{ position:'top' },
+            tooltip:{ callbacks:{ label: ctx2=>`$${ctx2.parsed.y.toFixed(4)}` } } },
+          scales: {
+            x:{ stacked:true, ticks:{ maxRotation:45, font:{size:10} } },
+            y:{ stacked:true, ticks:{ callback:v=>'$'+v.toFixed(2) } }
+          }
+        }
+      });
+    }, 50);
 
   } catch(e) {
     console.error('[idreport]', e);
@@ -10839,6 +10934,45 @@ window.runIdReport = async function() {
       `<div class="inline-alert inline-alert-error">❌ 오류: ${e.message}</div>`;
   }
 };
+
+// ── 엑셀 내보내기 ──
+window.exportIdReportExcel = function() {
+  if (!_idReportData) return;
+  const { target, wallet, investRows, bonuses, earnedFromDown, fmt2, fmt4, pct, targetDateStr } = _idReportData;
+  let csv = '\uFEFF'; // BOM for Excel
+  csv += `ID 분석 리포트 - ${target.name||target.id} (${targetDateStr})\n\n`;
+  csv += `[기본 정보]\n이름,${target.name||'-'}\n이메일,${target.email||'-'}\n직급,${target.rank||'G0'}\n추천코드,${target.referralCode||'-'}\n\n`;
+  csv += `[지갑 잔액]\nUSDT,$${fmt2(wallet.usdtBalance)}\n보너스,$${fmt2(wallet.bonusBalance)}\nDDRA,${fmt4(wallet.deedraBalance||0)}\n총수령,$${fmt2(wallet.totalEarnings)}\n\n`;
+  csv += `[활성 FREEZE]\n상품명,투자금,ROI율,데일리D\n`;
+  investRows.forEach(({inv,rate,D})=>{ csv += `${inv.productName||'FREEZE'},$${fmt2(inv.amount)},${pct(rate)},$${fmt4(D)}\n`; });
+  csv += `\n[${targetDateStr} 보너스 내역]\n유형,출처ID,금액,내용\n`;
+  bonuses.filter(b=>(b.settlementDate||'').slice(0,10)===targetDateStr)
+    .forEach(b=>{ csv += `${b.type||''},${b.fromUserId||'시스템'},$${fmt4(b.amount)},${(b.reason||'').replace(/,/g,'；')}\n`; });
+  csv += `\n[산하 수령 보너스 전체]\n유형,출처ID,금액,날짜\n`;
+  earnedFromDown.slice(0,200).forEach(b=>{ csv += `${b.type||''},${b.fromUserId||''},$${fmt4(b.amount)},${b.settlementDate||''}\n`; });
+
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `id_report_${target.referralCode||target.id}_${targetDateStr}.csv`;
+  a.click();
+};
+
+// ── PDF 내보내기 ──
+window.exportIdReportPDF = function() {
+  if (!_idReportData) return;
+  const content = document.getElementById('idreportResult');
+  if (!content) return;
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>ID 분석 리포트</title>
+    <style>body{font-family:-apple-system,sans-serif;padding:24px;color:#111827;font-size:13px;}
+    table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #e5e7eb;}</style>
+    </head><body>${content.innerHTML}</body></html>`);
+  printWin.document.close();
+  setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
+};
+
 
 </script>
 </div><!-- /adminMain -->

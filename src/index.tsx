@@ -421,7 +421,12 @@ const HTML = () => `<!DOCTYPE html>
 
           <!-- 총 자산 카드 -->
           <div class="asset-main-card">
-            <div class="asset-total-label" data-i18n="totalAssetLabel">총 자산 (USDT 환산)</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="asset-total-label" data-i18n="totalAssetLabel">총 자산 (USDT 환산)</div>
+              <img src="/static/img/usdt-coin.png" alt="USDT"
+                style="width:44px;height:44px;border-radius:50%;object-fit:cover;
+                       box-shadow:0 2px 10px rgba(0,0,0,0.3);flex-shrink:0;" />
+            </div>
             <div class="asset-total-amount" id="totalAsset">0.00 USDT</div>
             <div class="asset-total-sub" id="totalAssetKrw">≈ ₩0</div>
 
@@ -434,7 +439,9 @@ const HTML = () => `<!DOCTYPE html>
                 <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;">FREEZE 중</div>
               </div>
               <div class="asset-split-item" style="border-left:1px solid rgba(255,255,255,0.08);">
-                <div class="asset-split-icon">💎</div>
+                <img src="/static/img/ddra-coin.png" alt="DDRA"
+                  style="width:30px;height:30px;border-radius:50%;object-fit:cover;
+                         box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:4px;" />
                 <div class="asset-split-label" style="color:#f59e0b;font-weight:600;">출금 가능 DDRA</div>
                 <div class="asset-split-value" id="splitBonus" style="color:#f59e0b;font-size:18px;font-weight:700;">0.00 DDRA</div>
                 <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:11px;">≈ $0.00 USDT</div>
