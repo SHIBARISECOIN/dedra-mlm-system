@@ -537,10 +537,10 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- 공지사항 + 뉴스 피드 : 위아래 수직 배치 -->
+          <!-- 공지사항 + 뉴스 피드 : 위아래 50:50 배치 -->
           <div class="ann-news-stack">
             <!-- 공지사항 -->
-            <div class="ann-news-panel ann-panel-notice">
+            <div class="ann-news-half">
               <div class="section-header">
                 <span class="section-title" data-i18n="announcements">📢 공지사항</span>
                 <button class="see-all-btn" onclick="showAnnouncementModal()" data-i18n="seeAll">전체보기</button>
@@ -551,11 +551,8 @@ const HTML = () => `<!DOCTYPE html>
               </div>
             </div>
 
-            <!-- 구분선 -->
-            <div class="ann-divider"></div>
-
             <!-- 뉴스 피드 -->
-            <div class="ann-news-panel ann-panel-news">
+            <div class="ann-news-half">
               <div class="section-header">
                 <span class="section-title">📰 뉴스</span>
                 <button class="see-all-btn" onclick="loadNewsFeed(true)" id="newsRefreshBtn">새로고침</button>

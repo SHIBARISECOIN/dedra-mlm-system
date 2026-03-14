@@ -3630,72 +3630,13 @@ body {
 .gcv2-sub  { font-size: 10px; color: #64748b; margin-bottom: 4px; }
 .gcv2-rtp  { font-size: 11px; font-weight: 700; color: #4ade80; }
 
-/* ===== 공지사항 + 뉴스 수직 배치 ===== */
+/* ===== 공지사항 + 뉴스 위아래 50:50 배치 ===== */
 .ann-news-stack {
   display: flex;
   flex-direction: column;
   gap: 0;
   margin-bottom: 4px;
-  background: var(--card-bg, #1a2332);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 16px;
-  overflow: hidden;
 }
-
-/* 공통 패널 */
-.ann-news-panel {
-  padding: 14px 14px 10px;
-}
-
-/* 공지사항 패널 */
-.ann-panel-notice {
-  /* 상단 영역: 조금 더 콤팩트하게 */
-}
-
-/* 구분선 */
-.ann-divider {
-  height: 1px;
-  background: rgba(255,255,255,0.07);
-  margin: 0 14px;
-}
-
-/* 뉴스 패널 */
-.ann-panel-news {
-  /* 하단 영역 */
-}
-
-/* 섹션 헤더 */
-.ann-news-panel .section-header {
-  margin-bottom: 8px;
-}
-
-.ann-news-panel .section-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* 공지 항목 */
-.ann-news-panel .ann-compact-list {
-  margin-bottom: 0;
-}
-
-.ann-news-panel .ann-item-title {
-  font-size: 12px;
-}
-
-/* 뉴스 항목 */
-.ann-news-panel .news-feed-list {
-  margin-bottom: 0;
-}
-
-.ann-news-panel .news-item {
-  padding: 8px 10px;
-}
-
-.ann-news-panel .news-item-title {
-  font-size: 12px;
-}
-
-.ann-news-panel .news-item-meta {
-  font-size: 10px;
+.ann-news-half {
+  /* 기존 section과 동일한 스타일 - 추가 배경/테두리 없음 */
 }
