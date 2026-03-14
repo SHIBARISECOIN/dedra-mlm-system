@@ -2294,7 +2294,7 @@ app.get('/api/admin/member-edit-logs', async (c) => {
     if (!userId) return c.json({ error: 'userId 필요' }, 400)
     const adminToken = await getAdminToken()
     const logs = await fsQuery('memberEditLogs', adminToken, [
-      { field: 'userId', op: 'EQUAL', value: userId }
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } }
     ], 100)
     logs.sort((a: any, b: any) => (b.createdAt?._seconds || b.createdAt?.seconds || 0) - (a.createdAt?._seconds || a.createdAt?.seconds || 0))
 
@@ -2364,7 +2364,7 @@ app.post('/api/auth/login-by-username', async (c) => {
 
     // username 필드로 users 조회
     const users = await fsQuery('users', adminToken, [
-      { field: 'username', op: 'EQUAL', value: username.trim() }
+      { fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: username.trim() } } }
     ], 1)
 
     if (!users.length) return c.json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
