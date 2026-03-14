@@ -4931,8 +4931,21 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
     wrap.innerHTML = loading();
     try {
         if (!allMembers.length) {
-            const snap = await getDocs(collection(db,'users'));
+            const [snap, walletSnap] = await Promise.all([
+                getDocs(collection(db,'users')),
+                getDocs(collection(db,'wallets'))
+            ]);
+            // wallets 맵: userId → bonusBalance(출금 가능)
+            const walletMap = {};
+            walletSnap.docs.forEach(d => {
+                const w = d.data();
+                walletMap[w.userId] = w;
+            });
             allMembers = snap.docs.map(d=>({id:d.id,...d.data()}));
+            allMembers.forEach(m => {
+                const w = walletMap[m.uid || m.id] || {};
+                m._bonusBalance = w.bonusBalance || 0;  // 출금 가능 USDT
+            });
             // 추천인수 실시간 계산
             const refCounts = {};
             allMembers.forEach(m => {
@@ -4981,8 +4994,8 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
                 av = RANK_ORDER[a.rank||'G0'] || 0;
                 bv = RANK_ORDER[b.rank||'G0'] || 0;
             } else if (sf === 'usdtBalance') {
-                av = parseFloat(a.wallet?.usdtBalance ?? a.wallet?.balance ?? a.usdtBalance ?? 0);
-                bv = parseFloat(b.wallet?.usdtBalance ?? b.wallet?.balance ?? b.usdtBalance ?? 0);
+                av = a._bonusBalance || 0;
+                bv = b._bonusBalance || 0;
             } else if (sf === 'country') {
                 av = a.country || '';
                 bv = b.country || '';
@@ -5027,7 +5040,7 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
             <th>추천코드</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('refCount')">추천인수${_memberSortIcon('refCount')}</th>
             <th>상태</th>
-            <th style="${thStyle}" onclick="_toggleMemberSort('usdtBalance')">보유 USDT${_memberSortIcon('usdtBalance')}</th>
+            <th style="${thStyle}" onclick="_toggleMemberSort('usdtBalance')">출금가능 USDT${_memberSortIcon('usdtBalance')}</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('createdAt')">가입일${_memberSortIcon('createdAt')}</th>
         </tr></thead>`;
 
@@ -5050,9 +5063,8 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
                 }
             }
 
-            // USDT 잔액 계산 (wallet.usdtBalance 또는 wallet.balance)
-            const usdtBal = (m.wallet?.usdtBalance ?? m.wallet?.balance ?? m.usdtBalance ?? 0);
-            const usdtStr = parseFloat(usdtBal).toFixed(2);
+            // 출금 가능 USDT (bonusBalance)
+            const usdtStr = (m._bonusBalance || 0).toFixed(2);
 
             rowsHtml += `<tr style="cursor:pointer;" onclick="showMemberDetail('${m.id}')"
                 onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background=''">
