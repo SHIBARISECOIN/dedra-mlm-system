@@ -2902,7 +2902,6 @@ canvas{width:100% !important;}
     ══════════════════════════════ -->
     <div id="ratesPage" class="page">
       <div class="page-title">📐 이율 관리</div>
-      <div id="ratesAlert" style="max-width:960px;margin-bottom:12px;"></div>
 
       <!-- ── 마케팅 로직 ON/OFF 스위치 ── -->
       <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
@@ -3519,9 +3518,40 @@ canvas{width:100% !important;}
       </div>
 
       <!-- 저장/재로드 -->
-      <div style="display:flex;gap:10px;max-width:960px;margin-bottom:24px;">
+      <div style="display:flex;gap:10px;max-width:960px;margin-bottom:12px;flex-wrap:wrap;">
         <button class="btn btn-primary" id="saveRatesBtn" style="min-width:140px;">💾 전체 이율 저장</button>
         <button class="btn btn-gray" id="reloadRatesBtn">↩ 다시 불러오기</button>
+        <button class="btn btn-sm" id="showRuleExplainBtn"
+          style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          📋 마케팅 규칙 설명 보기
+        </button>
+      </div>
+      <div id="ratesAlert" style="max-width:960px;margin-bottom:8px;"></div>
+
+      <!-- 마케팅 규칙 설명 패널 -->
+      <div id="ruleExplainPanel" style="display:none;max-width:960px;margin-bottom:20px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(79,70,229,.12);border:1.5px solid #c7d2fe;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:22px;">📋</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#1e293b;">현재 마케팅 보너스 규칙 설명</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">현재 저장된 설정값을 기반으로 보너스가 어떻게 지급되는지 설명합니다.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="refreshRuleExplainBtn"
+              style="padding:6px 14px;border-radius:7px;border:1.5px solid #6366f1;background:#ede9fe;color:#4f46e5;font-size:12px;font-weight:700;cursor:pointer;">
+              🔄 새로고침
+            </button>
+            <button onclick="document.getElementById('ruleExplainPanel').style.display='none';"
+              style="padding:6px 12px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:12px;font-weight:700;cursor:pointer;">
+              ✕ 닫기
+            </button>
+          </div>
+        </div>
+        <div id="ruleExplainContent" style="line-height:1.9;color:#1e293b;font-size:13px;">
+          <div style="text-align:center;color:#94a3b8;padding:20px;">불러오는 중...</div>
+        </div>
       </div>
 
       <!-- 이율 변경 이력 -->
@@ -9910,11 +9940,28 @@ function setupRateButtons() {
             document.getElementById('ratesAlert').innerHTML = '<div class="inline-alert success">✅ 이율 및 마케팅 로직 설정이 저장되었습니다.</div>';
             setTimeout(() => { document.getElementById('ratesAlert').innerHTML = ''; }, 3000);
             await loadRateHistory();
+            // ── 마케팅 규칙 설명 패널이 열려 있으면 자동 갱신 ──
+            if (document.getElementById('ruleExplainPanel')?.style.display !== 'none') {
+                renderRuleExplain(rates);
+            }
         } else {
             document.getElementById('ratesAlert').innerHTML = `<div class="inline-alert error">❌ ${result.error}</div>`;
         }
     };
     document.getElementById('reloadRatesBtn').onclick = () => loadRates();
+
+    // ── 마케팅 규칙 설명 버튼 ──
+    document.getElementById('showRuleExplainBtn').onclick = () => {
+        const panel = document.getElementById('ruleExplainPanel');
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            renderRuleExplain(currentRates);
+        } else {
+            panel.style.display = 'none';
+        }
+    };
+    document.getElementById('refreshRuleExplainBtn').onclick = () => renderRuleExplain(currentRates);
 
     // ── 직급 달성 보너스 수동 실행 버튼 ──
     const rankAchieveBtn = document.getElementById('runRankAchieveBonusBtn');
@@ -10110,8 +10157,177 @@ async function saveRankPromotionSettings() {
 window.saveRankPromotionSettings = saveRankPromotionSettings;
 
 // ══════════════════════════════════════════════════
-// 보너스 지급 패턴 설정 (Bonus Payment Config)
+// 마케팅 규칙 설명 자동 생성 (Rule Explain)
 // ══════════════════════════════════════════════════
+function renderRuleExplain(rates) {
+  const el = document.getElementById('ruleExplainContent');
+  if (!el || !rates) return;
+
+  const r = rates;
+  const fmt = v => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const pct = v => `${fmt(v)}%`;
+  const on  = v => v === true;
+
+  // 섹션 헬퍼
+  const section = (icon, title, color, body) => `
+    <div style="margin-bottom:18px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
+      <div style="background:${color};padding:10px 16px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;">${icon}</span>
+        <span style="font-weight:700;color:#1e293b;font-size:14px;">${title}</span>
+      </div>
+      <div style="padding:14px 16px;font-size:13px;line-height:1.9;color:#374151;background:#fff;">${body}</div>
+    </div>`;
+
+  const badge = (text, color) =>
+    `<span style="display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${color};color:#fff;margin:0 2px;">${text}</span>`;
+
+  const on_badge  = badge('활성', '#10b981');
+  const off_badge = badge('비활성', '#94a3b8');
+  const tag = (v) => on(v) ? on_badge : off_badge;
+
+  const sections = [];
+
+  // ① ROI 정산 방식
+  const settlementDesc = on(r.autoSettlement)
+    ? `매일 <strong>자동 정산</strong> — ${r.autoSettlementHour ?? 0}시 ${r.autoSettlementMinute ?? 0}분에 자동으로 모든 활성 투자에 대해 ROI를 정산합니다.`
+    : `<strong>수동 정산</strong> — 관리자가 직접 정산 실행 버튼을 눌러야 ROI가 지급됩니다.`;
+  sections.push(section('💰', 'ROI 정산 방식', '#f0f9ff',
+    `${settlementDesc}<br>
+    <span style="color:#64748b;">• 정산 기준: 각 투자 상품의 일일 ROI율 × 투자금액 = 당일 수익(D)</span><br>
+    <span style="color:#64748b;">• 정산 결과는 회원 지갑의 <strong>보너스 잔액(USDT)</strong>에 적립됩니다.</span>`
+  ));
+
+  // ② 수수료
+  const feeBody = `
+    <span style="color:#64748b;">• 출금 수수료: </span><strong>${pct(r.withdrawalFeeRate)}</strong> — 출금 신청 금액에서 이 비율만큼 수수료가 차감됩니다.<br>
+    <span style="color:#64748b;">• 입금 수수료: </span><strong>${pct(r.depositFeeRate)}</strong> — 승인된 입금액에서 이 비율만큼 수수료가 차감됩니다.<br>
+    ${on(r.enableCenterFee)
+      ? `<span style="color:#64748b;">• 센터피 ${tag(true)}: </span>ROI의 <strong>${pct(r.centerFeeRate)}</strong>를 센터 운영비로 차감한 뒤 나머지를 분배합니다.`
+      : `<span style="color:#94a3b8;">• 센터피 ${tag(false)}: 미적용</span>`}`;
+  sections.push(section('💳', '수수료 설정', '#fef9c3', feeBody));
+
+  // ③ 직접 추천 보너스 (Policy A)
+  if (on(r.enableDirectBonus)) {
+    const db1 = r.directBonus1 || 0;
+    const db2 = r.directBonus2 || 0;
+    sections.push(section('👥', `직접 추천 보너스 ${tag(true)} — Policy A`, '#f0fdf4',
+      `회원이 ROI 수익(D)을 받을 때마다, 그 회원을 추천한 상위 추천인들에게도 보너스가 지급됩니다.<br>
+      <span style="color:#64748b;">• 1대 추천인: D의 <strong>${pct(db1)}</strong> 지급</span><br>
+      <span style="color:#64748b;">• 2대 추천인: D의 <strong>${pct(db2)}</strong> 지급</span><br>
+      <span style="color:#94a3b8;font-size:12px;">※ 직급 조건 있음: 추천인이 일정 직급 이상이어야 지급됩니다 (유니레벨 체계 연동).</span>`
+    ));
+  } else {
+    sections.push(section('👥', `직접 추천 보너스 ${tag(false)} — Policy A 비활성`, '#f8fafc',
+      `<span style="color:#94a3b8;">현재 1대·2대 직접 추천 보너스가 비활성화되어 있습니다. 직접 추천인에게 별도 보너스가 지급되지 않습니다.</span>`
+    ));
+  }
+
+  // ④ 유니레벨 보너스 (Policy A 확장)
+  if (on(r.enableUnilevel)) {
+    const ul = r.unilevelRates || [];
+    const ulRows = ul.map((v, i) => v > 0 ? `${i+1}단계: <strong>${pct(v)}</strong>` : null).filter(Boolean);
+    sections.push(section('🌐', `유니레벨 보너스 ${tag(true)} — 무제한 단계 분배`, '#f0f9ff',
+      `투자자 위로 추천 체인을 올라가며, 각 단계의 추천인에게 ROI(D) 기준으로 보너스를 분배합니다.<br>
+      <strong>현재 단계별 지급률:</strong><br>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        ${ulRows.map(r2 => `<span style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;">${r2}</span>`).join('')}
+        ${ulRows.length === 0 ? '<span style="color:#94a3b8;">모든 단계 0% 설정됨</span>' : ''}
+      </div>
+      <br><span style="color:#94a3b8;font-size:12px;">※ 직급 조건 있음: 해당 단계의 추천인이 요구 직급 이상일 때만 지급됩니다.</span>`
+    ));
+  } else {
+    sections.push(section('🌐', `유니레벨 보너스 ${tag(false)}`, '#f8fafc',
+      `<span style="color:#94a3b8;">유니레벨 보너스가 비활성화되어 있습니다. 추천 체인 상의 다단계 보너스가 지급되지 않습니다.</span>`
+    ));
+  }
+
+  // ⑤ 2세대 고정 직접 보너스 (Policy B)
+  if (on(r.enableDirectBonus2Gen)) {
+    const b1 = r.directBonus2GenRate1 || 0;
+    const b2 = r.directBonus2GenRate2 || 0;
+    sections.push(section('⚡', `2세대 고정 직접 보너스 ${tag(true)} — Policy B`, '#fefce8',
+      `직급에 관계없이 ROI(D) 발생 시 상위 추천인 두 단계에 고정 비율로 지급됩니다.<br>
+      <span style="color:#64748b;">• 1대 추천인: D의 <strong>${pct(b1)}</strong> 지급</span><br>
+      <span style="color:#64748b;">• 2대 추천인: D의 <strong>${pct(b2)}</strong> 지급</span><br>
+      <span style="color:#94a3b8;font-size:12px;">※ 직급 조건 없음: 누구든 무조건 지급됩니다.</span>`
+    ));
+  }
+
+  // ⑥ 직급차 풀 분배 보너스
+  if (on(r.enableRankGapBonus)) {
+    const modeLabel = { A: '균등분할 + 50% 할인', B: '균등분할 (할인 없음)', C: '단계별 감쇄 지급' };
+    const ptLabel   = r.rankGapPassThruRule === 'same_or_higher' ? '동급 및 상위 직급' : '동급 이하 (낮은 직급 포함)';
+    const modeDesc  = {
+      A: `풀에서 직급 구간마다 <strong>균등 분할</strong>하되, 최종 지급액의 <strong>50%만</strong> 지급됩니다. 보수적인 분배 방식입니다.`,
+      B: `풀에서 직급 구간마다 <strong>균등 분할</strong>하며, 할인 없이 <strong>100% 전액</strong> 지급됩니다.`,
+      C: `첫 번째 직급 상승 추천인에게 <strong>전액</strong>을 지급하고, 이후 단계마다 지급액이 <strong>절반(×0.5)씩 감소</strong>합니다.`,
+    };
+    sections.push(section('🎯', `직급차 풀 분배 보너스 ${tag(true)}`, '#fdf4ff',
+      `투자자(D)를 기준으로 추천 체인 상위의 더 높은 직급 보유자에게 풀 기반 보너스를 지급합니다.<br><br>
+      <strong>풀 조성:</strong> 일일 ROI(D)의 <strong>${pct(r.rankGapPoolRate)}</strong>를 풀로 사용<br>
+      <strong>단계당 지급:</strong> 풀 × 직급 격차 단계 수 × <strong>${pct(r.rankGapRatePerStep)}</strong><br>
+      <strong>분배 방식 [방식 ${r.rankGapMode || 'A'}]:</strong> ${modeDesc[r.rankGapMode || 'A']}<br><br>
+      <strong>패스스루(건너뜀 보너스):</strong><br>
+      직급 구간 수령자가 아닌 건너뜀 추천인에게 풀의 <strong>${pct(r.rankGapPassThruRate)}</strong>를 지급합니다.<br>
+      지급 대상: <strong>${ptLabel}</strong> 추천인<br>
+      <span style="color:#94a3b8;font-size:12px;">※ 입금 승인 즉시 실행: ${on(r.rankGapRealtimeOnDeposit) ? '활성 (입금 승인과 동시에 처리)' : '비활성 (정산 시에만 처리)'}</span>`
+    ));
+  } else {
+    sections.push(section('🎯', `직급차 풀 분배 보너스 ${tag(false)}`, '#f8fafc',
+      `<span style="color:#94a3b8;">직급차 풀 분배 보너스가 비활성화되어 있습니다.</span>`
+    ));
+  }
+
+  // ⑦ 직급 달성 보너스
+  if (on(r.enableRankAchieveBonus)) {
+    const aam = r.rankAchieveBonusAmounts || {};
+    const aamRows = Object.entries(aam).filter(([,v]) => v > 0).map(([k,v]) => `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:600;">${k}: $${fmt(v)}</span>`);
+    sections.push(section('🏆', `직급 달성 보너스 ${tag(true)}`, '#f0fdf4',
+      `특정 직급에 처음 도달하거나 ${r.rankAchieveBonusCycleDays > 0 ? `<strong>${r.rankAchieveBonusCycleDays}일 주기</strong>로 반복하여` : '최초 달성 시'} 일정 금액을 지급합니다.<br><br>
+      <strong>직급별 지급액:</strong><br>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        ${aamRows.length > 0 ? aamRows.join('') : '<span style="color:#94a3b8;">설정된 금액 없음</span>'}
+      </div>`
+    ));
+  }
+
+  // ⑧ 직급별 추가 보너스
+  if (on(r.enableRankBonus)) {
+    const rbr = r.rankBonusRates || {};
+    const rbrRows = Object.entries(rbr).filter(([,v]) => v > 0).map(([k,v]) => `<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:600;">${k}: ${pct(v)}</span>`);
+    sections.push(section('⭐', `직급별 추가 보너스율 ${tag(true)}`, '#fffbeb',
+      `회원의 직급에 따라 ROI에 추가 보너스율을 적용합니다.<br>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+        ${rbrRows.length > 0 ? rbrRows.join('') : '<span style="color:#94a3b8;">설정된 비율 없음</span>'}
+      </div>`
+    ));
+  }
+
+  // ⑨ 전체 흐름 요약
+  const flowSteps = [];
+  flowSteps.push(`1️⃣ 활성 투자에서 <strong>일일 ROI(D)</strong> 계산 → 회원 지갑(보너스 잔액)에 적립`);
+  if (on(r.enableCenterFee)) flowSteps.push(`2️⃣ D의 <strong>${pct(r.centerFeeRate)}</strong>를 센터피로 차감`);
+  if (on(r.enableDirectBonus)) flowSteps.push(`3️⃣ 1대 추천인에게 D의 <strong>${pct(r.directBonus1)}</strong>, 2대에게 <strong>${pct(r.directBonus2)}</strong> 지급 (직급 조건 有)`);
+  if (on(r.enableDirectBonus2Gen)) flowSteps.push(`4️⃣ 2세대 고정 보너스: 1대 D의 <strong>${pct(r.directBonus2GenRate1)}</strong>, 2대 <strong>${pct(r.directBonus2GenRate2)}</strong> 추가 지급 (직급 조건 無)`);
+  if (on(r.enableUnilevel)) flowSteps.push(`5️⃣ 유니레벨 체인 상위로 최대 ${(r.unilevelRates||[]).filter(v=>v>0).length}단계까지 추가 보너스 분배`);
+  if (on(r.enableRankGapBonus)) flowSteps.push(`6️⃣ 직급차 풀 분배: D의 <strong>${pct(r.rankGapPoolRate)}</strong>로 풀 조성 → 직급 상승 구간마다 방식 [${r.rankGapMode||'A'}]로 분배`);
+  if (on(r.enableRankAchieveBonus)) flowSteps.push(`7️⃣ 직급 달성 시 일회성(또는 주기적) 달성 보너스 지급`);
+
+  sections.push(section('🔄', '전체 보너스 지급 흐름 요약', '#f8faff',
+    `<strong>하루 ROI 정산 시 아래 순서로 보너스가 처리됩니다:</strong><br><br>
+    ${flowSteps.map(s => `<div style="padding:3px 0;">${s}</div>`).join('')}
+    <br><span style="font-size:12px;color:#94a3b8;">※ 모든 보너스는 USDT 기준으로 지갑에 적립되며, 출금 시 현재 DDRA 시세로 환산됩니다.</span>`
+  ));
+
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  el.innerHTML = `
+    <div style="margin-bottom:14px;padding:8px 14px;background:#f8faff;border-radius:8px;font-size:12px;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
+      <span>📅 생성 시각: <strong>${now}</strong></span>
+      <span>설정된 활성 보너스: <strong>${[on(r.enableDirectBonus), on(r.enableUnilevel), on(r.enableDirectBonus2Gen), on(r.enableRankGapBonus), on(r.enableRankAchieveBonus), on(r.enableRankBonus)].filter(Boolean).length}개</strong></span>
+    </div>
+    ${sections.join('')}`;
+}
+window.renderRuleExplain = renderRuleExplain;
 let currentBonusPaymentConfig = null;
 let bonusPaymentProductList   = [];
 let activeBonusProductTab     = null;
