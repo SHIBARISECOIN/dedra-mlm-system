@@ -2409,7 +2409,13 @@ async function loadHomeEarn() {
   }
 }
 
-// 상품 아이콘 (상품 순서별)
+// 상품 색상/아이콘 (상품 순서별)
+const EARN_PROD_COLORS = [
+  'linear-gradient(135deg,#1e3a5f,#0d4f3c)',
+  'linear-gradient(135deg,#1e3060,#2d1b69)',
+  'linear-gradient(135deg,#3d1a00,#5b2d00)',
+  'linear-gradient(135deg,#1a1a2e,#16213e)'
+];
 const EARN_PROD_ICONS = ['❄️','💎','👑','🔥'];
 
 function renderHomeEarn(products, myInvestments) {
@@ -3873,7 +3879,7 @@ async function loadProducts() {
     }
 
     const tierMap = { 'Basic': 'basic', 'Standard': 'standard', 'Premium': 'premium', 'VIP': 'vip' };
-    const tagMap = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
+    const tagMap  = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
 
     if (listEl) listEl.innerHTML = productsCache.map((p, i) => {
       // 필드명 호환: dailyRoi(% 단위 그대로) or roiPercent(%)
@@ -3884,22 +3890,15 @@ async function loadProducts() {
                  : p.duration    != null  ? p.duration
                  : 0;
       const tierName = p.name || '';
-      const tierMap2 = ['1개월','Basic'];
       const tier = tierMap[tierName] || (tierName.includes('1개월') ? 'basic' : tierName.includes('3개월') ? 'standard' : tierName.includes('6개월') ? 'premium' : tierName.includes('12개월') ? 'vip' : 'basic');
       const tag  = tagMap[tierName]  || ('tag-' + tier);
       const dailyEarning = (p.minAmount || 0) * roi / 100;
-      const imgBg = EARN_PROD_COLORS ? EARN_PROD_COLORS[i % EARN_PROD_COLORS.length] : 'linear-gradient(135deg,#1e3a5f,#0d4f3c)';
-      const icon = EARN_PROD_ICONS ? EARN_PROD_ICONS[i % EARN_PROD_ICONS.length] : '❄️';
+      // onclick에 상품명 특수문자 안전하게 전달 (data-attribute 방식)
+      const safeId = (p.id || '').replace(/'/g,"&#39;");
+      const safeName = (p.name || '').replace(/'/g,"&#39;");
       return `
       <div class="product-card">
         <div class="product-tier-bar tier-${tier}"></div>
-        <!-- 상품 이미지 -->
-        <div class="product-img-wrap" style="margin-top:10px;">
-          ${p.imageUrl
-            ? `<img src="${p.imageUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML='<div class=\\'product-img-placeholder\\'>${icon}</div>'">`
-            : `<div class="product-img-placeholder" style="background:${imgBg};width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;">${icon}</div>`
-          }
-        </div>
         <div class="product-top">
           <div>
             <div class="product-name">${p.name || '-'}</div>
@@ -3919,13 +3918,20 @@ async function loadProducts() {
           ❄️ ${fmt(p.minAmount)} USDT FREEZE ${t('productHint2')} <strong>~${fmt(dailyEarning)} USDT</strong>
           (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/${t('days')}) · 🔒 ${t('principalUnfreeze')}
         </div>
-        <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name || ''}',${roi},${days},${p.minAmount||0},${p.maxAmount||9999})">
+        <button class="invest-btn"
+          data-pid="${safeId}"
+          data-pname="${safeName}"
+          data-roi="${roi}"
+          data-days="${days}"
+          data-min="${p.minAmount||0}"
+          data-max="${p.maxAmount||9999}"
+          onclick="openInvestModal(this.dataset.pid,this.dataset.pname,parseFloat(this.dataset.roi),parseInt(this.dataset.days),parseFloat(this.dataset.min),parseFloat(this.dataset.max))">
           ❄️ FREEZE
         </button>
       </div>`;
     }).join('');
   } catch (err) {
-    console.warn(err);
+    console.error('[loadProducts] 에러:', err);
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 }

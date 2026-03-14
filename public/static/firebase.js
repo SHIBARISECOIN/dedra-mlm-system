@@ -7,7 +7,7 @@ import {
   sendPasswordResetEmail
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
-  getFirestore, collection, query, where, getDocs,
+  getFirestore, collection, query, where, getDocs, onSnapshot,
   addDoc, doc, getDoc, setDoc, updateDoc, orderBy,
   Timestamp, limit, serverTimestamp, increment, deleteDoc, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
@@ -194,7 +194,7 @@ window.FB = {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   // firestore functions
-  collection, query, where, getDocs, addDoc,
+  collection, query, where, getDocs, onSnapshot, addDoc,
   doc, getDoc, setDoc, updateDoc, deleteDoc, orderBy,
   Timestamp, limit, serverTimestamp, increment, writeBatch,
   // FCM functions
