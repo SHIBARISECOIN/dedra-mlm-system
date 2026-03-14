@@ -6791,11 +6791,10 @@ async function loadMemberEditLog(userId) {
     const wrap = document.getElementById('memberEditLogWrap');
     wrap.innerHTML = loading();
     try {
-        const q = query(collection(db,'memberEditLogs'), where('userId','==',userId), limit(100));
-        const snap = await getDocs(q);
-        const rows = snap.docs
-            .map(d=>({id:d.id,...d.data()}))
-            .sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+        const res = await fetch(`/api/admin/member-edit-logs?userId=${encodeURIComponent(userId)}`);
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || '로드 실패');
+        const rows = json.data || [];
         if (!rows.length) {
             wrap.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#94a3b8;">
               <div style="font-size:36px;margin-bottom:10px;">📭</div>
@@ -6805,10 +6804,8 @@ async function loadMemberEditLog(userId) {
             return;
         }
 
-        // 관리자 이름 캐시
+        // 관리자 이름 — 서버 응답에 adminName 포함되어 있으면 사용
         const adminNames = {};
-        const adminSnap = await getDocs(query(collection(db,'users'), where('role','==','admin')));
-        adminSnap.docs.forEach(d => { adminNames[d.id] = d.data().name || d.data().email || d.id; });
 
         const items = rows.map(r => {
             const delta  = r.delta ?? (r.newVal - r.oldVal);
@@ -6818,7 +6815,7 @@ async function loadMemberEditLog(userId) {
             const dotIcon= isInc ? '↑' : isDec ? '↓' : '↔';
             const chgCls = isInc ? 'increase' : isDec ? 'decrease' : '';
             const diffStr= (delta >= 0 ? '+' : '') + parseFloat(delta).toFixed(2);
-            const adminName = adminNames[r.adminId] || r.adminId?.substring?.(0,10) || '관리자';
+            const adminName = r.adminName || adminNames[r.adminId] || r.adminId?.substring?.(0,10) || '관리자';
             return `
             <div class="edit-history-item">
               <div class="edit-history-dot ${dotCls}">${dotIcon}</div>

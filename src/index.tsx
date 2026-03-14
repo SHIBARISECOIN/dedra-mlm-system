@@ -2287,6 +2287,38 @@ app.post('/api/subadmin/login', async (c) => {
 })
 
 // ─── 관리자 회원 비밀번호 변경 ────────────────────────────────────────────────
+// ─── 회원 자산 변경 이력 조회 ──────────────────────────────────────────────────
+app.get('/api/admin/member-edit-logs', async (c) => {
+  try {
+    const userId = c.req.query('userId')
+    if (!userId) return c.json({ error: 'userId 필요' }, 400)
+    const adminToken = await getAdminToken()
+    const logs = await fsQuery('memberEditLogs', adminToken, [
+      { field: 'userId', op: 'EQUAL', value: userId }
+    ], 100)
+    logs.sort((a: any, b: any) => (b.createdAt?._seconds || b.createdAt?.seconds || 0) - (a.createdAt?._seconds || a.createdAt?.seconds || 0))
+
+    // adminId가 있는 경우 관리자 이름 조회해서 붙여주기
+    const adminIdSet = [...new Set(logs.map((l: any) => l.adminId).filter(Boolean))]
+    const adminNameMap: Record<string, string> = {}
+    await Promise.all(adminIdSet.map(async (aid: any) => {
+      try {
+        const adm = await fsGet('users/' + aid, adminToken)
+        const name = adm?.fields?.name ? fromFirestoreValue(adm.fields.name) : null
+        const email = adm?.fields?.email ? fromFirestoreValue(adm.fields.email) : null
+        adminNameMap[aid] = name || email || aid
+      } catch { adminNameMap[aid] = aid }
+    }))
+    const enriched = logs.map((l: any) => ({
+      ...l,
+      adminName: l.adminId ? (adminNameMap[l.adminId] || l.adminId) : '관리자'
+    }))
+    return c.json({ success: true, data: enriched })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
 app.post('/api/admin/reset-member-password', async (c) => {
   try {
     const { uid, newPassword, adminSecret } = await c.req.json()

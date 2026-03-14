@@ -130,5 +130,10 @@ service cloud.firestore {
     match /subAdmins/{docId} {
       allow read, write: if isAdmin();
     }
+
+    // memberEditLogs (회원 자산 변경 이력): 관리자만
+    match /memberEditLogs/{docId} {
+      allow read, write: if isAdmin();
+    }
   }
 }
