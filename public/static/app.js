@@ -4077,36 +4077,17 @@ async function loadMyInvestments() {
       const tierBg = TIER_COLORS ? (TIER_COLORS[tier] || TIER_COLORS.basic) : 'linear-gradient(90deg,#4caf50,#8bc34a)';
 
       return `
-      <div class="invest-item" style="position:relative;overflow:hidden;">
+      <div class="invest-item">
         <div class="invest-item-header">
-          <span class="invest-item-name">${inv.productName || 'FREEZE'} <span class="purchased-badge">보유중</span></span>
+          <span class="invest-item-name">${inv.productName || 'FREEZE'}</span>
           <span class="invest-item-amount">$${fmt(inv.amount)}</span>
         </div>
-        <div class="invest-item-extra">
-          <div class="invest-item-extra-stat">
-            <div class="invest-item-extra-label">당일 수익</div>
-            <div class="invest-item-extra-value blink">+$${fmt(dailyD)}</div>
-          </div>
-          <div class="invest-item-extra-stat">
-            <div class="invest-item-extra-label">누적 수익</div>
-            <div class="invest-item-extra-value green">$${fmt(paidRoi)}</div>
-          </div>
-          <div class="invest-item-extra-stat">
-            <div class="invest-item-extra-label">전체 예상</div>
-            <div class="invest-item-extra-value">$${fmt(expectedReturn)}</div>
-          </div>
-          <div class="invest-item-extra-stat">
-            <div class="invest-item-extra-label">이율/일</div>
-            <div class="invest-item-extra-value">${(dailyRoiRate*100).toFixed(2)}%</div>
-          </div>
-          <div class="invest-item-extra-stat">
-            <div class="invest-item-extra-label">만기일</div>
-            <div class="invest-item-extra-value" style="font-size:10px;">${endStr}</div>
-          </div>
-          <div class="invest-item-extra-stat">
-            <div class="invest-item-extra-label">잔여</div>
-            <div class="invest-item-extra-value">${remainDays}일</div>
-          </div>
+        <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
+          <span>❄️ 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
+          <span>잔여 ${remainDays}일</span>
+        </div>
+        <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
+          누적 수익: <strong style="color:#10b981;">+$${fmt(paidRoi)}</strong> &nbsp;·&nbsp; 총 예상수익: +${fmt(expectedReturn)} USDT (원금은 만기 후 출금 가능)
         </div>
         <div class="invest-progress">
           <div class="invest-progress-fill" style="width:${progress.toFixed(1)}%"></div>
