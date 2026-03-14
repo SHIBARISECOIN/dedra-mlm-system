@@ -5944,61 +5944,84 @@ function _activateNepTab(tab) {
   });
 }
 
-/** 요약 카드 데이터 로드 */
+/** 요약 카드 데이터 로드 — 1대/2대/3대+ 당일 수익 각각 집계 */
 async function _loadNepSummary() {
   if (!currentUser) return;
   const { collection, query, where, getDocs, db } = window.FB;
 
   try {
-    // 전체 사용자 로드 (캐시) — rules 수정으로 로그인 유저면 읽기 가능
+    // ── 전체 사용자 로드 (캐시) ──
     if (!_nepAllUsers) {
       try {
         const snap = await getDocs(collection(db, 'users'));
         _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (rulesErr) {
-        // Firestore rules 미적용 상태 fallback: 빈 배열로 처리
-        console.warn('[NEP] users 로드 권한 없음 (Firestore rules 미배포):', rulesErr.message);
+        console.warn('[NEP] users 로드 권한 없음:', rulesErr.message);
         _nepAllUsers = [];
       }
     }
     const allUsers = _nepAllUsers;
 
-    // 하부 전체 BFS
-    let totalMembers = 0;
-    let queue = [currentUser.uid];
-    const visited = new Set([currentUser.uid]);
-    while (queue.length) {
-      const next = allUsers.filter(u => queue.includes(u.referredBy) && !visited.has(u.id));
-      next.forEach(u => { visited.add(u.id); totalMembers++; });
-      queue = next.map(u => u.id);
-      if (!next.length) break;
+    // ── 대수별 멤버 분류 (BFS) ──
+    const genMap = {}; // uid → generation number
+    let bfsQueue = allUsers.filter(u => u.referredBy === currentUser.uid && u.role !== 'admin');
+    bfsQueue.forEach(u => { genMap[u.id] = 1; });
+    while (bfsQueue.length) {
+      const next = [];
+      for (const u of bfsQueue) {
+        const children = allUsers.filter(c => c.referredBy === u.id && c.role !== 'admin');
+        children.forEach(c => {
+          if (genMap[c.id] === undefined) { genMap[c.id] = genMap[u.id] + 1; next.push(c); }
+        });
+      }
+      bfsQueue = next;
     }
 
-    // 오늘 날짜
+    const gen1ids = Object.entries(genMap).filter(([,g]) => g === 1).map(([id]) => id);
+    const gen2ids = Object.entries(genMap).filter(([,g]) => g === 2).map(([id]) => id);
+    const gen3ids = Object.entries(genMap).filter(([,g]) => g >= 3).map(([id]) => id);
+    const totalMembers = Object.keys(genMap).length;
+
+    // ── 오늘 날짜 ──
     const today = new Date().toISOString().slice(0, 10);
 
-    // 당일 보너스: userId == 나 단일 where → JS로 날짜 필터
-    const bonusQ = query(
-      collection(db, 'bonuses'),
-      where('userId', '==', currentUser.uid)
-    );
-    const bonusSnap = await getDocs(bonusQ);
-    const todayEarning = bonusSnap.docs
-      .filter(d => d.data().settlementDate === today)
-      .reduce((s, d) => s + (d.data().amount || 0), 0);
+    // ── 내 보너스 전체 조회 (단일 where) → JS에서 날짜·fromUserId 필터 ──
+    let todayGen1 = 0, todayGen2 = 0, todayGen3 = 0;
+    try {
+      const myBonusQ = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
+      const myBonusSnap = await getDocs(myBonusQ);
+      myBonusSnap.docs.forEach(d => {
+        const data = d.data();
+        const date = data.settlementDate || (data.createdAt?.toDate?.()?.toISOString?.()?.slice(0,10)) || '';
+        if (date !== today) return;
+        const from = data.fromUserId || '';
+        const amt = data.amount || 0;
+        if (gen1ids.includes(from)) todayGen1 += amt;
+        else if (gen2ids.includes(from)) todayGen2 += amt;
+        else if (gen3ids.includes(from)) todayGen3 += amt;
+      });
+    } catch(_) {}
 
-    // 총 누적 수익
+    const todayTotal = todayGen1 + todayGen2 + todayGen3;
+
+    // ── 누적 수익 ──
     const totalEarning = walletData?.totalEarnings || 0;
 
-    // 요약 카드 업데이트
+    // ── 요약 카드 업데이트 ──
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    setEl('nepTodayEarning', '$' + fmt(todayEarning));
+    setEl('nepGen1Today', '$' + fmt(todayGen1));
+    setEl('nepGen1Count', gen1ids.length + '명');
+    setEl('nepGen2Today', '$' + fmt(todayGen2));
+    setEl('nepGen2Count', gen2ids.length + '명');
+    setEl('nepGen3Today', '$' + fmt(todayGen3));
+    setEl('nepGen3Count', gen3ids.length + '명');
+    setEl('nepTodayEarning', '$' + fmt(todayTotal));
     setEl('nepTotalMembers', totalMembers + t('memberCount'));
     setEl('nepTotalEarning', '$' + fmt(totalEarning));
-    setEl('nepSubTitle', `하부 ${totalMembers}명 조직 수익 현황`);
+    setEl('nepSubTitle', `하부 ${totalMembers}명 · 당일 $${fmt(todayTotal)}`);
 
-    // 홈 미리보기도 업데이트
-    setEl('homeNetTodayEarn', '$' + fmt(todayEarning));
+    // ── 홈 미리보기 업데이트 ──
+    setEl('homeNetTodayEarn', '$' + fmt(todayTotal));
     setEl('homeNetMembers', totalMembers + t('memberCount'));
     setEl('homeNetTotalEarn', '$' + fmt(totalEarning));
 
@@ -6077,9 +6100,9 @@ async function _loadNepTxTab(contentEl) {
   }
 }
 
-/** 👤 1대 / 👥 2대 탭 */
+/** 👤 1대 / 👥 2대 탭 — compact 목록 (ID·데일리·합계) */
 async function _loadNepGenTab(contentEl, gen) {
-  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
+  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:6px"></div><div class="skeleton-item" style="margin-bottom:6px"></div><div class="skeleton-item"></div>`;
   const { collection, query, where, getDocs, db } = window.FB;
 
   try {
@@ -6110,98 +6133,121 @@ async function _loadNepGenTab(contentEl, gen) {
       return;
     }
 
-    // 각 멤버의 오늘/누적 수익 집계
     const today = new Date().toISOString().slice(0, 10);
     const memberIds = members.map(u => u.id);
 
-    // 청크 단위 bonuses 조회 (30개씩)
-    const todayMap = {};
+    // 멤버별 총 입금(매출) 집계
     const totalDepMap = {};
     const chunks = [];
     for (let i = 0; i < memberIds.length; i += 10) chunks.push(memberIds.slice(i, i + 10));
-
     for (const chunk of chunks) {
-      // 매출: userId in chunk (단일 where) → JS 필터
-      if (chunk.length > 0) {
-        const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
-        const txs = await getDocs(txq);
-        txs.docs.forEach(d => {
-          const data = d.data();
-          if (data.type === 'deposit' && data.status === 'approved')
-            totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
-        });
-      }
+      if (!chunk.length) continue;
+      const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
+      const txs = await getDocs(txq);
+      txs.docs.forEach(d => {
+        const data = d.data();
+        if (data.type === 'deposit' && data.status === 'approved')
+          totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
+      });
     }
 
-    // 당일 내 보너스: userId == 나 단일 where → JS로 fromUserId·날짜 필터
+    // 당일 내가 받은 보너스 중 fromUserId가 이 멤버인 것
+    const todayMap = {};
     if (memberIds.length > 0) {
       const myBonusQ = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
       const myBonusSnap = await getDocs(myBonusQ);
       myBonusSnap.docs.forEach(d => {
         const data = d.data();
-        if (data.settlementDate !== today) return;
+        const date = data.settlementDate || (data.createdAt?.toDate?.()?.toISOString?.()?.slice(0,10)) || '';
+        if (date !== today) return;
         if (!data.fromUserId || !memberIds.includes(data.fromUserId)) return;
         todayMap[data.fromUserId] = (todayMap[data.fromUserId] || 0) + (data.amount || 0);
       });
     }
 
-    // 총 당일/매출 합산
+    // 멤버별 투자 정보 (ROI 상품명/데일리 이율)
+    const investMap = {};
+    for (const chunk of chunks) {
+      if (!chunk.length) continue;
+      try {
+        const invQ = query(collection(db, 'investments'), where('userId', 'in', chunk), where('status', '==', 'active'));
+        const invSnap = await getDocs(invQ);
+        invSnap.docs.forEach(d => {
+          const data = d.data();
+          const uid = data.userId;
+          if (!investMap[uid]) investMap[uid] = [];
+          investMap[uid].push(data);
+        });
+      } catch(_) {}
+    }
+
     const totalTodayEarn = Object.values(todayMap).reduce((s, v) => s + v, 0);
     const totalSales = Object.values(totalDepMap).reduce((s, v) => s + v, 0);
 
-    // 헤더 요약
+    // ── 상단 요약 (compact) ──
     const headerHtml = `
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:#10b981;margin-bottom:3px;">${gen}대 인원</div>
-          <div style="font-size:15px;font-weight:700;color:#10b981;">${members.length}명</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:8px 6px;text-align:center;">
+          <div style="font-size:9px;color:#10b981;margin-bottom:2px;">${gen}대 인원</div>
+          <div style="font-size:14px;font-weight:700;color:#10b981;">${members.length}명</div>
         </div>
-        <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:#3b82f6;margin-bottom:3px;">당일 내 수익</div>
-          <div style="font-size:15px;font-weight:700;color:#3b82f6;">$${fmt(totalTodayEarn)}</div>
+        <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 6px;text-align:center;">
+          <div style="font-size:9px;color:#3b82f6;margin-bottom:2px;">당일 내 수익</div>
+          <div style="font-size:14px;font-weight:700;color:#3b82f6;">$${fmt(totalTodayEarn)}</div>
         </div>
-        <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:#8b5cf6;margin-bottom:3px;">${gen}대 총매출</div>
-          <div style="font-size:15px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
+        <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:8px 6px;text-align:center;">
+          <div style="font-size:9px;color:#8b5cf6;margin-bottom:2px;">${gen}대 총매출</div>
+          <div style="font-size:14px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
         </div>
+      </div>
+      <!-- 컬럼 헤더 -->
+      <div style="display:grid;grid-template-columns:1fr 60px 60px 52px;gap:4px;padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;">
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;">ID / 상품</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">데일리</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">총 합계</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">직급</div>
       </div>`;
 
-    // 멤버 목록 (매출 내림차순)
-    const sorted = [...members].sort((a, b) => (totalDepMap[b.id] || 0) - (totalDepMap[a.id] || 0));
+    // 멤버 목록 (당일 수익 내림차순)
+    const sorted = [...members].sort((a, b) => (todayMap[b.id] || 0) - (todayMap[a.id] || 0));
 
-    const listHtml = sorted.map((m, idx) => {
+    const rankColor = { G0:'#94a3b8', G1:'#6b7280', G2:'#10b981', G3:'#3b82f6',
+      G4:'#8b5cf6', G5:'#f59e0b', G6:'#ef4444', G7:'#ec4899', G8:'#14b8a6',
+      G9:'#f97316', G10:'#eab308' };
+
+    const listHtml = sorted.map((m) => {
       const todayEarn = todayMap[m.id] || 0;
-      const totalDep = totalDepMap[m.id] || 0;
-      const maskedEmail = maskEmail(m.email);
-      const rankColor = { G0:'#94a3b8', G1:'#6b7280', G2:'#10b981', G3:'#3b82f6',
-        G4:'#8b5cf6', G5:'#f59e0b', G6:'#ef4444', G7:'#ec4899', G8:'#14b8a6',
-        G9:'#f97316', G10:'#eab308' };
-      const rc = rankColor[m.rank] || '#94a3b8';
+      const totalDep  = totalDepMap[m.id] || 0;
+      const rc        = rankColor[m.rank] || '#94a3b8';
+      const uid       = m.id.slice(0, 8).toUpperCase();
+      const invList   = investMap[m.id] || [];
+      // 상품 요약: 가장 큰 투자 상품명+데일리이율 (없으면 '-')
+      const mainInv   = invList.sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
+      const prodInfo  = mainInv
+        ? `${mainInv.packageName || mainInv.productName || '-'} · ${mainInv.dailyRoi || mainInv.roiPercent || 0}%/d`
+        : '-';
 
       return `
-      <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <!-- 순위 -->
-        <div style="width:22px;text-align:center;font-size:12px;color:var(--text2,#94a3b8);flex-shrink:0;">${idx + 1}</div>
-        <!-- 아바타 -->
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.07);
-          display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">👤</div>
-        <!-- 정보 -->
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;color:var(--text,#f1f5f9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            ${m.name || '이름 없음'}
-          </div>
-          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:1px;">${maskedEmail}</div>
-          <div style="display:flex;gap:6px;margin-top:4px;align-items:center;">
-            <span style="font-size:10px;background:${rc}22;color:${rc};padding:1px 6px;border-radius:99px;font-weight:700;">${m.rank || 'G0'}</span>
-            <span style="font-size:10px;color:var(--text3,#64748b);">매출 $${fmt(totalDep)}</span>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px 52px;gap:4px;padding:7px 8px;
+        border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;">
+        <!-- ID + 상품 -->
+        <div style="min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:var(--text,#f1f5f9);font-family:monospace;">${uid}</div>
+          <div style="font-size:9px;color:var(--text3,#64748b);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${prodInfo}</div>
+        </div>
+        <!-- 데일리 수익 -->
+        <div style="text-align:right;">
+          <div style="font-size:11px;font-weight:700;color:${todayEarn > 0 ? '#10b981' : 'var(--text3,#64748b)'};">
+            ${todayEarn > 0 ? '+$'+fmt(todayEarn) : '-'}
           </div>
         </div>
-        <!-- 당일 수익 -->
-        <div style="text-align:right;flex-shrink:0;">
-          <div style="font-size:13px;font-weight:700;color:${todayEarn > 0 ? '#10b981' : 'var(--text2,#94a3b8)'};">
-            ${todayEarn > 0 ? '+$' + fmt(todayEarn) : '-'}
-          </div>
-          <div style="font-size:10px;color:var(--text3,#64748b);margin-top:2px;">당일 내 수익</div>
+        <!-- 총 합계(총 입금) -->
+        <div style="text-align:right;">
+          <div style="font-size:11px;color:var(--text2,#94a3b8);">$${fmt(totalDep)}</div>
+        </div>
+        <!-- 직급 -->
+        <div style="text-align:right;">
+          <span style="font-size:10px;background:${rc}22;color:${rc};padding:2px 5px;border-radius:99px;font-weight:700;">${m.rank || 'G0'}</span>
         </div>
       </div>`;
     }).join('');
@@ -6216,9 +6262,9 @@ async function _loadNepGenTab(contentEl, gen) {
   }
 }
 
-/** 🌐 3대+ 탭 (집계만) */
+/** 🌐 3대+ 탭 — 전체 집계 + 대별 compact 표 */
 async function _loadNepDeepTab(contentEl) {
-  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
+  contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:6px"></div><div class="skeleton-item"></div>`;
   const { collection, query, where, getDocs, db } = window.FB;
 
   try {
@@ -6233,36 +6279,27 @@ async function _loadNepDeepTab(contentEl) {
     }
     const allUsers = _nepAllUsers;
 
-    // BFS로 전 대수 구조 파악
-    const genMap = {}; // uid → generation number
+    const genMap = {};
     let queue = allUsers.filter(u => u.referredBy === currentUser.uid && u.role !== 'admin');
     queue.forEach(u => { genMap[u.id] = 1; });
-
     while (queue.length) {
       const next = [];
       for (const u of queue) {
         const children = allUsers.filter(c => c.referredBy === u.id && c.role !== 'admin');
         children.forEach(c => {
-          if (genMap[c.id] === undefined) {
-            genMap[c.id] = genMap[u.id] + 1;
-            next.push(c);
-          }
+          if (genMap[c.id] === undefined) { genMap[c.id] = genMap[u.id] + 1; next.push(c); }
         });
       }
       queue = next;
     }
 
-    // 3대 이상만 추출
-    const deepIds = Object.entries(genMap)
-      .filter(([, g]) => g >= 3)
-      .map(([id]) => id);
+    const deepIds = Object.entries(genMap).filter(([, g]) => g >= 3).map(([id]) => id);
 
     if (!deepIds.length) {
       contentEl.innerHTML = '<div class="empty-state"><i class="fas fa-network-wired"></i><br>3대 이하 하부 멤버가 없습니다</div>';
       return;
     }
 
-    // 대별 집계
     const genGroups = {};
     deepIds.forEach(id => {
       const g = genMap[id];
@@ -6270,7 +6307,6 @@ async function _loadNepDeepTab(contentEl) {
       genGroups[g].push(id);
     });
 
-    // 각 대별 매출 집계
     const today = new Date().toISOString().slice(0, 10);
     const genSales = {};
     const genTodayEarn = {};
@@ -6281,75 +6317,70 @@ async function _loadNepDeepTab(contentEl) {
       const chunks = [];
       for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
       for (const chunk of chunks) {
-        // 매출: userId in chunk 단일 where → JS 필터
-        if (chunk.length > 0) {
-          const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
-          const txs = await getDocs(txq);
-          txs.docs.forEach(d => {
-            const data = d.data();
-            if (data.type === 'deposit' && data.status === 'approved')
-              genSales[g] += (data.amount || 0);
-          });
-        }
+        if (!chunk.length) continue;
+        const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
+        const txs = await getDocs(txq);
+        txs.docs.forEach(d => {
+          const data = d.data();
+          if (data.type === 'deposit' && data.status === 'approved')
+            genSales[g] += (data.amount || 0);
+        });
       }
-      // 당일 내 보너스: userId == 나 단일 where → JS로 날짜·fromUserId 필터
       if (ids.length > 0) {
         const myBQ = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
         const myBS = await getDocs(myBQ);
         myBS.docs.forEach(d => {
           const data = d.data();
-          if (data.settlementDate === today && ids.includes(data.fromUserId))
+          const date = data.settlementDate || (data.createdAt?.toDate?.()?.toISOString?.()?.slice(0,10)) || '';
+          if (date === today && ids.includes(data.fromUserId))
             genTodayEarn[g] += (data.amount || 0);
         });
       }
-    } // end for genGroups
+    }
 
-    // 전체 합산
-    const totalDeep = deepIds.length;
+    const totalDeep  = deepIds.length;
     const totalSales = Object.values(genSales).reduce((s, v) => s + v, 0);
     const totalToday = Object.values(genTodayEarn).reduce((s, v) => s + v, 0);
 
-    // 상단 요약
     let html = `
-      <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:#10b981;margin-bottom:3px;">3대+ 인원</div>
-          <div style="font-size:15px;font-weight:700;color:#10b981;">${totalDeep}명</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:8px 4px;text-align:center;">
+          <div style="font-size:9px;color:#10b981;margin-bottom:2px;">3대+ 인원</div>
+          <div style="font-size:14px;font-weight:700;color:#10b981;">${totalDeep}명</div>
         </div>
-        <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:#3b82f6;margin-bottom:3px;">당일 내 수익</div>
-          <div style="font-size:15px;font-weight:700;color:#3b82f6;">$${fmt(totalToday)}</div>
+        <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 4px;text-align:center;">
+          <div style="font-size:9px;color:#3b82f6;margin-bottom:2px;">당일 내 수익</div>
+          <div style="font-size:14px;font-weight:700;color:#3b82f6;">$${fmt(totalToday)}</div>
         </div>
-        <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:#8b5cf6;margin-bottom:3px;">총 매출</div>
-          <div style="font-size:15px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
+        <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:8px 4px;text-align:center;">
+          <div style="font-size:9px;color:#8b5cf6;margin-bottom:2px;">전체 매출</div>
+          <div style="font-size:14px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
         </div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:var(--text2,#94a3b8);margin-bottom:10px;">📊 대별 집계 (3대 이하는 개인정보 보호)</div>`;
+      <div style="display:grid;grid-template-columns:36px 1fr 70px 70px;gap:4px;padding:5px 8px;
+        background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;">
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;">대수</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;">회원 수</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">총 매출</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">당일 수익</div>
+      </div>`;
 
-    // 대별 행 렌더
     const sortedGens = Object.keys(genGroups).map(Number).sort((a, b) => a - b);
     html += sortedGens.map(g => {
-      const cnt = genGroups[g].length;
-      const sales = genSales[g] || 0;
-      const today = genTodayEarn[g] || 0;
+      const cnt    = genGroups[g].length;
+      const sales  = genSales[g] || 0;
+      const dToday = genTodayEarn[g] || 0;
       return `
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;
-        background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);
-        border-radius:10px;margin-bottom:8px;">
-        <div style="width:36px;height:36px;border-radius:50%;
+      <div style="display:grid;grid-template-columns:36px 1fr 70px 70px;gap:4px;
+        padding:7px 8px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;">
+        <div style="width:28px;height:28px;border-radius:50%;
           background:linear-gradient(135deg,#3b82f6,#8b5cf6);
           display:flex;align-items:center;justify-content:center;
-          font-size:13px;font-weight:700;color:#fff;flex-shrink:0;">${g}대</div>
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:700;color:var(--text,#f1f5f9);">${g}대 하부</div>
-          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">${cnt}명 · 총 매출 $${fmt(sales)}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:13px;font-weight:700;color:${today > 0 ? '#10b981' : 'var(--text2)'};">
-            ${today > 0 ? '+$' + fmt(today) : '-'}
-          </div>
-          <div style="font-size:10px;color:var(--text3,#64748b);margin-top:1px;">당일 내 수익</div>
+          font-size:10px;font-weight:700;color:#fff;">${g}대</div>
+        <div style="font-size:11px;color:var(--text2,#94a3b8);">${cnt}명</div>
+        <div style="text-align:right;font-size:11px;color:var(--text2,#94a3b8);">$${fmt(sales)}</div>
+        <div style="text-align:right;font-size:11px;font-weight:700;color:${dToday > 0 ? '#10b981' : 'var(--text3,#64748b)'};">
+          ${dToday > 0 ? '+$'+fmt(dToday) : '-'}
         </div>
       </div>`;
     }).join('');
