@@ -19,16 +19,21 @@ export class DedraAPI {
   async getDashboardStats() {
     try {
       const db = this.db;
-      const [usersSnap, txSnap, gameSnap, invSnap] = await Promise.all([
+      // gamelogs는 보안규칙상 컬렉션 전체 읽기 불가 → 각각 catch로 처리
+      const [usersSnap, txSnap, invSnap] = await Promise.all([
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'transactions')),
-        getDocs(collection(db, 'gamelogs')),
-        getDocs(collection(db, 'investments')),
+        getDocs(collection(db, 'investments')).catch(() => ({ docs: [] })),
       ]);
+      // gamelogs는 별도로 시도 (실패해도 무시)
+      let games = [];
+      try {
+        const gameSnap = await getDocs(collection(db, 'gamelogs'));
+        games = gameSnap.docs.map(d => d.data());
+      } catch(_) {}
 
       const users = usersSnap.docs.map(d => d.data());
       const txs   = txSnap.docs.map(d => d.data());
-      const games = gameSnap.docs.map(d => d.data());
       const invs  = invSnap.docs.map(d => d.data());
 
       const deposits    = txs.filter(t => t.type === 'deposit');
@@ -111,6 +116,17 @@ export class DedraAPI {
           { txId, userId: tx.userId, amount: tx.amount }
         );
       }
+
+      // ── 🔔 자동 규칙: 입금 완료 알림 ──────────────────────────────
+      try {
+        const depUserSnap = await getDoc(doc(db, 'users', tx.userId));
+        const depUser = depUserSnap.exists() ? depUserSnap.data() : {};
+        await this.fireAutoRules('deposit_complete', tx.userId, {
+          name:   depUser.name || depUser.referralCode || tx.userId,
+          amount: tx.amount || 0,
+          rank:   depUser.rank || 'G0',
+        }, adminId);
+      } catch(_) { /* 자동 규칙 실패 시 입금 승인에 영향 없음 */ }
 
       // ── 직급차 풀 보너스: 입금 승인 즉시 실시간 처리 ──────────────
       // enableRankGapBonus + realtimeOnDeposit 둘 다 true 일 때만 실행
@@ -318,6 +334,18 @@ export class DedraAPI {
         `${tx.userEmail || tx.userId} 님의 ${tx.amountUsdt || tx.amount} USDT 출금 신청이 승인되었습니다.`,
         { txId, userId: tx.userId, amount: tx.amountUsdt || tx.amount }
       );
+
+      // ── 🔔 자동 규칙: 출금 완료 알림 ─────────────────────────────
+      try {
+        const wdUserSnap = await getDoc(doc(db, 'users', tx.userId));
+        const wdUser = wdUserSnap.exists() ? wdUserSnap.data() : {};
+        await this.fireAutoRules('withdrawal_complete', tx.userId, {
+          name:   wdUser.name || wdUser.referralCode || tx.userId,
+          amount: tx.amountUsdt || tx.amount || 0,
+          rank:   wdUser.rank || 'G0',
+        }, adminId);
+      } catch(_) { /* 자동 규칙 실패 시 출금 승인에 영향 없음 */ }
+
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -524,15 +552,55 @@ export class DedraAPI {
 
   async appointCenterManager(adminId, userId, memberName) {
     try {
-      await updateDoc(doc(this.db, 'users', userId), { isCenterManager: true, updatedAt: serverTimestamp() });
-      await this._auditLog(adminId, 'member', `센터장 임명: ${memberName}`, { userId });
-      return ok(true);
+      // 1. 기존 centers 컬렉션에서 이 회원이 이미 센터를 갖고 있는지 확인
+      const existSnap = await getDocs(query(collection(this.db, 'centers'), where('leaderId', '==', userId)));
+      let centerId;
+      if (!existSnap.empty) {
+        // 이미 센터 있음 → 재활성화만
+        centerId = existSnap.docs[0].id;
+        await updateDoc(doc(this.db, 'centers', centerId), { isActive: true, updatedAt: serverTimestamp() });
+      } else {
+        // 새 센터 문서 생성
+        const centerRef = await addDoc(collection(this.db, 'centers'), {
+          name:         `${memberName} 센터`,
+          leaderId:     userId,
+          leaderName:   memberName,
+          managerName:  memberName,
+          region:       '',
+          address:      '',
+          managerEmail: '',
+          managerPhone: '',
+          description:  '',
+          memberCount:  0,
+          isActive:     true,
+          createdAt:    serverTimestamp(),
+          updatedAt:    serverTimestamp(),
+        });
+        centerId = centerRef.id;
+      }
+      // 2. users 문서에 센터장 정보 업데이트
+      await updateDoc(doc(this.db, 'users', userId), {
+        isCenterManager:  true,
+        managingCenterId: centerId,
+        updatedAt:        serverTimestamp(),
+      });
+      await this._auditLog(adminId, 'member', `센터장 임명: ${memberName}`, { userId, centerId });
+      return ok({ centerId });
     } catch(e) { return err(e); }
   }
 
   async revokeCenterManager(adminId, userId) {
     try {
-      await updateDoc(doc(this.db, 'users', userId), { isCenterManager: false, updatedAt: serverTimestamp() });
+      // centers 컬렉션에서 비활성화
+      const snap = await getDocs(query(collection(this.db, 'centers'), where('leaderId', '==', userId)));
+      for (const d of snap.docs) {
+        await updateDoc(doc(this.db, 'centers', d.id), { isActive: false, updatedAt: serverTimestamp() });
+      }
+      await updateDoc(doc(this.db, 'users', userId), {
+        isCenterManager:  false,
+        managingCenterId: null,
+        updatedAt:        serverTimestamp(),
+      });
       await this._auditLog(adminId, 'member', `센터장 해임: ${userId}`, { userId });
       return ok(true);
     } catch(e) { return err(e); }
@@ -1900,6 +1968,17 @@ export class DedraAPI {
         `${member.name || userId} 님이 ${curRank} → ${bestRank} 로 ${isUpgrade ? '승진' : '변경'}했습니다. (입금 승인 트리거)`,
         { userId, userName: member.name, oldRank: curRank, newRank: bestRank }
       );
+
+      // ── 🔔 자동 규칙: 직급 승급 알림 (승진인 경우만) ──────────────
+      if (isUpgrade) {
+        try {
+          await this.fireAutoRules('rank_upgrade', userId, {
+            name:   member.name || member.referralCode || userId,
+            rank:   bestRank,
+            amount: '',
+          }, adminId);
+        } catch(_) { /* 자동 규칙 실패 무시 */ }
+      }
     }
   }
 
@@ -2073,8 +2152,22 @@ export class DedraAPI {
       let q = collection(this.db, 'investments');
       if (statusFilter) q = query(q, where('status', '==', statusFilter));
       const snap = await getDocs(q);
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      const data = snap.docs.map(d => {
+        const raw = { id: d.id, ...d.data() };
+        // 필드명 정규화: 임포트 데이터(amount/productId/productName) ↔ UI기대(amountUsdt/packageId/packageName)
+        return {
+          ...raw,
+          amountUsdt:   raw.amountUsdt   ?? raw.amount       ?? 0,
+          packageId:    raw.packageId    ?? raw.productId    ?? '',
+          packageName:  raw.packageName  ?? raw.productName  ?? '-',
+          packageIcon:  raw.packageIcon  ?? raw.icon         ?? '💼',
+          dailyRoi:     raw.dailyRoi     ?? 0,
+          duration:     raw.duration     ?? 0,
+          startDate:    raw.startDate    ?? raw.purchaseDate ?? null,
+          endDate:      raw.endDate      ?? null,
+          totalClaimed: raw.totalClaimed ?? raw.totalEarned  ?? 0,
+        };
+      }).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       return ok(data);
     } catch(e) { return err(e); }
   }
@@ -2082,31 +2175,189 @@ export class DedraAPI {
   async getInvestmentAnalytics(dateFrom, dateTo, expireMode) {
     try {
       const snap = await getDocs(collection(this.db, 'investments'));
-      let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // 필드명 정규화
+      const normalize = (d) => {
+        const raw = { id: d.id, ...d.data() };
+        return {
+          ...raw,
+          amountUsdt:   raw.amountUsdt   ?? raw.amount      ?? 0,
+          packageId:    raw.packageId    ?? raw.productId   ?? '',
+          packageName:  raw.packageName  ?? raw.productName ?? '-',
+          packageIcon:  raw.packageIcon  ?? raw.icon        ?? '💼',
+          dailyRoi:     raw.dailyRoi     ?? 0,
+          duration:     raw.duration     ?? 0,
+          startDate:    raw.startDate    ?? raw.purchaseDate ?? null,
+          endDate:      raw.endDate      ?? null,
+          totalClaimed: raw.totalClaimed ?? raw.totalEarned ?? 0,
+        };
+      };
+      let data = snap.docs.map(normalize);
       if (dateFrom) data = data.filter(i => (i.createdAt?.seconds || 0) >= dateFrom / 1000);
       if (dateTo)   data = data.filter(i => (i.createdAt?.seconds || 0) <= dateTo / 1000);
+
+      // 현재 시간 기준
+      const nowSec = Date.now() / 1000;
+      const endSec = (i) => i.endDate?.seconds ?? (i.endDate ? new Date(i.endDate).getTime()/1000 : 0);
+
+      // 만료 필터
       if (expireMode === 'expiringSoon') {
-        const soon = Date.now() / 1000 + 7 * 86400;
-        data = data.filter(i => (i.expireAt?.seconds || 0) <= soon && i.status === 'active');
+        const soon = nowSec + 7 * 86400;
+        data = data.filter(i => endSec(i) > 0 && endSec(i) <= soon && i.status === 'active');
       } else if (expireMode === 'expired') {
-        data = data.filter(i => i.status === 'expired' || i.status === 'completed');
+        data = data.filter(i => i.status === 'expired' || i.status === 'completed' || (i.status === 'active' && endSec(i) > 0 && endSec(i) < nowSec));
       }
-      return ok(data);
+
+      // 상품 목록 (products 컬렉션)
+      const prodSnap = await getDocs(collection(this.db, 'products'));
+      const prodMap = {};
+      prodSnap.docs.forEach(d => { prodMap[d.id] = { id: d.id, ...d.data() }; });
+
+      // KPI 요약
+      const active    = data.filter(i => i.status === 'active');
+      const completed = data.filter(i => i.status === 'completed' || i.status === 'expired');
+      const totalInvestAmt   = data.reduce((s,i) => s + (i.amountUsdt||0), 0);
+      const totalExpectedRoi = data.reduce((s,i) => s + (i.amountUsdt||0)*(i.dailyRoi||0)*(i.duration||0), 0);
+      const totalClaimed     = data.reduce((s,i) => s + (i.totalClaimed||0), 0);
+
+      // wallets 합계 (전체 범위)
+      const walSnap = await getDocs(collection(this.db, 'wallets'));
+      const totalDeposit    = walSnap.docs.reduce((s,d) => s + (d.data().totalDeposit||0), 0);
+      const totalWithdrawal = walSnap.docs.reduce((s,d) => s + (d.data().totalWithdrawal||0), 0);
+
+      const summary = {
+        totalDeposit, totalWithdrawal,
+        totalInvestAmt, totalInvestCount: data.length,
+        activeInvCount: active.length, completedCount: completed.length,
+        totalExpectedRoi, totalClaimed,
+      };
+
+      // 상품별 집계
+      const byProductMap = {};
+      data.forEach(i => {
+        const pid = i.packageId || 'unknown';
+        if (!byProductMap[pid]) {
+          byProductMap[pid] = {
+            product: prodMap[pid] || { name: i.packageName||pid, icon: i.packageIcon||'💼', dailyRoi: i.dailyRoi||0, duration: i.duration||0 },
+            count:0, activeCount:0, completedCount:0,
+            totalAmtUsdt:0, totalRoi:0, totalClaimed:0, expiringCount:0, expiringAmtUsdt:0
+          };
+        }
+        const b = byProductMap[pid];
+        b.count++;
+        b.totalAmtUsdt += (i.amountUsdt||0);
+        b.totalRoi     += (i.amountUsdt||0)*(i.dailyRoi||0)*(i.duration||0);
+        b.totalClaimed += (i.totalClaimed||0);
+        if (i.status === 'active') {
+          b.activeCount++;
+          const es = endSec(i);
+          if (es > 0 && es <= nowSec + 30*86400) { b.expiringCount++; b.expiringAmtUsdt += (i.amountUsdt||0); }
+        } else {
+          b.completedCount++;
+        }
+      });
+      const byProduct = Object.values(byProductMap);
+
+      // 월별 추이 (최근 6개월)
+      const monthlyMap = {};
+      data.forEach(i => {
+        const sec = i.createdAt?.seconds || i.startDate?.seconds || 0;
+        if (!sec) return;
+        const d = new Date(sec * 1000);
+        const label = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+        if (!monthlyMap[label]) monthlyMap[label] = { label, investCount:0, investAmt:0, roi:0, claimed:0, depositAmt:0, withdrawalAmt:0 };
+        monthlyMap[label].investCount++;
+        monthlyMap[label].investAmt += (i.amountUsdt||0);
+        monthlyMap[label].roi       += (i.amountUsdt||0)*(i.dailyRoi||0)*(i.duration||0);
+        monthlyMap[label].claimed   += (i.totalClaimed||0);
+      });
+      const monthly = Object.values(monthlyMap).sort((a,b) => a.label.localeCompare(b.label));
+
+      // 만료 예정 목록
+      const expiringList = active
+        .filter(i => { const es = endSec(i); return es > 0 && es <= nowSec + 90*86400; })
+        .sort((a,b) => endSec(a) - endSec(b));
+      const expiring = {
+        mode: expireMode || 'week',
+        totalCount:     expiringList.length,
+        totalAmtUsdt:   expiringList.reduce((s,i)=>s+(i.amountUsdt||0),0),
+        totalReturnUsdt:expiringList.reduce((s,i)=>s+(i.amountUsdt||0)*(1+(i.dailyRoi||0)*(i.duration||0)),0),
+        list:           expiringList,
+      };
+
+      return ok({ summary, byProduct, monthly, expiring, rawData: data });
     } catch(e) { return err(e); }
   }
 
-  async getProductSalesStats() {
+  async getProductSalesStats(dateFrom, dateTo) {
     try {
-      const snap = await getDocs(collection(this.db, 'investments'));
+      // investments 전체 로드
+      const invSnap  = await getDocs(collection(this.db, 'investments'));
+      const prodSnap = await getDocs(collection(this.db, 'products'));
+
+      // products 맵
+      const prodMap = {};
+      prodSnap.docs.forEach(d => { prodMap[d.id] = { id: d.id, ...d.data() }; });
+
+      // 날짜 필터 범위
+      const fromSec = dateFrom ? dateFrom.getTime() / 1000 : 0;
+      const toSec   = dateTo   ? (dateTo.getTime() / 1000 + 86400) : Infinity;
+
+      // 상품별 집계
       const byProduct = {};
-      snap.docs.forEach(d => {
-        const inv = d.data();
-        const pid = inv.productId || 'unknown';
-        if (!byProduct[pid]) byProduct[pid] = { count: 0, total: 0, name: inv.productName || pid };
-        byProduct[pid].count++;
-        byProduct[pid].total += (inv.amount || 0);
+
+      invSnap.docs.forEach(d => {
+        const inv = { id: d.id, ...d.data() };
+        // 필드 정규화
+        const pid    = inv.productId  || inv.packageId  || 'unknown';
+        const amount = inv.amount     || inv.amountUsdt || 0;
+        const pDate  = inv.purchaseDate || inv.startDate || inv.createdAt;
+        const pSec   = pDate?.seconds ?? (pDate ? new Date(pDate).getTime()/1000 : 0);
+
+        // 날짜 필터
+        if (pSec < fromSec || pSec > toSec) return;
+
+        if (!byProduct[pid]) {
+          const prod = prodMap[pid] || {
+            id: pid,
+            name: inv.productName || inv.packageName || pid,
+            type: 'investment',
+            icon: inv.packageIcon || '💼',
+            duration: inv.duration || 0,
+            dailyRoi: inv.dailyRoi || 0,
+            isActive: true,
+          };
+          byProduct[pid] = {
+            product: prod,
+            totalCount: 0,
+            activeCount: 0,
+            completedCount: 0,
+            totalAmountUsdt: 0,
+            // 날짜별 집계 (구매일 기준)
+            byDate: {},
+          };
+        }
+
+        const b = byProduct[pid];
+        b.totalCount++;
+        b.totalAmountUsdt += amount;
+        if (inv.status === 'active')                                   b.activeCount++;
+        else if (inv.status === 'completed' || inv.status === 'expired') b.completedCount++;
+        else                                                            b.activeCount++; // 기본 active 취급
+
+        // 날짜별 집계
+        if (pSec > 0) {
+          const dayKey = new Date(pSec * 1000).toISOString().slice(0, 10);
+          if (!b.byDate[dayKey]) b.byDate[dayKey] = { count: 0, amount: 0 };
+          b.byDate[dayKey].count++;
+          b.byDate[dayKey].amount += amount;
+        }
       });
-      return ok(Object.entries(byProduct).map(([id, v]) => ({ id, ...v })));
+
+      // products 정렬 (sortOrder 기준)
+      const result = Object.values(byProduct)
+        .sort((a, b) => (a.product.sortOrder || 99) - (b.product.sortOrder || 99));
+
+      return ok(result);
     } catch(e) { return err(e); }
   }
 
@@ -2198,20 +2449,166 @@ export class DedraAPI {
   // ─────────────────────────────────────────────────
   // 조직도
   // ─────────────────────────────────────────────────
-  async getOrgTree(rootUserId) {
+  async getOrgTree(rootUserId, maxDepth = 5) {
     try {
-      const snap = await getDocs(collection(this.db, 'users'));
-      const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const build = (parentId) => {
-        const children = users.filter(u => u.referredBy === parentId);
-        return children.map(u => ({ ...u, children: build(u.id) }));
+      // users + wallets 병렬 로드
+      const [userSnap, walletSnap] = await Promise.all([
+        getDocs(collection(this.db, 'users')),
+        getDocs(collection(this.db, 'wallets'))
+      ]);
+
+      // wallets 맵: uid → {totalInvested, bonusBalance, ...}
+      const walletMap = new Map();
+      walletSnap.docs.forEach(d => {
+        walletMap.set(d.id, d.data());
+      });
+
+      const allDocs = userSnap.docs.map(d => {
+        const data = d.data();
+        const uid  = data.uid || d.id;
+        const wallet = walletMap.get(uid) || walletMap.get(d.id) || {};
+        return {
+          ...data,
+          id: d.id,
+          _uid: uid,
+          totalInvested: wallet.totalInvested || data.totalInvested || 0,
+          bonusBalance:  wallet.bonusBalance  || data.bonusBalance  || 0,
+        };
+      });
+      const users = allDocs.filter(u => u.role !== 'admin');
+
+      // _uid 집합
+      const uidSet = new Set(users.map(u => u._uid));
+
+      // referredBy 정규화
+      const getRef = (u) => {
+        const r = u.referredBy;
+        return (r && r !== '') ? r : null;
       };
-      const root = rootUserId
-        ? users.find(u => u.id === rootUserId)
-        : users.find(u => u.role !== 'admin');
-      if (!root) return ok([]);
-      return ok([{ ...root, children: build(root.id) }]);
-    } catch(e) { return err(e); }
+
+      // 자식 맵 사전 구축
+      const childrenMap = new Map();
+      for (const u of users) childrenMap.set(u._uid, []);
+      for (const u of users) {
+        const ref = getRef(u);
+        if (ref && childrenMap.has(ref)) childrenMap.get(ref).push(u);
+      }
+
+      // depth 제한 + 순환참조 방지 트리 빌드
+      const buildTree = (rootUid) => {
+        const visited = new Set();
+        const buildNode = (uid, depth) => {
+          if (visited.has(uid)) return [];
+          visited.add(uid);
+          const children = childrenMap.get(uid) || [];
+          if (depth >= maxDepth) {
+            return children.map(child => ({
+              ...child,
+              children: [],
+              hasMore: (childrenMap.get(child._uid) || []).length > 0
+            }));
+          }
+          return children.map(child => ({
+            ...child,
+            children: buildNode(child._uid, depth + 1),
+            hasMore: false
+          }));
+        };
+        return buildNode(rootUid, 0);
+      };
+
+      if (rootUserId) {
+        const root = users.find(u => u.id === rootUserId || u._uid === rootUserId);
+        if (!root) return ok([]);
+        return ok([{ ...root, children: buildTree(root._uid), hasMore: false }]);
+      } else {
+        const roots = users.filter(u => {
+          const ref = getRef(u);
+          return !ref || !uidSet.has(ref);
+        });
+        return ok(roots.map(r => ({ ...r, children: buildTree(r._uid), hasMore: false })));
+      }
+    } catch(e) {
+      console.error('[getOrgTree] 에러:', e);
+      return err(e);
+    }
+  }
+
+  // ─────────────────────────────────────────────────
+  // 조직도 - 특정 회원 기준 위아래 트리
+  // ─────────────────────────────────────────────────
+  async getOrgTreeCentered(targetUserId, upDepth = 2, downDepth = 3) {
+    try {
+      const [userSnap, walletSnap] = await Promise.all([
+        getDocs(collection(this.db, 'users')),
+        getDocs(collection(this.db, 'wallets'))
+      ]);
+
+      const walletMap = new Map();
+      walletSnap.docs.forEach(d => walletMap.set(d.id, d.data()));
+
+      const allDocs = userSnap.docs.map(d => {
+        const data = d.data();
+        const uid  = data.uid || d.id;
+        const wallet = walletMap.get(uid) || walletMap.get(d.id) || {};
+        return {
+          ...data,
+          id: d.id,
+          _uid: uid,
+          totalInvested: wallet.totalInvested || data.totalInvested || 0,
+          bonusBalance:  wallet.bonusBalance  || data.bonusBalance  || 0,
+        };
+      });
+      const users = allDocs.filter(u => u.role !== 'admin');
+
+      // uid → user 맵
+      const userMap = new Map();
+      users.forEach(u => { userMap.set(u._uid, u); userMap.set(u.id, u); });
+
+      // 자식 맵
+      const childrenMap = new Map();
+      users.forEach(u => childrenMap.set(u._uid, []));
+      users.forEach(u => {
+        const ref = u.referredBy;
+        if (ref && ref !== '' && childrenMap.has(ref)) childrenMap.get(ref).push(u);
+      });
+
+      const target = userMap.get(targetUserId);
+      if (!target) return ok(null);
+
+      // ── 위로 올라가기 (부모 체인) ──
+      // 반환: [{user, level}] level=1이 바로 위 부모, level=upDepth가 최상위
+      const parentChain = [];
+      let cur = target;
+      for (let i = 0; i < upDepth; i++) {
+        const ref = cur.referredBy;
+        if (!ref || ref === '') break;
+        const parent = userMap.get(ref);
+        if (!parent) break;
+        parentChain.unshift({ ...parent, _level: -(i + 1) }); // 음수 = 위
+        cur = parent;
+      }
+
+      // ── 아래로 내려가기 (자식 트리) ──
+      const buildDown = (uid, depth) => {
+        const visited = new Set();
+        const go = (u, d) => {
+          if (visited.has(u._uid)) return [];
+          visited.add(u._uid);
+          const children = childrenMap.get(u._uid) || [];
+          if (d >= depth) return children.map(c => ({ ...c, children: [], hasMore: (childrenMap.get(c._uid)||[]).length > 0 }));
+          return children.map(c => ({ ...c, children: go(c, d + 1), hasMore: false }));
+        };
+        return go(userMap.get(uid) || {_uid: uid}, 0);
+      };
+
+      const targetNode = { ...target, children: buildDown(target._uid, downDepth), hasMore: false, _isCenter: true };
+
+      return ok({ target: targetNode, parents: parentChain });
+    } catch(e) {
+      console.error('[getOrgTreeCentered] 에러:', e);
+      return err(e);
+    }
   }
 
   // ─────────────────────────────────────────────────
@@ -2391,6 +2788,189 @@ export class DedraAPI {
       await deleteDoc(doc(this.db, 'autoRules', id));
       return ok(true);
     } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
+  // 자동 규칙 엔진 - 이벤트 발생 시 호출
+  // ─────────────────────────────────────────────────
+  /**
+   * 특정 이벤트 발생 시 활성화된 자동 규칙을 검색하고 해당 알림을 발송합니다.
+   *
+   * @param {string} eventType  - 'deposit_complete' | 'withdrawal_complete' | 'rank_upgrade' |
+   *                              'referral_joined' | 'investment_start' | 'investment_expire' |
+   *                              'roi_claimed' | 'bonus_received'
+   * @param {string} targetUserId - 이벤트의 주체 userId (알림 수신자)
+   * @param {object} vars       - 메시지 치환 변수 { name, amount, rank, date, referrerName, ... }
+   * @param {string} [actorId]  - 이벤트를 발생시킨 adminId (로그용)
+   */
+  async fireAutoRules(eventType, targetUserId, vars = {}, actorId = 'SYSTEM') {
+    try {
+      // 1) 활성화된 자동 규칙 중 해당 트리거만 필터
+      const rulesSnap = await getDocs(collection(this.db, 'autoRules'));
+      const rules = rulesSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(r => r.isActive !== false && r.triggerEvent === eventType);
+
+      if (!rules.length) return ok({ fired: 0 });
+
+      // 2) 수신 대상 회원 정보 조회
+      const userSnap = await getDoc(doc(this.db, 'users', targetUserId));
+      if (!userSnap.exists()) return ok({ fired: 0 });
+      const user = userSnap.data();
+
+      // 3) 각 규칙에 대해 대상 필터링 후 알림 발송
+      const batch = writeBatch(this.db);
+      let fired = 0;
+
+      for (const rule of rules) {
+        // 대상 그룹 필터
+        const tg = rule.targetGroup || 'all';
+        if (tg !== 'all') {
+          if (tg === 'active' && user.status !== 'active') continue;
+          if (tg === 'invested') {
+            // 투자 중인 회원만 - wallets에 totalInvested > 0 확인
+            const wSnap = await getDoc(doc(this.db, 'wallets', targetUserId));
+            if (!wSnap.exists() || !(wSnap.data().totalInvested > 0)) continue;
+          }
+          // 직급 필터 (G0~G10: 해당 직급 이상)
+          const rankOrder = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+          if (rankOrder.includes(tg)) {
+            const userRankIdx = rankOrder.indexOf(user.rank || 'G0');
+            const ruleRankIdx = rankOrder.indexOf(tg);
+            if (userRankIdx < ruleRankIdx) continue;
+          }
+        }
+
+        // 메시지 변수 치환
+        const today = new Date().toLocaleDateString('ko-KR');
+        const replaceVars = {
+          '{{name}}':   vars.name   || user.name  || user.referralCode || targetUserId,
+          '{{amount}}': vars.amount !== undefined ? `${vars.amount}` : '',
+          '{{rank}}':   vars.rank   || user.rank  || 'G0',
+          '{{date}}':   vars.date   || today,
+          '{{referrerName}}': vars.referrerName || '',
+          '{{productName}}':  vars.productName  || '',
+        };
+
+        let finalTitle   = rule.title   || '';
+        let finalMessage = rule.message || '';
+        for (const [k, v] of Object.entries(replaceVars)) {
+          finalTitle   = finalTitle.replace(new RegExp(k.replace('{{','\\{\\{').replace('}}','\\}\\}'), 'g'), v);
+          finalMessage = finalMessage.replace(new RegExp(k.replace('{{','\\{\\{').replace('}}','\\}\\}'), 'g'), v);
+        }
+
+        // 발송 지연 처리 (delayMinutes > 0 이면 scheduledBroadcasts에 예약)
+        const delayMinutes = rule.delayMinutes || 0;
+        if (delayMinutes > 0) {
+          const scheduledAt = new Date(Date.now() + delayMinutes * 60000);
+          await addDoc(collection(this.db, 'scheduledBroadcasts'), {
+            title: finalTitle,
+            message: finalMessage,
+            type: rule.type || 'push',
+            priority: rule.priority || 'normal',
+            icon: rule.icon || '🔔',
+            color: rule.color || '#10b981',
+            targetGroup: 'specific',
+            specificUserId: targetUserId,
+            scheduledAt: scheduledAt,
+            status: 'pending',
+            autoRuleId: rule.id,
+            triggerEvent: eventType,
+            createdBy: actorId,
+            createdAt: serverTimestamp(),
+          });
+        } else {
+          // 즉시 발송 - notifications 컬렉션에 직접 저장
+          const nRef = doc(collection(this.db, 'notifications'));
+          batch.set(nRef, {
+            userId: targetUserId,
+            title: finalTitle,
+            message: finalMessage,
+            type: rule.type || 'push',
+            priority: rule.priority || 'normal',
+            icon: rule.icon || '🔔',
+            color: rule.color || '#10b981',
+            isRead: false,
+            autoRuleId: rule.id,
+            triggerEvent: eventType,
+            createdAt: serverTimestamp(),
+          });
+        }
+
+        // 규칙 발송 횟수 증가
+        const ruleRef = doc(this.db, 'autoRules', rule.id);
+        batch.update(ruleRef, { triggerCount: increment(1), lastFiredAt: serverTimestamp() });
+
+        fired++;
+      }
+
+      await batch.commit();
+      return ok({ fired });
+    } catch(e) {
+      console.warn('[fireAutoRules] 오류:', e);
+      return err(e);
+    }
+  }
+
+  /**
+   * 하부 조직(다단계) 추천인 체인 전체에 '하부 가입 알림' 발송
+   * 신규 회원이 가입했을 때 referredBy 체인을 타고 올라가며 모두 알림
+   *
+   * @param {string} newUserId  - 신규 가입 회원 userId
+   * @param {object} newUser    - { name, referralCode, referredBy }
+   */
+  async fireReferralChainNotification(newUserId, newUser) {
+    try {
+      // 활성 referral_joined 규칙이 없으면 조기 종료
+      const rulesSnap = await getDocs(collection(this.db, 'autoRules'));
+      const hasReferralRule = rulesSnap.docs.some(
+        d => d.data().isActive !== false && d.data().triggerEvent === 'referral_joined'
+      );
+      if (!hasReferralRule) return ok({ fired: 0 });
+
+      // 전체 회원 맵 구성 (referralCode → userId 매핑)
+      const usersSnap = await getDocs(collection(this.db, 'users'));
+      const codeToUid = {};
+      const userMap   = {};
+      usersSnap.docs.forEach(d => {
+        const u = d.data();
+        userMap[d.id] = { id: d.id, ...u };
+        if (u.referralCode) codeToUid[u.referralCode] = d.id;
+      });
+
+      // referredBy 체인을 따라 올라가며 상위 추천인 수집
+      const chain = [];
+      let cur = newUser.referredBy ? (codeToUid[newUser.referredBy] || newUser.referredBy) : null;
+      const visited = new Set([newUserId]);
+      let depth = 0;
+      while (cur && !visited.has(cur) && depth < 20) {
+        visited.add(cur);
+        if (userMap[cur]) chain.push(cur);
+        cur = userMap[cur]?.referredBy
+          ? (codeToUid[userMap[cur].referredBy] || userMap[cur].referredBy)
+          : null;
+        depth++;
+      }
+
+      // 각 상위 추천인에게 알림 발송
+      let fired = 0;
+      for (const referrerId of chain) {
+        const referrer = userMap[referrerId];
+        if (!referrer || referrer.role === 'admin') continue;
+        const r = await this.fireAutoRules('referral_joined', referrerId, {
+          name: referrer.name || referrer.referralCode || referrerId,
+          referrerName: newUser.name || newUser.referralCode || newUserId,
+          amount: '',
+          rank: referrer.rank || 'G0',
+        }, 'SYSTEM');
+        if (r.success) fired += r.data?.fired || 0;
+      }
+
+      return ok({ fired, chainLength: chain.length });
+    } catch(e) {
+      console.warn('[fireReferralChainNotification] 오류:', e);
+      return err(e);
+    }
   }
 
   // ─────────────────────────────────────────────────

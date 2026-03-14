@@ -3,30 +3,58 @@
   "short_name": "DEEDRA",
   "description": "DEEDRA - Smart Asset FREEZE Platform",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0f1e",
   "theme_color": "#0a0f1e",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "lang": "ko",
+  "categories": ["finance", "utilities"],
   "icons": [
     {
       "src": "/static/favicon.ico",
       "sizes": "any",
-      "type": "image/x-icon",
-      "purpose": "any maskable"
+      "type": "image/x-icon"
     },
     {
       "src": "/static/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/static/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "categories": ["finance", "utilities"],
-  "lang": "ko"
+  "shortcuts": [
+    {
+      "name": "입금",
+      "short_name": "입금",
+      "description": "USDT 입금",
+      "url": "/?action=deposit",
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "출금",
+      "short_name": "출금",
+      "description": "DDRA 출금 신청",
+      "url": "/?action=withdraw",
+      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

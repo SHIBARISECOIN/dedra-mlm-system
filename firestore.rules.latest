@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 관리자 여부 확인
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 로그인 여부 확인
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // users: 본인 또는 관리자
+    match /users/{userId} {
+      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // transactions: 본인 또는 관리자
+    match /transactions/{docId} {
+      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // investments: 본인 또는 관리자
+    match /investments/{docId} {
+      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // wallets: 본인 또는 관리자
+    match /wallets/{userId} {
+      allow read, write: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // gamelogs: 본인 쓰기, 관리자 읽기/쓰기
+    match /gamelogs/{docId} {
+      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // bonuses: 본인 또는 관리자
+    match /bonuses/{docId} {
+      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // announcements: 모든 로그인 유저 읽기, 관리자 쓰기
+    match /announcements/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // tickets (1:1 문의): 본인 또는 관리자
+    match /tickets/{docId} {
+      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isLoggedIn();
+      allow update: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // settings: 로그인 유저 읽기, 관리자 쓰기
+    match /settings/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // products: 모든 로그인 유저 읽기, 관리자 쓰기
+    match /products/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // notifications: 본인 또는 관리자
+    match /notifications/{docId} {
+      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || resource.data.targetAll == true || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // broadcasts: 관리자만
+    match /broadcasts/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // auditLogs: 관리자만
+    match /auditLogs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // centers: 관리자만
+    match /centers/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // news: 모든 로그인 유저 읽기, 관리자 쓰기
+    match /news/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    // scheduledBroadcasts: 관리자만
+    match /scheduledBroadcasts/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // autoRules (자동 알림 규칙): 관리자만
+    match /autoRules/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // settlements (일일 ROI 정산): 관리자만
+    match /settlements/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // rateHistory (DDRA 시세 이력): 관리자만
+    match /rateHistory/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // subAdmins (보조계정): 관리자만
+    match /subAdmins/{docId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

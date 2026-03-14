@@ -350,3 +350,202 @@ window.SolanaWallet = {
     return { valid: false, reason: 'VERIFY_FAILED' };
   },
 };
+
+// ══════════════════════════════════════════════════════════════════
+// DDRA 토큰 지갑 등록 유틸리티
+// - Phantom(Solana) : wallet.watchAsset → SPL 토큰 즉시 추가
+// - TokenPocket / MetaMask 계열(EVM) : wallet_watchAsset ERC-20 방식
+// ══════════════════════════════════════════════════════════════════
+window.DDRATokenRegister = {
+
+  // ── 토큰 기본 정보 (관리자가 Firestore settings/system 에서 덮어씀) ──
+  config: {
+    // Solana SPL (Phantom / TokenPocket Solana 모드)
+    solanaMint:   'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu',
+    solanaDecimals: 6,
+    // EVM – BSC BEP-20 (TokenPocket EVM 모드)
+    bscContract:  '',          // 예: '0xDDRA...'
+    bscDecimals:  18,
+    // 공통
+    symbol:       'DDRA',
+    name:         'DEEDRA Token',
+    logoUrl:      'https://deedra.pages.dev/static/img/ddra-coin.png',
+  },
+
+  // ── 설정 Firestore에서 로드 ──
+  async loadConfig(db, doc, getDoc) {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'system'));
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.ddraSolanaMint)   this.config.solanaMint   = d.ddraSolanaMint;
+        if (d.ddraBscContract)  this.config.bscContract  = d.ddraBscContract;
+        if (d.ddraLogoUrl)      this.config.logoUrl       = d.ddraLogoUrl;
+        if (d.ddraDecimals)     this.config.solanaDecimals = d.ddraDecimals;
+      }
+    } catch(e) { console.warn('[DDRATokenRegister] config load failed', e); }
+  },
+
+  // ── 감지: 어떤 지갑이 있는지 ──
+  detectWalletType() {
+    // Phantom Solana
+    if (window.phantom?.solana?.isPhantom) return 'phantom';
+    // Solflare
+    if (window.solflare?.isSolflare) return 'solflare';
+    // EVM 계열 (MetaMask / TokenPocket EVM / Trust Wallet)
+    if (window.ethereum) {
+      const provider = window.ethereum;
+      if (provider.isTokenPocket) return 'tokenpocket_evm';
+      if (provider.isMetaMask)    return 'metamask';
+      return 'evm_generic';
+    }
+    // TokenPocket Solana 모드
+    if (window.solana?.isTokenPocket) return 'tokenpocket_solana';
+    if (window.solana) return 'solana_generic';
+    return null;
+  },
+
+  // ── 메인: DDRA 토큰 지갑에 추가 ──
+  async addToWallet() {
+    const type = this.detectWalletType();
+
+    if (!type) {
+      return { success: false, error: 'NO_WALLET',
+               message: '지갑이 감지되지 않습니다.\nPhantom 또는 TokenPocket을 먼저 설치해주세요.' };
+    }
+
+    // Solana 계열
+    if (type === 'phantom' || type === 'solflare' || type === 'tokenpocket_solana' || type === 'solana_generic') {
+      return await this._addToSolanaWallet(type);
+    }
+
+    // EVM 계열
+    if (type === 'tokenpocket_evm' || type === 'metamask' || type === 'evm_generic') {
+      return await this._addToEvmWallet(type);
+    }
+
+    return { success: false, error: 'UNSUPPORTED', message: '지원하지 않는 지갑 형식입니다.' };
+  },
+
+  // ── Phantom / Solflare / Solana 계열 ──
+  async _addToSolanaWallet(type) {
+    if (!this.config.solanaMint) {
+      return { success: false, error: 'NO_MINT',
+               message: 'DDRA Solana 토큰 주소가 아직 설정되지 않았습니다.\n관리자에게 문의해주세요.' };
+    }
+
+    try {
+      let provider;
+      if (type === 'phantom')   provider = window.phantom.solana;
+      else if (type === 'solflare') provider = window.solflare;
+      else provider = window.solana;
+
+      // 연결 확인
+      if (!provider.isConnected && provider.connect) {
+        await provider.connect({ onlyIfTrusted: true }).catch(() => {});
+      }
+
+      // watchAsset – Phantom & Solflare 지원
+      if (provider.watchAsset) {
+        const result = await provider.watchAsset({
+          type: 'SPL',
+          options: {
+            address:  this.config.solanaMint,
+            symbol:   this.config.symbol,
+            name:     this.config.name,
+            decimals: this.config.solanaDecimals,
+            image:    this.config.logoUrl,
+          }
+        });
+        if (result) return { success: true, wallet: type, network: 'Solana' };
+        return { success: false, error: 'USER_REJECTED', message: '사용자가 취소했습니다.' };
+      }
+
+      // watchAsset 미지원 시 주소 복사 안내
+      return {
+        success: false, error: 'NOT_SUPPORTED',
+        message: `이 지갑은 자동 토큰 추가를 지원하지 않습니다.\n아래 Solana 민트 주소를 직접 추가해주세요:\n\n${this.config.solanaMint}`,
+        mint: this.config.solanaMint
+      };
+
+    } catch(e) {
+      if (e.code === 4001 || e.message?.includes('reject')) {
+        return { success: false, error: 'USER_REJECTED', message: '사용자가 취소했습니다.' };
+      }
+      return { success: false, error: e.message, message: '토큰 추가 중 오류가 발생했습니다:\n' + e.message };
+    }
+  },
+
+  // ── TokenPocket EVM / MetaMask / EVM 계열 ──
+  async _addToEvmWallet(type) {
+    if (!this.config.bscContract) {
+      return { success: false, error: 'NO_CONTRACT',
+               message: 'DDRA BSC(BEP-20) 컨트랙트 주소가 아직 설정되지 않았습니다.\n관리자에게 문의해주세요.' };
+    }
+
+    try {
+      const provider = window.ethereum;
+
+      // 1단계: BSC 네트워크 추가/전환
+      await this._switchToBSC(provider);
+
+      // 2단계: DDRA 토큰 추가
+      const wasAdded = await provider.request({
+        method: 'wallet_watchAsset',
+        params: {
+          type: 'ERC20',
+          options: {
+            address:  this.config.bscContract,
+            symbol:   this.config.symbol,
+            decimals: this.config.bscDecimals,
+            image:    this.config.logoUrl,
+          }
+        }
+      });
+
+      if (wasAdded) return { success: true, wallet: type, network: 'BSC' };
+      return { success: false, error: 'USER_REJECTED', message: '사용자가 취소했습니다.' };
+
+    } catch(e) {
+      if (e.code === 4001) return { success: false, error: 'USER_REJECTED', message: '사용자가 취소했습니다.' };
+      return { success: false, error: e.message, message: '토큰 추가 중 오류가 발생했습니다:\n' + e.message };
+    }
+  },
+
+  // ── BSC 메인넷으로 전환 (없으면 추가) ──
+  async _switchToBSC(provider) {
+    const BSC_CHAIN_ID = '0x38'; // 56
+    try {
+      await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: BSC_CHAIN_ID }] });
+    } catch(switchErr) {
+      // 체인이 없으면 추가
+      if (switchErr.code === 4902) {
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: BSC_CHAIN_ID,
+            chainName: 'BNB Smart Chain',
+            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+            rpcUrls: ['https://bsc-dataseed.binance.org/', 'https://bsc-dataseed1.defibit.io/'],
+            blockExplorerUrls: ['https://bscscan.com/'],
+          }]
+        });
+      }
+    }
+  },
+
+  // ── 지갑 종류별 안내 문구 ──
+  getWalletGuide() {
+    const type = this.detectWalletType();
+    const guides = {
+      phantom:          { name: '👻 Phantom', network: 'Solana', color: '#ab9ff2' },
+      solflare:         { name: '🔥 Solflare', network: 'Solana', color: '#fc8c00' },
+      tokenpocket_solana:{ name: '💼 TokenPocket', network: 'Solana', color: '#2980fe' },
+      tokenpocket_evm:  { name: '💼 TokenPocket', network: 'BSC(BEP-20)', color: '#2980fe' },
+      metamask:         { name: '🦊 MetaMask',  network: 'BSC(BEP-20)', color: '#f6851b' },
+      evm_generic:      { name: '🔗 EVM Wallet', network: 'BSC(BEP-20)', color: '#627eea' },
+      solana_generic:   { name: '🌐 Solana Wallet', network: 'Solana', color: '#9945ff' },
+    };
+    return type ? (guides[type] || null) : null;
+  },
+};

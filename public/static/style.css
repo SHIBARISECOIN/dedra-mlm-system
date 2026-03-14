@@ -57,7 +57,7 @@
 
 /* ===== 리셋 & 기본 ===== */
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { height:100%; overflow:hidden; }
+html, body { height: 100%; height: 100dvh; overflow: hidden; }
 
 body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -69,10 +69,11 @@ body {
 }
 
 #app {
-  height: 100vh;
+  height: 100%;
+  height: 100dvh; /* dynamic viewport height — iOS Safari 키보드 대응 */
   position: relative;
   overflow: hidden;
-  max-width: 430px;
+  max-width: 600px;
   margin: 0 auto;
   background: var(--bg);
 }
@@ -125,7 +126,7 @@ body {
 
 /* ===== 인증 화면 ===== */
 .auth-container {
-  max-width: 430px; margin: 0 auto;
+  max-width: 520px; margin: 0 auto;
   min-height: 100vh; overflow-y: auto;
   background: var(--bg);
 }
@@ -289,7 +290,15 @@ body {
   background: var(--bg2);
   border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-around;
-  padding-bottom: env(safe-area-inset-bottom, 0); z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 200; /* 모달/오버레이보다 낮지만 일반 콘텐츠보다 높게 */
+  /* 강제 가시성: transform/will-change로 GPU 레이어 생성 */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  /* iOS에서 레이아웃 변화에도 항상 보이도록 */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .nav-item {
@@ -1735,22 +1744,32 @@ body {
 
 /* ===== 토스트 ===== */
 .toast {
-  position: fixed; bottom: calc(var(--nav-height) + 16px);
-  left: 50%; transform: translateX(-50%) translateY(100px);
+  /* #app 내부 absolute로 위치 — 하단바 위에 정확히 표시 */
+  position: absolute;
+  bottom: calc(var(--nav-height) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(calc(var(--nav-height) + 80px));
   background: #303030; color: #fff;
   padding: 12px 20px; border-radius: 24px;
   font-size: 14px; font-weight: 600;
-  white-space: nowrap; z-index: 9999;
-  transition: transform 0.3s ease;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  max-width: 90vw; text-align: center;
+  z-index: 9998; /* bottom-nav(200)보다 낮게, 모달(1000)보다 낮게 */
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  max-width: calc(100% - 48px);
+  text-align: center;
   word-break: keep-all; white-space: normal;
+  pointer-events: none;
+  opacity: 0;
 }
-.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
 .toast.success { background: #1b5e20; }
-.toast.error { background: #b71c1c; }
+.toast.error   { background: #b71c1c; }
 .toast.warning { background: #e65100; }
-.toast.info { background: #0d47a1; }
+.toast.info    { background: #0d47a1; }
 
 /* ===== 그리팅 ===== */
 .greeting-section {
@@ -1792,6 +1811,54 @@ body {
 /* ===== 반응형 ===== */
 @media (min-width: 430px) {
   #app { box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+}
+
+/* 태블릿/데스크탑: 최대 폭 확장 */
+@media (min-width: 768px) {
+  #app {
+    max-width: 720px;
+  }
+  .page-scroll {
+    padding: 20px 28px 32px;
+  }
+  .app-header {
+    padding: 0 24px;
+  }
+  /* 카드 그리드 2열 */
+  .stat-grid,
+  .quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .invest-card,
+  .product-card {
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  #app {
+    max-width: 900px;
+  }
+  .page-scroll {
+    padding: 24px 40px 40px;
+  }
+  .app-header {
+    padding: 0 32px;
+  }
+  /* 홈 stat 카드 4열 */
+  .stat-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  /* 퀵메뉴 4열 */
+  .quick-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  #app {
+    max-width: 1100px;
+  }
 }
 
 /* ===== 게임 추가 애니메이션 ===== */

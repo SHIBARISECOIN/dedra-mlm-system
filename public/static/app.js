@@ -1208,6 +1208,11 @@ async function initApp() {
       if (promoSnap.exists()) rankPromoSettings = promoSnap.data();
     } catch(e) { /* 설정 없으면 기본값 사용 */ }
 
+    // DDRA 토큰 등록 설정 로드
+    if (window.DDRATokenRegister) {
+      window.DDRATokenRegister.loadConfig(db, doc, getDoc).catch(() => {});
+    }
+
     await loadWalletData();
     await loadDeedraPrice();
     await loadGameOdds();
@@ -1222,6 +1227,10 @@ async function initApp() {
     startNotificationListener();
     // 홈 네트워크 수익 미리보기 로드
     setTimeout(() => _loadNepSummary && _loadNepSummary(), 800);
+    // ROI 당일 정산 미실행 시 큐 등록 (백그라운드, UX 무관)
+    setTimeout(() => checkAndTriggerDailyROI(), 3000);
+    // 홈 오늘 수익 카드 로드
+    setTimeout(() => loadTodayEarnCard(), 1500);
 
     // 테마 복원
     restoreTheme();
@@ -2169,14 +2178,188 @@ window.doWalletDeposit = async function() {
   }
 };
 
+// ══════════════════════════════════════════════════════════════
+// DDRA 토큰 지갑 등록
+// ══════════════════════════════════════════════════════════════
+window.handleAddDdraToken = async function() {
+  const btn     = document.getElementById('addDdraTokenBtn');
+  const btnIcon = document.getElementById('addDdraTokenBtnIcon');
+  const btnText = document.getElementById('addDdraTokenBtnText');
+
+  if (!window.DDRATokenRegister) {
+    showToast('❌ 지갑 모듈을 불러오지 못했습니다', 'error'); return;
+  }
+
+  // 감지된 지갑 안내
+  const guide = window.DDRATokenRegister.getWalletGuide();
+
+  if (!guide) {
+    // 지갑 없음 → 설치 안내 모달
+    _showAddDdraNoWalletModal();
+    return;
+  }
+
+  // 버튼 로딩 상태
+  if (btn) { btn.disabled = true; }
+  if (btnIcon) btnIcon.textContent = '⏳';
+  if (btnText) btnText.textContent = `${guide.name} 에 추가 중...`;
+
+  try {
+    const result = await window.DDRATokenRegister.addToWallet();
+
+    if (result.success) {
+      if (btnIcon) btnIcon.textContent = '✅';
+      if (btnText) btnText.textContent = `${guide.name} 에 DDRA 추가 완료!`;
+      showToast(`✅ ${guide.name} 에 DDRA 토큰이 추가되었습니다!`, 'success');
+      // 3초 후 원래 버튼으로 복원
+      setTimeout(() => {
+        if (btnIcon) btnIcon.textContent = '➕';
+        if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
+        if (btn) btn.disabled = false;
+      }, 3000);
+    } else {
+      if (btnIcon) btnIcon.textContent = '➕';
+      if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
+      if (btn) btn.disabled = false;
+
+      if (result.error === 'USER_REJECTED') {
+        showToast('취소되었습니다', 'info');
+      } else if (result.error === 'NO_MINT' || result.error === 'NO_CONTRACT') {
+        _showAddDdraManualModal(result);
+      } else if (result.error === 'NOT_SUPPORTED') {
+        _showAddDdraManualModal(result);
+      } else {
+        showToast('❌ ' + (result.message || '토큰 추가 실패'), 'error');
+      }
+    }
+  } catch(e) {
+    if (btnIcon) btnIcon.textContent = '➕';
+    if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
+    if (btn) btn.disabled = false;
+    showToast('❌ 오류: ' + e.message, 'error');
+  }
+};
+
+// 지갑 미설치 안내 모달
+function _showAddDdraNoWalletModal() {
+  const t = currentLang || 'ko';
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:#1a1a2e;border-radius:24px 24px 0 0;padding:28px 24px 36px;width:100%;max-width:430px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
+      <div style="width:40px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">🔗 지갑 연결 필요</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:22px;">DDRA 토큰을 추가하려면 지원하는 지갑이 필요합니다</div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
+        <a href="https://phantom.app/" target="_blank"
+          style="display:flex;align-items:center;gap:14px;background:rgba(171,159,242,.15);border:1px solid rgba(171,159,242,.3);border-radius:14px;padding:14px 16px;text-decoration:none;">
+          <span style="font-size:28px;">👻</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#ab9ff2;">Phantom</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);">Solana 전용 · 모바일/PC 지원</div>
+          </div>
+          <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4);">설치 →</span>
+        </a>
+        <a href="https://www.tokenpocket.pro/" target="_blank"
+          style="display:flex;align-items:center;gap:14px;background:rgba(41,128,254,.15);border:1px solid rgba(41,128,254,.3);border-radius:14px;padding:14px 16px;text-decoration:none;">
+          <span style="font-size:28px;">💼</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#2980fe;">TokenPocket</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);">Solana · BSC · EVM 멀티체인 지원</div>
+          </div>
+          <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4);">설치 →</span>
+        </a>
+      </div>
+      <button onclick="this.closest('[style*=\"position:fixed\"]').remove()"
+        style="width:100%;padding:14px;background:rgba(255,255,255,.08);border:none;border-radius:12px;color:rgba(255,255,255,.7);font-size:14px;font-weight:600;cursor:pointer;">닫기</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+// 수동 추가 안내 모달 (주소 미설정 or 자동 추가 미지원)
+function _showAddDdraManualModal(result) {
+  const reg = window.DDRATokenRegister;
+  const solanaMint  = reg?.config?.solanaMint  || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
+  const bscContract = reg?.config?.bscContract || '관리자 설정 대기 중';
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:#1a1a2e;border-radius:24px 24px 0 0;padding:28px 24px 36px;width:100%;max-width:430px;box-shadow:0 -8px 40px rgba(0,0,0,.4);max-height:85vh;overflow-y:auto;">
+      <div style="width:40px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:6px;">🪙 DDRA 토큰 수동 추가</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:20px;">아래 주소를 지갑에 직접 입력해 DDRA를 추가하세요</div>
+
+      <!-- Solana (Phantom / TokenPocket Solana) -->
+      <div style="background:rgba(153,69,255,.12);border:1px solid rgba(153,69,255,.3);border-radius:14px;padding:14px 16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:18px;">👻</span>
+          <span style="font-size:13px;font-weight:700;color:#c084fc;">Phantom / TokenPocket (Solana)</span>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px;">SPL 토큰 민트 주소</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <code id="solanaMintAddr" style="flex:1;font-size:11px;color:#e2e8f0;background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;word-break:break-all;font-family:monospace;">${solanaMint}</code>
+          <button onclick="navigator.clipboard.writeText('${solanaMint}').then(()=>showToast('✅ 복사됨','success'))"
+            style="flex-shrink:0;padding:8px 10px;background:rgba(153,69,255,.25);border:none;border-radius:8px;color:#c084fc;font-size:12px;cursor:pointer;font-weight:700;">복사</button>
+        </div>
+      </div>
+
+      <!-- BSC (TokenPocket EVM / MetaMask) -->
+      <div style="background:rgba(41,128,254,.12);border:1px solid rgba(41,128,254,.3);border-radius:14px;padding:14px 16px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:18px;">💼</span>
+          <span style="font-size:13px;font-weight:700;color:#60a5fa;">TokenPocket / MetaMask (BSC)</span>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:4px;">BEP-20 컨트랙트 주소</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <code id="bscContractAddr" style="flex:1;font-size:11px;color:#e2e8f0;background:rgba(0,0,0,.3);border-radius:8px;padding:8px 10px;word-break:break-all;font-family:monospace;">${bscContract}</code>
+          <button onclick="navigator.clipboard.writeText('${bscContract}').then(()=>showToast('✅ 복사됨','success'))"
+            style="flex-shrink:0;padding:8px 10px;background:rgba(41,128,254,.25);border:none;border-radius:8px;color:#60a5fa;font-size:12px;cursor:pointer;font-weight:700;">복사</button>
+        </div>
+      </div>
+
+      <button onclick="this.closest('[style*=\"position:fixed\"]').remove()"
+        style="width:100%;padding:14px;background:rgba(255,255,255,.08);border:none;border-radius:12px;color:rgba(255,255,255,.7);font-size:14px;font-weight:600;cursor:pointer;">닫기</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
 window.showDepositModal = function() {
   loadCompanyWallet();
-  // 지갑 탭 초기화
-  switchDepTab('wallet');
   // 상태 초기화
   const st = document.getElementById('depWalletStatus');
   if (st) st.style.display = 'none';
-  document.getElementById('depWalletAmount') && (document.getElementById('depWalletAmount').value = '');
+  const amtEl = document.getElementById('depWalletAmount');
+  if (amtEl) amtEl.value = '';
+
+  // 지갑이 이미 연결되어 있으면 wallet 탭, 아니면 manual 탭이 기본
+  const sw = window.SolanaWallet;
+  if (sw && sw.publicKey) {
+    switchDepTab('wallet');
+    // 연결된 지갑 상태 복원
+    const connectDiv    = document.getElementById('depWalletConnect');
+    const connectedDiv  = document.getElementById('depWalletConnected');
+    const nameEl        = document.getElementById('depWalletName');
+    const addrEl        = document.getElementById('depWalletAddr');
+    if (connectDiv)   connectDiv.style.display   = 'none';
+    if (connectedDiv) connectedDiv.style.display = '';
+    if (nameEl)       nameEl.textContent         = `✅ ${sw.walletName} 연결됨`;
+    if (addrEl)       addrEl.textContent         = sw.publicKey;
+    // USDT 잔액 갱신
+    const balEl = document.getElementById('depWalletBalance');
+    if (balEl) {
+      balEl.textContent = '조회중...';
+      sw.getUsdtBalance(sw.publicKey).then(bal => {
+        balEl.textContent = `$${bal.toFixed(2)} USDT`;
+      });
+    }
+  } else {
+    switchDepTab('manual');
+  }
+
   document.getElementById('depositModal').classList.remove('hidden');
 };
 
@@ -2370,6 +2553,25 @@ async function loadInvestPage() {
   loadMyInvestments();
   loadSimulatorOptions();
 }
+
+// ===== 투자 서브탭 전환 =====
+window.switchInvestSubTab = function(tab) {
+  ['plans','my','earn'].forEach(t => {
+    const el = document.getElementById('investSubTab_' + t);
+    const btn = document.getElementById('investTab_' + t);
+    if (el) el.style.display = (t === tab) ? '' : 'none';
+    if (btn) {
+      if (t === tab) {
+        btn.style.background = 'linear-gradient(135deg,#3b82f6,#6366f1)';
+        btn.style.color = '#fff';
+      } else {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text2,#94a3b8)';
+      }
+    }
+  });
+  if (tab === 'earn') loadEarnHistoryTab();
+};
 
 async function loadProducts() {
   const { collection, getDocs, db } = window.FB;
@@ -4282,16 +4484,21 @@ let toastShowTimer = null;
 function showToast(msg, type = 'info') {
   const el = document.getElementById('toast');
   if (!el) return;
-  // 진행 중인 모든 타이머 취소
-  if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
-  if (toastShowTimer) { clearTimeout(toastShowTimer); toastShowTimer = null; }
-  // 즉시 메시지 설정 후 표시 (50ms 지연 타이머 중복 방지)
+  // 진행 중인 타이머 모두 취소
+  if (toastTimer)     { clearTimeout(toastTimer);          toastTimer = null; }
+  if (toastShowTimer) { cancelAnimationFrame(toastShowTimer); toastShowTimer = null; }
+  // 이미 show 상태면 한 번 빼고 다시 넣어 애니메이션 리셋
+  el.classList.remove('show');
+  el.className = `toast ${type}`;
   el.textContent = msg;
-  el.className = `toast show ${type}`;
-  toastTimer = setTimeout(() => { 
-    el.classList.remove('show');
-    toastTimer = null;
-  }, 3200);
+  // 다음 프레임에서 show 추가 (CSS transition 트리거)
+  toastShowTimer = requestAnimationFrame(() => {
+    el.classList.add('show');
+    toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+      toastTimer = null;
+    }, 3000);
+  });
 }
 
 console.log('✅ DEEDRA app.js v2.0 로드 완료');
@@ -4299,24 +4506,68 @@ console.log('✅ DEEDRA app.js v2.0 로드 완료');
 // ===== PWA: Service Worker 등록 =====
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('SW 등록 완료:', reg.scope))
-      .catch(err => console.warn('SW 등록 실패:', err));
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      console.log('[SW] 등록 완료:', reg.scope);
+      // 새 SW 업데이트 감지 → 앱 새로고침 유도
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // 업데이트 알림 배너
+            const updateBanner = document.createElement('div');
+            updateBanner.style.cssText = `
+              position:fixed;top:0;left:0;right:0;background:#10b981;color:#fff;
+              padding:12px 16px;display:flex;justify-content:space-between;align-items:center;
+              z-index:99999;font-size:14px;font-weight:600;
+            `;
+            updateBanner.innerHTML = `
+              <span>🔄 새 버전이 준비됐습니다</span>
+              <button onclick="location.reload()" style="background:rgba(255,255,255,0.25);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-weight:700;cursor:pointer;">지금 업데이트</button>
+            `;
+            document.body.prepend(updateBanner);
+          }
+        });
+      });
+    }).catch(err => console.warn('[SW] 등록 실패:', err));
   });
 }
 
 // ===== PWA: 설치 배너 =====
+const PWA_I18N = {
+  ko: { title: 'DEEDRA 앱 설치', desc: '홈 화면에 추가하면 더 빠르게 실행돼요', btn: '설치', installed: '✅ DEEDRA 앱이 설치되었습니다!' },
+  en: { title: 'Install DEEDRA App', desc: 'Add to home screen for faster access', btn: 'Install', installed: '✅ DEEDRA app installed!' },
+  vi: { title: 'Cài đặt ứng dụng DEEDRA', desc: 'Thêm vào màn hình chính để truy cập nhanh hơn', btn: 'Cài đặt', installed: '✅ Ứng dụng DEEDRA đã được cài đặt!' },
+  th: { title: 'ติดตั้งแอป DEEDRA', desc: 'เพิ่มลงหน้าจอหลักเพื่อเข้าถึงได้เร็วขึ้น', btn: 'ติดตั้ง', installed: '✅ ติดตั้งแอป DEEDRA สำเร็จ!' },
+};
+
+function getPwaI18n() {
+  const lang = (typeof currentLang !== 'undefined' ? currentLang : null) ||
+               localStorage.getItem('deedra_lang') || 'ko';
+  return PWA_I18N[lang] || PWA_I18N['ko'];
+}
+
 let deferredPrompt = null;
+let pwaInstallShown = false;
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // 설치 배너 표시 (로그인 후 5초 뒤)
-  setTimeout(showInstallBanner, 5000);
+  // 설치 배너: 로그인 후 8초 뒤 (너무 빠르면 거부감)
+  setTimeout(showInstallBanner, 8000);
 });
 
 function showInstallBanner() {
   if (!deferredPrompt) return;
-  if (localStorage.getItem('pwa_install_dismissed')) return;
+  if (pwaInstallShown) return;
+  // 이미 3번 거절했으면 더이상 표시 안 함
+  const dismissCount = parseInt(localStorage.getItem('pwa_dismiss_count') || '0');
+  if (dismissCount >= 3) return;
+  // 마지막 거절로부터 3일이 지나지 않았으면 표시 안 함
+  const lastDismiss = parseInt(localStorage.getItem('pwa_last_dismiss') || '0');
+  if (Date.now() - lastDismiss < 3 * 24 * 60 * 60 * 1000) return;
+
+  pwaInstallShown = true;
+  const i18n = getPwaI18n();
   const banner = document.createElement('div');
   banner.id = 'pwaInstallBanner';
   banner.style.cssText = `
@@ -4324,40 +4575,112 @@ function showInstallBanner() {
     background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;
     border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;
     box-shadow:0 8px 32px rgba(99,102,241,0.5);z-index:9990;
-    width:calc(100% - 32px);max-width:380px;cursor:pointer;
+    width:calc(100% - 32px);max-width:400px;
+    animation:slideUpBanner 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
   `;
   banner.innerHTML = `
-    <div style="font-size:28px">📲</div>
-    <div style="flex:1">
-      <div style="font-size:14px;font-weight:700;">DEEDRA 앱 설치</div>
-      <div style="font-size:12px;opacity:0.85;margin-top:2px;">홈 화면에 추가하면 더 빠르게 실행돼요</div>
+    <style>
+      @keyframes slideUpBanner {
+        from { opacity:0; transform:translateX(-50%) translateY(20px); }
+        to   { opacity:1; transform:translateX(-50%) translateY(0); }
+      }
+    </style>
+    <img src="/static/icon-192.png" style="width:44px;height:44px;border-radius:10px;flex-shrink:0;" alt="DEEDRA" />
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i18n.title}</div>
+      <div style="font-size:12px;opacity:0.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${i18n.desc}</div>
     </div>
     <div style="display:flex;gap:8px;flex-shrink:0;">
-      <button id="pwaInstallBtn" style="background:#fff;color:#4f46e5;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">설치</button>
+      <button id="pwaInstallBtn" style="background:#fff;color:#4f46e5;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">${i18n.btn}</button>
       <button id="pwaDismissBtn" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer;">✕</button>
     </div>
   `;
   document.body.appendChild(banner);
+
   document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') showToast('✅ DEEDRA 앱이 설치되었습니다!', 'success');
+    if (outcome === 'accepted') showToast(i18n.installed, 'success');
     deferredPrompt = null;
     banner.remove();
   });
+
   document.getElementById('pwaDismissBtn').addEventListener('click', () => {
-    localStorage.setItem('pwa_install_dismissed', '1');
+    const cnt = parseInt(localStorage.getItem('pwa_dismiss_count') || '0') + 1;
+    localStorage.setItem('pwa_dismiss_count', String(cnt));
+    localStorage.setItem('pwa_last_dismiss', String(Date.now()));
     banner.remove();
+    pwaInstallShown = false;
   });
+
+  // 20초 후 자동 숨김
+  setTimeout(() => {
+    if (document.getElementById('pwaInstallBanner')) {
+      banner.style.opacity = '0';
+      banner.style.transition = 'opacity 0.5s';
+      setTimeout(() => banner.remove(), 500);
+      pwaInstallShown = false;
+    }
+  }, 20000);
+}
+
+// iOS Safari: 수동 안내 배너 (beforeinstallprompt 미지원)
+function showIosInstallGuide() {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandaloneMode = window.navigator.standalone === true;
+  if (!isIos || isInStandaloneMode) return;
+  if (localStorage.getItem('pwa_ios_dismissed')) return;
+
+  const i18n = getPwaI18n();
+  const guide = document.createElement('div');
+  guide.id = 'pwaIosGuide';
+  guide.style.cssText = `
+    position:fixed;bottom:0;left:0;right:0;
+    background:rgba(15,20,40,0.97);color:#fff;
+    padding:16px 20px 24px;border-radius:20px 20px 0 0;
+    box-shadow:0 -4px 30px rgba(0,0,0,0.5);z-index:9990;
+    animation:slideUpBanner 0.4s ease;
+  `;
+  guide.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <img src="/static/icon-192.png" style="width:40px;height:40px;border-radius:10px;" />
+        <span style="font-weight:700;font-size:15px;">${i18n.title}</span>
+      </div>
+      <button id="pwaIosDismiss" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px;">✕</button>
+    </div>
+    <div style="font-size:13px;color:#ccc;line-height:1.6;">
+      <div style="margin-bottom:8px;">① 하단 <strong style="color:#fff;">공유 버튼</strong> <span style="font-size:16px;">⬆️</span> 탭</div>
+      <div>② <strong style="color:#fff;">"홈 화면에 추가"</strong> 선택</div>
+    </div>
+    <div style="margin-top:12px;background:rgba(99,102,241,0.15);border-radius:10px;padding:10px 14px;font-size:12px;color:#a5b4fc;">
+      💡 홈 화면에 추가하면 앱처럼 전체화면으로 실행됩니다
+    </div>
+  `;
+  document.body.appendChild(guide);
+  document.getElementById('pwaIosDismiss').addEventListener('click', () => {
+    localStorage.setItem('pwa_ios_dismissed', '1');
+    guide.remove();
+  });
+  setTimeout(() => {
+    if (document.getElementById('pwaIosGuide')) guide.remove();
+  }, 15000);
 }
 
 window.addEventListener('appinstalled', () => {
-  showToast('✅ DEEDRA 앱 설치 완료!', 'success');
+  const i18n = getPwaI18n();
+  showToast(i18n.installed, 'success');
   deferredPrompt = null;
   const b = document.getElementById('pwaInstallBanner');
   if (b) b.remove();
 });
+
+// iOS 안내: 로그인 완료 후 5초 뒤
+setTimeout(() => {
+  if (!('standalone' in navigator)) return; // iOS 아닌 경우 스킵
+  showIosInstallGuide();
+}, 5000);
 
 // ===== URL 파라미터: 추천인 코드 자동 입력 =====
 (function autoFillRefCode() {
@@ -4522,10 +4845,16 @@ async function _loadNepSummary() {
   const { collection, query, where, getDocs, db } = window.FB;
 
   try {
-    // 전체 사용자 로드 (캐시)
+    // 전체 사용자 로드 (캐시) — rules 수정으로 로그인 유저면 읽기 가능
     if (!_nepAllUsers) {
-      const snap = await getDocs(collection(db, 'users'));
-      _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (rulesErr) {
+        // Firestore rules 미적용 상태 fallback: 빈 배열로 처리
+        console.warn('[NEP] users 로드 권한 없음 (Firestore rules 미배포):', rulesErr.message);
+        _nepAllUsers = [];
+      }
     }
     const allUsers = _nepAllUsers;
 
@@ -4636,7 +4965,10 @@ async function _loadNepTxTab(contentEl) {
     }).join('');
   } catch(e) {
     console.error('[NEP] tx tab error:', e);
-    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">오류: ${e.message || '불러오기 실패'}</div>`;
+    const msg = e.code === 'permission-denied' || e.message?.includes('Missing or insufficient')
+      ? '⚠️ 데이터 접근 권한이 없습니다.<br><small>Firebase 콘솔에서 Firestore 보안 규칙을 배포해 주세요.</small>'
+      : `오류: ${e.message || '불러오기 실패'}`;
+    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">${msg}</div>`;
   }
 }
 
@@ -4647,8 +4979,13 @@ async function _loadNepGenTab(contentEl, gen) {
 
   try {
     if (!_nepAllUsers) {
-      const snap = await getDocs(collection(db, 'users'));
-      _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (rulesErr) {
+        console.warn('[NEP] users 권한 없음:', rulesErr.message);
+        _nepAllUsers = [];
+      }
     }
     const allUsers = _nepAllUsers;
 
@@ -4767,7 +5104,10 @@ async function _loadNepGenTab(contentEl, gen) {
     contentEl.innerHTML = headerHtml + listHtml;
   } catch(e) {
     console.error('[NEP] gen tab error:', e);
-    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">오류: ${e.message || '불러오기 실패'}</div>`;
+    const msg = e.code === 'permission-denied' || e.message?.includes('Missing or insufficient')
+      ? '⚠️ 데이터 접근 권한이 없습니다.<br><small>Firebase 콘솔에서 Firestore 보안 규칙을 배포해 주세요.</small>'
+      : `오류: ${e.message || '불러오기 실패'}`;
+    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">${msg}</div>`;
   }
 }
 
@@ -4778,8 +5118,13 @@ async function _loadNepDeepTab(contentEl) {
 
   try {
     if (!_nepAllUsers) {
-      const snap = await getDocs(collection(db, 'users'));
-      _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (rulesErr) {
+        console.warn('[NEP] users 권한 없음:', rulesErr.message);
+        _nepAllUsers = [];
+      }
     }
     const allUsers = _nepAllUsers;
 
@@ -4907,7 +5252,10 @@ async function _loadNepDeepTab(contentEl) {
     contentEl.innerHTML = html;
   } catch(e) {
     console.error('[NEP] deep tab error:', e);
-    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">오류: ${e.message || '불러오기 실패'}</div>`;
+    const msg = e.code === 'permission-denied' || e.message?.includes('Missing or insufficient')
+      ? '⚠️ 데이터 접근 권한이 없습니다.<br><small>Firebase 콘솔에서 Firestore 보안 규칙을 배포해 주세요.</small>'
+      : `오류: ${e.message || '불러오기 실패'}`;
+    contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">${msg}</div>`;
   }
 }
 
@@ -4915,3 +5263,206 @@ async function _loadNepDeepTab(contentEl) {
 const _origLoadRecentTransactions = window.loadRecentTransactions || null;
 // 홈 페이지 로드될 때 네트워크 요약도 함께 로드
 const _origOnReady = window._onAppReady;
+
+// ═══════════════════════════════════════════════════════════════
+// ROI 자동 정산 클라이언트 트리거
+// 회원이 앱에 접속했을 때 당일 정산이 누락된 경우 자동으로 실행
+// Firestore settlements/{date} 문서로 중복 실행 방지
+// ═══════════════════════════════════════════════════════════════
+async function checkAndTriggerDailyROI() {
+  try {
+    const { doc, getDoc, db } = window.FB;
+
+    const today = new Date().toISOString().slice(0, 10);
+    // 이미 정산된 날이면 스킵
+    const settlSnap = await getDoc(doc(db, 'settlements', today));
+    if (settlSnap.exists()) return;
+
+    // 정산 시각 설정 확인 (UTC 기준)
+    const ratesSnap = await getDoc(doc(db, 'rateHistory', 'current'))
+      .catch(() => null);
+    // rateHistory/current 없으면 settings/rates 시도
+    let rates = ratesSnap?.exists() ? ratesSnap.data() : null;
+    if (!rates) {
+      const r2 = await getDoc(doc(db, 'settings', 'rates')).catch(() => null);
+      rates = r2?.exists() ? r2.data() : {};
+    }
+
+    // autoSettlement가 꺼져있으면 클라이언트 트리거 스킵
+    if (rates.autoSettlement === false) return;
+
+    const targetHour   = rates.autoSettlementHour   ?? 0;
+    const targetMinute = rates.autoSettlementMinute ?? 0;
+    const now = new Date();
+    const utcH = now.getUTCHours();
+    const utcM = now.getUTCMinutes();
+
+    // 설정된 정산 시각 이후에만 실행 (당일 기준)
+    const nowMinutes    = utcH * 60 + utcM;
+    const targetMinutes = targetHour * 60 + targetMinute;
+    if (nowMinutes < targetMinutes) return;
+
+    // 회원 앱에서는 직접 runDailyROISettlement 호출 불가
+    // → Firestore에 pendingSettlement 도큐먼트를 생성하여
+    //   admin 스케줄러가 처리하도록 큐에 등록
+    const { setDoc, serverTimestamp: sts } = window.FB;
+    await setDoc(doc(db, 'pendingSettlements', today), {
+      date: today,
+      requestedAt: sts(),
+      requestedBy: currentUser?.uid || 'client',
+      status: 'pending',
+    }, { merge: true });
+
+    console.log(`[ROI] 당일(${today}) 정산 요청 큐 등록 완료`);
+  } catch(e) {
+    // 조용히 실패 (회원 앱 UX에 영향 없음)
+    console.warn('[ROI] 정산 트리거 실패:', e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 홈 화면 - 오늘 수익 요약 카드
+// ═══════════════════════════════════════════════════════════════
+async function loadTodayEarnCard() {
+  try {
+    const { collection, query, where, getDocs, db } = window.FB;
+    const today = new Date().toISOString().slice(0, 10);
+    const thisMonth = today.slice(0, 7); // YYYY-MM
+
+    // bonuses 컬렉션에서 내 수익 조회
+    const bonusSnap = await getDocs(
+      query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid))
+    );
+    const bonuses = bonusSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // 오늘 ROI 수익
+    const todayRoi = bonuses
+      .filter(b => b.settlementDate === today && b.type === 'roi_income')
+      .reduce((s, b) => s + (b.amount || 0), 0);
+
+    // 오늘 보너스 (네트워크 보너스 등)
+    const todayBonus = bonuses
+      .filter(b => b.settlementDate === today && b.type !== 'roi_income')
+      .reduce((s, b) => s + (b.amount || 0), 0);
+
+    // 누적 총 수익 (walletData.totalEarnings 사용)
+    const totalEarn = walletData?.totalEarnings || 0;
+
+    // 활성 투자 수 + 일 수익률
+    const invSnap = await getDocs(
+      query(collection(db, 'investments'), where('userId', '==', currentUser.uid), where('status', '==', 'active'))
+    );
+    const activeInvests = invSnap.docs.map(d => d.data());
+    const totalInvested = activeInvests.reduce((s, i) => s + (i.amount || 0), 0);
+    const totalDailyEarn = activeInvests.reduce((s, i) => {
+      const rate = (i.roiPercent != null ? i.roiPercent : i.dailyRoi || 0) / 100;
+      return s + i.amount * rate;
+    }, 0);
+    const avgRate = totalInvested > 0 ? (totalDailyEarn / totalInvested * 100) : 0;
+
+    const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+
+    // 수익이 있는 경우만 카드 표시
+    if (todayRoi > 0 || todayBonus > 0 || totalEarn > 0 || activeInvests.length > 0) {
+      const card = document.getElementById('todayEarnCard');
+      if (card) card.style.display = '';
+
+      setEl('todayEarnDate', today);
+      setEl('todayRoiEarn', '$' + fmt(todayRoi));
+      setEl('todayBonusEarn', '$' + fmt(todayBonus));
+      setEl('totalEarnDisplay', '$' + fmt(totalEarn));
+      setEl('todayActiveInvest', activeInvests.length + '건');
+      setEl('todayDailyRate', avgRate.toFixed(2) + '%');
+    }
+  } catch(e) {
+    console.warn('[todayEarnCard] 로드 실패:', e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 투자 - 수익 내역 탭
+// ═══════════════════════════════════════════════════════════════
+async function loadEarnHistoryTab() {
+  try {
+    const { collection, query, where, getDocs, db } = window.FB;
+    const today = new Date().toISOString().slice(0, 10);
+    const thisMonth = today.slice(0, 7);
+
+    const bonusSnap = await getDocs(
+      query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid))
+    );
+    const bonuses = bonusSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    // 요약 계산
+    const todayRoi   = bonuses.filter(b => b.settlementDate === today && b.type === 'roi_income').reduce((s,b) => s+(b.amount||0),0);
+    const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amount||0),0);
+    const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amount||0),0);
+    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee'].includes(b.type)).reduce((s,b) => s+(b.amount||0),0);
+
+    const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    setEl('earnTab_todayRoi',     '$' + fmt(todayRoi));
+    setEl('earnTab_totalEarn',    '$' + fmt(totalEarn));
+    setEl('earnTab_monthEarn',    '$' + fmt(monthEarn));
+    setEl('earnTab_networkBonus', '$' + fmt(netBonus));
+
+    // 목록 렌더
+    renderEarnList(bonuses, document.getElementById('earnHistoryList'), '');
+  } catch(e) {
+    const el = document.getElementById('earnHistoryList');
+    if (el) el.innerHTML = '<div class="empty-state">수익 내역을 불러오지 못했습니다.</div>';
+  }
+}
+
+window.loadEarnHistory = function() {
+  const filter = document.getElementById('earnTypeFilter')?.value || '';
+  if (window._earnAllBonuses) renderEarnList(window._earnAllBonuses, document.getElementById('earnHistoryList'), filter);
+};
+
+function renderEarnList(bonuses, listEl, typeFilter) {
+  if (!listEl) return;
+  window._earnAllBonuses = bonuses; // 캐시
+
+  const filtered = typeFilter ? bonuses.filter(b => b.type === typeFilter) : bonuses;
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="empty-state" style="padding:20px 0;">수익 내역이 없습니다</div>';
+    return;
+  }
+
+  const typeLabel = {
+    roi_income:      '💎 ROI 수익',
+    unilevel_bonus:  '🌐 유니레벨 보너스',
+    direct_bonus:    '👤 직접 보너스',
+    rank_bonus:      '🏆 직급 보너스',
+    center_fee:      '🏢 센터피',
+    manual_bonus:    '🎁 수동 지급',
+  };
+
+  listEl.innerHTML = filtered.slice(0, 50).map(b => {
+    const date = b.settlementDate || (b.createdAt?.seconds ? new Date(b.createdAt.seconds*1000).toLocaleDateString('ko-KR') : '-');
+    const label = typeLabel[b.type] || b.type || '기타';
+    const amount = b.amount || 0;
+    return `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;
+      background:var(--card,#1e293b);border-radius:12px;margin-bottom:6px;
+      border-left:3px solid ${amount > 0 ? '#10b981' : '#64748b'};">
+      <div style="width:36px;height:36px;border-radius:10px;
+        background:rgba(16,185,129,0.12);display:flex;align-items:center;
+        justify-content:center;font-size:16px;flex-shrink:0;">
+        ${label.slice(0,2)}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:700;color:var(--text,#f1f5f9);">${label}</div>
+        <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">
+          ${b.reason ? b.reason.slice(0,40) : date}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:14px;font-weight:800;color:#10b981;">+$${fmt(amount)}</div>
+        <div style="font-size:10px;color:var(--text3,#64748b);">${date}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// cache-bust: ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu
