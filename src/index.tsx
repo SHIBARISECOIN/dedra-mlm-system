@@ -537,25 +537,32 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- 공지사항 (compact: 2줄, 제목+날짜 한 줄) -->
-          <div class="section-header">
-            <span class="section-title" data-i18n="announcements">📢 공지사항</span>
-            <button class="see-all-btn" onclick="showAnnouncementModal()" data-i18n="seeAll">전체보기</button>
-          </div>
-          <div id="announcementList" class="ann-compact-list">
-            <div class="skeleton-item" style="height:22px;margin-bottom:4px;"></div>
-            <div class="skeleton-item" style="height:22px;"></div>
-          </div>
+          <!-- 공지사항 + 뉴스 피드 : 반반 가로 배치 -->
+          <div class="ann-news-row">
+            <!-- 공지사항 -->
+            <div class="ann-news-col">
+              <div class="section-header">
+                <span class="section-title" data-i18n="announcements">📢 공지사항</span>
+                <button class="see-all-btn" onclick="showAnnouncementModal()" data-i18n="seeAll">전체보기</button>
+              </div>
+              <div id="announcementList" class="ann-compact-list">
+                <div class="skeleton-item" style="height:22px;margin-bottom:4px;"></div>
+                <div class="skeleton-item" style="height:22px;"></div>
+              </div>
+            </div>
 
-          <!-- 뉴스 피드 -->
-          <div class="section-header" style="margin-top:12px;">
-            <span class="section-title">📰 뉴스</span>
-            <button class="see-all-btn" onclick="loadNewsFeed(true)" id="newsRefreshBtn">새로고침</button>
-          </div>
-          <div id="newsFeedList" class="news-feed-list">
-            <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
-            <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
-            <div class="skeleton-item" style="height:52px;"></div>
+            <!-- 뉴스 피드 -->
+            <div class="ann-news-col">
+              <div class="section-header">
+                <span class="section-title">📰 뉴스</span>
+                <button class="see-all-btn" onclick="loadNewsFeed(true)" id="newsRefreshBtn">새로고침</button>
+              </div>
+              <div id="newsFeedList" class="news-feed-list">
+                <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
+                <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
+                <div class="skeleton-item" style="height:52px;"></div>
+              </div>
+            </div>
           </div>
 
           <!-- 네트워크 수익 미리보기 -->
