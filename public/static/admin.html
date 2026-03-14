@@ -1429,7 +1429,7 @@ canvas{width:100% !important;}
       <div class="page-desc">전체 회원 목록 조회 및 상태/직급/잔액 관리</div>
       <div class="card">
         <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
-          <input class="search-input" id="memberSearch" placeholder="🔍 이름, 이메일, 추천코드로 검색..." style="min-width:220px;">
+          <input class="search-input" id="memberSearch" placeholder="🔍 이름, 이메일, 아이디로 검색..." style="min-width:220px;">
           <select class="select-filter" id="memberStatusFilter">
             <option value="">전체 상태</option>
             <option value="active">활성</option>
@@ -4133,8 +4133,8 @@ canvas{width:100% !important;}
                   <input type="text" class="mfield-input" id="me_country" placeholder="Korea">
                 </div>
                 <div class="mfield">
-                  <label class="mfield-label">추천인 코드</label>
-                  <input type="text" class="mfield-input" id="me_referralCode" placeholder="내 추천 코드">
+                  <label class="mfield-label">아이디 (username)</label>
+                  <input type="text" class="mfield-input" id="me_referralCode" placeholder="로그인 아이디">
                 </div>
                 <div class="mfield">
                   <label class="mfield-label">추천인 UID</label>
@@ -5211,7 +5211,8 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
             members = members.filter(m =>
                 (m.name||'').toLowerCase().includes(kw) ||
                 (m.email||'').toLowerCase().includes(kw) ||
-                (m.referralCode||'').toLowerCase().includes(kw)
+                (m.referralCode||'').toLowerCase().includes(kw) ||
+                (m.username||'').toLowerCase().includes(kw)
             );
         }
         if (statusFilter)  members = members.filter(m => m.status === statusFilter);
@@ -5276,7 +5277,7 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
             <th>이메일</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('country')">국가${_memberSortIcon('country')}</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('rank')">직급${_memberSortIcon('rank')}</th>
-            <th>추천코드</th>
+            <th>아이디</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('refCount')">추천인수${_memberSortIcon('refCount')}</th>
             <th>상태</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('usdtBalance')">출금가능 USDT${_memberSortIcon('usdtBalance')}</th>
@@ -5311,7 +5312,7 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
                 <td style="font-size:12px;color:#64748b;">${m.email||'-'}</td>
                 <td>${m.country||'-'}</td>
                 <td><span class="badge badge-rank">${m.rank||'G0'}</span></td>
-                <td><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${m.referralCode||'-'}</code></td>
+                <td><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${m.username||m.referralCode||'-'}</code></td>
                 <td style="text-align:center;">${m._refCount||0}명</td>
                 <td><span class="badge badge-${m.status==='active'?'active':'suspended'}">${m.status==='active'?'✅ 활성':'🚫 정지'}</span></td>
                 <td style="font-weight:600;color:#0369a1;">$${usdtStr}</td>
@@ -6036,7 +6037,7 @@ function renderAuditDetail(log) {
         const fieldLabels = {
             name:'이름', phone:'전화번호', country:'국가',
             rank:'직급', status:'상태', adminMemo:'메모',
-            referralCode:'추천코드', referredBy:'추천인'
+            referralCode:'아이디(username)', referredBy:'추천인'
         };
         const changed = Object.keys(d.after).filter(k => d.before[k] !== d.after[k]);
         if (changed.length) {
@@ -6609,7 +6610,7 @@ window.showMemberDetail = async (userId) => {
     document.getElementById('me_email').value        = email;
     document.getElementById('me_phone').value        = currentMember.phone        || '';
     document.getElementById('me_country').value      = currentMember.country      || '';
-    document.getElementById('me_referralCode').value = currentMember.referralCode || '';
+    document.getElementById('me_referralCode').value = currentMember.username || currentMember.referralCode || '';
     document.getElementById('me_referredBy').value   = currentMember.referredBy   || '';
     document.getElementById('me_memo').value         = currentMember.adminMemo    || '';
     document.getElementById('me_status').value       = status;
@@ -6722,6 +6723,7 @@ window.showMemberDetail = async (userId) => {
             name:         document.getElementById('me_name').value.trim(),
             phone:        document.getElementById('me_phone').value.trim(),
             country:      document.getElementById('me_country').value.trim(),
+            username:     document.getElementById('me_referralCode').value.trim(),
             referralCode: document.getElementById('me_referralCode').value.trim(),
             referredBy:   document.getElementById('me_referredBy').value.trim(),
             adminMemo:    document.getElementById('me_memo').value.trim(),
