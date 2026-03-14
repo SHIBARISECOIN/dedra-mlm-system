@@ -1418,8 +1418,22 @@ export class DedraAPI {
       }
 
       // ── 패스스루: 건너뜀 추천인들에게 pool × passThruRate 지급 ──
-      // passThruRule = 'same': 투자자와 동급인 추천인에게만
-      // passThruRule = 'same_or_higher': 투자자와 동급 이상인 추천인에게
+      //
+      // 패스스루 대상 = 직급이 올라가는 "구간 수령자"가 아닌 모든 건너뜀 노드
+      //
+      // ★ 중요: 투자자(나)를 기준으로, 나보다 낮은 직급의 상위 추천인에게도
+      //         반드시 패스스루를 지급해야 한다.
+      //         → 체인 전체를 끝까지 탐색하며, 수령자가 아닌 노드에 대해
+      //            선택된 규칙으로 지급 여부를 결정한다.
+      //
+      // passThruRule = 'same':
+      //   건너뜀 노드 중 투자자(나)와 동급 이하인 추천인에게 지급
+      //   (나보다 낮은 직급 포함, 나보다 높은 직급 제외)
+      //
+      // passThruRule = 'same_or_higher':
+      //   건너뜀 노드 중 투자자(나)와 동급이거나 더 높은 직급인 추천인에게 지급
+      //   (나보다 낮은 직급 제외, 동급 + 상위 직급만 포함)
+      //
       if (passThruRate > 0) {
         let ptCurrentId = investor.referredBy;
         const recipientIds = new Set(recipients.map(r => r.ancestor.id));
@@ -1427,11 +1441,14 @@ export class DedraAPI {
           const ptNode = userMap[ptCurrentId];
           if (!ptNode || ptNode.role === 'admin') break;
           const ptRankIdx = rankIdx(ptNode.rank);
+
           // 수령자가 아닌 건너뜀 노드 중 규칙에 해당하는 경우 패스스루 지급
           if (!recipientIds.has(ptNode.id)) {
+            // 'same': 나(투자자) 직급 이하 (낮거나 같은) — 나보다 높은 직급 제외
+            // 'same_or_higher': 나 직급 이상 (같거나 높은) — 나보다 낮은 직급 제외
             const qualifies = passThruRule === 'same_or_higher'
-              ? ptRankIdx >= investorRankIdx
-              : ptRankIdx === investorRankIdx;
+              ? ptRankIdx >= investorRankIdx   // 동급 + 상위 직급만
+              : ptRankIdx <= investorRankIdx;  // 동급 이하 (낮은 직급 포함)
             if (qualifies) {
               const passAmt = parseFloat((pool * passThruRate).toFixed(8));
               if (passAmt > 0) {
@@ -1453,7 +1470,7 @@ export class DedraAPI {
                   passThruRule,
                   baseIncome:     dailyIncome,
                   settlementDate: settlementDate || '',
-                  reason:         `직급차 패스스루 (${passThruRule==='same_or_higher'?'동급+상위':'동급'}) ${(passThruRate*100).toFixed(1)}%`,
+                  reason:         `직급차 패스스루 (${passThruRule==='same_or_higher'?'동급+상위직급':'동급이하'}) ${(passThruRate*100).toFixed(1)}%`,
                   grantedBy:      triggerBy || 'system',
                   createdAt:      serverTimestamp(),
                 });
@@ -1461,8 +1478,10 @@ export class DedraAPI {
               }
             }
           }
-          // 체인 종료 조건: 최상위 수령자를 넘으면 중단
-          if (ptRankIdx >= (recipients[recipients.length-1]?.rankIdxMe ?? 99)) break;
+
+          // 체인 종료 조건: 체인 끝(referredBy 없음) 또는 G10 최상위에 도달하면 중단
+          // ★ 수령자 여부와 무관하게 체인 전체를 탐색해야 낮은 직급 노드도 처리됨
+          if (!ptNode.referredBy || ptRankIdx >= RANK_ORDER.length - 1) break;
           ptCurrentId = ptNode.referredBy;
         }
       }

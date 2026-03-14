@@ -3072,7 +3072,8 @@ canvas{width:100% !important;}
         <div style="background:#fdf4ff;border:1.5px solid #d8b4fe;border-radius:12px;padding:16px 20px;margin-bottom:18px;">
           <div style="font-size:13px;font-weight:700;color:#7e22ce;margin-bottom:10px;">🔁 패스스루(건너뜀) 지급 규칙</div>
           <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">
-            추천 체인을 올라가다가 <strong>지급 대상이 아닌 추천인</strong>에게 소액(패스스루 비율)을 지급할 때, 어떤 조건의 추천인에게 지급할지 선택합니다.
+            추천 체인을 올라가다가 <strong>직급 상승 수령자가 아닌 건너뜀 추천인</strong>에게 소액(패스스루 비율)을 지급합니다.<br>
+            <span style="color:#7c3aed;font-weight:600;">★ 투자자(나) 기준: 나보다 낮은 직급의 추천인에게도 항상 패스스루가 지급됩니다.</span>
           </div>
           <div style="display:flex;gap:16px;flex-wrap:wrap;">
             <label id="passThruSame_label" style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff;border:2px solid #a855f7;border-radius:10px;padding:12px 18px;transition:all .2s;">
@@ -3080,8 +3081,8 @@ canvas{width:100% !important;}
                 style="width:15px;height:15px;accent-color:#a855f7;flex-shrink:0;"
                 onchange="window.onPassThruRuleChange()">
               <div>
-                <div style="font-size:13px;font-weight:700;color:#7e22ce;">동급만</div>
-                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">나와 동일 직급의 추천인에게만 패스스루 지급</div>
+                <div style="font-size:13px;font-weight:700;color:#7e22ce;">동급 이하</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">나보다 <strong>낮은 직급</strong> + 동급 추천인에게 패스스루 지급<br><span style="color:#7e22ce;">( 나보다 높은 직급 제외 )</span></div>
               </div>
             </label>
             <label id="passThruHigher_label" style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:12px 18px;transition:all .2s;">
@@ -3090,7 +3091,7 @@ canvas{width:100% !important;}
                 onchange="window.onPassThruRuleChange()">
               <div>
                 <div style="font-size:13px;font-weight:700;color:#6b21a8;">동급 및 상위 직급</div>
-                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">동급 추천인뿐 아니라 <strong>나보다 직급이 높은</strong> 추천인에게도 패스스루 지급</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">동급 추천인뿐 아니라 <strong>나보다 직급이 높은</strong> 추천인에게도 패스스루 지급<br><span style="color:#6b21a8;">( 나보다 낮은 직급 제외 )</span></div>
               </div>
             </label>
           </div>
@@ -3098,7 +3099,7 @@ canvas{width:100% !important;}
 
         <div style="font-size:12px;background:#fef9c3;border-left:3px solid #f59e0b;padding:10px 14px;border-radius:6px;margin-bottom:18px;color:#78350f;line-height:1.7;">
           <strong>📌 공통 규칙</strong><br>
-          · 패스스루 규칙에 따라 건너뜀 추천인에게 소액 지급 (위 패스스루 규칙 참조)<br>
+          · <strong>패스스루는 나(투자자)보다 낮은 직급의 추천인에게도 항상 지급됩니다</strong> (규칙에 따라 범위 확대)<br>          · 건너뜀 추천인 = 직급 상승 구간 수령자가 아닌 추천 체인 상의 모든 노드<br>
           · 풀 금액은 회사 재원 — 투자자 ROI에서 차감되지 않음<br>
           · 보너스 유형: <code>rank_gap_bonus</code> (직급상승), <code>rank_gap_passthru</code> (패스스루)
         </div>
@@ -13562,10 +13563,13 @@ window.runIdReport = async function() {
         }
 
         // 패스스루 조건 헬퍼: 지급 대상 직급인지 판단
+        // ★ 나(투자자)보다 낮은 직급의 추천인에게도 항상 패스스루 지급
         // targetRankN = 투자자(기준) 직급
+        // 'same'(동급이하): nodeRankN <= targetRankN  → 낮은 직급 + 동급 포함, 높은 직급 제외
+        // 'same_or_higher'(동급+상위): nodeRankN >= targetRankN  → 동급 + 높은 직급 포함, 낮은 직급 제외
         const isPassThruTarget = (nodeRankN, targetRankN) => {
-          if (gapPassThruRule === 'same_or_higher') return nodeRankN >= targetRankN;
-          return nodeRankN === targetRankN;  // 'same': 동급만
+          if (gapPassThruRule === 'same_or_higher') return nodeRankN >= targetRankN;  // 동급 + 상위직급
+          return nodeRankN <= targetRankN;  // 'same': 낮은 직급 + 동급 (투자자 직급 이하)
         };
 
         const gapRows=[];
@@ -13651,7 +13655,7 @@ window.runIdReport = async function() {
           }
         }
         simLines.push(`<div style="margin-top:12px;padding:12px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #f59e0b;font-size:13px;">
-          <b style="color:#b45309;">🎯 판권 매칭 [방식${gapMode}] — 풀: $${fmt4(totalD)} × ${(gapPoolRate*100).toFixed(1)}% = <span style="color:#d97706;">$${fmt4(poolAmt)}</span> | 패스스루: ${gapPassThruRule==='same_or_higher'?'동급+상위직급':'동급만'}</b>
+          <b style="color:#b45309;">🎯 판권 매칭 [방식${gapMode}] — 풀: $${fmt4(totalD)} × ${(gapPoolRate*100).toFixed(1)}% = <span style="color:#d97706;">$${fmt4(poolAmt)}</span> | 패스스루: ${gapPassThruRule==='same_or_higher'?'동급+상위직급 (낮은직급 제외)':'동급이하 (낮은직급 포함)'}</b>
           <div style="margin-top:8px;">${gapRows.length?gapRows.join(''):'<span style="color:#9ca3af;font-size:12px;">직급 상승 추천인 없음</span>'}</div>
         </div>`);
       }
