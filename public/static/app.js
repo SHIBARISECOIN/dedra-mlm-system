@@ -328,6 +328,221 @@ const TRANSLATIONS = {
     regFail: '등록 실패: ',
     days: '일',
     units: '건',
+    emptyProducts: '상품 없음',
+    emptyAnnounce: '공지사항이 없습니다',
+    emptyTx: '거래 내역이 없습니다',
+    emptyBonus: '수익 내역이 없습니다',
+    emptyBonusSub: '관리자가 일일 정산을 실행하면 여기에 표시됩니다.',
+    emptyNotice: '공지사항을 찾을 수 없습니다.',
+    loadFail: '불러오기 실패',
+    loading: '불러오는 중...',
+    noTitle: '제목 없음',
+    noContent: '내용 없음',
+    pinBadge: '공지',
+    statusPending: '승인 대기',
+    statusApproved: '완료',
+    statusRejected: '거부됨',
+    greetingDawn: '새벽에도 열심히네요 🌙',
+    greetingMorning: '좋은 아침이에요 ☀️',
+    greetingAfternoon: '안녕하세요 👋',
+    greetingEvening: '좋은 저녁이에요 🌆',
+    freezeOngoing: 'FREEZE 진행 중',
+    daysRemain: '일 남음',
+    dailyRoi: '일 수익률',
+    perioDays: '일',
+    minAmount: '최소 $',
+    bonusRoiIncome: '❄️ FREEZE ROI 수익',
+    bonusDirectBonus: '👥 직접 추천 보너스',
+    bonusUnilevelBonus: '🌐 유니레벨 보너스',
+    bonusRankBonus: '🏆 직급 보너스',
+    bonusDefault: '보너스',
+    bonusSettleDate: '정산일: ',
+    bonusLevel: '단계',
+    bonusBaseIncome: '기준 D: $',
+    bonusCompleted: '완료',
+    winText: '승리',
+    loseText: '패배',
+    priceUpdated: '업데이트: ',
+    walletConnecting: '연결 중...',
+    walletInquiring: '조회중...',
+    walletConnected: '연결됨',
+    walletNoWallet: '❌ 지갑이 감지되지 않습니다.\nPhantom 또는 TokenPocket을 설치해주세요.',
+    walletCancelConnect: '연결을 취소했습니다.',
+    walletMovingApp: '앱으로 이동합니다...',
+    walletConnectFirst: '먼저 지갑을 연결하세요.',
+    walletMinDeposit: '최소 입금액은 $1 USDT입니다.',
+    walletNoCompanyAddr: '❌ 회사 지갑 주소가 설정되지 않았습니다.',
+    walletProcessing: '⏳ 처리 중...',
+    walletSigning: '🔐 지갑 서명 요청 중... (지갑 팝업을 확인하세요)',
+    walletVerifying: '📡 온체인 확인 중... (최대 30초 소요)',
+    walletDepositComplete: '✅ 입금 완료! 잔액이 자동으로 업데이트되었습니다.',
+    walletDepositPending: '⏳ 전송 완료! 관리자 확인 후 승인됩니다.',
+    walletTransferDone: '전송 완료! 관리자 확인 후 승인됩니다.',
+    walletCancelSign: '서명을 취소했습니다.',
+    walletDisconnected: '지갑 연결이 끊겼습니다. 다시 연결해주세요.',
+    walletInsufficientSol: '❌ USDT 또는 SOL 잔액이 부족합니다.',
+    walletInsufficientSolMsg: '❌ 잔액이 부족합니다 (USDT 또는 수수료용 SOL 확인)',
+    walletTransferFail: '전송 실패',
+    walletBtnSend: '🚀 지갑으로 즉시 전송',
+    walletBtnConnect: '👻 Phantom / 지갑 연결',
+    walletModuleFail: '❌ 지갑 모듈을 불러오지 못했습니다',
+    walletFeeNote: '전송 금액 $',
+    walletFeeNote2: ' USDT + 네트워크 수수료 ~$0.001',
+    ddraAdding: '에 추가 중...',
+    ddraAdded: '에 DDRA 추가 완료!',
+    ddraAddedMsg: '에 DDRA 토큰이 추가되었습니다!',
+    ddraBtnAdd: '내 지갑에 DDRA 추가',
+    ddraCanceled: '취소되었습니다',
+    ddraAddFail: '토큰 추가 실패',
+    ddraError: '❌ 오류: ',
+    ddraNoWalletTitle: '🔗 지갑 연결 필요',
+    ddraNoWalletDesc: 'DDRA 토큰을 추가하려면 지원하는 지갑이 필요합니다',
+    ddraInstall: '설치 →',
+    ddraClose: '닫기',
+    ddraManualTitle: '🪙 DDRA 토큰 수동 추가',
+    ddraManualDesc: '아래 주소를 지갑에 직접 입력해 DDRA를 추가하세요',
+    ddraSolLabel: 'SPL 토큰 민트 주소',
+    ddraBscLabel: 'BEP-20 컨트랙트 주소',
+    ddraCopy: '복사',
+    ddraCopied: '✅ 복사됨',
+    ddraAdminPending: '관리자 설정 대기 중',
+    loginFail: '로그인 실패',
+    loginError: '로그인 중 오류가 발생했습니다.',
+    registerEnterName: '이름을 입력해주세요.',
+    registerEnterPhone: '전화번호를 입력해주세요.',
+    registerEnterEmail: '이메일을 입력해주세요.',
+    registerEnterPw: '비밀번호를 입력해주세요.',
+    registerPwMin: '비밀번호는 6자리 이상이어야 합니다.',
+    registerSelectCountry: '국가를 선택해주세요.',
+    registerRefRequired: '추천인 코드는 필수입니다.',
+    registerInvalidRef: '유효하지 않은 추천인 코드입니다.',
+    registerDone: '회원가입 완료! 환영합니다 🎉',
+    forgotEmailFirst: '이메일을 먼저 입력하세요.',
+    forgotEmailSent: '비밀번호 재설정 이메일을 발송했습니다.',
+    loginIdPwRequired: '아이디와 비밀번호를 입력하세요.',
+    initFail: '초기화 실패. 다시 시도해주세요.',
+    // 추가 다국어 키
+    langChanged: '언어가 변경되었습니다',
+    walletAddrNotSet: '주소 미설정 (관리자 문의)',
+    noGameDdra: '게임 가능 DDRA가 없습니다. FREEZE 수익이 발생하면 바로 게임 가능합니다.',
+    coinFlying: '동전이 날아갑니다...',
+    result: '결과',
+    diceHit: '적중!',
+    diceMiss: '빗나감',
+    diceResult: '나온 숫자',
+    jackpot: '잭팟!',
+    slotMiss: '꽝!',
+    spinAgain: '다시 스핀!',
+    number: '숫자',
+    rlRed2: '레드',
+    rlBlack2: '블랙',
+    rlZero2: '제로',
+    rlOdd2: '홀수',
+    rlEven2: '짝수',
+    rlLow2: '1~18',
+    rlHigh2: '19~36',
+    bacPlayerWin: '플레이어 승리',
+    bacBankerWin: '뱅커 승리',
+    bacTie: '타이',
+    bacTiePush: '타이 - 푸쉬 (베팅 반환)',
+    bacPlayerWinBankerLose: '플레이어 승, 뱅커 베팅 패배',
+    bacBankerWinPlayerLose: '뱅커 승, 플레이어 베팅 패배',
+    bacPlayer: '플레이어',
+    bacBanker: '뱅커',
+    pkRoyal: '로열 플러시',
+    pkStraightFlush: '스트레이트 플러시',
+    pkFour: '포카드',
+    pkFullHouse: '풀 하우스',
+    pkFlush: '플러시',
+    pkStraight: '스트레이트',
+    pkThree: '쓰리 카드',
+    pkTwoPair: '투 페어',
+    pkOnePair: '원 페어',
+    pkHighCard: '하이카드',
+    pkDeal: '딜 (카드 받기)',
+    pkDealing: '딜링...',
+    pkReDeal: '다시 딜!',
+    pkDealerNoQual: '딜러 퀄리파이 실패! 앤티 반환',
+    pkDealer: '딜러',
+    pkMyHand: '내 패',
+    pkDealerWin: '딜러 승',
+    pkTie: '동점 - 타이! 베팅 반환',
+    emptyFreezePlan: 'FREEZE 플랜이 없습니다',
+    emptyActiveFreeze: '진행 중인 FREEZE가 없습니다',
+    periodLabel: '기간',
+    minLabel: '최소',
+    maxLabel: '최대',
+    productHint2: 'FREEZE 시 일 수익',
+    approx: '≈',
+    principalUnfreeze: '원금은 만기 후 언프리즈 가능합니다.',
+    ddraEquiv: 'DDRA 환산',
+    expiryDate: '만기일',
+    investTotalReturn: '총 예상수익(일)',
+    simTotal: '합계',
+    condNotSet: '조건 미설정',
+    topRankAchieved: '최고 직급 달성! 🏆',
+    emptyRefs: '추천인이 없습니다',
+    shareToExpand: '추천 링크를 공유하여 네트워크를 확장해보세요!',
+    me: '나',
+    member: '회원',
+    joinedOn: '가입',
+    referralCodeLabel: '추천 코드',
+    noName: '이름 없음',
+    emptyTickets: '문의 내역이 없습니다',
+    ticketClosed: '답변 완료',
+    ticketProcessing: '처리 중',
+    registering: '등록 중...',
+    emptyNotifs: '알림이 없습니다',
+    saving: '저장 중...',
+    withdrawFee: '수수료',
+    toastWithdrawDone2: '출금 신청 완료!',
+    bonusRoiIncome2: '💎 ROI 수익',
+    bonusDirectBonus2: '👤 직접 보너스',
+    bonusCenterFee: '🏢 센터피',
+    bonusManual: '🎁 수동 지급',
+    other: '기타',
+    memberCount: '명',
+    memberCount2: '인원',
+    genLabel: '대',
+    downline: '산하',
+    downline2: '하부',
+    downlineOrg: '하부',
+    todayEarning: '당일 내 수익',
+    totalSales: '총 매출',
+    salesLabel: '매출',
+    deepGenMembers: '3대+ 인원',
+    genSummary: '📊 대별 집계 (3대 이하는 개인정보 보호)',
+    emptyGen: '하부 멤버가 없습니다',
+    emptyDeepGen: '3대 이하 하부 멤버가 없습니다',
+    needMore: '산하',
+    moreNeeded: '더 필요',
+    condMet: '인원 조건 달성!',
+    freezeCondMet: 'FREEZE 조건 달성!',
+    noCond: '조건 없음',
+    needed: '필요',
+    membersLabel: '인원',
+    authInvalidEmail: '유효하지 않은 이메일입니다.',
+    authUserNotFound: '등록되지 않은 이메일입니다.',
+    authWrongPw: '비밀번호가 올바르지 않습니다.',
+    authEmailUsed: '이미 사용 중인 이메일입니다.',
+    authWeakPw: '비밀번호가 너무 약합니다. 6자 이상으로 설정하세요.',
+    authInvalidCred: '이메일 또는 비밀번호가 올바르지 않습니다.',
+    authTooMany: '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.',
+    authNetworkFail: '네트워크 오류가 발생했습니다.',
+    authDisabled: '비활성화된 계정입니다. 관리자에게 문의하세요.',
+    authError: '오류가 발생했습니다: ',
+    txTypeDeposit: 'USDT 입금',
+    txTypeWithdraw: 'DEEDRA 출금',
+    txTypeBonus: '보너스 지급',
+    txTypeInvest: 'FREEZE 신청',
+    txTypeGame: '게임',
+    txTypeReferral: '추천',
+    pwaTitle: 'DEEDRA 앱 설치',
+    pwaDesc: '홈 화면에 추가하면 더 빠르게 실행돼요',
+    pwaBtn: '설치',
+    pwaInstalled: '✅ DEEDRA 앱이 설치되었습니다!',
+    referralConfirmed: '추천인',
+    confirmed: '확인됨',
   },
   en: {
     authTagline: '🔐 Safe and Smart Crypto FREEZE',
@@ -549,6 +764,220 @@ const TRANSLATIONS = {
     regFail: 'Registration failed: ',
     days: ' days',
     units: '',
+    emptyProducts: 'No products',
+    emptyAnnounce: 'No announcements',
+    emptyTx: 'No transactions',
+    emptyBonus: 'No earnings yet',
+    emptyBonusSub: 'Earnings will appear here after admin runs daily settlement.',
+    emptyNotice: 'Announcement not found.',
+    loadFail: 'Failed to load',
+    loading: 'Loading...',
+    noTitle: 'Untitled',
+    noContent: 'No content',
+    pinBadge: 'Notice',
+    statusPending: 'Pending',
+    statusApproved: 'Completed',
+    statusRejected: 'Rejected',
+    greetingDawn: 'Working hard early! 🌙',
+    greetingMorning: 'Good morning ☀️',
+    greetingAfternoon: 'Hello 👋',
+    greetingEvening: 'Good evening 🌆',
+    freezeOngoing: 'FREEZE in progress',
+    daysRemain: ' days left',
+    dailyRoi: 'Daily ROI',
+    perioDays: 'd',
+    minAmount: 'Min $',
+    bonusRoiIncome: '❄️ FREEZE ROI',
+    bonusDirectBonus: '👥 Direct Bonus',
+    bonusUnilevelBonus: '🌐 Unilevel Bonus',
+    bonusRankBonus: '🏆 Rank Bonus',
+    bonusDefault: 'Bonus',
+    bonusSettleDate: 'Settlement: ',
+    bonusLevel: ' level',
+    bonusBaseIncome: 'Base: $',
+    bonusCompleted: 'Completed',
+    winText: 'Win',
+    loseText: 'Lose',
+    priceUpdated: 'Updated: ',
+    walletConnecting: 'Connecting...',
+    walletInquiring: 'Checking...',
+    walletConnected: 'Connected',
+    walletNoWallet: '❌ No wallet detected.\nPlease install Phantom or TokenPocket.',
+    walletCancelConnect: 'Connection cancelled.',
+    walletMovingApp: 'Opening app...',
+    walletConnectFirst: 'Please connect your wallet first.',
+    walletMinDeposit: 'Minimum deposit is $1 USDT.',
+    walletNoCompanyAddr: '❌ Company wallet address is not configured.',
+    walletProcessing: '⏳ Processing...',
+    walletSigning: '🔐 Requesting wallet signature... (check wallet popup)',
+    walletVerifying: '📡 Verifying on-chain... (up to 30 seconds)',
+    walletDepositComplete: '✅ Deposit complete! Balance updated automatically.',
+    walletDepositPending: '⏳ Transfer complete! Awaiting admin approval.',
+    walletTransferDone: 'Transfer complete! Awaiting admin approval.',
+    walletCancelSign: 'Signature cancelled.',
+    walletDisconnected: 'Wallet disconnected. Please reconnect.',
+    walletInsufficientSol: '❌ Insufficient USDT or SOL balance.',
+    walletInsufficientSolMsg: '❌ Insufficient balance (check USDT or SOL for fees)',
+    walletTransferFail: 'Transfer failed',
+    walletBtnSend: '🚀 Send via Wallet',
+    walletBtnConnect: '👻 Phantom / Connect Wallet',
+    walletModuleFail: '❌ Failed to load wallet module',
+    walletFeeNote: 'Send amount $',
+    walletFeeNote2: ' USDT + network fee ~$0.001',
+    ddraAdding: ' adding...',
+    ddraAdded: ' DDRA added!',
+    ddraAddedMsg: ' DDRA token has been added!',
+    ddraBtnAdd: 'Add DDRA to Wallet',
+    ddraCanceled: 'Cancelled',
+    ddraAddFail: 'Token add failed',
+    ddraError: '❌ Error: ',
+    ddraNoWalletTitle: '🔗 Wallet Required',
+    ddraNoWalletDesc: 'You need a supported wallet to add DDRA tokens',
+    ddraInstall: 'Install →',
+    ddraClose: 'Close',
+    ddraManualTitle: '🪙 Add DDRA Token Manually',
+    ddraManualDesc: 'Enter the address below directly into your wallet',
+    ddraSolLabel: 'SPL Token Mint Address',
+    ddraBscLabel: 'BEP-20 Contract Address',
+    ddraCopy: 'Copy',
+    ddraCopied: '✅ Copied',
+    ddraAdminPending: 'Admin setup pending',
+    loginFail: 'Login failed',
+    loginError: 'An error occurred during login.',
+    registerEnterName: 'Please enter your name.',
+    registerEnterPhone: 'Please enter your phone number.',
+    registerEnterEmail: 'Please enter your email.',
+    registerEnterPw: 'Please enter your password.',
+    registerPwMin: 'Password must be at least 6 characters.',
+    registerSelectCountry: 'Please select your country.',
+    registerRefRequired: 'Referral code is required.',
+    registerInvalidRef: 'Invalid referral code.',
+    registerDone: 'Registration complete! Welcome 🎉',
+    forgotEmailFirst: 'Please enter your email first.',
+    forgotEmailSent: 'Password reset email sent.',
+    loginIdPwRequired: 'Please enter your ID and password.',
+    initFail: 'Initialization failed. Please try again.',
+    langChanged: 'Language changed',
+    walletAddrNotSet: 'Address not set (contact admin)',
+    noGameDdra: 'No game DDRA. Earn from FREEZE to play.',
+    coinFlying: 'Coin is flying...',
+    result: 'Result',
+    diceHit: 'Hit!',
+    diceMiss: 'Miss',
+    diceResult: 'Number rolled',
+    jackpot: 'Jackpot!',
+    slotMiss: 'No win!',
+    spinAgain: 'Spin Again!',
+    number: 'Number',
+    rlRed2: 'Red',
+    rlBlack2: 'Black',
+    rlZero2: 'Zero',
+    rlOdd2: 'Odd',
+    rlEven2: 'Even',
+    rlLow2: '1~18',
+    rlHigh2: '19~36',
+    bacPlayerWin: 'Player Win',
+    bacBankerWin: 'Banker Win',
+    bacTie: 'Tie',
+    bacTiePush: 'Tie - Push (bet returned)',
+    bacPlayerWinBankerLose: 'Player Win, Banker Bet Lost',
+    bacBankerWinPlayerLose: 'Banker Win, Player Bet Lost',
+    bacPlayer: 'Player',
+    bacBanker: 'Banker',
+    pkRoyal: 'Royal Flush',
+    pkStraightFlush: 'Straight Flush',
+    pkFour: 'Four of a Kind',
+    pkFullHouse: 'Full House',
+    pkFlush: 'Flush',
+    pkStraight: 'Straight',
+    pkThree: 'Three of a Kind',
+    pkTwoPair: 'Two Pair',
+    pkOnePair: 'One Pair',
+    pkHighCard: 'High Card',
+    pkDeal: 'Deal (Get Cards)',
+    pkDealing: 'Dealing...',
+    pkReDeal: 'Deal Again!',
+    pkDealerNoQual: 'Dealer No Qualify! Ante returned',
+    pkDealer: 'Dealer',
+    pkMyHand: 'My Hand',
+    pkDealerWin: 'Dealer Win',
+    pkTie: 'Tie! Bet returned',
+    emptyFreezePlan: 'No FREEZE Plans',
+    emptyActiveFreeze: 'No active FREEZE',
+    periodLabel: 'Period',
+    minLabel: 'Min',
+    maxLabel: 'Max',
+    productHint2: 'FREEZE daily earnings',
+    approx: '≈',
+    principalUnfreeze: 'Principal can be unfrozen after maturity.',
+    ddraEquiv: 'DDRA equivalent',
+    expiryDate: 'Expiry Date',
+    investTotalReturn: 'Total Expected Return (daily)',
+    simTotal: 'total',
+    condNotSet: 'No condition set',
+    topRankAchieved: 'Top rank achieved! 🏆',
+    emptyRefs: 'No referrals',
+    shareToExpand: 'Share referral link to grow your network!',
+    me: 'Me',
+    member: 'Member',
+    joinedOn: 'Joined',
+    referralCodeLabel: 'Referral Code',
+    noName: 'No name',
+    emptyTickets: 'No support tickets',
+    ticketClosed: 'Answered',
+    ticketProcessing: 'Processing',
+    registering: 'Submitting...',
+    emptyNotifs: 'No notifications',
+    saving: 'Saving...',
+    withdrawFee: 'Fee',
+    toastWithdrawDone2: 'Withdrawal submitted!',
+    bonusRoiIncome2: '💎 ROI Income',
+    bonusDirectBonus2: '👤 Direct Bonus',
+    bonusCenterFee: '🏢 Center Fee',
+    bonusManual: '🎁 Manual Bonus',
+    other: 'Other',
+    memberCount: '',
+    memberCount2: 'Members',
+    genLabel: 'gen',
+    downline: 'Downline',
+    downline2: 'downline',
+    downlineOrg: 'Downline',
+    todayEarning: "Today's Earnings",
+    totalSales: 'Total Sales',
+    salesLabel: 'Sales',
+    deepGenMembers: 'Gen3+ Members',
+    genSummary: '📊 Generation Summary (Gen3+ privacy protected)',
+    emptyGen: 'No downline members',
+    emptyDeepGen: 'No gen3+ downline members',
+    needMore: 'Need more',
+    moreNeeded: 'more needed',
+    condMet: 'Member condition met!',
+    freezeCondMet: 'FREEZE condition met!',
+    noCond: 'No condition',
+    needed: 'needed',
+    membersLabel: 'Members',
+    authInvalidEmail: 'Invalid email address.',
+    authUserNotFound: 'Email not registered.',
+    authWrongPw: 'Incorrect password.',
+    authEmailUsed: 'Email already in use.',
+    authWeakPw: 'Password too weak. Use at least 6 characters.',
+    authInvalidCred: 'Invalid email or password.',
+    authTooMany: 'Too many attempts. Please try again later.',
+    authNetworkFail: 'Network error occurred.',
+    authDisabled: 'Account disabled. Contact admin.',
+    authError: 'Error occurred: ',
+    txTypeDeposit: 'USDT Deposit',
+    txTypeWithdraw: 'DDRA Withdrawal',
+    txTypeBonus: 'Bonus',
+    txTypeInvest: 'FREEZE',
+    txTypeGame: 'Game',
+    txTypeReferral: 'Referral',
+    pwaTitle: 'Install DEEDRA App',
+    pwaDesc: 'Add to home screen for faster access',
+    pwaBtn: 'Install',
+    pwaInstalled: '✅ DEEDRA App installed!',
+    referralConfirmed: 'Referral',
+    confirmed: 'Confirmed',
   },
   vi: {
     authTagline: '🔐 FREEZE tài sản số an toàn & thông minh',
@@ -770,6 +1199,220 @@ const TRANSLATIONS = {
     regFail: 'Đăng ký thất bại: ',
     days: ' ngày',
     units: '',
+    emptyProducts: 'Không có sản phẩm',
+    emptyAnnounce: 'Không có thông báo',
+    emptyTx: 'Không có giao dịch',
+    emptyBonus: 'Chưa có thu nhập',
+    emptyBonusSub: 'Thu nhập sẽ hiển thị sau khi admin chạy thanh toán hàng ngày.',
+    emptyNotice: 'Không tìm thấy thông báo.',
+    loadFail: 'Tải thất bại',
+    loading: 'Đang tải...',
+    noTitle: 'Không có tiêu đề',
+    noContent: 'Không có nội dung',
+    pinBadge: 'Thông báo',
+    statusPending: 'Chờ duyệt',
+    statusApproved: 'Hoàn thành',
+    statusRejected: 'Bị từ chối',
+    greetingDawn: 'Chăm chỉ lắm! 🌙',
+    greetingMorning: 'Chào buổi sáng ☀️',
+    greetingAfternoon: 'Xin chào 👋',
+    greetingEvening: 'Chào buổi tối 🌆',
+    freezeOngoing: 'FREEZE đang chạy',
+    daysRemain: ' ngày còn lại',
+    dailyRoi: 'ROI hàng ngày',
+    perioDays: 'ng',
+    minAmount: 'Tối thiểu $',
+    bonusRoiIncome: '❄️ FREEZE ROI',
+    bonusDirectBonus: '👥 Thưởng trực tiếp',
+    bonusUnilevelBonus: '🌐 Thưởng Unilevel',
+    bonusRankBonus: '🏆 Thưởng hạng',
+    bonusDefault: 'Thưởng',
+    bonusSettleDate: 'Ngày thanh toán: ',
+    bonusLevel: ' cấp',
+    bonusBaseIncome: 'Cơ sở: $',
+    bonusCompleted: 'Hoàn thành',
+    winText: 'Thắng',
+    loseText: 'Thua',
+    priceUpdated: 'Cập nhật: ',
+    walletConnecting: 'Đang kết nối...',
+    walletInquiring: 'Đang kiểm tra...',
+    walletConnected: 'Đã kết nối',
+    walletNoWallet: '❌ Không phát hiện ví.\nVui lòng cài Phantom hoặc TokenPocket.',
+    walletCancelConnect: 'Đã hủy kết nối.',
+    walletMovingApp: 'Đang mở ứng dụng...',
+    walletConnectFirst: 'Vui lòng kết nối ví trước.',
+    walletMinDeposit: 'Nạp tối thiểu $1 USDT.',
+    walletNoCompanyAddr: '❌ Địa chỉ ví công ty chưa được cấu hình.',
+    walletProcessing: '⏳ Đang xử lý...',
+    walletSigning: '🔐 Yêu cầu ký ví... (kiểm tra popup ví)',
+    walletVerifying: '📡 Đang xác minh on-chain... (tối đa 30 giây)',
+    walletDepositComplete: '✅ Nạp tiền hoàn tất! Số dư đã được cập nhật.',
+    walletDepositPending: '⏳ Chuyển khoản xong! Chờ admin duyệt.',
+    walletTransferDone: 'Chuyển khoản xong! Chờ admin duyệt.',
+    walletCancelSign: 'Đã hủy ký.',
+    walletDisconnected: 'Ví đã ngắt kết nối. Vui lòng kết nối lại.',
+    walletInsufficientSol: '❌ Số dư USDT hoặc SOL không đủ.',
+    walletInsufficientSolMsg: '❌ Số dư không đủ (kiểm tra USDT hoặc SOL cho phí)',
+    walletTransferFail: 'Chuyển khoản thất bại',
+    walletBtnSend: '🚀 Gửi qua ví',
+    walletBtnConnect: '👻 Phantom / Kết nối ví',
+    walletModuleFail: '❌ Không tải được module ví',
+    walletFeeNote: 'Số tiền gửi $',
+    walletFeeNote2: ' USDT + phí mạng ~$0.001',
+    ddraAdding: ' đang thêm...',
+    ddraAdded: ' DDRA đã thêm!',
+    ddraAddedMsg: ' token DDRA đã được thêm!',
+    ddraBtnAdd: 'Thêm DDRA vào ví',
+    ddraCanceled: 'Đã hủy',
+    ddraAddFail: 'Thêm token thất bại',
+    ddraError: '❌ Lỗi: ',
+    ddraNoWalletTitle: '🔗 Cần ví',
+    ddraNoWalletDesc: 'Bạn cần ví được hỗ trợ để thêm token DDRA',
+    ddraInstall: 'Cài đặt →',
+    ddraClose: 'Đóng',
+    ddraManualTitle: '🪙 Thêm DDRA thủ công',
+    ddraManualDesc: 'Nhập địa chỉ bên dưới trực tiếp vào ví của bạn',
+    ddraSolLabel: 'Địa chỉ SPL Token Mint',
+    ddraBscLabel: 'Địa chỉ BEP-20 Contract',
+    ddraCopy: 'Sao chép',
+    ddraCopied: '✅ Đã sao chép',
+    ddraAdminPending: 'Chờ admin cấu hình',
+    loginFail: 'Đăng nhập thất bại',
+    loginError: 'Đã xảy ra lỗi khi đăng nhập.',
+    registerEnterName: 'Vui lòng nhập tên.',
+    registerEnterPhone: 'Vui lòng nhập số điện thoại.',
+    registerEnterEmail: 'Vui lòng nhập email.',
+    registerEnterPw: 'Vui lòng nhập mật khẩu.',
+    registerPwMin: 'Mật khẩu phải ít nhất 6 ký tự.',
+    registerSelectCountry: 'Vui lòng chọn quốc gia.',
+    registerRefRequired: 'Mã giới thiệu là bắt buộc.',
+    registerInvalidRef: 'Mã giới thiệu không hợp lệ.',
+    registerDone: 'Đăng ký thành công! Chào mừng 🎉',
+    forgotEmailFirst: 'Vui lòng nhập email trước.',
+    forgotEmailSent: 'Đã gửi email đặt lại mật khẩu.',
+    loginIdPwRequired: 'Vui lòng nhập ID và mật khẩu.',
+    initFail: 'Khởi tạo thất bại. Vui lòng thử lại.',
+    langChanged: 'Đã thay đổi ngôn ngữ',
+    walletAddrNotSet: 'Chưa cài địa chỉ (liên hệ admin)',
+    noGameDdra: 'Không có DDRA. Kiếm từ FREEZE để chơi.',
+    coinFlying: 'Đồng xu đang bay...',
+    result: 'Kết quả',
+    diceHit: 'Trúng!',
+    diceMiss: 'Trượt',
+    diceResult: 'Số xuất hiện',
+    jackpot: 'Jackpot!',
+    slotMiss: 'Không trúng!',
+    spinAgain: 'Quay lại!',
+    number: 'Số',
+    rlRed2: 'Đỏ',
+    rlBlack2: 'Đen',
+    rlZero2: 'Zero',
+    rlOdd2: 'Lẻ',
+    rlEven2: 'Chẵn',
+    rlLow2: '1~18',
+    rlHigh2: '19~36',
+    bacPlayerWin: 'Player Thắng',
+    bacBankerWin: 'Banker Thắng',
+    bacTie: 'Hòa',
+    bacTiePush: 'Hòa - Push (hoàn cược)',
+    bacPlayerWinBankerLose: 'Player thắng, cược Banker thua',
+    bacBankerWinPlayerLose: 'Banker thắng, cược Player thua',
+    bacPlayer: 'Player',
+    bacBanker: 'Banker',
+    pkRoyal: 'Royal Flush',
+    pkStraightFlush: 'Straight Flush',
+    pkFour: 'Tứ Quý',
+    pkFullHouse: 'Full House',
+    pkFlush: 'Flush',
+    pkStraight: 'Straight',
+    pkThree: 'Ba Lá',
+    pkTwoPair: 'Hai Đôi',
+    pkOnePair: 'Một Đôi',
+    pkHighCard: 'Bài Cao',
+    pkDeal: 'Chia Bài',
+    pkDealing: 'Đang chia...',
+    pkReDeal: 'Chia lại!',
+    pkDealerNoQual: 'Dealer không đủ điều kiện! Hoàn ante',
+    pkDealer: 'Dealer',
+    pkMyHand: 'Bài của tôi',
+    pkDealerWin: 'Dealer Thắng',
+    pkTie: 'Hòa! Hoàn cược',
+    emptyFreezePlan: 'Không có kế hoạch FREEZE',
+    emptyActiveFreeze: 'Không có FREEZE đang hoạt động',
+    periodLabel: 'Thời hạn',
+    minLabel: 'Tối thiểu',
+    maxLabel: 'Tối đa',
+    productHint2: 'FREEZE thu nhập hàng ngày',
+    approx: '≈',
+    principalUnfreeze: 'Vốn có thể rút sau khi đáo hạn.',
+    ddraEquiv: 'Quy đổi DDRA',
+    expiryDate: 'Ngày đáo hạn',
+    investTotalReturn: 'Tổng lợi nhuận kỳ vọng (ngày)',
+    simTotal: 'tổng',
+    condNotSet: 'Chưa đặt điều kiện',
+    topRankAchieved: 'Đạt cấp cao nhất! 🏆',
+    emptyRefs: 'Không có người giới thiệu',
+    shareToExpand: 'Chia sẻ link giới thiệu để mở rộng mạng lưới!',
+    me: 'Tôi',
+    member: 'Thành viên',
+    joinedOn: 'Tham gia',
+    referralCodeLabel: 'Mã giới thiệu',
+    noName: 'Không có tên',
+    emptyTickets: 'Không có hỗ trợ',
+    ticketClosed: 'Đã trả lời',
+    ticketProcessing: 'Đang xử lý',
+    registering: 'Đang gửi...',
+    emptyNotifs: 'Không có thông báo',
+    saving: 'Đang lưu...',
+    withdrawFee: 'Phí',
+    toastWithdrawDone2: 'Đã gửi yêu cầu rút tiền!',
+    bonusRoiIncome2: '💎 Thu nhập ROI',
+    bonusDirectBonus2: '👤 Thưởng trực tiếp',
+    bonusCenterFee: '🏢 Phí trung tâm',
+    bonusManual: '🎁 Thưởng thủ công',
+    other: 'Khác',
+    memberCount: ' người',
+    memberCount2: 'Thành viên',
+    genLabel: 'F',
+    downline: 'Cấp dưới',
+    downline2: 'cấp dưới',
+    downlineOrg: 'Cấp dưới',
+    todayEarning: 'Thu nhập hôm nay',
+    totalSales: 'Tổng doanh số',
+    salesLabel: 'Doanh số',
+    deepGenMembers: 'Thành viên F3+',
+    genSummary: '📊 Tóm tắt theo cấp',
+    emptyGen: 'Không có thành viên cấp dưới',
+    emptyDeepGen: 'Không có thành viên F3+ cấp dưới',
+    needMore: 'Cần thêm',
+    moreNeeded: 'cần thêm',
+    condMet: 'Đạt điều kiện thành viên!',
+    freezeCondMet: 'Đạt điều kiện FREEZE!',
+    noCond: 'Không có điều kiện',
+    needed: 'cần',
+    membersLabel: 'Thành viên',
+    authInvalidEmail: 'Email không hợp lệ.',
+    authUserNotFound: 'Email chưa đăng ký.',
+    authWrongPw: 'Mật khẩu không đúng.',
+    authEmailUsed: 'Email đã được sử dụng.',
+    authWeakPw: 'Mật khẩu quá yếu. Dùng ít nhất 6 ký tự.',
+    authInvalidCred: 'Email hoặc mật khẩu không đúng.',
+    authTooMany: 'Quá nhiều lần thử. Vui lòng thử lại sau.',
+    authNetworkFail: 'Lỗi mạng.',
+    authDisabled: 'Tài khoản bị vô hiệu hóa. Liên hệ admin.',
+    authError: 'Lỗi: ',
+    txTypeDeposit: 'Nạp USDT',
+    txTypeWithdraw: 'Rút DDRA',
+    txTypeBonus: 'Thưởng',
+    txTypeInvest: 'FREEZE',
+    txTypeGame: 'Game',
+    txTypeReferral: 'Giới thiệu',
+    pwaTitle: 'Cài đặt ứng dụng DEEDRA',
+    pwaDesc: 'Thêm vào màn hình chính để truy cập nhanh hơn',
+    pwaBtn: 'Cài đặt',
+    pwaInstalled: '✅ Ứng dụng DEEDRA đã được cài đặt!',
+    referralConfirmed: 'Người giới thiệu',
+    confirmed: 'Đã xác nhận',
   },
   th: {
     authTagline: '🔐 FREEZE สินทรัพย์ดิจิทัลอย่างปลอดภัย',
@@ -991,6 +1634,220 @@ const TRANSLATIONS = {
     regFail: 'ลงทะเบียนล้มเหลว: ',
     days: ' วัน',
     units: '',
+    emptyProducts: 'ไม่มีสินค้า',
+    emptyAnnounce: 'ไม่มีประกาศ',
+    emptyTx: 'ไม่มีรายการ',
+    emptyBonus: 'ยังไม่มีรายได้',
+    emptyBonusSub: 'รายได้จะแสดงหลังจากแอดมินรันการชำระเงินรายวัน',
+    emptyNotice: 'ไม่พบประกาศ',
+    loadFail: 'โหลดล้มเหลว',
+    loading: 'กำลังโหลด...',
+    noTitle: 'ไม่มีชื่อ',
+    noContent: 'ไม่มีเนื้อหา',
+    pinBadge: 'ประกาศ',
+    statusPending: 'รอดำเนินการ',
+    statusApproved: 'เสร็จสิ้น',
+    statusRejected: 'ถูกปฏิเสธ',
+    greetingDawn: 'ขยันมากเลย! 🌙',
+    greetingMorning: 'สวัสดีตอนเช้า ☀️',
+    greetingAfternoon: 'สวัสดี 👋',
+    greetingEvening: 'สวัสดีตอนเย็น 🌆',
+    freezeOngoing: 'FREEZE กำลังดำเนินการ',
+    daysRemain: ' วันที่เหลือ',
+    dailyRoi: 'ROI รายวัน',
+    perioDays: 'วัน',
+    minAmount: 'ขั้นต่ำ $',
+    bonusRoiIncome: '❄️ FREEZE ROI',
+    bonusDirectBonus: '👥 โบนัสตรง',
+    bonusUnilevelBonus: '🌐 โบนัส Unilevel',
+    bonusRankBonus: '🏆 โบนัสอันดับ',
+    bonusDefault: 'โบนัส',
+    bonusSettleDate: 'วันชำระ: ',
+    bonusLevel: ' ระดับ',
+    bonusBaseIncome: 'พื้นฐาน: $',
+    bonusCompleted: 'เสร็จสิ้น',
+    winText: 'ชนะ',
+    loseText: 'แพ้',
+    priceUpdated: 'อัปเดต: ',
+    walletConnecting: 'กำลังเชื่อมต่อ...',
+    walletInquiring: 'กำลังตรวจสอบ...',
+    walletConnected: 'เชื่อมต่อแล้ว',
+    walletNoWallet: '❌ ไม่พบวอลเล็ต\nกรุณาติดตั้ง Phantom หรือ TokenPocket',
+    walletCancelConnect: 'ยกเลิกการเชื่อมต่อ',
+    walletMovingApp: 'กำลังเปิดแอป...',
+    walletConnectFirst: 'กรุณาเชื่อมต่อวอลเล็ตก่อน',
+    walletMinDeposit: 'ฝากขั้นต่ำ $1 USDT',
+    walletNoCompanyAddr: '❌ ที่อยู่วอลเล็ตบริษัทยังไม่ได้กำหนด',
+    walletProcessing: '⏳ กำลังประมวลผล...',
+    walletSigning: '🔐 กำลังขอลายเซ็นวอลเล็ต... (ตรวจสอบ popup วอลเล็ต)',
+    walletVerifying: '📡 กำลังตรวจสอบบนเชน... (สูงสุด 30 วินาที)',
+    walletDepositComplete: '✅ ฝากเสร็จสิ้น! ยอดคงเหลืออัปเดตอัตโนมัติ',
+    walletDepositPending: '⏳ โอนเสร็จแล้ว! รอแอดมินอนุมัติ',
+    walletTransferDone: 'โอนเสร็จแล้ว! รอแอดมินอนุมัติ',
+    walletCancelSign: 'ยกเลิกลายเซ็น',
+    walletDisconnected: 'วอลเล็ตหลุดการเชื่อมต่อ กรุณาเชื่อมต่อใหม่',
+    walletInsufficientSol: '❌ ยอด USDT หรือ SOL ไม่เพียงพอ',
+    walletInsufficientSolMsg: '❌ ยอดไม่เพียงพอ (ตรวจสอบ USDT หรือ SOL สำหรับค่าธรรมเนียม)',
+    walletTransferFail: 'โอนล้มเหลว',
+    walletBtnSend: '🚀 ส่งผ่านวอลเล็ต',
+    walletBtnConnect: '👻 Phantom / เชื่อมต่อวอลเล็ต',
+    walletModuleFail: '❌ โหลดโมดูลวอลเล็ตล้มเหลว',
+    walletFeeNote: 'จำนวน $',
+    walletFeeNote2: ' USDT + ค่าธรรมเนียมเครือข่าย ~$0.001',
+    ddraAdding: ' กำลังเพิ่ม...',
+    ddraAdded: ' เพิ่ม DDRA แล้ว!',
+    ddraAddedMsg: ' เพิ่ม token DDRA แล้ว!',
+    ddraBtnAdd: 'เพิ่ม DDRA ในวอลเล็ต',
+    ddraCanceled: 'ยกเลิกแล้ว',
+    ddraAddFail: 'เพิ่ม token ล้มเหลว',
+    ddraError: '❌ ข้อผิดพลาด: ',
+    ddraNoWalletTitle: '🔗 ต้องการวอลเล็ต',
+    ddraNoWalletDesc: 'คุณต้องการวอลเล็ตที่รองรับเพื่อเพิ่ม token DDRA',
+    ddraInstall: 'ติดตั้ง →',
+    ddraClose: 'ปิด',
+    ddraManualTitle: '🪙 เพิ่ม DDRA ด้วยตนเอง',
+    ddraManualDesc: 'กรอกที่อยู่ด้านล่างโดยตรงในวอลเล็ตของคุณ',
+    ddraSolLabel: 'ที่อยู่ SPL Token Mint',
+    ddraBscLabel: 'ที่อยู่ BEP-20 Contract',
+    ddraCopy: 'คัดลอก',
+    ddraCopied: '✅ คัดลอกแล้ว',
+    ddraAdminPending: 'รอแอดมินตั้งค่า',
+    loginFail: 'เข้าสู่ระบบล้มเหลว',
+    loginError: 'เกิดข้อผิดพลาดระหว่างเข้าสู่ระบบ',
+    registerEnterName: 'กรุณากรอกชื่อ',
+    registerEnterPhone: 'กรุณากรอกเบอร์โทร',
+    registerEnterEmail: 'กรุณากรอกอีเมล',
+    registerEnterPw: 'กรุณากรอกรหัสผ่าน',
+    registerPwMin: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+    registerSelectCountry: 'กรุณาเลือกประเทศ',
+    registerRefRequired: 'รหัสแนะนำจำเป็นต้องกรอก',
+    registerInvalidRef: 'รหัสแนะนำไม่ถูกต้อง',
+    registerDone: 'สมัครสำเร็จ! ยินดีต้อนรับ 🎉',
+    forgotEmailFirst: 'กรุณากรอกอีเมลก่อน',
+    forgotEmailSent: 'ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว',
+    loginIdPwRequired: 'กรุณากรอก ID และรหัสผ่าน',
+    initFail: 'เริ่มต้นล้มเหลว กรุณาลองใหม่',
+    langChanged: 'เปลี่ยนภาษาแล้ว',
+    walletAddrNotSet: 'ยังไม่ได้ตั้งที่อยู่ (ติดต่อผู้ดูแล)',
+    noGameDdra: 'ไม่มี DDRA สำหรับเล่นเกม ต้องมีรายได้จาก FREEZE ก่อน',
+    coinFlying: 'เหรียญกำลังบิน...',
+    result: 'ผลลัพธ์',
+    diceHit: 'ถูก!',
+    diceMiss: 'พลาด',
+    diceResult: 'หน้าที่ออก',
+    jackpot: 'แจ็คพอต!',
+    slotMiss: 'ไม่ถูก!',
+    spinAgain: 'หมุนอีกครั้ง!',
+    number: 'หมายเลข',
+    rlRed2: 'แดง',
+    rlBlack2: 'ดำ',
+    rlZero2: 'ศูนย์',
+    rlOdd2: 'คี่',
+    rlEven2: 'คู่',
+    rlLow2: '1~18',
+    rlHigh2: '19~36',
+    bacPlayerWin: 'Player ชนะ',
+    bacBankerWin: 'Banker ชนะ',
+    bacTie: 'เสมอ',
+    bacTiePush: 'เสมอ - คืนเดิมพัน',
+    bacPlayerWinBankerLose: 'Player ชนะ, เดิมพัน Banker แพ้',
+    bacBankerWinPlayerLose: 'Banker ชนะ, เดิมพัน Player แพ้',
+    bacPlayer: 'Player',
+    bacBanker: 'Banker',
+    pkRoyal: 'Royal Flush',
+    pkStraightFlush: 'Straight Flush',
+    pkFour: 'สี่ตัวเหมือน',
+    pkFullHouse: 'Full House',
+    pkFlush: 'Flush',
+    pkStraight: 'Straight',
+    pkThree: 'สามตัวเหมือน',
+    pkTwoPair: 'สองคู่',
+    pkOnePair: 'หนึ่งคู่',
+    pkHighCard: 'ไฮการ์ด',
+    pkDeal: 'แจกไพ่',
+    pkDealing: 'กำลังแจก...',
+    pkReDeal: 'แจกใหม่!',
+    pkDealerNoQual: 'ดีลเลอร์ไม่ผ่าน! คืน ante',
+    pkDealer: 'ดีลเลอร์',
+    pkMyHand: 'ไพ่ของฉัน',
+    pkDealerWin: 'ดีลเลอร์ชนะ',
+    pkTie: 'เสมอ! คืนเดิมพัน',
+    emptyFreezePlan: 'ไม่มีแผน FREEZE',
+    emptyActiveFreeze: 'ไม่มี FREEZE ที่ทำงานอยู่',
+    periodLabel: 'ระยะเวลา',
+    minLabel: 'ขั้นต่ำ',
+    maxLabel: 'สูงสุด',
+    productHint2: 'FREEZE รายได้รายวัน',
+    approx: '≈',
+    principalUnfreeze: 'เงินต้นสามารถถอนได้หลังครบกำหนด',
+    ddraEquiv: 'เทียบเท่า DDRA',
+    expiryDate: 'วันครบกำหนด',
+    investTotalReturn: 'ผลตอบแทนรวมที่คาดหวัง (ต่อวัน)',
+    simTotal: 'รวม',
+    condNotSet: 'ไม่มีเงื่อนไข',
+    topRankAchieved: 'ถึงระดับสูงสุดแล้ว! 🏆',
+    emptyRefs: 'ไม่มีผู้แนะนำ',
+    shareToExpand: 'แชร์ลิงก์แนะนำเพื่อขยายเครือข่าย!',
+    me: 'ฉัน',
+    member: 'สมาชิก',
+    joinedOn: 'เข้าร่วม',
+    referralCodeLabel: 'รหัสแนะนำ',
+    noName: 'ไม่มีชื่อ',
+    emptyTickets: 'ไม่มีการสอบถาม',
+    ticketClosed: 'ตอบแล้ว',
+    ticketProcessing: 'กำลังดำเนินการ',
+    registering: 'กำลังส่ง...',
+    emptyNotifs: 'ไม่มีการแจ้งเตือน',
+    saving: 'กำลังบันทึก...',
+    withdrawFee: 'ค่าธรรมเนียม',
+    toastWithdrawDone2: 'ส่งคำขอถอนเงินแล้ว!',
+    bonusRoiIncome2: '💎 รายได้ ROI',
+    bonusDirectBonus2: '👤 โบนัสตรง',
+    bonusCenterFee: '🏢 ค่าธรรมเนียมศูนย์',
+    bonusManual: '🎁 โบนัสพิเศษ',
+    other: 'อื่นๆ',
+    memberCount: ' คน',
+    memberCount2: 'สมาชิก',
+    genLabel: 'ชั้น',
+    downline: 'ดาวน์ไลน์',
+    downline2: 'ดาวน์ไลน์',
+    downlineOrg: 'ดาวน์ไลน์',
+    todayEarning: 'รายได้วันนี้',
+    totalSales: 'ยอดขายรวม',
+    salesLabel: 'ยอดขาย',
+    deepGenMembers: 'สมาชิกชั้น3+',
+    genSummary: '📊 สรุปตามชั้น',
+    emptyGen: 'ไม่มีสมาชิกดาวน์ไลน์',
+    emptyDeepGen: 'ไม่มีสมาชิกดาวน์ไลน์ชั้น3+',
+    needMore: 'ต้องการเพิ่ม',
+    moreNeeded: 'อีก',
+    condMet: 'ถึงเงื่อนไขสมาชิกแล้ว!',
+    freezeCondMet: 'ถึงเงื่อนไข FREEZE แล้ว!',
+    noCond: 'ไม่มีเงื่อนไข',
+    needed: 'ต้องการ',
+    membersLabel: 'สมาชิก',
+    authInvalidEmail: 'อีเมลไม่ถูกต้อง',
+    authUserNotFound: 'ไม่พบอีเมลนี้',
+    authWrongPw: 'รหัสผ่านไม่ถูกต้อง',
+    authEmailUsed: 'อีเมลนี้ถูกใช้แล้ว',
+    authWeakPw: 'รหัสผ่านอ่อนเกินไป ใช้อย่างน้อย 6 ตัวอักษร',
+    authInvalidCred: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    authTooMany: 'ลองหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง',
+    authNetworkFail: 'เกิดข้อผิดพลาดเครือข่าย',
+    authDisabled: 'บัญชีถูกระงับ ติดต่อผู้ดูแล',
+    authError: 'เกิดข้อผิดพลาด: ',
+    txTypeDeposit: 'ฝาก USDT',
+    txTypeWithdraw: 'ถอน DDRA',
+    txTypeBonus: 'โบนัส',
+    txTypeInvest: 'FREEZE',
+    txTypeGame: 'เกม',
+    txTypeReferral: 'แนะนำ',
+    pwaTitle: 'ติดตั้งแอป DEEDRA',
+    pwaDesc: 'เพิ่มหน้าจอหลักเพื่อเข้าถึงได้เร็วขึ้น',
+    pwaBtn: 'ติดตั้ง',
+    pwaInstalled: '✅ ติดตั้งแอป DEEDRA แล้ว!',
+    referralConfirmed: 'ผู้แนะนำ',
+    confirmed: 'ยืนยันแล้ว',
   }
 };
 
@@ -1349,7 +2206,7 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
 
   if (el) el.textContent = '$' + (price || 0).toFixed(6);
   if (subEl) {
-    let subText = updatedAt ? '업데이트: ' + fmtDate(updatedAt) : '';
+    let subText = updatedAt ? t('priceUpdated') + fmtDate(updatedAt) : '';
     if (source && source !== 'manual') subText += (subText ? ' · ' : '') + '📡 ' + source;
     if (liveEnabled) subText += (subText ? ' · ' : '') + '🔴 LIVE';
     subEl.textContent = subText;
@@ -1411,7 +2268,7 @@ async function loadHomeEarn() {
     renderHomeEarn(products);
   } catch (e) {
     console.error('[EARN] 상품 로드 오류:', e);
-    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 없음</div>';
+    listEl.innerHTML = `<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">${t('emptyProducts')}</div>`;
   }
 }
 
@@ -1419,7 +2276,7 @@ function renderHomeEarn(products) {
   const listEl = document.getElementById('homeEarnList');
   if (!listEl) return;
   if (!products || !products.length) {
-    listEl.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">상품 없음</div>';
+    listEl.innerHTML = `<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">${t('emptyProducts')}</div>`;
     return;
   }
   // 최대 3개만 표시
@@ -1440,7 +2297,7 @@ function renderHomeEarn(products) {
       </div>
       <div>
         <div class="earn-item-roi">${roi.toFixed(1)}%</div>
-        <div class="earn-item-roi-label">일 수익률</div>
+        <div class="earn-item-roi-label">${t('dailyRoi')}</div>
       </div>
     </div>`;
   }).join('');
@@ -1485,9 +2342,26 @@ window.toggleNoti = function(btn) {
 window.changeLang = function(lang) {
   if (!TRANSLATIONS[lang]) return;
   currentLang = lang;
+  localStorage.setItem('deedra_lang', lang);
   applyLang();
-  const langNames = { ko: '한국어', en: 'English', vi: 'Tiếng Việt', th: 'ภาษาไทย' };
-  showToast(`${langNames[lang]} 언어로 변경되었습니다`, 'success');
+  // 현재 활성 페이지 재렌더링 (언어 전환 시 동적 콘텐츠도 갱신)
+  if (typeof currentPage !== 'undefined' && currentPage) {
+    if (currentPage === 'home') {
+      if (typeof loadHomeEarn === 'function') loadHomeEarn();
+      if (typeof loadAnnouncements === 'function') loadAnnouncements();
+      if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+      if (typeof updateHomeUI === 'function') updateHomeUI();
+    } else if (currentPage === 'invest') {
+      if (typeof loadInvestPage === 'function') loadInvestPage();
+    } else if (currentPage === 'network') {
+      if (typeof loadNetworkPage === 'function') loadNetworkPage();
+    } else if (currentPage === 'play') {
+      if (typeof updateGameUI === 'function') updateGameUI();
+    } else if (currentPage === 'more') {
+      if (typeof loadMorePage === 'function') loadMorePage();
+    }
+  }
+  showToast(t('langChanged'), 'success');
 };
 
 // ===== 화면 전환 =====
@@ -1531,7 +2405,7 @@ window.switchAuthTab = function(tab) {
 window.handleLogin = async function() {
   const usernameInput = document.getElementById('loginEmail').value.trim();
   const pw = document.getElementById('loginPassword').value;
-  if (!usernameInput || !pw) { showToast('아이디와 비밀번호를 입력하세요.', 'warning'); return; }
+  if (!usernameInput || !pw) { showToast(t('loginIdPwRequired'), 'warning'); return; }
 
   showScreen('loading');
   try {
@@ -1557,7 +2431,7 @@ window.handleLogin = async function() {
       const data = await res.json();
       if (!res.ok || !data.success) {
         showScreen('auth');
-        showToast(data.error || '로그인 실패', 'error');
+        showToast(data.error || t('loginFail'), 'error');
         return;
       }
       // idToken으로 Firebase Auth에 signIn
@@ -1584,7 +2458,7 @@ window.handleLogin = async function() {
   } catch (err) {
     console.error('[Login Error]', err);
     showScreen('auth');
-    showToast(getAuthErrorMsg(err.code) || '로그인 중 오류가 발생했습니다.', 'error');
+    showToast(getAuthErrorMsg(err.code) || t('loginError'), 'error');
   }
 };
 
@@ -1597,16 +2471,16 @@ window.handleRegister = async function() {
   const country = document.getElementById('regCountry')?.value || '';
   const refCode = document.getElementById('regReferral').value.trim().toUpperCase();
 
-  if (!name)    { showToast('이름을 입력해주세요.', 'warning'); return; }
-  if (!phone)   { showToast('전화번호를 입력해주세요.', 'warning'); return; }
-  if (!email)   { showToast('이메일을 입력해주세요.', 'warning'); return; }
-  if (!pw)      { showToast('비밀번호를 입력해주세요.', 'warning'); return; }
-  if (pw.length < 6) { showToast('비밀번호는 6자리 이상이어야 합니다.', 'warning'); return; }
-  if (!country) { showToast('국가를 선택해주세요.', 'warning'); return; }
-  if (!refCode) { showToast('추천인 코드는 필수입니다.', 'warning'); return; }
+  if (!name)    { showToast(t('registerEnterName'), 'warning'); return; }
+  if (!phone)   { showToast(t('registerEnterPhone'), 'warning'); return; }
+  if (!email)   { showToast(t('registerEnterEmail'), 'warning'); return; }
+  if (!pw)      { showToast(t('registerEnterPw'), 'warning'); return; }
+  if (pw.length < 6) { showToast(t('registerPwMin'), 'warning'); return; }
+  if (!country) { showToast(t('registerSelectCountry'), 'warning'); return; }
+  if (!refCode) { showToast(t('registerRefRequired'), 'warning'); return; }
 
   const referrer = await findUserByReferralCode(refCode);
-  if (!referrer) { showToast('유효하지 않은 추천인 코드입니다.', 'error'); return; }
+  if (!referrer) { showToast(t('registerInvalidRef'), 'error'); return; }
 
   showScreen('loading');
   try {
@@ -1626,7 +2500,7 @@ window.handleRegister = async function() {
     // 회원가입 후 자동 로그인 (세션 저장 + 앱 진입)
     localStorage.setItem('deedra_session', JSON.stringify({ uid: user.uid, email }));
     window.FB._currentUser = user;
-    showToast('회원가입 완료! 환영합니다 🎉', 'success');
+    showToast(t('registerDone'), 'success');
     await window.onAuthReady(user);
   } catch (err) {
     showScreen('auth');
@@ -1637,11 +2511,11 @@ window.handleRegister = async function() {
 // ===== 비밀번호 찾기 =====
 window.handleForgotPassword = async function() {
   const email = document.getElementById('loginEmail').value.trim();
-  if (!email) { showToast('이메일을 먼저 입력하세요.', 'warning'); return; }
+  if (!email) { showToast(t('forgotEmailFirst'), 'warning'); return; }
   try {
     const { sendPasswordResetEmail, auth } = window.FB;
     await sendPasswordResetEmail(auth, email);
-    showToast('비밀번호 재설정 이메일을 발송했습니다.', 'success');
+    showToast(t('forgotEmailSent'), 'success');
   } catch (err) {
     showToast(getAuthErrorMsg(err.code), 'error');
   }
@@ -1662,8 +2536,8 @@ function showConfirm(msg, icon = '⚠️') {
     modal.style.display = 'flex';
 
     // 취소 버튼 텍스트도 현재 언어에 맞게
-    cancelBtn.textContent = t('cancel') || '취소';
-    okBtn.textContent     = t('confirm') || '확인';
+    cancelBtn.textContent = t('cancel');
+    okBtn.textContent     = t('confirm');
 
     const cleanup = () => { modal.style.display = 'none'; };
     const onOk = () => { cleanup(); okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); resolve(true); };
@@ -1711,7 +2585,7 @@ function updateHomeUI() {
   if (!userData || !walletData) return;
 
   const hour = new Date().getHours();
-  const greeting = hour < 6 ? '새벽에도 열심히네요 🌙' : hour < 12 ? '좋은 아침이에요 ☀️' : hour < 18 ? '안녕하세요 👋' : '좋은 저녁이에요 🌆';
+  const greeting = hour < 6 ? t('greetingDawn') : hour < 12 ? t('greetingMorning') : hour < 18 ? t('greetingAfternoon') : t('greetingEvening');
 
   const greetEl = document.getElementById('greetingMsg');
   const nameEl = document.getElementById('userNameDisplay');
@@ -1775,12 +2649,12 @@ async function loadDDayCard() {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
     setEl('ddayBadge', 'D-' + remainDays);
-    setEl('ddayName', inv.productName || 'FREEZE 진행 중');
+    setEl('ddayName', inv.productName || t('freezeOngoing'));
     setEl('ddayStart', fmtDateShort(startTs));
     setEl('ddayEnd', fmtDateShort(endTs));
     setEl('ddayAmount', fmt(inv.amount) + ' USDT');
-    setEl('ddayReturn', '+' + fmt(inv.expectedReturn || 0) + ' USDT/일');
-    setEl('ddayRemain', remainDays + '일 남음');
+    setEl('ddayReturn', '+' + fmt(inv.expectedReturn || 0) + ' USDT/' + t('days'));
+    setEl('ddayRemain', remainDays + t('daysRemain'));
 
     const fill = document.getElementById('ddayFill');
     if (fill) fill.style.width = progress.toFixed(1) + '%';
@@ -1813,7 +2687,7 @@ async function loadAnnouncements() {
   } catch (err) {
     console.error('[announcements] load error:', err);
     const el = document.getElementById('announcementList');
-    if (el) el.innerHTML = '<div class="empty-state">공지사항이 없습니다</div>';
+    if (el) el.innerHTML = `<div class="empty-state">${t('emptyAnnounce')}</div>`;
   }
 }
 
@@ -1821,13 +2695,13 @@ function renderAnnouncements(items, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i>공지사항이 없습니다</div>';
+    el.innerHTML = `<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyAnnounce')}</div>`;
     return;
   }
   el.innerHTML = items.map(a => `
     <div class="announcement-item" onclick="showAnnouncementDetail('${a.id}')">
       <div class="ann-title">
-        ${a.isPinned ? '<span class="pin-badge">공지</span>' : ''}${a.title || '제목 없음'}
+        ${a.isPinned ? `<span class="pin-badge">${t('pinBadge')}</span>` : ''}${a.title || t('noTitle')}
       </div>
       <div class="ann-date">${fmtDate(a.createdAt)}</div>
     </div>
@@ -1854,7 +2728,7 @@ window.showAnnouncementModal = async function() {
       });
     renderAnnouncements(items, 'announcementFullList');
   } catch {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 };
 
@@ -1867,17 +2741,17 @@ window.showAnnouncementDetail = async function(id) {
   const titleEl = document.getElementById('annDetailTitle');
   const dateEl  = document.getElementById('annDetailDate');
   const bodyEl  = document.getElementById('annDetailBody');
-  if (titleEl) titleEl.textContent = '불러오는 중...';
+  if (titleEl) titleEl.textContent = t('loading');
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
-    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">공지사항을 찾을 수 없습니다.</div>'; return; }
+    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('emptyNotice')}</div>`; return; }
     const a = snap.data();
-    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || '제목 없음');
+    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || t('noTitle'));
     if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
-    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(a.content || '내용 없음').replace(/\n/g, '<br>')}</div>`;
+    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(a.content || t('noContent')).replace(/\n/g, '<br>')}</div>`;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 };
 
@@ -1897,7 +2771,7 @@ async function loadRecentTransactions() {
     renderTxList(txs, 'recentTxList');
   } catch (err) {
     const el = document.getElementById('recentTxList');
-    if (el) el.innerHTML = '<div class="empty-state">거래 내역이 없습니다</div>';
+    if (el) el.innerHTML = `<div class="empty-state">${t('emptyTx')}</div>`;
   }
 }
 
@@ -1905,11 +2779,11 @@ function renderTxList(txs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!txs.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i>거래 내역이 없습니다</div>';
+    el.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i>${t('emptyTx')}</div>`;
     return;
   }
   const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
-  const statusTxt = { pending: '승인 대기', approved: '완료', rejected: '거부됨' };
+  const statusTxt = { pending: t('statusPending'), approved: t('statusApproved'), rejected: t('statusRejected') };
 
   el.innerHTML = txs.map(tx => {
     const isPlus = ['deposit', 'bonus'].includes(tx.type);
@@ -2000,7 +2874,7 @@ async function loadTxHistory(typeFilter) {
     renderTxList(txs, 'txHistoryList');
   } catch (err) {
     console.error('loadTxHistory error:', err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>거래 내역이 없습니다</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i><br>${t('emptyTx')}</div>`;
   }
 }
 
@@ -2017,18 +2891,18 @@ function renderBonusList(bonuses, containerId) {
   }
 
   const typeLabel = {
-    roi_income:    '❄️ FREEZE ROI 수익',
-    direct_bonus:  '👥 직접 추천 보너스',
-    unilevel_bonus:'🌐 유니레벨 보너스',
-    rank_bonus:    '🏆 직급 보너스',
+    roi_income:    t('bonusRoiIncome'),
+    direct_bonus:  t('bonusDirectBonus'),
+    unilevel_bonus: t('bonusUnilevelBonus'),
+    rank_bonus:    t('bonusRankBonus'),
   };
 
   el.innerHTML = bonuses.map(b => {
-    const label = typeLabel[b.type] || b.type || '보너스';
+    const label = typeLabel[b.type] || b.type || t('bonusDefault');
     const dateStr = fmtDate(b.createdAt);
-    const details = b.settlementDate ? `정산일: ${b.settlementDate}` : (b.reason || '');
-    const level   = b.level ? ` · ${b.level}단계` : '';
-    const base    = b.baseIncome ? ` · 기준 D: $${fmt(b.baseIncome)}` : (b.investAmount ? ` · FREEZE $${fmt(b.investAmount)}` : '');
+    const details = b.settlementDate ? `${t('bonusSettleDate')}${b.settlementDate}` : (b.reason || '');
+    const level   = b.level ? ` · ${b.level}${t('bonusLevel')}` : '';
+    const base    = b.baseIncome ? ` · ${t('bonusBaseIncome')}${fmt(b.baseIncome)}` : (b.investAmount ? ` · FREEZE $${fmt(b.investAmount)}` : '');
 
     return `
     <div class="tx-item">
@@ -2040,7 +2914,7 @@ function renderBonusList(bonuses, containerId) {
       </div>
       <div>
         <div class="tx-amount plus">+${fmt(b.amount)} USDT</div>
-        <div class="tx-status" style="color:var(--green)">완료</div>
+        <div class="tx-status" style="color:var(--green)">${t('bonusCompleted')}</div>
       </div>
     </div>`;
   }).join('');
@@ -2087,44 +2961,44 @@ window.updateDepWalletFee = function(val) {
   const amt = parseFloat(val) || 0;
   const el  = document.getElementById('depWalletFeeNote');
   if (el && amt > 0) {
-    el.textContent = `전송 금액 $${amt.toFixed(2)} USDT + 네트워크 수수료 ~$0.001`;
+    el.textContent = `${t('walletFeeNote')}${amt.toFixed(2)}${t('walletFeeNote2')}`;
   }
 };
 
 // 지갑 연결
 window.connectSolanaWallet = async function() {
   const btn = document.getElementById('btnConnectWallet');
-  btn.disabled = true; btn.textContent = '연결 중...';
+  btn.disabled = true; btn.textContent = t('walletConnecting');
   try {
     // solana-wallet.js 의 SolanaWallet 사용
     const sw = window.SolanaWallet;
-    if (!sw) throw new Error('지갑 모듈 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+    if (!sw) throw new Error(t('walletConnecting'));
 
     const { address, walletName } = await sw.connect();
 
     // UI 업데이트
     document.getElementById('depWalletConnect').style.display    = 'none';
     document.getElementById('depWalletConnected').style.display  = '';
-    document.getElementById('depWalletName').textContent         = `✅ ${walletName} 연결됨`;
+    document.getElementById('depWalletName').textContent = `✅ ${walletName} ${t('walletConnected')}`;
     document.getElementById('depWalletAddr').textContent         = address;
 
     // USDT 잔액 조회
-    document.getElementById('depWalletBalance').textContent = '조회중...';
+    document.getElementById('depWalletBalance').textContent = t('walletInquiring');
     const balance = await sw.getUsdtBalance(address);
     document.getElementById('depWalletBalance').textContent = `$${balance.toFixed(2)} USDT`;
 
   } catch (e) {
     if (e.message === 'NO_WALLET') {
-      showToast('❌ 지갑이 감지되지 않습니다.\nPhantom 또는 TokenPocket을 설치해주세요.', 'error');
+      showToast(t('walletNoWallet'), 'error');
     } else if (e.message === 'USER_REJECTED') {
-      showToast('연결을 취소했습니다.', 'warning');
+      showToast(t('walletCancelConnect'), 'warning');
     } else if (e.message === 'MOBILE_DEEPLINK') {
-      showToast('앱으로 이동합니다...', 'info');
+      showToast(t('walletMovingApp'), 'info');
     } else {
       showToast('❌ ' + e.message, 'error');
     }
   } finally {
-    btn.disabled = false; btn.innerHTML = '<span style="font-size:20px;">👻</span> Phantom / 지갑 연결';
+    btn.disabled = false; btn.innerHTML = `<span style="font-size:20px;">👻</span> ${t('walletBtnConnect')}`;
   }
 };
 
@@ -2141,8 +3015,8 @@ window.doWalletDeposit = async function() {
   const sw     = window.SolanaWallet;
   const amount = parseFloat(document.getElementById('depWalletAmount')?.value || 0);
 
-  if (!sw?.publicKey) { showToast('먼저 지갑을 연결하세요.', 'warning'); return; }
-  if (!amount || amount < 1) { showToast('최소 입금액은 $1 USDT입니다.', 'warning'); return; }
+  if (!sw?.publicKey) { showToast(t('walletConnectFirst'), 'warning'); return; }
+  if (!amount || amount < 1) { showToast(t('walletMinDeposit'), 'warning'); return; }
 
   // 회사 지갑 주소 가져오기
   let toAddress = '';
@@ -2153,7 +3027,7 @@ window.doWalletDeposit = async function() {
       toAddress = w?.address || '';
     }
   } catch {}
-  if (!toAddress) { showToast('❌ 회사 지갑 주소가 설정되지 않았습니다.', 'error'); return; }
+  if (!toAddress) { showToast(t('walletNoCompanyAddr'), 'error'); return; }
 
   const btn    = document.getElementById('btnWalletSend');
   const status = document.getElementById('depWalletStatus');
@@ -2166,15 +3040,15 @@ window.doWalletDeposit = async function() {
     status.textContent       = msg;
   };
 
-  btn.disabled = true; btn.textContent = '⏳ 처리 중...';
+  btn.disabled = true; btn.textContent = t('walletProcessing');
 
   try {
     // ── Step 1: 서명 + 브로드캐스트
-    setStatus('🔐 지갑 서명 요청 중... (지갑 팝업을 확인하세요)', '#6366f1');
+    setStatus(t('walletSigning'), '#6366f1');
     const signature = await sw.sendUsdt(toAddress, amount);
 
     // ── Step 2: Firestore 저장 + 온체인 자동 검증
-    setStatus('📡 온체인 확인 중... (최대 30초 소요)', '#f59e0b');
+    setStatus(t('walletVerifying'), '#f59e0b');
     const r = await window.api.submitWalletDeposit(
       currentUser.uid, currentUser.email,
       amount, signature,
@@ -2183,12 +3057,12 @@ window.doWalletDeposit = async function() {
 
     if (r.success) {
       if (r.data.autoApproved) {
-        setStatus('✅ 입금 완료! 잔액이 자동으로 업데이트되었습니다.', '#16a34a');
+        setStatus(t('walletDepositComplete'), '#16a34a');
         showToast(`✅ $${amount} USDT 입금 완료!`, 'success');
         setTimeout(() => { closeModal('depositModal'); refreshWallet?.(); }, 2500);
       } else {
         setStatus(`⏳ 전송 완료! 관리자 확인 후 승인됩니다.\n해시: ${signature.slice(0,16)}...`, '#f59e0b');
-        showToast('전송 완료! 관리자 확인 후 승인됩니다.', 'info');
+        showToast(t('walletTransferDone'), 'info');
       }
     } else {
       setStatus('❌ ' + r.error, '#dc2626');
@@ -2196,19 +3070,19 @@ window.doWalletDeposit = async function() {
     }
   } catch (e) {
     if (e.message === 'USER_REJECTED') {
-      setStatus('서명을 취소했습니다.', '#64748b');
-      showToast('서명을 취소했습니다.', 'warning');
+      setStatus(t('walletCancelSign'), '#64748b');
+      showToast(t('walletCancelSign'), 'warning');
     } else if (e.message === 'WALLET_NOT_CONNECTED') {
-      setStatus('지갑 연결이 끊겼습니다. 다시 연결해주세요.', '#dc2626');
+      setStatus(t('walletDisconnected'), '#dc2626');
     } else if (e.message?.includes('insufficient')) {
-      setStatus('❌ USDT 또는 SOL 잔액이 부족합니다.', '#dc2626');
-      showToast('❌ 잔액이 부족합니다 (USDT 또는 수수료용 SOL 확인)', 'error');
+      setStatus(t('walletInsufficientSol'), '#dc2626');
+      showToast(t('walletInsufficientSolMsg'), 'error');
     } else {
-      setStatus('❌ ' + (e.message || '전송 실패'), '#dc2626');
+      setStatus('❌ ' + (e.message || t('walletTransferFail')), '#dc2626');
       showToast('❌ ' + e.message, 'error');
     }
   } finally {
-    btn.disabled = false; btn.innerHTML = '🚀 지갑으로 즉시 전송';
+    btn.disabled = false; btn.innerHTML = t('walletBtnSend');
   }
 };
 
@@ -2221,7 +3095,7 @@ window.handleAddDdraToken = async function() {
   const btnText = document.getElementById('addDdraTokenBtnText');
 
   if (!window.DDRATokenRegister) {
-    showToast('❌ 지갑 모듈을 불러오지 못했습니다', 'error'); return;
+    showToast(t('walletModuleFail'), 'error'); return;
   }
 
   // 감지된 지갑 안내
@@ -2248,16 +3122,16 @@ window.handleAddDdraToken = async function() {
       // 3초 후 원래 버튼으로 복원
       setTimeout(() => {
         if (btnIcon) btnIcon.textContent = '➕';
-        if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
+        if (btnText) btnText.textContent = t('ddraBtnAdd');
         if (btn) btn.disabled = false;
       }, 3000);
     } else {
       if (btnIcon) btnIcon.textContent = '➕';
-      if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
+      if (btnText) btnText.textContent = t('ddraBtnAdd');
       if (btn) btn.disabled = false;
 
       if (result.error === 'USER_REJECTED') {
-        showToast('취소되었습니다', 'info');
+        showToast(t('ddraCanceled'), 'info');
       } else if (result.error === 'NO_MINT' || result.error === 'NO_CONTRACT') {
         _showAddDdraManualModal(result);
       } else if (result.error === 'NOT_SUPPORTED') {
@@ -2268,7 +3142,7 @@ window.handleAddDdraToken = async function() {
     }
   } catch(e) {
     if (btnIcon) btnIcon.textContent = '➕';
-    if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
+    if (btnText) btnText.textContent = t('ddraBtnAdd');
     if (btn) btn.disabled = false;
     showToast('❌ 오류: ' + e.message, 'error');
   }
@@ -2316,7 +3190,7 @@ function _showAddDdraNoWalletModal() {
 function _showAddDdraManualModal(result) {
   const reg = window.DDRATokenRegister;
   const solanaMint  = reg?.config?.solanaMint  || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
-  const bscContract = reg?.config?.bscContract || '관리자 설정 대기 중';
+  const bscContract = reg?.config?.bscContract || t('ddraAdminPending');
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
@@ -2380,12 +3254,12 @@ window.showDepositModal = function() {
     const addrEl        = document.getElementById('depWalletAddr');
     if (connectDiv)   connectDiv.style.display   = 'none';
     if (connectedDiv) connectedDiv.style.display = '';
-    if (nameEl)       nameEl.textContent         = `✅ ${sw.walletName} 연결됨`;
+    if (nameEl)       nameEl.textContent = `✅ ${sw.walletName} ${t('walletConnected')}`;
     if (addrEl)       addrEl.textContent         = sw.publicKey;
     // USDT 잔액 갱신
     const balEl = document.getElementById('depWalletBalance');
     if (balEl) {
-      balEl.textContent = '조회중...';
+      balEl.textContent = t('walletInquiring');
       sw.getUsdtBalance(sw.publicKey).then(bal => {
         balEl.textContent = `$${bal.toFixed(2)} USDT`;
       });
@@ -2402,16 +3276,16 @@ async function loadCompanyWallet() {
     const { doc, getDoc, db } = window.FB;
     const snap = await getDoc(doc(db, 'settings', 'wallets'));
     const addr = document.getElementById('companyWalletAddr');
-    if (snap.exists() && addr) addr.textContent = snap.data().trc20 || '주소 미설정 (관리자 문의)';
+    if (snap.exists() && addr) addr.textContent = snap.data().trc20 || t('walletAddrNotSet');
   } catch {
     const addr = document.getElementById('companyWalletAddr');
-    if (addr) addr.textContent = '주소 로드 실패';
+    if (addr) addr.textContent = t('loadFail');
   }
 }
 
 window.copyWalletAddress = function() {
   const addr = document.getElementById('companyWalletAddr');
-  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast('주소가 복사되었습니다!', 'success'));
+  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast(t('toastAddrCopied'), 'success'));
 };
 
 window.submitDeposit = async function() {
@@ -2419,11 +3293,11 @@ window.submitDeposit = async function() {
   const txid = document.getElementById('depositTxid').value.trim();
   const memo = document.getElementById('depositMemo').value.trim();
 
-  if (!amount || amount <= 0) { showToast('입금 금액을 입력하세요.', 'warning'); return; }
-  if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast(t('toastEnterDepAmt'), 'warning'); return; }
+  if (!txid) { showToast(t('toastEnterTxid'), 'warning'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = '처리중...';
+  btn.disabled = true; btn.textContent = t('walletProcessing');
 
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
@@ -2433,7 +3307,7 @@ window.submitDeposit = async function() {
       status: 'pending', createdAt: serverTimestamp(),
     });
     closeModal('depositModal');
-    showToast('입금 신청 완료! 관리자 승인을 기다려주세요.', 'success');
+    showToast(t('toastDepositDone'), 'success');
     document.getElementById('depositAmount').value = '';
     document.getElementById('depositTxid').value = '';
   } catch (err) {
@@ -2487,11 +3361,11 @@ window.submitWithdraw = async function() {
   if (!ddrAmt || ddrAmt <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast('PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit'), 'warning'); return; }
 
   // PIN 미설정 시 설정 유도
   if (!userData?.withdrawPin) {
-    showToast('출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.', 'warning');
+    showToast(t('toastEnterPin'), 'warning');
     closeModal('withdrawModal');
     setTimeout(() => showWithdrawPinSetup(), 300);
     return;
@@ -2504,12 +3378,12 @@ window.submitWithdraw = async function() {
   const availableBonus = walletData?.bonusBalance || 0;
   const availableDdra = availableBonus / price;
   if (availableDdra < ddrAmt) {
-    showToast(`출금 가능 DDRA 부족 (가능: ${fmt(availableDdra)} DDRA)`, 'error'); return;
+    showToast(`${t('toastInsufficientBal')} (${fmt(availableDdra)} DDRA)`, 'error'); return;
   }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = '처리중...';
+  btn.disabled = true; btn.textContent = t('walletProcessing');
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
@@ -2566,8 +3440,8 @@ window.submitWithdraw = async function() {
     }
 
     closeModal('withdrawModal');
-    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} DDRA)` : '';
-    showToast(`출금 신청 완료! ${fmt(netDdra)} DDRA${feeMsg} 지급 예정`, 'success');
+    const feeMsg = feeAmount > 0 ? ` (${t('withdrawFee')} ${fmt(feeAmount)} DDRA)` : '';
+    showToast(`${t('toastWithdrawDone2')} ${fmt(netDdra)} DDRA${feeMsg}`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
@@ -2620,7 +3494,7 @@ async function loadProducts() {
       .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
 
     if (!productsCache.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>FREEZE 플랜이 없습니다</div>';
+      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-snowflake"></i>${t('emptyFreezePlan')}</div>`;
       return;
     }
 
@@ -2650,17 +3524,17 @@ async function loadProducts() {
           </div>
           <div class="product-roi-block">
             <div class="product-roi">${roi.toFixed(1)}%</div>
-            <div class="product-roi-label">일 수익률</div>
+            <div class="product-roi-label">${t('dailyRoi')}</div>
           </div>
         </div>
         <div class="product-meta">
-          <div class="product-meta-item">기간: <strong>${days}일</strong></div>
-          <div class="product-meta-item">최소: <strong>${fmt(p.minAmount)} USDT</strong></div>
-          <div class="product-meta-item">최대: <strong>${fmt(p.maxAmount)} USDT</strong></div>
+          <div class="product-meta-item">${t('periodLabel')}: <strong>${days}${t('days')}</strong></div>
+          <div class="product-meta-item">${t('minLabel')}: <strong>${fmt(p.minAmount)} USDT</strong></div>
+          <div class="product-meta-item">${t('maxLabel')}: <strong>${fmt(p.maxAmount)} USDT</strong></div>
         </div>
         <div class="product-conversion">
-          ❄️ ${fmt(p.minAmount)} USDT FREEZE 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
-          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 만기 후 언프리즈 가능
+          ❄️ ${fmt(p.minAmount)} USDT FREEZE ${t('productHint2')} <strong>~${fmt(dailyEarning)} USDT</strong>
+          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/${t('days')}) · 🔒 ${t('principalUnfreeze')}
         </div>
         <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name || ''}',${roi},${days},${p.minAmount||0},${p.maxAmount||9999})">
           ❄️ FREEZE
@@ -2669,7 +3543,7 @@ async function loadProducts() {
     }).join('');
   } catch (err) {
     console.warn(err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 }
 
@@ -2704,10 +3578,10 @@ window.runSimulator = function() {
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('simInputAmount', fmt(amount) + ' USDT');
-  setEl('simDays', days + '일');
+  setEl('simDays', days + t('days'));
   setEl('simRoi', roi + '%');
-  setEl('simEarning', fmt(earning) + ' USDT/일 (' + fmt(earningDdra) + ' DDRA)');
-  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + '일 합계)');
+  setEl('simEarning', fmt(earning) + ' USDT/' + t('days') + ' (' + fmt(earningDdra) + ' DDRA)');
+  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + t('days') + ' ' + t('simTotal') + ')');
 
   result.classList.add('show');
 };
@@ -2792,12 +3666,12 @@ async function loadMyInvestments() {
     });
 
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    setEl('activeInvestCount', sumItems.count + '건');
+    setEl('activeInvestCount', sumItems.count + t('units'));
     setEl('totalInvestAmount', '$' + fmt(sumItems.total));
-    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/일');
+    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/' + t('days'));
 
     if (!invests.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>진행 중인 FREEZE가 없습니다</div>';
+      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-snowflake"></i>${t('emptyActiveFreeze')}</div>`;
       return;
     }
 
@@ -2834,7 +3708,7 @@ async function loadMyInvestments() {
 
   } catch (err) {
     console.warn(err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 }
 
@@ -2848,11 +3722,11 @@ window.openInvestModal = function(id, name, roi, days, minAmt, maxAmt) {
       <div style="font-size:24px;font-weight:900;color:var(--green)">${roi}% <span style="font-size:13px;font-weight:600;">/ 일</span></div>
     </div>
     <div style="font-size:13px;color:var(--text2)">
-      기간: <strong>${days}일</strong> · 최소 ${fmt(minAmt)} USDT ~ 최대 ${fmt(maxAmt)} USDT
+      ${t('periodLabel')}: <strong>${days}${t('days')}</strong> · ${t('minLabel')} ${fmt(minAmt)} USDT ~ ${t('maxLabel')} ${fmt(maxAmt)} USDT
     </div>`;
 
   const hintEl = document.getElementById('investAmountHint');
-  if (hintEl) hintEl.textContent = `최소 ${fmt(minAmt)} USDT ~ 최대 ${fmt(maxAmt)} USDT`;
+  if (hintEl) hintEl.textContent = `${t('minLabel')} ${fmt(minAmt)} USDT ~ ${t('maxLabel')} ${fmt(maxAmt)} USDT`;
 
   const amtEl = document.getElementById('investAmount');
   if (amtEl) amtEl.value = '';
@@ -2872,23 +3746,23 @@ window.updateInvestPreview = function() {
   const earningDdra = earning / (deedraPrice || 0.5);
   previewEl.style.display = 'block';
   previewEl.innerHTML = `
-    📌 일 수익: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
-    💡 DDRA 환산: ≈ ${fmt(earningDdra)} DDRA/일 (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
-    📅 만기일: ${getDaysLaterStr(selectedProduct.days)}<br>
-    🔒 원금은 만기 후 언프리즈 가능합니다.`;
+    📌 ${t('dailyRoi')}: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
+    💡 ${t('ddraEquiv')}: ≈ ${fmt(earningDdra)} DDRA/${t('days')} (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
+    📅 ${t('expiryDate')}: ${getDaysLaterStr(selectedProduct.days)}<br>
+    🔒 ${t('principalUnfreeze')}`;
 };
 
 window.submitInvest = async function() {
   if (!selectedProduct) return;
   const amount = parseFloat(document.getElementById('investAmount').value);
 
-  if (!amount || amount <= 0) { showToast('FREEZE 금액을 입력하세요.', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast(t('toastEnterInvAmt'), 'warning'); return; }
   if (amount < selectedProduct.minAmt) { showToast(t('toastMinInvest') + selectedProduct.minAmt, 'warning'); return; }
   if (amount > selectedProduct.maxAmt) { showToast(t('toastMaxInvest') + selectedProduct.maxAmt, 'warning'); return; }
-  if ((walletData?.usdtBalance || 0) < amount) { showToast('USDT 잔액이 부족합니다.', 'error'); return; }
+  if ((walletData?.usdtBalance || 0) < amount) { showToast(t('toastInsufficientUsdt'), 'error'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = '처리중...';
+  btn.disabled = true; btn.textContent = t('walletProcessing');
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, updateDoc, increment, writeBatch } = window.FB;
@@ -3009,7 +3883,7 @@ function updateRankUI() {
         progressDesc = `FREEZE $${cur.toFixed(0)}/$${req}`;
       } else {
         progressPct  = 100;
-        progressDesc = '조건 미설정';
+        progressDesc = t('condNotSet');
         needed       = '';
       }
 
@@ -3043,7 +3917,7 @@ function updateRankUI() {
     const fill = document.getElementById('rankProgressFill');
     if (fill) fill.style.width = progress.toFixed(1) + '%';
   } else {
-    setEl('rankNextLabel', '최고 직급 달성! 🏆');
+    setEl('rankNextLabel', t('topRankAchieved'));
     const fill = document.getElementById('rankProgressFill');
     if (fill) fill.style.width = '100%';
   }
@@ -3073,7 +3947,7 @@ async function loadReferralList() {
     setEl('rankReferralCount', refs.length);
 
     if (!refs.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-user-friends"></i>추천인이 없습니다</div>';
+      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends"></i>${t('emptyRefs')}</div>`;
       return;
     }
 
@@ -3088,14 +3962,14 @@ async function loadReferralList() {
       </div>`).join('');
 
   } catch (err) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 }
 
 async function buildOrgTree() {
   const treeEl = document.getElementById('orgTree');
   if (!treeEl) return;
-  treeEl.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>로딩 중...</div>';
+  treeEl.innerHTML = `<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>${t('loading')}</div>`;
 
   try {
     const { collection, query, where, getDocs, db } = window.FB;
@@ -3111,7 +3985,7 @@ async function buildOrgTree() {
             <div class="org-node-rank">${userData?.rank || 'G0'}</div>
           </div>
           <div style="margin-top:16px;font-size:13px;color:var(--text3)">
-            추천 링크를 공유하여 네트워크를 확장해보세요!
+            ${t('shareToExpand')}
           </div>
         </div>`;
       return;
@@ -3146,7 +4020,7 @@ async function buildOrgTree() {
     setupOrgPanZoom();
 
   } catch (err) {
-    treeEl.innerHTML = '<div class="empty-state">조직도 로드 실패</div>';
+    treeEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 }
 
@@ -3208,7 +4082,7 @@ window.resetOrgZoom = function() {
 
 window.copyReferralCode = function() {
   const code = document.getElementById('myReferralCode');
-  if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast('추천 코드 복사 완료!', 'success'));
+  if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast(t('toastRefCodeCopied'), 'success'));
 };
 
 window.shareReferralLink = function() {
@@ -3217,7 +4091,7 @@ window.shareReferralLink = function() {
   if (navigator.share) {
     navigator.share({ title: 'DEEDRA 초대', text: '추천 코드: ' + code, url });
   } else {
-    navigator.clipboard.writeText(url).then(() => showToast('초대 링크 복사 완료!', 'success'));
+    navigator.clipboard.writeText(url).then(() => showToast(t('toastInviteLinkCopied'), 'success'));
   }
 };
 
@@ -3242,7 +4116,7 @@ window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
 window.startGame = function(type) {
   if (gameBalanceVal <= 0) {
-    showToast('게임 가능 DDRA가 없습니다. FREEZE 수익이 발생하면 바로 게임 가능합니다.', 'warning');
+    showToast(t('noGameDdra'), 'warning');
     return;
   }
   closeAllGames();
@@ -3269,7 +4143,7 @@ window.startGame = function(type) {
   }
   if (type === 'oddeven') {
     const coinText = document.getElementById('coinResultText');
-    if (coinText) { coinText.textContent = '홀 또는 짝을 선택하세요'; coinText.style.color = ''; }
+    if (coinText) { coinText.textContent = t('coinHint'); coinText.style.color = ''; }
   }
   if (type === 'roulette') {
     initRouletteCanvas();
@@ -3334,7 +4208,7 @@ window.setBetGameHalf = function(type) {
 
 window.playOddEven = function(choice) {
   SFX.play('coin');
-  if (gameBalanceVal < oeBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < oeBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
 
   const btnOdd = document.getElementById('oeBtnOdd');
   const btnEven = document.getElementById('oeBtnEven');
@@ -3345,7 +4219,7 @@ window.playOddEven = function(choice) {
   const coinText = document.getElementById('coinResultText');
   if (coin) {
     coin.classList.add('coin-flipping');
-    if (coinText) coinText.textContent = '동전이 날아갑니다...';
+    if (coinText) coinText.textContent = t('coinFlying');
   }
 
   setTimeout(() => {
@@ -3364,7 +4238,7 @@ window.playOddEven = function(choice) {
 
     if (coin) coin.classList.remove('coin-flipping');
     if (coinText) {
-      coinText.textContent = forcedResult === 'odd' ? '🔴 홀 (Odd)' : '🔵 짝 (Even)';
+      coinText.textContent = forcedResult === 'odd' ? `🔴 ${t('choiceOdd')}` : `🔵 ${t('choiceEven')}`;
       coinText.style.color = forcedResult === 'odd' ? '#90caf9' : '#ef9a9a';
     }
 
@@ -3380,13 +4254,13 @@ window.playOddEven = function(choice) {
 
     if (btnOdd) btnOdd.disabled = false;
     if (btnEven) btnEven.disabled = false;
-    logGame('홀짝', win, oeBetVal);
+    logGame(t('gameOddEven'), win, oeBetVal);
   }, 900);
 };
 
 window.playDice = function(chosenNum) {
   SFX.play('dice_roll');
-  if (gameBalanceVal < diceBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < diceBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
 
   // 버튼 비활성화
   document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = true);
@@ -3436,13 +4310,13 @@ window.playDice = function(chosenNum) {
     }
 
     document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = false);
-    logGame('주사위', win, diceBetVal);
+    logGame(t('gameDice'), win, diceBetVal);
   }, 1000);
 };
 
 window.playSpin = function() {
   SFX.play('slot_spin');
-  if (gameBalanceVal < slotBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < slotBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
 
   const spinBtn = document.getElementById('spinBtn');
   if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spinRotate 0.3s linear infinite">🎰</span> 스피닝...'; }
@@ -3516,7 +4390,7 @@ window.playSpin = function() {
       el.classList.remove('hidden');
     }
     if (spinBtn) { spinBtn.disabled = false; document.getElementById('spinBtnIcon').textContent='🎰'; document.getElementById('spinBtnText').textContent='SPIN!'; spinBtn.disabled = false; }
-    logGame('슬롯머신', win, slotBetVal);
+    logGame(t('gameSlot'), win, slotBetVal);
   }, 1600);
 };
 
@@ -3648,7 +4522,7 @@ function initRouletteCanvas() {
   rlSelectedBet = null;
   document.querySelectorAll('.rl-chip-btn, .rl-num-v2').forEach(b => b.classList.remove('selected'));
   const sv = document.getElementById('rlSelValue');
-  if (sv) sv.textContent = '없음';
+  if (sv) sv.textContent = t('rlNone');
 }
 
 /* 베팅 탭 전환 */
@@ -3687,8 +4561,8 @@ window.selectRlBet = function(type) {
 /* 스핀 실행 */
 window.playRoulette = function() {
   SFX.play('roulette_spin');
-  if (!rlSelectedBet) { showToast('베팅을 먼저 선택하세요.', 'warning'); return; }
-  if (gameBalanceVal < rlBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (!rlSelectedBet) { showToast(t('toastSelectBet'), 'warning'); return; }
+  if (gameBalanceVal < rlBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
   if (rlSpinning) return;
 
   rlSpinning = true;
@@ -3754,7 +4628,7 @@ window.playRoulette = function() {
       drawRouletteWheel(rlAngle);
       rlSpinning = false;
       showRouletteResult(resultNum);
-      if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '🎡 다시 스핀!'; }
+      if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = `🎡 ${t('spinAgain')}`; }
     }
   }
 
@@ -3814,7 +4688,7 @@ function showRouletteResult(num) {
     setTimeout(() => numBtn.classList.remove('selected'), 3000);
   }
 
-  logGame('룰렛', win, rlBetVal);
+  logGame(t('gameRoulette'), win, rlBetVal);
 }
 
 function logGame(gameName, win, bet) {
@@ -3829,7 +4703,7 @@ function logGame(gameName, win, bet) {
   item.innerHTML = `
     <div class="tx-icon game">${win ? '🎉' : '😢'}</div>
     <div class="tx-info">
-      <div class="tx-title">${gameName} ${win ? '승리' : '패배'}</div>
+      <div class="tx-title">${gameName} ${win ? t('winText') : t('loseText')}</div>
       <div class="tx-date">${new Date().toLocaleTimeString('ko-KR')}</div>
     </div>
     <div class="tx-amount ${win ? 'plus' : 'minus'}">
@@ -3932,7 +4806,7 @@ function initBaccarat() {
 window.playBaccarat = async function(betSide) {
   SFX.play('card_deal');
   if (bacBtnsLocked) return;
-  if (gameBalanceVal < bacBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < bacBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
 
   bacBtnsLocked = true;
   document.querySelectorAll('.bac-action-btn').forEach(b => b.disabled = true);
@@ -4011,16 +4885,16 @@ window.playBaccarat = async function(betSide) {
   let win = false, multiplier = 0, resultMsg = '';
   if (betSide === 'player' && outcome === 'player') {
     win = true; multiplier = 2;
-    resultMsg = `🎉 <strong>플레이어 승리!</strong> +${bacBetVal} DDRA`;
+    resultMsg = `🎉 <strong>${t('bacPlayerWin')}!</strong> +${bacBetVal} DDRA`;
   } else if (betSide === 'banker' && outcome === 'banker') {
     win = true; multiplier = 1.95;
-    resultMsg = `🎉 <strong>뱅커 승리!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5% 수수료)`;
+    resultMsg = `🎉 <strong>${t('bacBankerWin')}!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5%)`;
   } else if (betSide === 'tie' && outcome === 'tie') {
     win = true; multiplier = 8;
-    resultMsg = `🎉 <strong>타이!</strong> +${bacBetVal * 8} DDRA`;
+    resultMsg = `🎉 <strong>${t('bacTie')}!</strong> +${bacBetVal * 8} DDRA`;
   } else if (outcome === 'tie') {
     win = false; multiplier = 0;
-    resultMsg = `🤝 <strong>타이 - 푸쉬</strong> (베팅 반환)`;
+    resultMsg = `🤝 <strong>${t('bacTiePush')}</strong>`;
     // 타이일 때 플레이어/뱅커 베팅은 환불
     win = true; multiplier = 1; // 원금 반환
   } else {
@@ -4048,7 +4922,7 @@ window.playBaccarat = async function(betSide) {
     resEl.classList.remove('hidden');
   }
 
-  logGame('바카라', ddraChange >= 0, Math.abs(ddraChange));
+  logGame(t('gameBaccarat'), ddraChange >= 0, Math.abs(ddraChange));
 
   // 버튼 재활성
   setTimeout(() => {
@@ -4106,14 +4980,14 @@ function evaluatePokerHand(cards) {
   const straightFlush = flushSuit ? isStraight(flushCards) : 0;
   const royalFlush = straightFlush === 14;
 
-  if (royalFlush)    return { rank: 9, name: '🏆 로열 플러시', multiplier: 100 };
-  if (straightFlush) return { rank: 8, name: '💎 스트레이트 플러시', multiplier: 50 };
-  if (counts[0]===4) return { rank: 7, name: '🎴 포카드', multiplier: 25 };
-  if (counts[0]===3 && counts[1]===2) return { rank: 6, name: '🏠 풀 하우스', multiplier: 9 };
-  if (flushSuit)     return { rank: 5, name: '🌊 플러시', multiplier: 6 };
-  if (straight)      return { rank: 4, name: '📈 스트레이트', multiplier: 4 };
-  if (counts[0]===3) return { rank: 3, name: '🎲 쓰리 카드', multiplier: 3 };
-  if (counts[0]===2 && counts[1]===2) return { rank: 2, name: '✌️ 투 페어', multiplier: 2 };
+  if (royalFlush)    return { rank: 9, name: `🏆 ${t('pkRoyal')}`, multiplier: 100 };
+  if (straightFlush) return { rank: 8, name: `💎 ${t('pkStraightFlush')}`, multiplier: 50 };
+  if (counts[0]===4) return { rank: 7, name: `🎴 ${t('pkFour')}`, multiplier: 25 };
+  if (counts[0]===3 && counts[1]===2) return { rank: 6, name: `🏠 ${t('pkFullHouse')}`, multiplier: 9 };
+  if (flushSuit)     return { rank: 5, name: `🌊 ${t('pkFlush')}`, multiplier: 6 };
+  if (straight)      return { rank: 4, name: `📈 ${t('pkStraight')}`, multiplier: 4 };
+  if (counts[0]===3) return { rank: 3, name: `🎲 ${t('pkThree')}`, multiplier: 3 };
+  if (counts[0]===2 && counts[1]===2) return { rank: 2, name: `✌️ ${t('pkTwoPair')}`, multiplier: 2 };
   if (counts[0]===2) {
     // 원 페어: J이상이면 1.5배, 아니면 패배
     const pairVal = parseInt(Object.entries(valCounts).find(([,v])=>v===2)?.[0]);
@@ -4136,17 +5010,17 @@ function initPoker() {
   const res = document.getElementById('pkResult');
   if (res) { res.className = 'game-result-v2 hidden'; res.innerHTML = ''; }
   const btn = document.getElementById('pkDealBtn');
-  if (btn) { btn.disabled = false; btn.textContent = '🃏 딜 (카드 받기)'; }
+  if (btn) { btn.disabled = false; btn.textContent = `🃏 ${t('pkDeal')}`; }
 }
 
 window.dealPoker = async function() {
   SFX.play('card_deal');
   if (pkDealing) return;
-  if (gameBalanceVal < pkBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < pkBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
 
   pkDealing = true;
   const btn = document.getElementById('pkDealBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '🃏 딜링...'; }
+  if (btn) { btn.disabled = true; btn.textContent = `🃏 ${t('pkDealing')}`; }
 
   if (pkDeck.length < 20) pkDeck = shuffleDeck(makeDeck());
 
@@ -4238,11 +5112,11 @@ window.dealPoker = async function() {
     resEl.classList.remove('hidden');
   }
 
-  logGame('포커', ddraChange >= 0, Math.abs(ddraChange));
+  logGame(t('gamePoker'), ddraChange >= 0, Math.abs(ddraChange));
 
   setTimeout(() => {
     pkDealing = false;
-    if (btn) { btn.disabled = false; btn.textContent = '🃏 다시 딜!'; }
+    if (btn) { btn.disabled = false; btn.textContent = `🃏 ${t('pkReDeal')}`; }
   }, 1000);
 };
 
@@ -4262,27 +5136,27 @@ window.saveProfile = async function() {
   const name    = document.getElementById('editName').value.trim();
   const phone   = document.getElementById('editPhone').value.trim();
   const country = document.getElementById('editCountry')?.value || '';
-  if (!name) { showToast('이름을 입력하세요.', 'warning'); return; }
+  if (!name) { showToast(t('toastEnterName'), 'warning'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = '저장 중...';
+  btn.disabled = true; btn.textContent = t('saving');
   try {
     const { doc, updateDoc, db } = window.FB;
     await updateDoc(doc(db, 'users', currentUser.uid), { name, phone, country });
     userData.name = name; userData.phone = phone; userData.country = country;
     closeModal('profileModal');
-    showToast('프로필이 저장되었습니다.', 'success');
+    showToast(t('toastProfileSaved'), 'success');
     loadMorePage();
     updateHomeUI();
   } catch (err) {
-    showToast('저장 실패: ' + err.message, 'error');
+    showToast(t('saveFail') + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = '저장';
+    btn.disabled = false; btn.textContent = t('btnSave');
   }
 };
 
 window.showPasswordChange = function() {
-  showToast('비밀번호 변경 이메일을 발송했습니다.', 'info');
+  showToast(t('toastPasswordChangeSent'), 'info');
   const { sendPasswordResetEmail, auth } = window.FB;
   if (currentUser) sendPasswordResetEmail(auth, currentUser.email).catch(() => {});
 };
@@ -4296,9 +5170,9 @@ window.showWithdrawPinSetup = function() {
 window.saveWithdrawPin = async function() {
   const pin = document.getElementById('newPin').value;
   const confirm = document.getElementById('confirmPin').value;
-  if (!pin || pin.length !== 6) { showToast('6자리 PIN을 입력하세요.', 'warning'); return; }
-  if (pin !== confirm) { showToast('PIN이 일치하지 않습니다.', 'error'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast('숫자 6자리를 입력하세요.', 'warning'); return; }
+  if (!pin || pin.length !== 6) { showToast(t('toastPinLen'), 'warning'); return; }
+  if (pin !== confirm) { showToast(t('toastPinMismatch'), 'error'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit'), 'warning'); return; }
 
   const btn = event.target;
   btn.disabled = true;
@@ -4307,9 +5181,9 @@ window.saveWithdrawPin = async function() {
     await updateDoc(doc(db, 'users', currentUser.uid), { withdrawPin: btoa(pin) });
     userData.withdrawPin = btoa(pin);
     closeModal('pinModal');
-    showToast('출금 PIN이 설정되었습니다.', 'success');
+    showToast(t('toastPinSuccess'), 'success');
   } catch (err) {
-    showToast('설정 실패: ' + err.message, 'error');
+    showToast(t('toastSettingFail') + ' ' + err.message, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -4332,7 +5206,7 @@ window.showTickets = async function() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (!tickets.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state">문의 내역이 없습니다</div>';
+      if (listEl) listEl.innerHTML = `<div class="empty-state">${t('emptyTickets')}</div>`;
       return;
     }
     if (listEl) listEl.innerHTML = tickets.map(t => `
@@ -4344,17 +5218,17 @@ window.showTickets = async function() {
         </span>
       </div>`).join('');
   } catch (err) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 };
 
 window.submitTicket = async function() {
   const title = document.getElementById('ticketTitle').value.trim();
   const content = document.getElementById('ticketContent').value.trim();
-  if (!title || !content) { showToast('제목과 내용을 입력하세요.', 'warning'); return; }
+  if (!title || !body) { showToast(t('toastEnterTicket'), 'warning'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = '등록 중...';
+  btn.disabled = true; btn.textContent = t('registering');
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     await addDoc(collection(db, 'tickets'), {
@@ -4364,11 +5238,11 @@ window.submitTicket = async function() {
     document.getElementById('ticketTitle').value = '';
     document.getElementById('ticketContent').value = '';
     closeModal('ticketModal');
-    showToast('문의가 등록되었습니다.', 'success');
+    showToast(t('toastTicketDone'), 'success');
   } catch (err) {
-    showToast('등록 실패: ' + err.message, 'error');
+    showToast(t('regFail') + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = '문의 등록';
+    btn.disabled = false; btn.textContent = t('btnSubmitTicket');
   }
 };
 
@@ -4424,7 +5298,7 @@ window.showNotifications = async function() {
       await batch.commit();
     }
     if (!items.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-bell-slash"></i><br>알림이 없습니다</div>';
+      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><br>${t('emptyNotifs')}</div>`;
       return;
     }
     const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
@@ -4439,7 +5313,7 @@ window.showNotifications = async function() {
       </div>
     `).join('');
   } catch(e) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">알림을 불러올 수 없습니다</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 };
 
@@ -4501,27 +5375,27 @@ function getTxTypeName(type) {
 
 function getAuthErrorMsg(code) {
   const map = {
-    'auth/invalid-email': '유효하지 않은 이메일입니다.',
-    'auth/user-not-found': '등록되지 않은 이메일입니다.',
-    'auth/wrong-password': '비밀번호가 올바르지 않습니다.',
-    'auth/email-already-in-use': '이미 사용 중인 이메일입니다.',
-    'auth/weak-password': '비밀번호가 너무 약합니다. 6자 이상으로 설정하세요.',
-    'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
-    'auth/invalid-login-credentials': '이메일 또는 비밀번호가 올바르지 않습니다.',
-    'auth/invalid_login_credentials': '이메일 또는 비밀번호가 올바르지 않습니다.',
-    'auth/too-many-requests': '너무 많은 요청이 있었습니다. 잠시 후 다시 시도하세요.',
-    'auth/too-many-attempts-try-later': '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.',
-    'auth/network-request-failed': '네트워크 오류가 발생했습니다.',
-    'auth/user-disabled': '비활성화된 계정입니다. 관리자에게 문의하세요.',
+    'auth/invalid-email': t('authInvalidEmail'),
+    'auth/user-not-found': t('authUserNotFound'),
+    'auth/wrong-password': t('authWrongPw'),
+    'auth/email-already-in-use': t('authEmailUsed'),
+    'auth/weak-password': t('authWeakPw'),
+    'auth/invalid-credential': t('authInvalidCred'),
+    'auth/invalid-login-credentials': t('authInvalidCred'),
+    'auth/invalid_login_credentials': t('authInvalidCred'),
+    'auth/too-many-requests': t('authTooMany'),
+    'auth/too-many-attempts-try-later': t('authTooMany'),
+    'auth/network-request-failed': t('authNetworkFail'),
+    'auth/user-disabled': t('authDisabled'),
   };
   // REST API 에러 코드 직접 매핑 (auth/ 없는 경우)
-  if (!code) return '로그인 중 오류가 발생했습니다.';
+  if (!code) return t('loginError');
   const normalized = code.toLowerCase().replace(/_/g, '-');
   if (map[code]) return map[code];
   if (map['auth/' + normalized]) return map['auth/' + normalized];
   if (normalized.includes('invalid') && normalized.includes('credential')) return '이메일 또는 비밀번호가 올바르지 않습니다.';
   if (normalized.includes('too-many')) return '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.';
-  return '오류가 발생했습니다: ' + code;
+  return t('authError') + code;
 }
 
 // ===== 토스트 =====
@@ -4772,7 +5646,7 @@ async function showRefCodeHint(code) {
     } else {
       statusEl.textContent = '❌';
       statusEl.style.color = '#ef4444';
-      hintEl.textContent = '유효하지 않은 추천인 코드입니다';
+      hintEl.textContent = t('registerInvalidRef');
       hintEl.style.color = '#ef4444';
     }
   } catch(e) {
@@ -4934,13 +5808,13 @@ async function _loadNepSummary() {
     // 요약 카드 업데이트
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('nepTodayEarning', '$' + fmt(todayEarning));
-    setEl('nepTotalMembers', totalMembers + '명');
+    setEl('nepTotalMembers', totalMembers + t('memberCount'));
     setEl('nepTotalEarning', '$' + fmt(totalEarning));
     setEl('nepSubTitle', `하부 ${totalMembers}명 조직 수익 현황`);
 
     // 홈 미리보기도 업데이트
     setEl('homeNetTodayEarn', '$' + fmt(todayEarning));
-    setEl('homeNetMembers', totalMembers + '명');
+    setEl('homeNetMembers', totalMembers + t('memberCount'));
     setEl('homeNetTotalEarn', '$' + fmt(totalEarning));
 
   } catch(e) {
@@ -4985,7 +5859,7 @@ async function _loadNepTxTab(contentEl) {
     }
 
     const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
-    const statusTxt = { pending: '승인 대기', approved: '완료', rejected: '거부됨' };
+    const statusTxt = { pending: t('statusPending'), approved: t('statusApproved'), rejected: t('statusRejected') };
     const statusColor = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
 
     contentEl.innerHTML = txs.map(tx => {
@@ -5417,7 +6291,7 @@ async function loadTodayEarnCard() {
       setEl('todayRoiEarn', '$' + fmt(todayRoi));
       setEl('todayBonusEarn', '$' + fmt(todayBonus));
       setEl('totalEarnDisplay', '$' + fmt(totalEarn));
-      setEl('todayActiveInvest', activeInvests.length + '건');
+      setEl('todayActiveInvest', activeInvests.length + t('units'));
       setEl('todayDailyRate', avgRate.toFixed(2) + '%');
     }
   } catch(e) {
@@ -5456,7 +6330,7 @@ async function loadEarnHistoryTab() {
     renderEarnList(bonuses, document.getElementById('earnHistoryList'), '');
   } catch(e) {
     const el = document.getElementById('earnHistoryList');
-    if (el) el.innerHTML = '<div class="empty-state">수익 내역을 불러오지 못했습니다.</div>';
+    if (el) el.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 }
 
@@ -5471,22 +6345,22 @@ function renderEarnList(bonuses, listEl, typeFilter) {
 
   const filtered = typeFilter ? bonuses.filter(b => b.type === typeFilter) : bonuses;
   if (!filtered.length) {
-    listEl.innerHTML = '<div class="empty-state" style="padding:20px 0;">수익 내역이 없습니다</div>';
+    listEl.innerHTML = `<div class="empty-state" style="padding:20px 0;">${t('emptyBonus')}</div>`;
     return;
   }
 
   const typeLabel = {
-    roi_income:      '💎 ROI 수익',
-    unilevel_bonus:  '🌐 유니레벨 보너스',
-    direct_bonus:    '👤 직접 보너스',
-    rank_bonus:      '🏆 직급 보너스',
-    center_fee:      '🏢 센터피',
-    manual_bonus:    '🎁 수동 지급',
+    roi_income:      t('bonusRoiIncome2'),
+    unilevel_bonus:  t('bonusUnilevelBonus'),
+    direct_bonus:    t('bonusDirectBonus2'),
+    rank_bonus:      t('bonusRankBonus'),
+    center_fee:      t('bonusCenterFee'),
+    manual_bonus:    t('bonusManual'),
   };
 
   listEl.innerHTML = filtered.slice(0, 50).map(b => {
     const date = b.settlementDate || (b.createdAt?.seconds ? new Date(b.createdAt.seconds*1000).toLocaleDateString('ko-KR') : '-');
-    const label = typeLabel[b.type] || b.type || '기타';
+    const label = typeLabel[b.type] || b.type || t('other');
     const amount = b.amount || 0;
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;
