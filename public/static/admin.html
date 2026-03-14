@@ -6846,6 +6846,11 @@ async function loadMemberEditLog(userId) {
     } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); console.error(e); }
 }
 
+window.closeModal = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+};
+
 window.navigateTo = (page) => {
     if (page === 'settings') {
         window._openSettingsWithAuth();
