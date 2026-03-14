@@ -4935,16 +4935,18 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
                 getDocs(collection(db,'users')),
                 getDocs(collection(db,'wallets'))
             ]);
-            // wallets 맵: userId → bonusBalance(출금 가능)
+            // wallets 맵: 문서 ID(= uid) 우선, userId 필드도 fallback으로 매핑
             const walletMap = {};
             walletSnap.docs.forEach(d => {
                 const w = d.data();
-                walletMap[w.userId] = w;
+                walletMap[d.id] = w;              // 문서ID 기준 (setDoc(doc(db,'wallets',uid)))
+                if (w.userId) walletMap[w.userId] = w; // userId 필드 기준 fallback
             });
             allMembers = snap.docs.map(d=>({id:d.id,...d.data()}));
             allMembers.forEach(m => {
-                const w = walletMap[m.uid || m.id] || {};
-                m._bonusBalance = w.bonusBalance || 0;  // 출금 가능 USDT
+                const key = m.uid || m.id;
+                const w = walletMap[key] || {};
+                m._bonusBalance = w.bonusBalance || 0;  // 출금 가능 USDT (수익잔액)
             });
             // 추천인수 실시간 계산
             const refCounts = {};
