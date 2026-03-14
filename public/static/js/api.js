@@ -1297,6 +1297,8 @@ export class DedraAPI {
       const poolRate       = (rates.rankGapPoolRate     ?? 10) / 100;  // 풀 비율 (기본 10%)
       const ratePerStep    = (rates.rankGapRatePerStep  ?? 10) / 100;  // 단계당 분배 비율 (기본 10%)
       const passThruRate   = (rates.rankGapPassThruRate ?? 1)  / 100;  // 패스스루 비율 (기본 1%)
+      const gapMode        = rates.rankGapMode || 'A';  // 'A'=균등+50%할인 | 'B'=균등(할인없음) | 'C'=감쇄
+      const passThruRule   = rates.rankGapPassThruRule || 'same';  // 'same'=동급만 | 'same_or_higher'=동급+상위
 
       const pool = parseFloat((dailyIncome * poolRate).toFixed(8));
       if (pool <= 0) return 0;
@@ -1366,11 +1368,24 @@ export class DedraAPI {
       //  동일 pool 기반으로 계산하는 방식이 더 안전하고 빠름)
 
       let totalPaid = 0;
+      let decayFactor = 1.0;  // 방식 C 감쇄용
+      let decayApplied = false;
 
       // 수령자별 지급
       for (const { ancestor, gap } of recipients) {
-        // 구간 보너스 = pool × gap × ratePerStep
-        let bonusAmt = parseFloat((pool * gap * ratePerStep).toFixed(8));
+        // 방식에 따른 보너스 계산
+        let bonusAmt = 0;
+        if (gapMode === 'A') {
+          // 방식 A: 균등분할 + 50% 할인
+          bonusAmt = parseFloat((pool * gap * ratePerStep * 0.5).toFixed(8));
+        } else if (gapMode === 'B') {
+          // 방식 B: 균등분할 (할인 없음)
+          bonusAmt = parseFloat((pool * gap * ratePerStep).toFixed(8));
+        } else {
+          // 방식 C: 단계별 직접 지급 (하부 감쇄)
+          bonusAmt = parseFloat((pool * gap * ratePerStep * decayFactor).toFixed(8));
+          if (!decayApplied) { decayApplied = true; } else { decayFactor *= 0.5; }
+        }
         if (bonusAmt <= 0) continue;
 
         // 지갑 적립
@@ -1402,33 +1417,53 @@ export class DedraAPI {
         totalPaid += bonusAmt;
       }
 
-      // ── 패스스루: 최상위 수령자에게 pool × passThruRate 추가 ──
-      if (passThruRate > 0 && recipients.length > 0) {
-        const topRecipient = recipients[recipients.length - 1].ancestor;
-        const passAmt = parseFloat((pool * passThruRate).toFixed(8));
-        if (passAmt > 0) {
-          const walletQ = query(collection(db, 'wallets'), where('userId', '==', topRecipient.id));
-          const wSnap   = await getDocs(walletQ);
-          if (!wSnap.empty) {
-            await updateDoc(wSnap.docs[0].ref, {
-              bonusBalance:  increment(passAmt),
-              totalEarnings: increment(passAmt),
-            });
+      // ── 패스스루: 건너뜀 추천인들에게 pool × passThruRate 지급 ──
+      // passThruRule = 'same': 투자자와 동급인 추천인에게만
+      // passThruRule = 'same_or_higher': 투자자와 동급 이상인 추천인에게
+      if (passThruRate > 0) {
+        let ptCurrentId = investor.referredBy;
+        const recipientIds = new Set(recipients.map(r => r.ancestor.id));
+        while (ptCurrentId) {
+          const ptNode = userMap[ptCurrentId];
+          if (!ptNode || ptNode.role === 'admin') break;
+          const ptRankIdx = rankIdx(ptNode.rank);
+          // 수령자가 아닌 건너뜀 노드 중 규칙에 해당하는 경우 패스스루 지급
+          if (!recipientIds.has(ptNode.id)) {
+            const qualifies = passThruRule === 'same_or_higher'
+              ? ptRankIdx >= investorRankIdx
+              : ptRankIdx === investorRankIdx;
+            if (qualifies) {
+              const passAmt = parseFloat((pool * passThruRate).toFixed(8));
+              if (passAmt > 0) {
+                const walletQ = query(collection(db, 'wallets'), where('userId', '==', ptNode.id));
+                const wSnap   = await getDocs(walletQ);
+                if (!wSnap.empty) {
+                  await updateDoc(wSnap.docs[0].ref, {
+                    bonusBalance:  increment(passAmt),
+                    totalEarnings: increment(passAmt),
+                  });
+                }
+                await addDoc(collection(db, 'bonuses'), {
+                  userId:         ptNode.id,
+                  fromUserId:     investUserId,
+                  amount:         passAmt,
+                  type:           'rank_gap_passthru',
+                  poolBase:       pool,
+                  passThruRate,
+                  passThruRule,
+                  baseIncome:     dailyIncome,
+                  settlementDate: settlementDate || '',
+                  reason:         `직급차 패스스루 (${passThruRule==='same_or_higher'?'동급+상위':'동급'}) ${(passThruRate*100).toFixed(1)}%`,
+                  grantedBy:      triggerBy || 'system',
+                  createdAt:      serverTimestamp(),
+                });
+                totalPaid += passAmt;
+              }
+            }
           }
-          await addDoc(collection(db, 'bonuses'), {
-            userId:         topRecipient.id,
-            fromUserId:     investUserId,
-            amount:         passAmt,
-            type:           'rank_gap_passthru',
-            poolBase:       pool,
-            passThruRate,
-            baseIncome:     dailyIncome,
-            settlementDate: settlementDate || '',
-            reason:         `직급차 패스스루 보너스 ${(passThruRate*100).toFixed(1)}% (pool $${pool.toFixed(4)})`,
-            grantedBy:      triggerBy || 'system',
-            createdAt:      serverTimestamp(),
-          });
-          totalPaid += passAmt;
+          // 체인 종료 조건: 최상위 수령자를 넘으면 중단
+          if (ptRankIdx >= (recipients[recipients.length-1]?.rankIdxMe ?? 99)) break;
+          ptCurrentId = ptNode.referredBy;
         }
       }
 
@@ -1837,8 +1872,10 @@ export class DedraAPI {
         enableRankGapBonus: false,        // true = 직급차 풀 보너스 활성화
         rankGapPoolRate: 10,              // D 의 몇%를 풀로 쓸지 (기본 10%)
         rankGapRatePerStep: 10,           // 직급 차 1단계당 풀의 몇% 지급 (기본 10%)
-        rankGapPassThruRate: 1,           // 패스스루: 최상위 수령자에게 풀의 몇% 추가 (기본 1%)
+        rankGapPassThruRate: 1,           // 패스스루: 건너뜀 추천인에게 풀의 몇% 지급 (기본 1%)
         rankGapRealtimeOnDeposit: false,  // true = 입금 승인 즉시 실시간 처리
+        rankGapMode: 'A',                 // 'A'=균등+50%할인 | 'B'=균등(할인없음) | 'C'=단계별감쇄
+        rankGapPassThruRule: 'same',      // 'same'=동급만 | 'same_or_higher'=동급+상위직급
       };
       return ok(snap.exists() ? { ...defaults, ...snap.data() } : defaults);
     } catch(e) { return err(e); }

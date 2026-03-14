@@ -3022,7 +3022,8 @@ canvas{width:100% !important;}
         <!-- 방식 선택 -->
         <div style="background:#f0f9ff;border:1.5px solid #7dd3fc;border-radius:12px;padding:16px 20px;margin-bottom:18px;">
           <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:12px;">⚙️ 판권 매칭 방식 선택</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <!-- 방식 A -->
             <label id="modeA_label" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#fff;border:2px solid #0ea5e9;border-radius:10px;padding:14px;transition:all .2s;">
               <input type="radio" name="rankGapMode" id="rankGapModeA" value="A" checked
                 style="width:16px;height:16px;accent-color:#0ea5e9;margin-top:2px;flex-shrink:0;"
@@ -3031,24 +3032,65 @@ canvas{width:100% !important;}
                 <div style="font-size:13px;font-weight:700;color:#0369a1;">방식 A — 균등분할 + 50% 할인</div>
                 <div style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.6;">
                   직급 상승 구간마다 동등하게 나누되 <strong>50% 할인</strong> 적용<br>
-                  예) 2직급→5직급(3단계), 5직급→8직급(3단계), 풀=$10<br>
-                  5직급: $10×30%×50% = <strong>$1.5</strong><br>
-                  8직급: $10×30%×50% = <strong>$1.5</strong>
+                  예) 3단계, 풀=$10<br>
+                  → 각 구간: $10×30%×<b>50%</b> = <strong>$1.5</strong>
                 </div>
               </div>
             </label>
+            <!-- 방식 B (신규) -->
             <label id="modeB_label" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:14px;transition:all .2s;">
               <input type="radio" name="rankGapMode" id="rankGapModeB" value="B"
+                style="width:16px;height:16px;accent-color:#10b981;margin-top:2px;flex-shrink:0;"
+                onchange="window.onRankGapModeChange()">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#065f46;">방식 B — 균등분할 (할인 없음)</div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.6;">
+                  직급 상승 구간마다 동등하게 나누되 <strong>할인 없이 전액</strong> 지급<br>
+                  예) 3단계, 풀=$10<br>
+                  → 각 구간: $10×30%×<b>100%</b> = <strong>$3</strong>
+                </div>
+              </div>
+            </label>
+            <!-- 방식 C (구 방식 B) -->
+            <label id="modeC_label" style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:14px;transition:all .2s;">
+              <input type="radio" name="rankGapMode" id="rankGapModeC" value="C"
                 style="width:16px;height:16px;accent-color:#f59e0b;margin-top:2px;flex-shrink:0;"
                 onchange="window.onRankGapModeChange()">
               <div>
-                <div style="font-size:13px;font-weight:700;color:#b45309;">방식 B — 단계별 직접 지급 (하부 감쇄)</div>
+                <div style="font-size:13px;font-weight:700;color:#b45309;">방식 C — 단계별 직접 지급 (하부 감쇄)</div>
                 <div style="font-size:11px;color:#64748b;margin-top:4px;line-height:1.6;">
                   직급 상승 구간마다 전액 지급, 단 <strong>거리가 멀수록 절반씩 감쇄</strong><br>
-                  예) 2직급→5직급(3단계), 5직급→8직급(3단계), 풀=$10<br>
-                  5직급: $10×30%×100% = <strong>$3</strong><br>
-                  8직급: $10×30%×50% = <strong>$1.5</strong> (2번째부터 감쇄)
+                  예) 3단계, 풀=$10<br>
+                  1번: $10×30%=<strong>$3</strong>  2번: ×50%=<strong>$1.5</strong>
                 </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 패스스루 규칙 선택 -->
+        <div style="background:#fdf4ff;border:1.5px solid #d8b4fe;border-radius:12px;padding:16px 20px;margin-bottom:18px;">
+          <div style="font-size:13px;font-weight:700;color:#7e22ce;margin-bottom:10px;">🔁 패스스루(건너뜀) 지급 규칙</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:12px;">
+            추천 체인을 올라가다가 <strong>지급 대상이 아닌 추천인</strong>에게 소액(패스스루 비율)을 지급할 때, 어떤 조건의 추천인에게 지급할지 선택합니다.
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <label id="passThruSame_label" style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff;border:2px solid #a855f7;border-radius:10px;padding:12px 18px;transition:all .2s;">
+              <input type="radio" name="rankGapPassThruRule" id="passThruRuleSame" value="same" checked
+                style="width:15px;height:15px;accent-color:#a855f7;flex-shrink:0;"
+                onchange="window.onPassThruRuleChange()">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#7e22ce;">동급만</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">나와 동일 직급의 추천인에게만 패스스루 지급</div>
+              </div>
+            </label>
+            <label id="passThruHigher_label" style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:12px 18px;transition:all .2s;">
+              <input type="radio" name="rankGapPassThruRule" id="passThruRuleHigher" value="same_or_higher"
+                style="width:15px;height:15px;accent-color:#a855f7;flex-shrink:0;"
+                onchange="window.onPassThruRuleChange()">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#6b21a8;">동급 및 상위 직급</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">동급 추천인뿐 아니라 <strong>나보다 직급이 높은</strong> 추천인에게도 패스스루 지급</div>
               </div>
             </label>
           </div>
@@ -3056,7 +3098,7 @@ canvas{width:100% !important;}
 
         <div style="font-size:12px;background:#fef9c3;border-left:3px solid #f59e0b;padding:10px 14px;border-radius:6px;margin-bottom:18px;color:#78350f;line-height:1.7;">
           <strong>📌 공통 규칙</strong><br>
-          · 동급/하급 추천인은 건너뜀 → 패스스루 비율만큼 소액 지급<br>
+          · 패스스루 규칙에 따라 건너뜀 추천인에게 소액 지급 (위 패스스루 규칙 참조)<br>
           · 풀 금액은 회사 재원 — 투자자 ROI에서 차감되지 않음<br>
           · 보너스 유형: <code>rank_gap_bonus</code> (직급상승), <code>rank_gap_passthru</code> (패스스루)
         </div>
@@ -3078,7 +3120,7 @@ canvas{width:100% !important;}
             <label class="settings-label">🔁 패스스루 비율 (%)</label>
             <input type="number" class="settings-input" id="rate_rankGapPassThruRate"
               step="0.1" min="0" max="100" style="text-align:center;font-size:18px;font-weight:700;">
-            <div style="font-size:11px;color:#64748b;margin-top:3px;">동급 추천인에게 풀의 몇% 추가</div>
+            <div style="font-size:11px;color:#64748b;margin-top:3px;">건너뜀 추천인에게 풀의 몇% 지급</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
@@ -9619,13 +9661,22 @@ function renderFeeRates(rates) {
     if (elRgbPerStep)  elRgbPerStep.value  = rates.rankGapRatePerStep  ?? 10;
     if (elRgbPassThru) elRgbPassThru.value = rates.rankGapPassThruRate ?? 1;
     if (swRgbRealtime) swRgbRealtime.checked = rates.rankGapRealtimeOnDeposit === true;
-    // 방식 선택 (A/B)
+    // 방식 선택 (A/B/C)
     const savedMode = rates.rankGapMode || 'A';
     const modeA = document.getElementById('rankGapModeA');
     const modeB = document.getElementById('rankGapModeB');
+    const modeC = document.getElementById('rankGapModeC');
     if (modeA) modeA.checked = (savedMode === 'A');
     if (modeB) modeB.checked = (savedMode === 'B');
+    if (modeC) modeC.checked = (savedMode === 'C');
     window.onRankGapModeChange && window.onRankGapModeChange();
+    // 패스스루 규칙 (same / same_or_higher)
+    const savedPassThruRule = rates.rankGapPassThruRule || 'same';
+    const ptSame   = document.getElementById('passThruRuleSame');
+    const ptHigher = document.getElementById('passThruRuleHigher');
+    if (ptSame)   ptSame.checked   = (savedPassThruRule === 'same');
+    if (ptHigher) ptHigher.checked = (savedPassThruRule === 'same_or_higher');
+    window.onPassThruRuleChange && window.onPassThruRuleChange();
 
     // badge 업데이트
     const badgeRgb = document.getElementById('badge_rankGapBonus');
@@ -9703,18 +9754,39 @@ async function saveProductRate(productId, type) {
     }
 }
 
-// 판권매칭 방식 선택 스타일 동기화
+// 판권매칭 방식 선택 스타일 동기화 (A/B/C)
 window.onRankGapModeChange = function() {
-  const aSelected = document.getElementById('rankGapModeA')?.checked;
-  const labelA = document.getElementById('modeA_label');
-  const labelB = document.getElementById('modeB_label');
-  if (labelA) {
-    labelA.style.borderColor = aSelected ? '#0ea5e9' : '#e2e8f0';
-    labelA.style.background  = aSelected ? '#f0f9ff' : '#fff';
+  const sel = document.querySelector('input[name="rankGapMode"]:checked')?.value || 'A';
+  const configs = {
+    A: { border:'#0ea5e9', bg:'#f0f9ff', id:'modeA_label' },
+    B: { border:'#10b981', bg:'#f0fdf4', id:'modeB_label' },
+    C: { border:'#f59e0b', bg:'#fffbeb', id:'modeC_label' },
+  };
+  ['A','B','C'].forEach(m => {
+    const lbl = document.getElementById(configs[m].id);
+    if (!lbl) return;
+    if (m === sel) {
+      lbl.style.borderColor = configs[m].border;
+      lbl.style.background  = configs[m].bg;
+    } else {
+      lbl.style.borderColor = '#e2e8f0';
+      lbl.style.background  = '#fff';
+    }
+  });
+};
+
+// 패스스루 규칙 선택 스타일 동기화
+window.onPassThruRuleChange = function() {
+  const sel = document.querySelector('input[name="rankGapPassThruRule"]:checked')?.value || 'same';
+  const lblSame   = document.getElementById('passThruSame_label');
+  const lblHigher = document.getElementById('passThruHigher_label');
+  if (lblSame) {
+    lblSame.style.borderColor = sel === 'same' ? '#a855f7' : '#e2e8f0';
+    lblSame.style.background  = sel === 'same' ? '#fdf4ff' : '#fff';
   }
-  if (labelB) {
-    labelB.style.borderColor = !aSelected ? '#f59e0b' : '#e2e8f0';
-    labelB.style.background  = !aSelected ? '#fffbeb' : '#fff';
+  if (lblHigher) {
+    lblHigher.style.borderColor = sel === 'same_or_higher' ? '#a855f7' : '#e2e8f0';
+    lblHigher.style.background  = sel === 'same_or_higher' ? '#fdf4ff' : '#fff';
   }
 };
 
@@ -9770,6 +9842,7 @@ function setupRateButtons() {
         const rankGapPassThruRate       = parseFloat(document.getElementById('rate_rankGapPassThruRate')?.value|| '1');
         const rankGapRealtimeOnDeposit  = document.getElementById('sw_rankGapRealtimeOnDeposit')?.checked === true;
         const rankGapMode               = document.querySelector('input[name="rankGapMode"]:checked')?.value || 'A';
+        const rankGapPassThruRule       = document.querySelector('input[name="rankGapPassThruRule"]:checked')?.value || 'same';
 
         const rates = {
             unilevelRates,
@@ -9801,6 +9874,7 @@ function setupRateButtons() {
             rankGapPassThruRate,
             rankGapRealtimeOnDeposit,
             rankGapMode,
+            rankGapPassThruRule,
         };
         document.getElementById('saveRatesBtn').disabled = true;
         document.getElementById('saveRatesBtn').textContent = '저장 중...';
@@ -13488,6 +13562,7 @@ window.runIdReport = async function() {
         const gapPerStep     = (rates.rankGapRatePerStep??10)/100;
         const gapPassThru    = (rates.rankGapPassThruRate??1)/100;
         const gapMode        = rates.rankGapMode||'A';
+        const gapPassThruRule = rates.rankGapPassThruRule || 'same';  // 'same' | 'same_or_higher'
         const poolAmt        = parseFloat((totalD*gapPoolRate).toFixed(8));
 
         // 체인 구성
@@ -13499,9 +13574,19 @@ window.runIdReport = async function() {
           if(!u.referredBy) break; wId=u.referredBy;
         }
 
+        // 패스스루 조건 헬퍼: 지급 대상 직급인지 판단
+        // targetRankN = 투자자(기준) 직급
+        const isPassThruTarget = (nodeRankN, targetRankN) => {
+          if (gapPassThruRule === 'same_or_higher') return nodeRankN >= targetRankN;
+          return nodeRankN === targetRankN;  // 'same': 동급만
+        };
+
         const gapRows=[];
+        const baseRankN = gapChain[0]?.rankN ?? 0;  // 투자자 직급
+
         if(gapMode==='A'){
-          let prevN=gapChain[0]?.rankN??0;
+          // 방식 A: 균등분할 + 50% 할인
+          let prevN=baseRankN;
           for(let i=1;i<gapChain.length;i++){
             const n=gapChain[i];
             if(n.rankN>prevN){
@@ -13509,13 +13594,13 @@ window.runIdReport = async function() {
               const raw=parseFloat((poolAmt*steps*gapPerStep).toFixed(8));
               const half=parseFloat((raw*0.5).toFixed(8));
               gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;font-size:12px;">
-                <span style="color:#f59e0b;font-weight:700;">[A] Lv${i}</span>
+                <span style="color:#0ea5e9;font-weight:700;">[A] Lv${i}</span>
                 <span style="margin:0 6px;color:#6b7280;">${n.name}</span>${rankBadge(n.rank)}
                 <span style="margin-left:8px;color:#6b7280;">→ 풀$${fmt4(poolAmt)}×${steps}단계×${(gapPerStep*100).toFixed(0)}%×50% =</span>
-                <b style="color:#d97706;margin-left:4px;">$${fmt4(half)}</b>
+                <b style="color:#0369a1;margin-left:4px;">$${fmt4(half)}</b>
               </div>`);
               prevN=n.rankN;
-            } else if(n.rankN===prevN && gapPassThru>0){
+            } else if(gapPassThru>0 && isPassThruTarget(n.rankN, baseRankN)){
               const passAmt=parseFloat((poolAmt*gapPassThru).toFixed(8));
               gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;">
                 <span style="color:#9ca3af;font-weight:700;">[A] Lv${i} 패스스루</span>
@@ -13525,23 +13610,22 @@ window.runIdReport = async function() {
               </div>`);
             }
           }
-        } else {
-          let prevN=gapChain[0]?.rankN??0, decay=1.0, decayApplied=false;
+        } else if(gapMode==='B'){
+          // 방식 B: 균등분할 (할인 없음)
+          let prevN=baseRankN;
           for(let i=1;i<gapChain.length;i++){
             const n=gapChain[i];
             if(n.rankN>prevN){
               const steps=n.rankN-prevN;
-              const raw=parseFloat((poolAmt*steps*gapPerStep).toFixed(8));
-              const final=parseFloat((raw*decay).toFixed(8));
-              gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;font-size:12px;">
-                <span style="color:#f59e0b;font-weight:700;">[B] Lv${i}</span>
-                <span style="margin:0 6px;">${n.name}</span>${rankBadge(n.rank)}
-                <span style="margin-left:8px;color:#6b7280;">→ 풀$${fmt4(poolAmt)}×${steps}단계×${(gapPerStep*100).toFixed(0)}%×감쇄${(decay*100).toFixed(0)}% =</span>
-                <b style="color:#d97706;margin-left:4px;">$${fmt4(final)}</b>
+              const amt=parseFloat((poolAmt*steps*gapPerStep).toFixed(8));
+              gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;font-size:12px;">
+                <span style="color:#10b981;font-weight:700;">[B] Lv${i}</span>
+                <span style="margin:0 6px;color:#6b7280;">${n.name}</span>${rankBadge(n.rank)}
+                <span style="margin-left:8px;color:#6b7280;">→ 풀$${fmt4(poolAmt)}×${steps}단계×${(gapPerStep*100).toFixed(0)}%×100% =</span>
+                <b style="color:#065f46;margin-left:4px;">$${fmt4(amt)}</b>
               </div>`);
               prevN=n.rankN;
-              if(!decayApplied){decayApplied=true;}else{decay*=0.5;}
-            } else if(n.rankN===prevN && gapPassThru>0){
+            } else if(gapPassThru>0 && isPassThruTarget(n.rankN, baseRankN)){
               const passAmt=parseFloat((poolAmt*gapPassThru).toFixed(8));
               gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;">
                 <span style="color:#9ca3af;font-weight:700;">[B] Lv${i} 패스스루</span>
@@ -13551,9 +13635,36 @@ window.runIdReport = async function() {
               </div>`);
             }
           }
+        } else {
+          // 방식 C: 단계별 직접 지급 (하부 감쇄) — 구 방식 B
+          let prevN=baseRankN, decay=1.0, decayApplied=false;
+          for(let i=1;i<gapChain.length;i++){
+            const n=gapChain[i];
+            if(n.rankN>prevN){
+              const steps=n.rankN-prevN;
+              const raw=parseFloat((poolAmt*steps*gapPerStep).toFixed(8));
+              const final=parseFloat((raw*decay).toFixed(8));
+              gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a;font-size:12px;">
+                <span style="color:#f59e0b;font-weight:700;">[C] Lv${i}</span>
+                <span style="margin:0 6px;">${n.name}</span>${rankBadge(n.rank)}
+                <span style="margin-left:8px;color:#6b7280;">→ 풀$${fmt4(poolAmt)}×${steps}단계×${(gapPerStep*100).toFixed(0)}%×감쇄${(decay*100).toFixed(0)}% =</span>
+                <b style="color:#d97706;margin-left:4px;">$${fmt4(final)}</b>
+              </div>`);
+              prevN=n.rankN;
+              if(!decayApplied){decayApplied=true;}else{decay*=0.5;}
+            } else if(gapPassThru>0 && isPassThruTarget(n.rankN, baseRankN)){
+              const passAmt=parseFloat((poolAmt*gapPassThru).toFixed(8));
+              gapRows.push(`<div style="padding:6px 10px;margin-bottom:4px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;">
+                <span style="color:#9ca3af;font-weight:700;">[C] Lv${i} 패스스루</span>
+                <span style="margin:0 6px;">${n.name}</span>${rankBadge(n.rank)}
+                <span style="margin-left:8px;color:#6b7280;">→ 풀$${fmt4(poolAmt)}×${(gapPassThru*100).toFixed(2)}% =</span>
+                <b style="color:#6b7280;">$${fmt4(passAmt)}</b>
+              </div>`);
+            }
+          }
         }
         simLines.push(`<div style="margin-top:12px;padding:12px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #f59e0b;font-size:13px;">
-          <b style="color:#b45309;">🎯 판권 매칭 [방식${gapMode}] — 풀: $${fmt4(totalD)} × ${(gapPoolRate*100).toFixed(1)}% = <span style="color:#d97706;">$${fmt4(poolAmt)}</span></b>
+          <b style="color:#b45309;">🎯 판권 매칭 [방식${gapMode}] — 풀: $${fmt4(totalD)} × ${(gapPoolRate*100).toFixed(1)}% = <span style="color:#d97706;">$${fmt4(poolAmt)}</span> | 패스스루: ${gapPassThruRule==='same_or_higher'?'동급+상위직급':'동급만'}</b>
           <div style="margin-top:8px;">${gapRows.length?gapRows.join(''):'<span style="color:#9ca3af;font-size:12px;">직급 상승 추천인 없음</span>'}</div>
         </div>`);
       }
