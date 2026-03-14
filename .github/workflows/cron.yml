@@ -16,7 +16,7 @@ on:
           - all
           - settle
           - broadcast
-          - tron
+          - solana
 
 jobs:
   daily-settle:
@@ -50,16 +50,16 @@ jobs:
             -H "x-cron-secret: deedra-cron-2026" \
             -H "Content-Type: application/json"
 
-  tron-check:
-    name: TRON 입금 확인
+  solana-check:
+    name: Solana USDT 입금 확인
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'tron' || github.event.inputs.job == 'all')) ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'solana' || github.event.inputs.job == 'all')) ||
       github.event.schedule == '*/5 * * * *'
     steps:
-      - name: TRON 입금 확인
+      - name: Solana 입금 확인
         run: |
           curl -s -m 30 \
-            -X POST "https://deedra.pages.dev/api/tron/check-deposits" \
+            -X POST "https://deedra.pages.dev/api/solana/check-deposits" \
             -H "x-cron-secret: deedra-cron-2026" \
             -H "Content-Type: application/json"
