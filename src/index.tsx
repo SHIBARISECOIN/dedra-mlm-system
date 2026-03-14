@@ -2353,6 +2353,158 @@ app.post('/api/admin/reset-member-password', async (c) => {
 })
 
 // ─── 관리자 회원 임포트 ───────────────────────────────────────────────────────
+// ─── [1] username 로그인 API ──────────────────────────────────────────────────
+// 클라이언트가 username + password로 POST → 서버가 username으로 email 조회 → Firebase Auth로 로그인 → idToken 반환
+app.post('/api/auth/login-by-username', async (c) => {
+  try {
+    const { username, password } = await c.req.json()
+    if (!username || !password) return c.json({ error: '아이디와 비밀번호를 입력하세요.' }, 400)
+
+    const adminToken = await getAdminToken()
+
+    // username 필드로 users 조회
+    const users = await fsQuery('users', adminToken, [
+      { field: 'username', op: 'EQUAL', value: username.trim() }
+    ], 1)
+
+    if (!users.length) return c.json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
+    const user = users[0]
+    const email = user.email || user.fields?.email?.stringValue
+
+    if (!email) return c.json({ error: '계정 이메일 정보가 없습니다. 관리자에게 문의하세요.' }, 400)
+
+    // Firebase Auth에 email+password로 로그인
+    const authRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true })
+      }
+    )
+    const authData: any = await authRes.json()
+    if (!authRes.ok) {
+      const msg = authData?.error?.message || ''
+      if (msg.includes('INVALID_PASSWORD') || msg.includes('INVALID_LOGIN_CREDENTIALS')) {
+        return c.json({ error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, 401)
+      }
+      if (msg.includes('USER_DISABLED')) return c.json({ error: '정지된 계정입니다.' }, 403)
+      return c.json({ error: '로그인 실패: ' + msg }, 400)
+    }
+
+    return c.json({
+      success: true,
+      idToken:      authData.idToken,
+      refreshToken: authData.refreshToken,
+      expiresIn:    authData.expiresIn,
+      email,
+      uid:          authData.localId
+    })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// ─── [2] referralCode → username 마이그레이션 API ────────────────────────────
+// referralCode 필드에 잘못 들어간 값(실제 ID)을 username으로 이동하고
+// referralCode는 uid 기반으로 새로 생성 (기존 referredBy 체인은 유지)
+app.post('/api/admin/migrate-username', async (c) => {
+  try {
+    const { secret } = await c.req.json()
+    if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+
+    const adminToken = await getAdminToken()
+    // 전체 회원 조회
+    const allUsers = await fsQuery('users', adminToken, [], 5000)
+
+    let migrated = 0, skipped = 0, failed = 0
+    const errors: string[] = []
+
+    for (const u of allUsers) {
+      try {
+        const uid = u.id || u.uid
+        if (!uid || u.role === 'admin') { skipped++; continue }
+
+        // 이미 username 필드가 있으면 건너뜀
+        if (u.username) { skipped++; continue }
+
+        // referralCode에 있는 값이 실제 ID → username으로 이동
+        const currentReferralCode = u.referralCode || ''
+
+        // 새 referralCode 생성: uid 앞 8자 대문자
+        const newReferralCode = uid.slice(0, 8).toUpperCase()
+
+        await fsPatch(`users/${uid}`, {
+          username:     currentReferralCode,   // 기존 referralCode 값 → username
+          referralCode: newReferralCode,        // 새 referralCode (uid 기반)
+        }, adminToken)
+
+        migrated++
+      } catch (e: any) {
+        failed++
+        errors.push(`${u.id}: ${e.message}`)
+      }
+    }
+
+    return c.json({
+      success: true,
+      total: allUsers.length,
+      migrated,
+      skipped,
+      failed,
+      errors: errors.slice(0, 20)
+    })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// ─── [3] 일괄 비밀번호 0000 설정 API ────────────────────────────────────────
+// username이 있는 모든 회원(임포트된 회원)의 비밀번호를 0000으로 설정
+app.post('/api/admin/bulk-reset-password', async (c) => {
+  try {
+    const { secret, password: newPw } = await c.req.json()
+    if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+
+    const targetPassword = newPw || '0000'
+    const adminToken = await getAdminToken()
+
+    // username 필드가 있는 회원만 (= 임포트된 회원)
+    const users = await fsQuery('users', adminToken, [], 5000)
+    const targets = users.filter((u: any) => u.username && u.role !== 'admin')
+
+    let success = 0, failed = 0
+    const errors: string[] = []
+
+    // Firebase Admin REST API로 비밀번호 업데이트 (uid 기반)
+    for (const u of targets) {
+      const uid = u.id || u.uid
+      if (!uid) { failed++; continue }
+      try {
+        const res = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${FIREBASE_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ localId: uid, password: targetPassword })
+          }
+        )
+        if (res.ok) { success++ } else { failed++; errors.push(uid) }
+      } catch { failed++; errors.push(uid) }
+    }
+
+    return c.json({
+      success: true,
+      total: targets.length,
+      updated: success,
+      failed,
+      errors: errors.slice(0, 20)
+    })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
 app.post('/api/admin/import-members', async (c) => {
   try {
     const body = await c.req.json()
@@ -2367,6 +2519,7 @@ app.post('/api/admin/import-members', async (c) => {
           uid: m.uid, email: m.email, name: m.name || '',
           role: m.role || 'member', rank: m.rank || 'G0',
           status: m.status || 'active',
+          username: m.username || null,  // 구 시스템 로그인 ID
           referralCode: m.referralCode || m.uid.slice(0, 8).toUpperCase(),
           referredBy: m.referredBy || null,
           phone: m.phone || '', createdAt: m.createdAt || new Date().toISOString()

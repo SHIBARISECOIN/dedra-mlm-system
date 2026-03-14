@@ -105,9 +105,9 @@ const TRANSLATIONS = {
     authTagline: '🔐 안전하고 스마트한 가상자산 FREEZE',
     loginTab: '로그인',
     registerTab: '회원가입',
-    labelEmail: '이메일',
+    labelEmail: '아이디',
     labelPassword: '비밀번호',
-    placeholderEmail: '이메일을 입력하세요',
+    placeholderEmail: '아이디를 입력하세요',
     placeholderPassword: '비밀번호를 입력하세요',
     placeholderPasswordMin: '4자리 이상 입력하세요',
     btnLogin: '로그인',
@@ -333,9 +333,9 @@ const TRANSLATIONS = {
     authTagline: '🔐 Safe and Smart Crypto FREEZE',
     loginTab: 'Login',
     registerTab: 'Register',
-    labelEmail: 'Email',
+    labelEmail: 'Username',
     labelPassword: 'Password',
-    placeholderEmail: 'Enter your email',
+    placeholderEmail: 'Enter your username',
     placeholderPassword: 'Enter your password',
     placeholderPasswordMin: 'At least 4 characters',
     btnLogin: 'Login',
@@ -1529,28 +1529,62 @@ window.switchAuthTab = function(tab) {
 
 // ===== 로그인 =====
 window.handleLogin = async function() {
-  const email = document.getElementById('loginEmail').value.trim();
+  const usernameInput = document.getElementById('loginEmail').value.trim();
   const pw = document.getElementById('loginPassword').value;
-  if (!email || !pw) { showToast('이메일과 비밀번호를 입력하세요.', 'warning'); return; }
+  if (!usernameInput || !pw) { showToast('아이디와 비밀번호를 입력하세요.', 'warning'); return; }
 
   showScreen('loading');
   try {
-    const { signInWithEmailAndPassword, auth } = window.FB;
-    console.log('[Login] 시도:', email);
-    const result = await signInWithEmailAndPassword(auth, email, pw);
-    console.log('[Login] 성공:', result?.user?.email);
-    // 세션 저장 (페이지 새로고침 시 복원용)
-    if (result?.user) {
-      localStorage.setItem('deedra_session', JSON.stringify({
-        uid: result.user.uid,
-        email: result.user.email
-      }));
+    // username 포함 여부에 따라 로그인 방식 분기
+    // @ 포함 → 기존 이메일 로그인 (관리자 등)
+    // @ 미포함 → username 기반 서버 API 로그인
+    if (usernameInput.includes('@')) {
+      // 이메일 직접 로그인 (기존 방식 유지)
+      const { signInWithEmailAndPassword, auth } = window.FB;
+      const result = await signInWithEmailAndPassword(auth, usernameInput, pw);
+      if (result?.user) {
+        localStorage.setItem('deedra_session', JSON.stringify({
+          uid: result.user.uid, email: result.user.email
+        }));
+      }
+    } else {
+      // username 로그인 → 서버 API 경유
+      const res = await fetch('/api/auth/login-by-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameInput, password: pw })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showScreen('auth');
+        showToast(data.error || '로그인 실패', 'error');
+        return;
+      }
+      // idToken으로 Firebase Auth에 signIn
+      const { signInWithCustomToken, signInWithEmailAndPassword, auth } = window.FB;
+      // idToken을 직접 사용해 Firebase 세션 시작
+      try {
+        const result = await signInWithEmailAndPassword(auth, data.email, pw);
+        if (result?.user) {
+          localStorage.setItem('deedra_session', JSON.stringify({
+            uid: result.user.uid, email: result.user.email
+          }));
+        }
+      } catch(e2) {
+        // Firebase 직접 로그인 실패 시 → idToken으로 세션 수동 복원
+        localStorage.setItem('deedra_session', JSON.stringify({
+          uid: data.uid, email: data.email
+        }));
+        // onAuthReady 수동 트리거
+        if (typeof window._onIdTokenReceived === 'function') {
+          window._onIdTokenReceived(data.idToken, data.uid, data.email);
+        }
+      }
     }
-    // 성공 시 loginWithEmail 내부에서 onAuthReady 직접 호출됨
   } catch (err) {
-    console.error('[Login Error] code:', err.code, '| message:', err.message);
+    console.error('[Login Error]', err);
     showScreen('auth');
-    showToast(getAuthErrorMsg(err.code), 'error');
+    showToast(getAuthErrorMsg(err.code) || '로그인 중 오류가 발생했습니다.', 'error');
   }
 };
 

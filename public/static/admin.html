@@ -3786,6 +3786,43 @@ canvas{width:100% !important;}
           <div id="importMembersResult" style="margin-top:12px;font-size:13px;"></div>
         </div>
 
+        <!-- ── 구 시스템 데이터 마이그레이션 ── -->
+        <div class="settings-section">
+          <div class="settings-section-title">🔄 구 시스템 ID 마이그레이션</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:14px;">
+            현재 <code>referralCode</code> 필드에 잘못 들어간 <strong>로그인 ID</strong>를 <code>username</code> 필드로 이동시키고,
+            <code>referralCode</code>는 UID 기반으로 새로 생성합니다.<br>
+            ⚠️ 이미 <code>username</code> 필드가 있는 회원은 건너뜁니다. <strong>1회만 실행하세요.</strong>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-warning" onclick="doMigrateUsername()" id="migrateUsernameBtn"
+              style="background:#f59e0b;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;">
+              🔄 username 마이그레이션 실행
+            </button>
+            <span style="font-size:11px;color:#94a3b8;">referralCode → username 이동, 새 referralCode 생성</span>
+          </div>
+          <div id="migrateUsernameResult" style="margin-top:12px;font-size:13px;"></div>
+        </div>
+
+        <!-- ── 임포트 회원 비밀번호 일괄 초기화 ── -->
+        <div class="settings-section">
+          <div class="settings-section-title">🔑 임포트 회원 비밀번호 일괄 초기화</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:14px;">
+            <code>username</code> 필드가 있는 회원(임포트된 회원) 전체의 비밀번호를 아래 입력값으로 일괄 변경합니다.<br>
+            ⚠️ 기본값 <strong>0000</strong>으로 설정됩니다. 회원들이 첫 로그인 후 반드시 변경하도록 안내하세요.
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+            <input type="text" id="bulkPwInput" value="0000"
+              style="border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:13px;width:120px;"
+              placeholder="초기 비밀번호">
+            <button class="btn btn-danger" onclick="doBulkResetPassword()" id="bulkPwBtn"
+              style="background:#ef4444;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:600;cursor:pointer;">
+              🔑 비밀번호 일괄 초기화
+            </button>
+          </div>
+          <div id="bulkPwResult" style="margin-top:8px;font-size:13px;"></div>
+        </div>
+
         <!-- ── 텔레그램 알림 설정 ── -->
         <div class="settings-section">
           <div class="settings-section-title">📲 텔레그램 알림 설정</div>
@@ -12417,6 +12454,73 @@ window.doImportMembers = async function() {
   } finally {
     btn.disabled = false;
     btn.textContent = '🚀 임포트 실행';
+  }
+};
+
+// ── 구 시스템 username 마이그레이션 ──
+window.doMigrateUsername = async function() {
+  if (!confirm('⚠️ referralCode → username 마이그레이션을 실행합니다.\n이미 username이 있는 회원은 건너뜁니다.\n계속하시겠습니까?')) return;
+  const btn = document.getElementById('migrateUsernameBtn');
+  const resultEl = document.getElementById('migrateUsernameResult');
+  btn.disabled = true;
+  btn.textContent = '⏳ 마이그레이션 중...';
+  resultEl.innerHTML = '<span style="color:#64748b;">처리 중입니다...</span>';
+  try {
+    const res = await fetch('/api/admin/migrate-username', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: 'deedra-cron-2026' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || '실패');
+    resultEl.innerHTML = `
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 16px;">
+        <div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ 마이그레이션 완료</div>
+        <div style="font-size:12px;color:#15803d;">
+          전체 ${data.total}명 → 마이그레이션 <strong>${data.migrated}</strong>명 / 건너뜀 ${data.skipped}명 / 실패 ${data.failed}명
+        </div>
+        ${data.errors?.length ? `<div style="font-size:11px;color:#dc2626;margin-top:6px;">오류: ${data.errors.join('<br>')}</div>` : ''}
+      </div>`;
+    allMembers = [];
+    if (typeof loadMembers === 'function') loadMembers();
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:#ef4444;">❌ 오류: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 username 마이그레이션 실행';
+  }
+};
+
+// ── 임포트 회원 비밀번호 일괄 초기화 ──
+window.doBulkResetPassword = async function() {
+  const pw = document.getElementById('bulkPwInput').value.trim() || '0000';
+  if (!confirm(`⚠️ username이 있는 모든 임포트 회원의 비밀번호를 "${pw}"로 변경합니다.\n계속하시겠습니까?`)) return;
+  const btn = document.getElementById('bulkPwBtn');
+  const resultEl = document.getElementById('bulkPwResult');
+  btn.disabled = true;
+  btn.textContent = '⏳ 처리 중...';
+  resultEl.innerHTML = '<span style="color:#64748b;">비밀번호 변경 중입니다. 회원 수에 따라 시간이 걸릴 수 있습니다...</span>';
+  try {
+    const res = await fetch('/api/admin/bulk-reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: 'deedra-cron-2026', password: pw })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || '실패');
+    resultEl.innerHTML = `
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 16px;">
+        <div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ 비밀번호 초기화 완료</div>
+        <div style="font-size:12px;color:#15803d;">
+          대상 ${data.total}명 → 성공 <strong>${data.updated}</strong>명 / 실패 ${data.failed}명
+        </div>
+        ${data.errors?.length ? `<div style="font-size:11px;color:#dc2626;margin-top:6px;">실패 UID: ${data.errors.slice(0,10).join(', ')}</div>` : ''}
+      </div>`;
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:#ef4444;">❌ 오류: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔑 비밀번호 일괄 초기화';
   }
 };
 
