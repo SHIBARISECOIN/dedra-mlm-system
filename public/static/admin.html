@@ -6597,6 +6597,7 @@ window.showMemberDetail = async (userId) => {
     }
 
     // ── 자산 요약 배너 채우기 ──
+    const wallet = currentMember;   // wallets 데이터가 병합된 currentMember 참조
     const fmt2 = v => parseFloat(v||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
     const totalAsset = (wallet.usdtBalance||0) + (wallet.bonusBalance||0);
     document.getElementById('me_totalAsset').textContent     = '$' + fmt2(totalAsset);
