@@ -109,7 +109,7 @@ const TRANSLATIONS = {
     labelPassword: '비밀번호',
     placeholderEmail: '아이디를 입력하세요',
     placeholderPassword: '비밀번호를 입력하세요',
-    placeholderPasswordMin: '4자리 이상 입력하세요',
+    placeholderPasswordMin: '6자리 이상 입력하세요',
     btnLogin: '로그인',
     forgotPassword: '비밀번호를 잊으셨나요?',
     labelName: '이름',
@@ -303,7 +303,7 @@ const TRANSLATIONS = {
     toastInitFail: '초기화 실패. 다시 시도해주세요.',
     toastEnterEmail: '이메일과 비밀번호를 입력하세요.',
     toastFillAll: '모든 필드를 입력해주세요.',
-    toastPwMin: '비밀번호는 4자리 이상이어야 합니다.',
+    toastPwMin: '비밀번호는 6자리 이상이어야 합니다.',
     toastInvalidRef: '유효하지 않은 추천인 코드입니다.',
     toastRegDone: '회원가입 완료! 환영합니다 🎉',
     toastEmailFirst: '이메일을 먼저 입력하세요.',
@@ -1601,7 +1601,7 @@ window.handleRegister = async function() {
   if (!phone)   { showToast('전화번호를 입력해주세요.', 'warning'); return; }
   if (!email)   { showToast('이메일을 입력해주세요.', 'warning'); return; }
   if (!pw)      { showToast('비밀번호를 입력해주세요.', 'warning'); return; }
-  if (pw.length < 4) { showToast('비밀번호는 4자리 이상이어야 합니다.', 'warning'); return; }
+  if (pw.length < 6) { showToast('비밀번호는 6자리 이상이어야 합니다.', 'warning'); return; }
   if (!country) { showToast('국가를 선택해주세요.', 'warning'); return; }
   if (!refCode) { showToast('추천인 코드는 필수입니다.', 'warning'); return; }
 

@@ -334,7 +334,7 @@ const HTML = () => `<!DOCTYPE html>
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="labelPassword">비밀번호 <span style="color:#ef4444">*</span></label>
-            <input type="password" id="regPassword" class="form-input" placeholder="4자리 이상 입력하세요" data-i18n="placeholderPasswordMin" data-i18n-attr="placeholder" />
+            <input type="password" id="regPassword" class="form-input" placeholder="6자리 이상 입력하세요" data-i18n="placeholderPasswordMin" data-i18n-attr="placeholder" />
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="labelCountry">국가 <span style="color:#ef4444">*</span></label>
@@ -2323,7 +2323,7 @@ app.post('/api/admin/reset-member-password', async (c) => {
   try {
     const { uid, newPassword, adminSecret } = await c.req.json()
     if (adminSecret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
-    if (!uid || !newPassword || newPassword.length < 4) return c.json({ error: '비밀번호는 4자 이상이어야 합니다.' }, 400)
+    if (!uid || !newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400)
 
     const res = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${FIREBASE_API_KEY}`,
@@ -2459,14 +2459,14 @@ app.post('/api/admin/migrate-username', async (c) => {
   }
 })
 
-// ─── [3] 일괄 비밀번호 0000 설정 API ────────────────────────────────────────
-// username이 있는 모든 회원(임포트된 회원)의 비밀번호를 0000으로 설정
+// ─── [3] 일괄 비밀번호 000000 설정 API ────────────────────────────────────────
+// username이 있는 모든 회원(임포트된 회원)의 비밀번호를 000000으로 설정
 app.post('/api/admin/bulk-reset-password', async (c) => {
   try {
     const { secret, password: newPw } = await c.req.json()
     if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
 
-    const targetPassword = newPw || '0000'
+    const targetPassword = newPw || '000000'
     const adminToken = await getAdminToken()
 
     // username 필드가 있는 회원만 (= 임포트된 회원)
