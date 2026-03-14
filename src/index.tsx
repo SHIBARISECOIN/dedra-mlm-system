@@ -2045,7 +2045,7 @@ window.createSettings = async function() {
 
     // 회사 지갑 주소
     await setDoc(doc(db, 'settings', 'wallets'), {
-      trc20: 'TRX_WALLET_ADDRESS_SET_BY_ADMIN',
+      solana: 'SOL_WALLET_ADDRESS_SET_BY_ADMIN',
       updatedAt: serverTimestamp(),
       note: '관리자가 실제 주소로 변경 필요'
     });
@@ -2599,46 +2599,104 @@ app.post('/api/admin/set-ddra-token', async (c) => {
   }
 })
 
-// ─── 트론 입금 감지 ───────────────────────────────────────────────────────────
-app.post('/api/tron/check-deposits', async (c) => {
+// ─── Solana 입금 감지 ────────────────────────────────────────────────────────
+// USDT on Solana (SPL) mint address
+const USDT_SPL_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
+
+app.post('/api/solana/check-deposits', async (c) => {
   try {
-    const { secret, depositAddress } = await c.req.json()
+    const body = await c.req.json().catch(() => ({}))
+    const secret = c.req.header('x-cron-secret') || body.secret
     if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
-    if (!depositAddress) return c.json({ error: 'depositAddress required' }, 400)
 
     const adminToken = await getAdminToken()
 
-    // TronScan API로 최근 TRC20 트랜잭션 조회
-    const tronRes = await fetch(
-      `https://apilist.tronscanapi.com/api/token_trc20/transfers?toAddress=${depositAddress}&limit=20&start=0&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`,
-      { headers: { 'User-Agent': 'DEEDRA/1.0' }, signal: AbortSignal.timeout(10000) }
-    )
-    if (!tronRes.ok) return c.json({ error: 'TronScan API error' }, 500)
-    const tronData: any = await tronRes.json()
-    const transfers = tronData.token_transfers || []
+    // Firestore에서 회사 입금 지갑 주소 조회
+    const settingsDoc = await fsGet('settings/companyWallets', adminToken)
+    const depositAddress = settingsDoc
+      ? fromFirestoreValue(settingsDoc.fields?.solana || { stringValue: '' })
+      : ''
+
+    if (!depositAddress || depositAddress.length < 32) {
+      return c.json({ error: 'Solana deposit address not configured' }, 400)
+    }
+
+    // Solana SPL Token 트랜잭션 조회 (Helius public RPC)
+    const rpcUrl = 'https://mainnet.helius-rpc.com/?api-key=public'
+    const rpcRes = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getSignaturesForAddress',
+        params: [depositAddress, { limit: 20 }]
+      }),
+      signal: AbortSignal.timeout(15000)
+    })
+    if (!rpcRes.ok) return c.json({ error: 'Solana RPC error' }, 500)
+    const rpcData: any = await rpcRes.json()
+    const signatures: any[] = rpcData.result || []
 
     let processed = 0
-    for (const tx of transfers) {
-      const txHash = tx.transaction_id
-      if (!txHash) continue
+    for (const sig of signatures) {
+      const txHash = sig.signature
+      if (!txHash || sig.err) continue
 
       // 이미 처리된 tx인지 확인
       const existing = await fsQuery('transactions', adminToken)
       const alreadyProcessed = existing.find((t: any) => t.txHash === txHash && t.status === 'approved')
       if (alreadyProcessed) continue
 
-      // 금액 계산 (USDT TRC20 = 6 decimals)
-      const amount = parseFloat(tx.quant || '0') / 1_000_000
+      // tx 상세 조회
+      const txRes = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 1,
+          method: 'getTransaction',
+          params: [txHash, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+        }),
+        signal: AbortSignal.timeout(10000)
+      })
+      if (!txRes.ok) continue
+      const txData: any = await txRes.json()
+      const tx = txData.result
+      if (!tx) continue
+
+      // SPL token transfer 파싱
+      const instructions = tx.transaction?.message?.instructions || []
+      let amount = 0
+      let fromAddress = ''
+      for (const ix of instructions) {
+        if (ix.program === 'spl-token' && ix.parsed?.type === 'transfer') {
+          const info = ix.parsed.info
+          // USDT SPL mint 확인
+          if (info.mint === USDT_SPL_MINT || info.authority) {
+            amount = parseFloat(info.amount || '0') / 1_000_000 // USDT = 6 decimals
+            fromAddress = info.authority || info.source || ''
+          }
+        }
+        // transferChecked 타입도 처리
+        if (ix.program === 'spl-token' && ix.parsed?.type === 'transferChecked') {
+          const info = ix.parsed.info
+          if (info.mint === USDT_SPL_MINT) {
+            amount = parseFloat(info.tokenAmount?.uiAmount || info.tokenAmount?.amount || '0')
+            if (info.tokenAmount?.decimals) amount = parseFloat(info.tokenAmount.amount) / Math.pow(10, info.tokenAmount.decimals)
+            fromAddress = info.authority || info.multisigAuthority || ''
+          }
+        }
+      }
+
       if (amount < 1) continue
 
-      // 해당 지갑 주소로 등록된 회원 찾기
-      const fromAddress = tx.from_address
+      // 해당 지갑으로 등록된 회원 찾기
       const users = await fsQuery('users', adminToken)
-      const matchedUser = users.find((u: any) => u.depositWalletAddress === depositAddress || u.trcWallet === fromAddress)
+      const matchedUser = users.find((u: any) =>
+        u.solanaWallet === fromAddress || u.depositWalletAddress === fromAddress
+      )
 
       if (matchedUser) {
-        // 자동 입금 승인 처리
-        const txId = `tron_${txHash.slice(0, 16)}`
+        const txId = `sol_${txHash.slice(0, 20)}`
         await fsSet(`transactions/${txId}`, {
           userId: matchedUser.id,
           type: 'deposit',
@@ -2646,12 +2704,12 @@ app.post('/api/tron/check-deposits', async (c) => {
           amountUsdt: amount,
           txHash,
           status: 'approved',
-          source: 'tron_auto',
+          source: 'solana_auto',
+          network: 'solana',
           createdAt: new Date().toISOString(),
           approvedAt: new Date().toISOString()
         }, adminToken)
 
-        // 잔액 업데이트
         const wallet = await fsGet(`wallets/${matchedUser.id}`, adminToken)
         const currentBalance = wallet ? fromFirestoreValue(wallet.fields?.usdtBalance || { doubleValue: 0 }) : 0
         await fsPatch(`wallets/${matchedUser.id}`, {
@@ -2659,29 +2717,40 @@ app.post('/api/tron/check-deposits', async (c) => {
           totalDeposit: ((wallet ? fromFirestoreValue(wallet.fields?.totalDeposit || { doubleValue: 0 }) : 0) || 0) + amount
         }, adminToken)
 
-        // 자동 푸시
         await fireAutoRules('deposit_complete', matchedUser.id, {
-          amount: amount.toFixed(2), currency: 'USDT', txHash: txHash.slice(0, 16)
+          amount: amount.toFixed(2), currency: 'USDT', network: 'Solana', txHash: txHash.slice(0, 20)
         }, adminToken)
         processed++
       }
     }
-    return c.json({ success: true, processed, total: transfers.length })
+    return c.json({ success: true, processed, total: signatures.length, network: 'solana' })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
 })
 
-// GET /api/tron/tx/:txHash
-app.get('/api/tron/tx/:txHash', async (c) => {
-  const txHash = c.req.param('txHash')
+// 하위 호환: /api/tron/check-deposits → solana로 리다이렉트
+app.post('/api/tron/check-deposits', async (c) => {
+  return c.json({ redirected: true, message: '이 플랫폼은 Solana 기반입니다. /api/solana/check-deposits 를 사용하세요.' }, 301)
+})
+
+// GET /api/solana/tx/:signature
+app.get('/api/solana/tx/:signature', async (c) => {
+  const signature = c.req.param('signature')
   try {
-    const res = await fetch(`https://apilist.tronscanapi.com/api/transaction-info?hash=${txHash}`, {
-      headers: { 'User-Agent': 'DEEDRA/1.0' }, signal: AbortSignal.timeout(8000)
+    const res = await fetch('https://mainnet.helius-rpc.com/?api-key=public', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getTransaction',
+        params: [signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+      }),
+      signal: AbortSignal.timeout(8000)
     })
     if (!res.ok) return c.json({ error: 'not found' }, 404)
     const data = await res.json()
-    return c.json(data)
+    return c.json(data.result || {})
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
