@@ -485,13 +485,13 @@ const HTML = () => `<!DOCTYPE html>
                 <div class="asset-split-icon">🔒</div>
                 <div class="asset-split-label" data-i18n="assetLocked">USDT 원금</div>
                 <div class="asset-split-value" id="splitUsdt">0.00 USDT</div>
-                <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;">FREEZE 중</div>
+                <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;" data-i18n="freezingNow">FREEZE 중</div>
               </div>
               <div class="asset-split-item" style="border-left:1px solid rgba(255,255,255,0.08);">
                 <img src="/static/img/ddra-coin.png" alt="DDRA"
                   style="width:30px;height:30px;border-radius:50%;object-fit:cover;
                          box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:4px;" />
-                <div class="asset-split-label" style="color:#f59e0b;font-weight:600;">출금 가능 DDRA</div>
+                <div class="asset-split-label" style="color:#f59e0b;font-weight:600;" data-i18n="withdrawableDdra">출금 가능 DDRA</div>
                 <div class="asset-split-value" id="splitBonus" style="color:#f59e0b;font-size:18px;font-weight:700;">0.00 DDRA</div>
                 <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:11px;">≈ $0.00 USDT</div>
               </div>
@@ -512,7 +512,7 @@ const HTML = () => `<!DOCTYPE html>
           <div class="home-split-panel">
             <!-- 왼쪽: DDRA 현재 시세 -->
             <div class="split-left">
-              <div class="split-label">💎 DDRA 현재 시세</div>
+              <div class="split-label" data-i18n="ddraLivePrice">💎 DDRA 현재 시세</div>
               <div class="split-price" id="deedraPrice">$0.50</div>
               <div class="split-price-sub" id="deedraChange">1 DDRA = $0.5000</div>
               <div class="split-price-updated" id="deedraUpdated"></div>
@@ -521,7 +521,7 @@ const HTML = () => `<!DOCTYPE html>
             <div class="split-right">
               <div class="split-earn-header">
                 <span class="split-earn-title">EARN</span>
-                <button class="split-earn-more" onclick="switchPage('invest')">전체보기 ›</button>
+                <button class="split-earn-more" onclick="switchPage('invest')" data-i18n="earnSeeAll">전체보기 ›</button>
               </div>
               <div id="homeEarnList" class="home-earn-list">
                 <div class="earn-skeleton"></div>
@@ -584,8 +584,8 @@ const HTML = () => `<!DOCTYPE html>
 
           <!-- 네트워크 수익 미리보기 -->
           <div class="section-header" style="margin-top:8px;">
-            <span class="section-title">🌐 네트워크 수익</span>
-            <button class="see-all-btn" onclick="showNetworkEarningsPanel('gen1')">자세히 보기</button>
+            <span class="section-title" data-i18n="networkEarnings">🌐 네트워크 수익</span>
+            <button class="see-all-btn" onclick="showNetworkEarningsPanel('gen1')" data-i18n="networkDetail">자세히 보기</button>
           </div>
           <div onclick="showNetworkEarningsPanel('gen1')" style="cursor:pointer;
             background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(139,92,246,0.08));
@@ -594,15 +594,15 @@ const HTML = () => `<!DOCTYPE html>
           ">
             <div style="display:flex;gap:20px;">
               <div style="text-align:center;">
-                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;">당일 수익</div>
+                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;" data-i18n="todayEarn">당일 수익</div>
                 <div id="homeNetTodayEarn" style="font-size:15px;font-weight:700;color:#10b981;">$0.00</div>
               </div>
               <div style="text-align:center;">
-                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;">하부 인원</div>
+                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;" data-i18n="subMembers">하부 인원</div>
                 <div id="homeNetMembers" style="font-size:15px;font-weight:700;color:#3b82f6;">0명</div>
               </div>
               <div style="text-align:center;">
-                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;">누적 수익</div>
+                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;" data-i18n="totalEarnings">누적 수익</div>
                 <div id="homeNetTotalEarn" style="font-size:15px;font-weight:700;color:#8b5cf6;">$0.00</div>
               </div>
             </div>
@@ -1773,15 +1773,15 @@ const HTML = () => `<!DOCTYPE html>
     <!-- 요약 카드 3개 -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px 16px;">
       <div style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:12px 10px;text-align:center;">
-        <div style="font-size:11px;color:#10b981;font-weight:600;margin-bottom:4px;">당일 수익</div>
+        <div style="font-size:11px;color:#10b981;font-weight:600;margin-bottom:4px;" data-i18n="panelTodayEarn">당일 수익</div>
         <div id="nepTodayEarning" style="font-size:16px;font-weight:700;color:#10b981;">$0.00</div>
       </div>
       <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:12px 10px;text-align:center;">
-        <div style="font-size:11px;color:#3b82f6;font-weight:600;margin-bottom:4px;">총 하부인원</div>
-        <div id="nepTotalMembers" style="font-size:16px;font-weight:700;color:#3b82f6;">0명</div>
+        <div style="font-size:11px;color:#3b82f6;font-weight:600;margin-bottom:4px;" data-i18n="subMembers">총 하부인원</div>
+        <div id="nepTotalMembers" style="font-size:16px;font-weight:700;color:#3b82f6;">0</div>
       </div>
       <div style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);border-radius:12px;padding:12px 10px;text-align:center;">
-        <div style="font-size:11px;color:#8b5cf6;font-weight:600;margin-bottom:4px;">총 누적 수익</div>
+        <div style="font-size:11px;color:#8b5cf6;font-weight:600;margin-bottom:4px;" data-i18n="panelTotalEarn">총 누적 수익</div>
         <div id="nepTotalEarning" style="font-size:16px;font-weight:700;color:#8b5cf6;">$0.00</div>
       </div>
     </div>
