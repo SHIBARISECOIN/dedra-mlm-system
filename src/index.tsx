@@ -2212,7 +2212,7 @@ async function fireAutoRules(triggerKey: string, userId: string, vars: Record<st
         title = title.replace(`{${k}}`, v)
         message = message.replace(`{${k}}`, v)
       }
-      // notifications 컬렉션에 저장
+      // notifications 컬렉션에 저장 (fcmPending: true → 이후 FCM 발송)
       await fsCreate('notifications', {
         userId,
         title,
@@ -2220,8 +2220,16 @@ async function fireAutoRules(triggerKey: string, userId: string, vars: Record<st
         type: rule.type || 'inbox',
         isRead: false,
         autoRuleId: rule.id,
+        triggerEvent: triggerKey,
+        fcmPending: true,
         createdAt: new Date().toISOString()
       }, adminToken)
+
+      // 🔔 FCM 즉시 발송 시도 (실패해도 notifications는 이미 저장됨)
+      try {
+        await sendFcmToUser(userId, title, message, { triggerEvent: triggerKey }, adminToken)
+      } catch (_) {}
+
       // triggerCount 증가
       await fsPatch(`autoRules/${rule.id}`, {
         triggerCount: (rule.triggerCount || 0) + 1
@@ -2488,6 +2496,256 @@ app.post('/api/cron/process-scheduled', async (c) => {
     return c.json({ success: false, error: e.message }, 500)
   }
 })
+
+// ─── FCM 디바이스 토큰 등록 ─────────────────────────────────────────────────
+app.post('/api/fcm/register', async (c) => {
+  try {
+    const { userId, token, platform, userAgent } = await c.req.json()
+    if (!userId || !token) return c.json({ error: '필수값 누락' }, 400)
+    const adminToken = await getAdminToken()
+
+    // fcmTokens 컬렉션에 저장 (userId 기준으로 upsert)
+    // 동일 userId의 기존 토큰 조회
+    const existing = await fsQuery('fcmTokens', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } }
+    ], 10)
+
+    if (existing.length > 0) {
+      // 기존 토큰 업데이트
+      const docId = existing[0].id
+      await fsPatch(`fcmTokens/${docId}`, {
+        token,
+        platform: platform || 'web',
+        userAgent: userAgent || '',
+        updatedAt: new Date().toISOString(),
+        isActive: true,
+      }, adminToken)
+    } else {
+      // 새 토큰 저장
+      await fsCreate('fcmTokens', {
+        userId,
+        token,
+        platform: platform || 'web',
+        userAgent: userAgent || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isActive: true,
+      }, adminToken)
+    }
+
+    return c.json({ success: true })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+// ─── FCM 단일 발송 (userId 기준) ────────────────────────────────────────────
+app.post('/api/fcm/send', async (c) => {
+  let secret = c.req.header('x-cron-secret') || c.req.header('CRON_SECRET')
+  if (!secret) {
+    try { const b = await c.req.json(); secret = b?.secret } catch (_) {}
+  }
+  // 내부 호출용 (CRON_SECRET 또는 관리자 Firebase UID 검증)
+  const body = await c.req.json().catch(() => ({}))
+  if (secret !== CRON_SECRET && !body.adminUid) {
+    return c.json({ error: 'unauthorized' }, 401)
+  }
+
+  try {
+    const { userId, title, message, data } = body
+    if (!userId || !title) return c.json({ error: '필수값 누락' }, 400)
+
+    const adminToken = await getAdminToken()
+    const result = await sendFcmToUser(userId, title, message || '', data || {}, adminToken)
+    return c.json({ success: true, ...result })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+// ─── FCM 일괄 발송 (notifications 컬렉션 미처리 푸시 처리) ─────────────────
+app.post('/api/fcm/process-notifications', async (c) => {
+  let secret = c.req.header('x-cron-secret') || c.req.header('CRON_SECRET')
+  if (!secret) {
+    try { const b = await c.req.json(); secret = b.secret } catch (_) {}
+  }
+  if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+
+  try {
+    const adminToken = await getAdminToken()
+    const sent = await processPendingFcmNotifications(adminToken)
+    return c.json({ success: true, sent, processedAt: new Date().toISOString() })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+// ─── FCM 헬퍼: 특정 유저에게 푸시 발송 ──────────────────────────────────────
+async function sendFcmToUser(userId: string, title: string, body: string, data: Record<string,string>, adminToken: string): Promise<{sent: number, tokens: number}> {
+  // 해당 유저의 활성 FCM 토큰 조회
+  const tokenDocs = await fsQuery('fcmTokens', adminToken, [
+    { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } },
+    { fieldFilter: { field: { fieldPath: 'isActive' }, op: 'EQUAL', value: { booleanValue: true } } }
+  ], 5)
+
+  if (!tokenDocs.length) return { sent: 0, tokens: 0 }
+
+  // FCM OAuth 토큰 (서비스 계정 기반, Firestore용 토큰 재사용 불가 → 별도 발급)
+  const fcmToken = await getFcmOAuthToken()
+
+  let sent = 0
+  for (const doc of tokenDocs) {
+    const fcmDeviceToken = doc.token
+    if (!fcmDeviceToken) continue
+
+    try {
+      const res = await fetch(
+        `https://fcm.googleapis.com/v1/projects/dedra-mlm/messages:send`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${fcmToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: {
+              token: fcmDeviceToken,
+              notification: { title, body },
+              data: { ...data, click_action: 'FLUTTER_NOTIFICATION_CLICK' },
+              webpush: {
+                notification: {
+                  title,
+                  body,
+                  icon: '/static/icon-192.png',
+                  badge: '/static/favicon.ico',
+                  tag: 'deedra-push',
+                  requireInteraction: false,
+                },
+                fcm_options: { link: '/' }
+              }
+            }
+          })
+        }
+      )
+
+      if (res.ok) {
+        sent++
+      } else {
+        const err = await res.json().catch(() => ({}))
+        // 토큰 만료/무효 시 비활성화
+        if (err?.error?.code === 404 || err?.error?.details?.[0]?.errorCode === 'UNREGISTERED') {
+          await fsPatch(`fcmTokens/${doc.id}`, { isActive: false, invalidAt: new Date().toISOString() }, adminToken)
+        }
+      }
+    } catch (_) {}
+  }
+
+  return { sent, tokens: tokenDocs.length }
+}
+
+// ─── FCM OAuth2 토큰 발급 (firebase messaging 전용 scope) ────────────────────
+async function getFcmOAuthToken(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = { alg: 'RS256', typ: 'JWT' }
+  const payload = {
+    iss: SERVICE_ACCOUNT.client_email,
+    sub: SERVICE_ACCOUNT.client_email,
+    aud: SERVICE_ACCOUNT.token_uri,
+    iat: now,
+    exp: now + 3600,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging'
+  }
+  const b64url = (obj: any) => btoa(JSON.stringify(obj)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+  const sigInput = `${b64url(header)}.${b64url(payload)}`
+
+  const pemKey = SERVICE_ACCOUNT.private_key
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\n/g, '')
+  const keyData = Uint8Array.from(atob(pemKey), c => c.charCodeAt(0))
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', keyData.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(sigInput))
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+  const jwt = `${sigInput}.${sigB64}`
+
+  const tokenRes = await fetch(SERVICE_ACCOUNT.token_uri, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  })
+  const tokenData: any = await tokenRes.json()
+  return tokenData.access_token
+}
+
+// ─── FCM 미처리 알림 일괄 발송 ────────────────────────────────────────────────
+async function processPendingFcmNotifications(adminToken: string): Promise<number> {
+  try {
+    // fcmPending=true 인 notifications 조회 (최대 50건)
+    const notifications = await fsQuery('notifications', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'fcmPending' }, op: 'EQUAL', value: { booleanValue: true } } }
+    ], 50)
+
+    if (!notifications.length) return 0
+
+    // FCM OAuth 토큰 한번만 발급
+    const fcmToken = await getFcmOAuthToken()
+    let sent = 0
+
+    for (const notif of notifications) {
+      try {
+        const userId = notif.userId
+        if (!userId) continue
+
+        // 토큰 조회
+        const tokenDocs = await fsQuery('fcmTokens', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } },
+          { fieldFilter: { field: { fieldPath: 'isActive' }, op: 'EQUAL', value: { booleanValue: true } } }
+        ], 3)
+
+        for (const tokenDoc of tokenDocs) {
+          if (!tokenDoc.token) continue
+          const res = await fetch(
+            `https://fcm.googleapis.com/v1/projects/dedra-mlm/messages:send`,
+            {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${fcmToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: {
+                  token: tokenDoc.token,
+                  notification: { title: notif.title || 'DEEDRA', body: notif.message || '' },
+                  webpush: {
+                    notification: {
+                      title: notif.title || 'DEEDRA',
+                      body: notif.message || '',
+                      icon: '/static/icon-192.png',
+                      tag: 'deedra-push',
+                    }
+                  }
+                }
+              })
+            }
+          )
+          if (res.ok) sent++
+          else {
+            const errBody = await res.json().catch(() => ({}))
+            if (errBody?.error?.details?.[0]?.errorCode === 'UNREGISTERED') {
+              await fsPatch(`fcmTokens/${tokenDoc.id}`, { isActive: false }, adminToken)
+            }
+          }
+        }
+
+        // 처리 완료 표시
+        await fsPatch(`notifications/${notif.id}`, { fcmPending: false, fcmSentAt: new Date().toISOString() }, adminToken)
+      } catch (_) {}
+    }
+
+    return sent
+  } catch (_) { return 0 }
+}
 
 async function runSettle(c: any) {
   const startTime = Date.now()

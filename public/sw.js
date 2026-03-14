@@ -122,3 +122,54 @@ self.addEventListener('message', (event) => {
     caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
   }
 });
+
+// ── FCM 백그라운드 푸시 수신 ──────────────────────────────
+// Firebase Messaging SDK가 firebase-messaging-sw.js를 요구하지만
+// 이 프로젝트는 단일 sw.js를 사용하므로 여기서 통합 처리합니다.
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey: "AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8",
+  authDomain: "dedra-mlm.firebaseapp.com",
+  projectId: "dedra-mlm",
+  storageBucket: "dedra-mlm.firebasestorage.app",
+  messagingSenderId: "990762022325",
+  appId: "1:990762022325:web:1b238ef6eca4ffb4b795fc"
+});
+
+const messaging = firebase.messaging();
+
+// 백그라운드 메시지 처리 (앱이 포그라운드가 아닐 때)
+messaging.onBackgroundMessage((payload) => {
+  console.log('[SW] 백그라운드 FCM 수신:', payload);
+  const { title, body, icon, data } = payload.notification || {};
+  const notifTitle = title || 'DEEDRA 알림';
+  const notifOptions = {
+    body: body || '',
+    icon: icon || '/static/icon-192.png',
+    badge: '/static/favicon.ico',
+    tag: data?.tag || 'deedra-push',
+    data: data || {},
+    vibrate: [200, 100, 200],
+    requireInteraction: false,
+  };
+  return self.registration.showNotification(notifTitle, notifOptions);
+});
+
+// 알림 클릭 시 앱으로 포커스 이동
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.postMessage({ type: 'FCM_CLICK', data: event.notification.data });
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
+});

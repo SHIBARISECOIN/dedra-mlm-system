@@ -1897,7 +1897,7 @@ canvas{width:100% !important;}
       </div>
 
       <!-- 요약 카드 -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;" id="broadcastSummaryCards">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px;" id="broadcastSummaryCards">
         <div style="background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-top:3px solid #6366f1;">
           <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">총 발송 건수</div>
           <div id="bc_totalSent" style="font-size:24px;font-weight:800;color:#6366f1;">-</div>
@@ -1917,6 +1917,11 @@ canvas{width:100% !important;}
           <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">오늘 발송</div>
           <div id="bc_todaySent" style="font-size:24px;font-weight:800;color:#0ea5e9;">-</div>
           <div style="font-size:11px;color:#94a3b8;margin-top:4px;">오늘 발송 건수</div>
+        </div>
+        <div style="background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-top:3px solid #8b5cf6;">
+          <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📱 FCM 등록 기기</div>
+          <div id="bc_fcmTokens" style="font-size:24px;font-weight:800;color:#8b5cf6;">-</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px;">푸시 수신 디바이스</div>
         </div>
       </div>
 
@@ -8144,6 +8149,12 @@ async function loadBcSummary() {
         const autoR = await api.getAutoRules();
         const activeRules = autoR.success ? autoR.data.filter(r => r.isActive !== false && !r.deletedAt).length : 0;
         document.getElementById('bc_activeRules').textContent = activeRules;
+
+        // FCM 등록 기기 수
+        try {
+            const fcmSnap = await getDocs(query(collection(db, 'fcmTokens'), where('isActive', '==', true)));
+            document.getElementById('bc_fcmTokens').textContent = fcmSnap.size;
+        } catch(_) { document.getElementById('bc_fcmTokens').textContent = '-'; }
     } catch(e) {}
 }
 
