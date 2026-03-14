@@ -2240,6 +2240,26 @@ async function fsSet(path: string, data: any, token: string) {
   return res.ok ? await res.json() : null
 }
 
+/**
+ * fsCreateOnlyIfAbsent: Firestore precondition 을 이용해
+ * 문서가 존재하지 않을 때만 생성 (exist=false 조건부 PATCH).
+ * 이미 존재하면 HTTP 409/412 를 반환하고 null 을 리턴.
+ * → 다수의 동시 요청 중 단 하나만 성공 → Race-condition 방지용 분산 Lock.
+ */
+async function fsCreateOnlyIfAbsent(path: string, data: any, token: string): Promise<boolean> {
+  const firestoreFields: any = {}
+  for (const [k, v] of Object.entries(data)) {
+    firestoreFields[k] = toFirestoreValue(v)
+  }
+  // currentDocument.exists=false → 문서가 없을 때만 쓰기 허용
+  const res = await fetch(`${FIRESTORE_BASE}/${path}?currentDocument.exists=false`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: firestoreFields })
+  })
+  return res.ok  // true = 내가 lock 획득, false = 이미 다른 프로세스가 lock 보유
+}
+
 function toFirestoreValue(v: any): any {
   if (v === null || v === undefined) return { nullValue: null }
   if (typeof v === 'boolean') return { booleanValue: v }
@@ -3238,17 +3258,67 @@ async function processPendingFcmNotifications(adminToken: string): Promise<numbe
   } catch (_) { return 0 }
 }
 
-async function runSettle(c: any) {
+// ─── 관리자 인증 수동 정산 엔드포인트 ────────────────────────────────────────
+// 프론트엔드에서 Firebase ID 토큰으로 인증 후 백엔드 정산 실행
+// api.js의 runDailyROISettlement()를 대체 - 프론트는 트리거만, 계산은 백엔드에서
+app.post('/api/admin/run-settlement', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({})) as any
+    const targetDate = body.targetDate || null  // YYYY-MM-DD or null=today
+    return runSettle(c, targetDate)
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+async function runSettle(c: any, overrideDate?: string | null) {
   const startTime = Date.now()
   try {
     const adminToken = await getAdminToken()
-    const today = new Date().toISOString().slice(0, 10)
+    const today = overrideDate || new Date().toISOString().slice(0, 10)
 
-    // 중복 정산 방지
+    // ── Atomic 중복 정산 방지 (Distributed Lock) ────────────────────────────
+    // Firestore precondition(currentDocument.exists=false) 을 이용한 분산 락:
+    // - 다수의 동시 요청 중 **단 하나**만 문서 생성에 성공 → 나머지는 즉시 skip
+    // - lock 문서 생성 전에 먼저 done/processing 상태를 확인하여 재실행도 방지
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // 0단계: 이미 완료/진행 중인 정산이 있는지 선확인
     const existing = await fsGet(`settlements/${today}`, adminToken)
     if (existing && existing.fields) {
-      const status = fromFirestoreValue(existing.fields.status || { stringValue: '' })
-      if (status === 'done') return c.json({ success: true, message: '이미 오늘 정산 완료됨', date: today })
+      const existStatus = fromFirestoreValue(existing.fields.status || { stringValue: '' })
+      if (existStatus === 'done' || existStatus === 'processing') {
+        return c.json({ success: true, message: `이미 ${today} 정산 처리됨 (status:${existStatus})`, date: today, skipped: true })
+      }
+    }
+
+    // 1단계: 분산 Lock — 문서가 없을 때만 'processing' 으로 생성 (precondition)
+    const processId = `settle_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    const lockAcquired = await fsCreateOnlyIfAbsent(`settlements/${today}`, {
+      date: today,
+      status: 'processing',
+      processId,
+      startedAt: new Date().toISOString(),
+      source: 'backend'
+    }, adminToken)
+
+    if (!lockAcquired) {
+      // 다른 프로세스가 이미 lock을 획득한 상태 → skip
+      return c.json({ success: true, message: `${today} 정산이 이미 다른 프로세스에서 실행 중 또는 완료됨`, date: today, skipped: true })
+    }
+
+    // 2단계: 200ms 후 내 processId 가 그대로인지 재확인 (매우 드문 동시 요청 추가 방어)
+    await new Promise(r => setTimeout(r, 200))
+    const lockDoc = await fsGet(`settlements/${today}`, adminToken)
+    if (lockDoc && lockDoc.fields) {
+      const lockPid = fromFirestoreValue(lockDoc.fields.processId || { stringValue: '' })
+      const lockStatus = fromFirestoreValue(lockDoc.fields.status || { stringValue: '' })
+      if (lockStatus === 'done') {
+        return c.json({ success: true, message: '이미 정산 완료 (재확인)', date: today, skipped: true })
+      }
+      if (lockPid !== processId) {
+        return c.json({ success: true, message: '다른 프로세스가 lock 선점 (재확인)', date: today, skipped: true })
+      }
     }
 
     // 진행중 투자 목록 조회
@@ -3261,6 +3331,7 @@ async function runSettle(c: any) {
 
     let totalPaid = 0
     let processedCount = 0
+    let skippedCount = 0
     const details: any[] = []
 
     for (const inv of activeInvestments) {
@@ -3286,13 +3357,22 @@ async function runSettle(c: any) {
           }, adminToken)
         }
 
-        // ROI 계산 (일일) — 모든 기준은 USDT
-        const roiPct = inv.roiPct || inv.roiPercent || inv.dailyRoi || 0
-        const principal = inv.amountUsdt || inv.amount || 0
-        // roiPct가 총 수익률이면 기간으로 나눔, 일일 수익률이면 그대로
-        const durationDays = inv.durationDays || inv.duration || 30
-        const dailyRoiPct = roiPct > 1 ? roiPct / durationDays : roiPct
-        const dailyEarning = principal * (dailyRoiPct / 100)  // USDT 기준
+        // ── 투자별 중복 정산 방지 ─────────────────────────────────────────────
+        // lastSettledAt 이 오늘 날짜이면 이미 정산된 투자 → skip
+        if (inv.lastSettledAt) {
+          const lastDate = String(inv.lastSettledAt).slice(0, 10)
+          if (lastDate === today) {
+            skippedCount++
+            details.push({ userId: inv.userId, investmentId: inv.id, paid: 0, skipped: true, reason: 'already_settled_today' })
+            continue
+          }
+        }
+
+        // ROI 계산 (일일) — inv.dailyRoi 는 이미 일일 수익률(%) 이므로 그대로 사용
+        // 예: dailyRoi=0.8 → 원금 × 0.8/100 = 일일 USDT 수익
+        const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0  // 이미 일일 % 값
+        const principal = inv.amount || inv.amountUsdt || 0
+        const dailyEarning = Math.round(principal * (dailyRoiPct / 100) * 1e8) / 1e8  // USDT 기준, 소수점 8자리
 
         if (dailyEarning <= 0) continue
 
@@ -3300,9 +3380,10 @@ async function runSettle(c: any) {
         // 출금 시 당시 DDRA 시세로 환산하여 지급 (bonusBalance ÷ ddraPrice = 출금 가능 DDRA)
         const wallet = await fsGet(`wallets/${inv.userId}`, adminToken)
         const wData = wallet?.fields ? firestoreDocToObj(wallet) : {}
+        // wallets 업데이트 — bonusBalance / totalEarnings 는 USDT 기준
         await fsPatch(`wallets/${inv.userId}`, {
-          bonusBalance: (wData.bonusBalance || 0) + dailyEarning,  // USDT로 적립
-          totalEarnings: (wData.totalEarnings || 0) + dailyEarning
+          bonusBalance: Math.round(((wData.bonusBalance || 0) + dailyEarning) * 1e8) / 1e8,
+          totalEarnings: Math.round(((wData.totalEarnings || 0) + dailyEarning) * 1e8) / 1e8
         }, adminToken)
 
         // investments paidRoi 업데이트
@@ -3311,12 +3392,14 @@ async function runSettle(c: any) {
           lastSettledAt: new Date().toISOString()
         }, adminToken)
 
-        // bonuses 기록
+        // bonuses 기록 — amount: DEDRA(=USDT×2 at rate 0.5), amountUsdt: USDT
+        const dedraRate = 0.5  // 1 DEDRA = 0.5 USDT (고정, 추후 settings에서 읽도록 개선 가능)
+        const dailyEarningDedra = Math.round(dailyEarning / dedraRate * 1e8) / 1e8
         await fsCreate('bonuses', {
           userId: inv.userId,
           type: 'roi',
-          amountUsdt: dailyEarning,
-          amount: dailyEarning,  // USDT 기준
+          amount: dailyEarningDedra,      // DEDRA
+          amountUsdt: dailyEarning,       // USDT
           reason: `일일 ROI 정산 (${today})`,
           investmentId: inv.id,
           createdAt: new Date().toISOString()
@@ -3341,14 +3424,17 @@ async function runSettle(c: any) {
     await checkInactiveUsers(adminToken)
     await checkLowBalances(adminToken)
 
-    // 정산 기록 저장
+    // 정산 기록 저장 — status를 done으로 갱신 (processing → done)
     await fsSet(`settlements/${today}`, {
       date: today,
       totalPaid,
       totalUsers: processedCount,
+      skippedCount,
       details,
       status: 'done',
+      source: 'cron',
       duration: Date.now() - startTime,
+      startedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     }, adminToken)
 
@@ -3361,6 +3447,17 @@ async function runSettle(c: any) {
 
     return c.json({ success: true, date: today, totalPaid, processedCount, duration: Date.now() - startTime })
   } catch (e: any) {
+    // 정산 중 오류 발생 시 settlements 문서를 error 상태로 업데이트
+    // (다음 재시도가 가능하도록 error 상태로 표시)
+    try {
+      const adminToken2 = await getAdminToken()
+      const today2 = overrideDate || new Date().toISOString().slice(0, 10)
+      await fsPatch(`settlements/${today2}`, {
+        status: 'error',
+        error: e.message,
+        errorAt: new Date().toISOString()
+      }, adminToken2)
+    } catch (_) { /* ignore secondary error */ }
     return c.json({ success: false, error: e.message }, 500)
   }
 }

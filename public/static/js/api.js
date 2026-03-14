@@ -1782,213 +1782,38 @@ export class DedraAPI {
   // 일일 ROI 정산 배치
   // ─────────────────────────────────────────────────────────────────
   /**
-   * 실행 흐름:
-   *   1. 전체 활성(active) 투자 조회
-   *   2. 투자 상품별 지급 패턴(bonusPaymentConfig) 체크
-   *   3. 오늘이 지급일이면 D = 투자금액 × dailyRoi% 계산
-   *   4. 회원 지갑에 D 적립 (본인 ROI 수익)
-   *   5. D를 기준으로 추천 체인에 유니레벨 보너스 분배
-   *   6. 투자 만료(기간/횟수) 처리
+   * ⚠️ 정산은 반드시 백엔드 /api/admin/run-settlement 를 통해서만 실행됩니다.
+   * 프론트엔드에서 직접 Firestore에 쓰는 기존 로직은 제거되었습니다.
+   * 이유: 다중 경로(CRON + admin페이지 자동실행 + 수동버튼) 동시 실행 시
+   *       settlements 락이 race condition으로 뚫려 중복 정산 발생 위험.
    *
    * @param {string} adminId
    * @param {string|null} targetDateStr  'YYYY-MM-DD' (null이면 오늘)
    */
   async runDailyROISettlement(adminId, targetDateStr = null) {
     try {
-      const db = this.db;
+      const dateStr = targetDateStr || new Date().toISOString().slice(0, 10);
 
-      // 정산 날짜 설정
-      const targetDate = targetDateStr ? new Date(targetDateStr + 'T00:00:00') : new Date();
-      const dateStr    = targetDate.toISOString().slice(0, 10); // YYYY-MM-DD
-
-      // 중복 정산 방지: 같은 날 이미 실행했으면 차단
-      const settlementDocRef = doc(db, 'settlements', dateStr);
-      const existingSnap = await getDoc(settlementDocRef);
-      if (existingSnap.exists()) {
-        return ok({ skipped: true, reason: `${dateStr} 정산이 이미 실행되었습니다.`, date: dateStr });
-      }
-
-      // 이율 설정 및 지급 패턴 설정 로드
-      const [ratesR, bpR] = await Promise.all([
-        this.getRates(),
-        this.getBonusPaymentConfig(),
-      ]);
-      const rates    = ratesR.success ? ratesR.data : {};
-      const bpConfig = bpR.success    ? bpR.data    : {};
-      const bpProducts    = bpConfig.products    || {};
-      const globalOptions = bpConfig.globalOptions|| {};
-
-      // 모든 활성 투자 조회
-      const [invSnap, usersSnap] = await Promise.all([
-        getDocs(query(collection(db, 'investments'), where('status', '==', 'active'))),
-        getDocs(collection(db, 'users')),
-      ]);
-      const activeInvestments = invSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // 전체 회원 맵 (센터피/유니레벨 공용)
-      const userMap = Object.fromEntries(
-        usersSnap.docs.map(d => [d.id, { id: d.id, ...d.data() }])
-      );
-
-      let roiPaidCount   = 0;
-      let bonusPaidCount = 0;
-      let totalRoiAmount = 0;
-      let totalBonusAmount = 0;
-      const details = [];
-
-      for (const inv of activeInvestments) {
-        try {
-          // ── 투자 만료 체크 ──
-          const endDate = inv.endDate instanceof Date ? inv.endDate
-            : inv.endDate?.toDate ? inv.endDate.toDate()
-            : new Date(inv.endDate);
-          if (targetDate > endDate) {
-            // 만료 처리
-            await updateDoc(doc(db, 'investments', inv.id), {
-              status: 'completed', completedAt: serverTimestamp()
-            });
-            continue;
-          }
-
-          // ── 지급 패턴 체크 ──
-          const productCfg = globalOptions.usePaymentPattern ? bpProducts[inv.productId] : null;
-          if (productCfg && productCfg.isActive) {
-            // 지급 시작일 체크
-            const rawStart = inv.startDate?.toDate ? inv.startDate.toDate()
-              : inv.startDate instanceof Date ? inv.startDate
-              : new Date(inv.startDate || Date.now());
-            const paymentStartDate = productCfg.paymentStartType === 'PURCHASE_DAY'
-              ? rawStart
-              : new Date(rawStart.getTime() + 86400000); // 익일
-            if (!this._isPaymentDay(productCfg, targetDate, paymentStartDate)) continue;
-
-            // 횟수 제한 체크
-            if (productCfg.paymentDurationType === 'LIMITED_COUNTS') {
-              const remaining = inv.remainingPayments ?? productCfg.durationValue ?? 999;
-              if (remaining <= 0) {
-                await updateDoc(doc(db, 'investments', inv.id), { status: 'completed', completedAt: serverTimestamp() });
-                continue;
-              }
-            }
-          }
-
-          // ── D 계산: 일일 ROI 수익 ──
-          // 상품별 이율 우선, 없으면 inv.roiPercent 사용
-          let dailyRoiRate = 0;
-          if (globalOptions.useProductRate && productCfg?.baseRate) {
-            dailyRoiRate = productCfg.baseRate / 100;
-          } else {
-            dailyRoiRate = (inv.roiPercent || inv.dailyRoi || 0) / 100;
-          }
-
-          const D = parseFloat((inv.amount * dailyRoiRate).toFixed(8));
-          if (D <= 0) continue;
-
-          // ── 회원 지갑에 ROI 적립 (USDT 기준 bonusBalance) ──
-          const walletQ = query(collection(db, 'wallets'), where('userId', '==', inv.userId));
-          const wSnap   = await getDocs(walletQ);
-          if (!wSnap.empty) {
-            await updateDoc(wSnap.docs[0].ref, {
-              bonusBalance:  increment(D),
-              totalEarnings: increment(D),
-            });
-          }
-
-          // ROI 수익 이력 기록
-          await addDoc(collection(db, 'bonuses'), {
-            userId:         inv.userId,
-            amount:         D,
-            type:           'roi_income',
-            investmentId:   inv.id,
-            productId:      inv.productId,
-            productName:    inv.productName || '',
-            investAmount:   inv.amount,
-            rate:           dailyRoiRate,
-            settlementDate: dateStr,
-            reason:         `투자 ROI 수익 (${inv.productName||'상품'} × ${(dailyRoiRate*100).toFixed(2)}%)`,
-            grantedBy:      adminId,
-            createdAt:      serverTimestamp(),
-          });
-
-          roiPaidCount++;
-          totalRoiAmount += D;
-
-          // ── Policy A: 유니레벨 보너스 분배 (D 기준, 직급별 10단계) ──
-          const bonusPaid = await this._processUnilevelBonus(
-            inv.userId, D, rates, db, adminId, dateStr
-          );
-          if (bonusPaid > 0) { bonusPaidCount++; totalBonusAmount += bonusPaid; }
-
-          // ── Policy B: 2세대 고정 직접 보너스 (직급 무관, 1대/2대만) ──
-          if (rates.enableDirectBonus2Gen) {
-            const bonusPaidB = await this._processDirectBonus2Gen(
-              inv.userId, D, rates, db, adminId, dateStr
-            );
-            if (bonusPaidB > 0) { totalBonusAmount += bonusPaidB; }
-          }
-
-          // ── 센터피: 소속 센터장에게 D × centerFeeRate% 지급 ──
-          if (rates.enableCenterFee) {
-            const centerFee = await this._processCenterFee(
-              inv.userId, D, rates, userMap, db, adminId, dateStr
-            );
-            if (centerFee > 0) { totalBonusAmount += centerFee; }
-          }
-
-          // ── 직급차 풀 분배 보너스 (Rank Gap Bonus) ──
-          if (rates.enableRankGapBonus) {
-            const rankGapPaid = await this._processRankGapBonus(
-              inv.userId, D, rates, db, adminId, dateStr, userMap
-            );
-            if (rankGapPaid > 0) { totalBonusAmount += rankGapPaid; }
-          }
-
-          // ── 횟수 제한 차감 ──
-          if (productCfg?.paymentDurationType === 'LIMITED_COUNTS') {
-            const remaining = inv.remainingPayments ?? (productCfg.durationValue ?? 999);
-            await updateDoc(doc(db, 'investments', inv.id), {
-              remainingPayments: Math.max(0, remaining - 1)
-            });
-          }
-
-          details.push({ userId: inv.userId, investId: inv.id, D, bonusPaid });
-
-        } catch(invErr) {
-          console.warn(`투자 정산 오류 [${inv.id}]:`, invErr);
-        }
-      }
-
-      // 정산 완료 기록 (중복 방지용)
-      await setDoc(settlementDocRef, {
-        date: dateStr,
-        executedBy: adminId,
-        executedAt: serverTimestamp(),
-        roiPaidCount,
-        bonusPaidCount,
-        totalRoiAmount,
-        totalBonusAmount,
-        totalInvestments: activeInvestments.length,
+      // 백엔드 API 호출 (백엔드에서 atomic 중복 방지 + 단일 정산 엔진으로 실행)
+      const res = await fetch('/api/admin/run-settlement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetDate: dateStr })
       });
+      const data = await res.json();
 
-      await this._auditLog(adminId, 'settlement',
-        `일일 ROI 정산 완료 [${dateStr}]: ROI ${roiPaidCount}건 / 보너스 ${bonusPaidCount}건`,
-        { date: dateStr, totalRoiAmount, totalBonusAmount }
-      );
-
-      // ── 직급 달성 보너스 배치 (cycleDays 설정에 따라 조건부 실행) ──
-      let rankBonusResult = null;
-      if (rates.enableRankAchieveBonus) {
-        rankBonusResult = await this.runRankAchieveBonusBatch(adminId, dateStr);
+      if (!res.ok) return err(new Error(data.error || '정산 API 오류'));
+      if (data.skipped) {
+        return ok({ skipped: true, reason: data.message || `${dateStr} 정산이 이미 실행되었습니다.`, date: dateStr });
       }
 
       return ok({
-        date: dateStr,
-        roiPaidCount,
-        bonusPaidCount,
-        totalRoiAmount,
-        totalBonusAmount,
-        totalInvestments: activeInvestments.length,
-        rankBonusResult: rankBonusResult?.data || null,
-        details,
+        date: data.date || dateStr,
+        roiPaidCount: data.processedCount || 0,
+        totalRoiAmount: data.totalPaid || 0,
+        bonusPaidCount: 0,
+        totalBonusAmount: 0,
+        totalInvestments: data.processedCount || 0,
       });
     } catch(e) { return err(e); }
   }
