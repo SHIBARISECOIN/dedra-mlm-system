@@ -4980,6 +4980,9 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
             } else if (sf === 'rank') {
                 av = RANK_ORDER[a.rank||'G0'] || 0;
                 bv = RANK_ORDER[b.rank||'G0'] || 0;
+            } else if (sf === 'usdtBalance') {
+                av = parseFloat(a.wallet?.usdtBalance ?? a.wallet?.balance ?? a.usdtBalance ?? 0);
+                bv = parseFloat(b.wallet?.usdtBalance ?? b.wallet?.balance ?? b.usdtBalance ?? 0);
             } else if (sf === 'country') {
                 av = a.country || '';
                 bv = b.country || '';
@@ -5024,7 +5027,7 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
             <th>추천코드</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('refCount')">추천인수${_memberSortIcon('refCount')}</th>
             <th>상태</th>
-            <th>보유 USDT</th>
+            <th style="${thStyle}" onclick="_toggleMemberSort('usdtBalance')">보유 USDT${_memberSortIcon('usdtBalance')}</th>
             <th style="${thStyle}" onclick="_toggleMemberSort('createdAt')">가입일${_memberSortIcon('createdAt')}</th>
         </tr></thead>`;
 
