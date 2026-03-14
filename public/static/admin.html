@@ -847,8 +847,8 @@ canvas{width:100% !important;}
     <!-- 관리자 로그인 폼 -->
     <div id="adminLoginFormAdmin">
       <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">이메일</label>
-        <input id="adminLoginEmail" type="email" placeholder="admin@deedra.com"
+        <label style="display:block;font-size:12px;font-weight:700;color:rgba(255,255,255,0.6);margin-bottom:8px;letter-spacing:0.5px;">아이디</label>
+        <input id="adminLoginEmail" type="text" placeholder="아이디 입력"
           style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;"
           onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
           onkeydown="if(event.key==='Enter')document.getElementById('adminLoginPass').focus()"/>
@@ -4816,20 +4816,37 @@ let editingNoticeId = null;
 // ── 인증 체크 ──
 // ── 관리자 로그인 ──
 window.adminDoLogin = async function() {
-    const email = document.getElementById('adminLoginEmail').value.trim();
+    const input = document.getElementById('adminLoginEmail').value.trim();
     const pass  = document.getElementById('adminLoginPass').value.trim();
     const errEl = document.getElementById('adminLoginErr');
     const btn   = document.getElementById('adminLoginBtn');
     errEl.style.display = 'none';
-    if (!email || !pass) { errEl.textContent = '이메일과 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
+    if (!input || !pass) { errEl.textContent = '아이디와 비밀번호를 입력하세요.'; errEl.style.display='block'; return; }
     btn.disabled = true; btn.textContent = '로그인 중...';
     try {
-        const credential = EmailAuthProvider.credential(email, pass);
+        let loginEmail = input;
+        // @ 없으면 username → 서버 API로 이메일 조회
+        if (!input.includes('@')) {
+            const res = await fetch('/api/auth/login-by-username', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: input, password: pass })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                errEl.textContent = data.error || '아이디 또는 비밀번호가 올바르지 않습니다.';
+                errEl.style.display = 'block';
+                btn.disabled = false; btn.textContent = '🔐 로그인';
+                return;
+            }
+            loginEmail = data.email;
+        }
+        const credential = EmailAuthProvider.credential(loginEmail, pass);
         await signInWithCredential(auth, credential);
     } catch(e) {
         const msg = e.code === 'auth/user-not-found' ? '존재하지 않는 계정입니다.' :
                     e.code === 'auth/wrong-password'  ? '비밀번호가 틀렸습니다.' :
-                    e.code === 'auth/invalid-credential' ? '이메일 또는 비밀번호가 틀렸습니다.' :
+                    e.code === 'auth/invalid-credential' ? '아이디 또는 비밀번호가 틀렸습니다.' :
                     e.code === 'auth/too-many-requests' ? '너무 많은 시도. 잠시 후 다시 시도하세요.' : e.message;
         errEl.textContent = msg; errEl.style.display = 'block';
         btn.disabled = false; btn.textContent = '🔐 로그인';
