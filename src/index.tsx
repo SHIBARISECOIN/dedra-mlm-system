@@ -2461,6 +2461,34 @@ app.post('/api/cron/settle', async (c) => {
   return runSettle(c)
 })
 
+// ── 예약 발송 독립 실행 엔드포인트 (매 시간 Cron Trigger로 호출 가능) ──────────
+app.get('/api/cron/process-scheduled', async (c) => {
+  const secret = c.req.query('secret') || c.req.header('x-cron-secret')
+  if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+  try {
+    const adminToken = await getAdminToken()
+    await processScheduledBroadcasts(adminToken)
+    return c.json({ success: true, message: '예약 발송 처리 완료', processedAt: new Date().toISOString() })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+app.post('/api/cron/process-scheduled', async (c) => {
+  let secret = c.req.header('x-cron-secret') || c.req.header('CRON_SECRET')
+  if (!secret) {
+    try { const b = await c.req.json(); secret = b.secret } catch (_) {}
+  }
+  if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+  try {
+    const adminToken = await getAdminToken()
+    await processScheduledBroadcasts(adminToken)
+    return c.json({ success: true, message: '예약 발송 처리 완료', processedAt: new Date().toISOString() })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
 async function runSettle(c: any) {
   const startTime = Date.now()
   try {
@@ -2599,9 +2627,17 @@ async function runSettle(c: any) {
 // ─── 예약 발송 자동 실행 ──────────────────────────────────────────────────────
 async function processScheduledBroadcasts(adminToken: string) {
   try {
-    const now = new Date().toISOString()
+    const nowMs = Date.now()
     const scheduled = await fsQuery('scheduledBroadcasts', adminToken, [], 50)
-    const pending = scheduled.filter((b: any) => b.status === 'pending' && b.scheduledAt <= now)
+    // scheduledAt 은 Firestore Timestamp({_seconds, _nanoseconds}) 또는 ISO 문자열일 수 있음
+    const toMs = (v: any): number => {
+      if (!v) return Infinity
+      if (typeof v === 'string') return new Date(v).getTime()
+      if (typeof v === 'number') return v
+      if (v._seconds !== undefined) return v._seconds * 1000
+      return Infinity
+    }
+    const pending = scheduled.filter((b: any) => b.status === 'pending' && toMs(b.scheduledAt) <= nowMs)
 
     for (const broadcast of pending) {
       try {
@@ -2611,8 +2647,12 @@ async function processScheduledBroadcasts(adminToken: string) {
         // 대상 회원 조회
         const users = await fsQuery('users', adminToken, [], 1000)
         let targets = users.filter((u: any) => u.status === 'active')
-        if (broadcast.targetGroup && broadcast.targetGroup !== 'all') {
+        if (broadcast.targetGroup && broadcast.targetGroup !== 'all' && broadcast.targetGroup !== 'specific') {
           targets = targets.filter((u: any) => u.rank === broadcast.targetGroup)
+        }
+        // 특정 회원 대상 (autoRules에서 생성된 개인 예약 알림)
+        if (broadcast.targetGroup === 'specific' && broadcast.specificUserId) {
+          targets = users.filter((u: any) => u.id === broadcast.specificUserId)
         }
 
         // 알림 발송
@@ -2621,9 +2661,14 @@ async function processScheduledBroadcasts(adminToken: string) {
             userId: user.id,
             title: broadcast.title || '',
             message: broadcast.message || '',
-            type: 'broadcast',
+            type: broadcast.type || 'broadcast',
+            priority: broadcast.priority || 'normal',
+            icon: broadcast.icon || '🔔',
+            color: broadcast.color || '#10b981',
             isRead: false,
             broadcastId: broadcast.id,
+            autoRuleId: broadcast.autoRuleId || null,
+            triggerEvent: broadcast.triggerEvent || null,
             createdAt: new Date().toISOString()
           }, adminToken)
         }
@@ -2635,15 +2680,17 @@ async function processScheduledBroadcasts(adminToken: string) {
           sentCount: targets.length
         }, adminToken)
 
-        // broadcasts 기록
-        await fsCreate('broadcasts', {
-          title: broadcast.title,
-          message: broadcast.message,
-          targetGroup: broadcast.targetGroup || 'all',
-          sentAt: new Date().toISOString(),
-          sentBy: 'scheduler',
-          sentCount: targets.length
-        }, adminToken)
+        // broadcasts 기록 (개인 알림이 아닌 경우만)
+        if (broadcast.targetGroup !== 'specific') {
+          await fsCreate('broadcasts', {
+            title: broadcast.title,
+            message: broadcast.message,
+            targetGroup: broadcast.targetGroup || 'all',
+            sentAt: new Date().toISOString(),
+            sentBy: 'scheduler',
+            sentCount: targets.length
+          }, adminToken)
+        }
       } catch (_) {
         await fsPatch(`scheduledBroadcasts/${broadcast.id}`, { status: 'failed' }, adminToken)
       }

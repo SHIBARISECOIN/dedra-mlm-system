@@ -2437,6 +2437,7 @@ canvas{width:100% !important;}
                   <option value="deposit_complete">입금 완료</option>
                   <option value="withdrawal_complete">출금 완료</option>
                   <option value="withdrawal_approved">출금 승인</option>
+                  <option value="withdrawal_rejected">출금 거부</option>
                 </optgroup>
                 <optgroup label="💼 투자">
                   <option value="investment_start">투자 시작</option>
@@ -8413,11 +8414,16 @@ const TARGET_LABELS = {
 const AUTO_TRIGGER_LABELS = {
     deposit_complete:        '💰 입금 완료',
     withdrawal_complete:     '💸 출금 완료',
-    rank_upgrade:            '🏆 직급 승급',
+    withdrawal_approved:     '✅ 출금 승인',
+    withdrawal_rejected:     '❌ 출금 거부',
+    investment_start:        '🚀 투자 시작',
     investment_expire_soon:  '⏰ 투자 만료 D-7',
     investment_expire:       '⌛ 투자 만료',
-    login:                   '🔐 로그인',
+    roi_claimed:             '💵 ROI 수령',
+    rank_upgrade:            '🏆 직급 승급',
     referral_joined:         '👤 추천인 가입',
+    bonus_received:          '🎁 보너스 수령',
+    login:                   '🔐 로그인',
     no_login_days:           '😴 장기 미접속',
     balance_low:             '🔻 잔액 부족',
 };

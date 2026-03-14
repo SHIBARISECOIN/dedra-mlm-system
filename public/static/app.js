@@ -2891,6 +2891,18 @@ window.submitInvest = async function() {
       walletData.totalInvest = (walletData.totalInvest || 0) + amount;
     }
 
+    // 🔔 자동 규칙: 투자 시작 알림
+    try {
+      if (window.api && typeof window.api.fireAutoRules === 'function') {
+        await window.api.fireAutoRules('investment_start', currentUser.uid, {
+          name:        userData?.name || currentUser.email || currentUser.uid,
+          amount:      amount.toFixed(2),
+          productName: selectedProduct.name || '',
+          rank:        userData?.rank || 'G0',
+        }, currentUser.uid);
+      }
+    } catch(_) { /* 자동 규칙 실패 시 투자 처리에 영향 없음 */ }
+
     closeModal('investModal');
     showToast(t('toastInvestDone'), 'success');
     loadMyInvestments();

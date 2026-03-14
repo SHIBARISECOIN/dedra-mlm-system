@@ -335,15 +335,17 @@ export class DedraAPI {
         { txId, userId: tx.userId, amount: tx.amountUsdt || tx.amount }
       );
 
-      // ── 🔔 자동 규칙: 출금 완료 알림 ─────────────────────────────
+      // ── 🔔 자동 규칙: 출금 완료/승인 알림 ─────────────────────────────
       try {
         const wdUserSnap = await getDoc(doc(db, 'users', tx.userId));
         const wdUser = wdUserSnap.exists() ? wdUserSnap.data() : {};
-        await this.fireAutoRules('withdrawal_complete', tx.userId, {
+        const wdVars = {
           name:   wdUser.name || wdUser.referralCode || tx.userId,
           amount: tx.amountUsdt || tx.amount || 0,
           rank:   wdUser.rank || 'G0',
-        }, adminId);
+        };
+        await this.fireAutoRules('withdrawal_complete', tx.userId, wdVars, adminId);
+        await this.fireAutoRules('withdrawal_approved', tx.userId, wdVars, adminId);
       } catch(_) { /* 자동 규칙 실패 시 출금 승인에 영향 없음 */ }
 
       return ok(true);
@@ -388,6 +390,16 @@ export class DedraAPI {
         `${tx.userEmail || tx.userId} 님의 출금 신청이 거부되었습니다. (사유: ${reason})`,
         { txId, userId: tx.userId, reason }
       );
+      // ── 🔔 자동 규칙: 출금 거부 알림 ─────────────────────────────
+      try {
+        const wdUserSnap = await getDoc(doc(db, 'users', tx.userId));
+        const wdUser = wdUserSnap.exists() ? wdUserSnap.data() : {};
+        await this.fireAutoRules('withdrawal_rejected', tx.userId, {
+          name:   wdUser.name || wdUser.referralCode || tx.userId,
+          amount: tx.amountUsdt || tx.amount || 0,
+          rank:   wdUser.rank || 'G0',
+        }, adminId);
+      } catch(_) { /* 자동 규칙 실패 시 출금 거부에 영향 없음 */ }
       return ok(true);
     } catch(e) { return err(e); }
   }
@@ -963,6 +975,15 @@ export class DedraAPI {
             createdAt:      serverTimestamp(),
           });
 
+          // 🔔 자동 규칙: 보너스 수령 알림
+          try {
+            await this.fireAutoRules('bonus_received', ancestor.id, {
+              name:   ancestor.name || ancestor.referralCode || ancestor.id,
+              amount: bonusAmt.toFixed(4),
+              rank:   ancestor.rank || 'G0',
+            }, triggerBy || 'SYSTEM');
+          } catch(_) { /* 자동 규칙 실패 시 보너스 처리에 영향 없음 */ }
+
           totalPaid += bonusAmt;
         }
 
@@ -1060,6 +1081,15 @@ export class DedraAPI {
             grantedBy:      triggerBy || 'system',
             createdAt:      serverTimestamp(),
           });
+
+          // 🔔 자동 규칙: 보너스 수령 알림
+          try {
+            await this.fireAutoRules('bonus_received', ancestor.id, {
+              name:   ancestor.name || ancestor.referralCode || ancestor.id,
+              amount: bonusAmt.toFixed(4),
+              rank:   ancestor.rank || 'G0',
+            }, triggerBy || 'SYSTEM');
+          } catch(_) { /* 자동 규칙 실패 시 보너스 처리에 영향 없음 */ }
 
           totalPaid += bonusAmt;
         }
@@ -1321,6 +1351,20 @@ export class DedraAPI {
           totalPaid += passAmt;
         }
       }
+
+      // 🔔 자동 규칙: 직급차 보너스 수령자들에게 알림
+      try {
+        for (const { ancestor, gap } of recipients) {
+          const bonusAmt = parseFloat((pool * gap * ratePerStep).toFixed(8));
+          if (bonusAmt > 0) {
+            await this.fireAutoRules('bonus_received', ancestor.id, {
+              name:   ancestor.name || ancestor.referralCode || ancestor.id,
+              amount: bonusAmt.toFixed(4),
+              rank:   ancestor.rank || 'G0',
+            }, triggerBy || 'SYSTEM');
+          }
+        }
+      } catch(_) { /* 자동 규칙 실패 시 보너스 처리에 영향 없음 */ }
 
       return totalPaid;
     } catch(e) {
@@ -2796,9 +2840,9 @@ export class DedraAPI {
   /**
    * 특정 이벤트 발생 시 활성화된 자동 규칙을 검색하고 해당 알림을 발송합니다.
    *
-   * @param {string} eventType  - 'deposit_complete' | 'withdrawal_complete' | 'rank_upgrade' |
-   *                              'referral_joined' | 'investment_start' | 'investment_expire' |
-   *                              'roi_claimed' | 'bonus_received'
+   * @param {string} eventType  - 'deposit_complete' | 'withdrawal_complete' | 'withdrawal_rejected' |
+   *                              'rank_upgrade' | 'referral_joined' | 'investment_start' |
+   *                              'investment_expire' | 'roi_claimed' | 'bonus_received'
    * @param {string} targetUserId - 이벤트의 주체 userId (알림 수신자)
    * @param {object} vars       - 메시지 치환 변수 { name, amount, rank, date, referrerName, ... }
    * @param {string} [actorId]  - 이벤트를 발생시킨 adminId (로그용)
