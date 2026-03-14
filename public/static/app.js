@@ -2019,8 +2019,66 @@ function spawnJackpotParticles() {
   setTimeout(() => container.remove(), 3500);
 }
 
-// USD → KRW 환율 (고정)
-const USD_KRW = 1350;
+// USD → KRW 환율 (실시간 갱신 전 기본값)
+const USD_KRW = 1380;
+
+// ===== 실시간 환율 시스템 =====
+// 언어 설정에 따른 통화 매핑
+const LANG_CURRENCY = {
+  ko: { code: 'KRW', symbol: '₩',     name: '원',   format: (v) => '₩' + Math.round(v).toLocaleString('ko-KR') },
+  en: { code: 'USD', symbol: '$',     name: 'USD',  format: (v) => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+  vi: { code: 'VND', symbol: '₫',     name: 'Đồng', format: (v) => Math.round(v).toLocaleString('vi-VN') + ' ₫' },
+  th: { code: 'THB', symbol: '฿',     name: 'บาท',  format: (v) => '฿' + v.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+};
+
+// 실시간 환율 캐시 (1시간 유효)
+let _fxRates = null;
+let _fxFetchedAt = 0;
+const FX_CACHE_MS = 3600_000; // 1시간
+
+// 환율 불러오기 (백엔드 프록시 경유)
+async function fetchForexRates() {
+  const now = Date.now();
+  if (_fxRates && now - _fxFetchedAt < FX_CACHE_MS) return _fxRates;
+  try {
+    const res = await fetch('/api/price/forex');
+    if (!res.ok) throw new Error('forex api error');
+    const data = await res.json();
+    if (data.success && data.rates) {
+      _fxRates = data.rates;
+      _fxFetchedAt = now;
+      return _fxRates;
+    }
+  } catch (_) {}
+  // 폴백: 하드코딩 기본값
+  return { KRW: 1380, THB: 34, VND: 26000, USD: 1 };
+}
+
+// 현재 언어에 맞는 통화 정보 반환
+function getCurrentCurrency() {
+  const lang = (typeof currentLang !== 'undefined') ? currentLang : 'ko';
+  return LANG_CURRENCY[lang] || LANG_CURRENCY.ko;
+}
+
+// USDT(USD) 금액을 현재 언어 통화로 변환하여 문자열 반환
+function formatLocalCurrency(usdtAmount) {
+  const cur = getCurrentCurrency();
+  const rate = (_fxRates && _fxRates[cur.code]) ? _fxRates[cur.code] : (cur.code === 'KRW' ? 1380 : cur.code === 'THB' ? 34 : cur.code === 'VND' ? 26000 : 1);
+  const localAmount = usdtAmount * rate;
+  return cur.format(localAmount);
+}
+
+// 환율 정보 텍스트 (예: "1 USDT = ₩1,380")
+function getForexInfoText() {
+  const cur = getCurrentCurrency();
+  if (cur.code === 'USD') return ''; // USD는 환율 표시 불필요
+  const rate = (_fxRates && _fxRates[cur.code]) ? _fxRates[cur.code] : null;
+  if (!rate) return '';
+  const rateStr = cur.code === 'KRW' ? Math.round(rate).toLocaleString() :
+                  cur.code === 'VND' ? Math.round(rate).toLocaleString() :
+                  rate.toFixed(2);
+  return `1 USDT ≈ ${cur.symbol}${rateStr}`;
+}
 
 // ===== 언어 초기화 (앱 시작 시 즉시 실행) =====
 (function initLang() {
@@ -2073,6 +2131,12 @@ async function initApp() {
     await loadWalletData();
     await loadDeedraPrice();
     await loadGameOdds();
+
+    // 실시간 환율 로드 (백그라운드 - UI 블로킹 없음)
+    fetchForexRates().then(() => {
+      // 환율 로드 완료 후 자산 카드 즉시 갱신
+      updateHomeUI();
+    }).catch(() => {});
 
     showScreen('main');
 
@@ -2361,6 +2425,13 @@ window.changeLang = function(lang) {
       if (typeof loadMorePage === 'function') loadMorePage();
     }
   }
+  // 언어 변경 시 환율 표시도 즉시 갱신 (통화 단위가 바뀌므로)
+  // 환율 재로드 후 자산 카드 업데이트
+  fetchForexRates().then(() => {
+    if (typeof updateHomeUI === 'function') updateHomeUI();
+  }).catch(() => {
+    if (typeof updateHomeUI === 'function') updateHomeUI();
+  });
   showToast(t('langChanged'), 'success');
 };
 
@@ -2604,7 +2675,14 @@ function updateHomeUI() {
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
   setEl('totalAsset', fmt(total) + ' USDT');
-  setEl('totalAssetKrw', '≈ ₩' + fmtInt(total * USD_KRW));
+  // 실시간 환율로 현지 통화 표시 (환율 미로드 시 기본값 사용)
+  setEl('totalAssetKrw', '≈ ' + formatLocalCurrency(total));
+  // 환율 정보 표시 (예: "1 USDT ≈ ₩1,380")
+  const rateInfoEl = document.getElementById('forexRateInfo');
+  if (rateInfoEl) {
+    const rateText = getForexInfoText();
+    rateInfoEl.textContent = rateText ? '📈 ' + rateText : '';
+  }
   setEl('splitUsdt', fmt(usdt) + ' USDT');
   // splitBonus: DDRA 단위로 표시 (이것이 출금 가능한 수량)
   const bonusDdra = bonus / (deedraPrice || 0.5);

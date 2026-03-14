@@ -253,6 +253,54 @@ app.get('/api/price/token', async (c) => {
   return c.json({ success: false, error: 'price not available from any source' }, 404)
 })
 
+// ─── 실시간 환율 API (/api/price/forex) ──────────────────────────────────────
+// ExchangeRate-API 무료 플랜 사용 (API 키 불필요, USD 기준 최신 환율)
+// 지원 통화: KRW(한국), THB(태국), VND(베트남), USD, 기타
+// 응답 캐싱: 1시간 (Cloudflare edge cache)
+let _forexCache: { rates: Record<string, number>; ts: number } | null = null
+
+app.get('/api/price/forex', async (c) => {
+  try {
+    const now = Date.now()
+    // 메모리 캐시 1시간
+    if (_forexCache && now - _forexCache.ts < 3600_000) {
+      return c.json({ success: true, rates: _forexCache.rates, cached: true, updatedAt: _forexCache.ts })
+    }
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000)
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data: any = await res.json()
+    if (data.result !== 'success') throw new Error('API error')
+    const rates: Record<string, number> = {
+      KRW: data.rates.KRW,
+      THB: data.rates.THB,
+      VND: data.rates.VND,
+      USD: 1,
+      CNY: data.rates.CNY,
+      JPY: data.rates.JPY,
+      SGD: data.rates.SGD,
+      MYR: data.rates.MYR,
+      IDR: data.rates.IDR,
+      PHP: data.rates.PHP,
+    }
+    _forexCache = { rates, ts: now }
+    return c.json({ success: true, rates, cached: false, updatedAt: now })
+  } catch (e: any) {
+    // 캐시가 있으면 만료돼도 반환
+    if (_forexCache) {
+      return c.json({ success: true, rates: _forexCache.rates, cached: true, updatedAt: _forexCache.ts })
+    }
+    // 폴백: 하드코딩된 기본값 반환
+    return c.json({
+      success: true,
+      rates: { KRW: 1380, THB: 34, VND: 26000, USD: 1, CNY: 7.2, JPY: 155, SGD: 1.35, MYR: 4.7, IDR: 16300, PHP: 58 },
+      cached: false, fallback: true, updatedAt: Date.now()
+    })
+  }
+})
+
 
 // ─── Main App (SPA) ───────────────────────────────────────────────────────────
 const HTML = () => `<!DOCTYPE html>
@@ -429,6 +477,7 @@ const HTML = () => `<!DOCTYPE html>
             </div>
             <div class="asset-total-amount" id="totalAsset">0.00 USDT</div>
             <div class="asset-total-sub" id="totalAssetKrw">≈ ₩0</div>
+            <div id="forexRateInfo" style="font-size:10px;color:rgba(255,255,255,0.45);margin-top:2px;"></div>
 
             <!-- 원금 / 수익(출금가능DDRA) 2분할 -->
             <div class="asset-split-row">
