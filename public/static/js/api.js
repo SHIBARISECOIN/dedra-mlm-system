@@ -1940,16 +1940,16 @@ export class DedraAPI {
         reCheckIntervalDays: 0,       // 0 = 수동 실행만, N > 0 = N일마다 자동 재검사
         countOnlyDirectReferrals: false, // true = 직접 추천(1대)만 인원 카운트
         criteria: {
-          G1:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 3    },
-          G2:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 10   },
-          G3:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 20   },
-          G4:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 40   },
-          G5:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 80   },
-          G6:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 150  },
-          G7:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 300  },
-          G8:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 600  },
-          G9:  { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 1200 },
-          G10: { minSelfInvest: 0,    minNetworkSales: 0,     minNetworkMembers: 2000 },
+          G1:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 3    },
+          G2:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 10   },
+          G3:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 20   },
+          G4:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 40   },
+          G5:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 80   },
+          G6:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 150  },
+          G7:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 300  },
+          G8:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 600  },
+          G9:  { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 1200 },
+          G10: { minSelfInvest: 0,    minNetworkSales: 0,     minBalancedVolume: 0,  minNetworkMembers: 2000 },
         }
       };
       return ok(defaults);

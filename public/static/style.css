@@ -3018,3 +3018,50 @@ body {
   animation: earningPulse 2s ease-in-out infinite;
 }
 
+
+/* ===== 오늘 수익 미니 (왼쪽 DDRA 패널 하단) ===== */
+.today-earn-mini {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.today-earn-mini.hidden { display: none; }
+.today-earn-mini-label {
+  font-size: 9px; color: rgba(255,255,255,0.45); margin-bottom: 2px;
+}
+.today-earn-mini-amount {
+  font-size: 16px; font-weight: 900; color: #4ade80;
+  animation: earningPulse 2s ease-in-out infinite;
+}
+
+/* ===== EARN 아이템 얇게 (4개 표시용) ===== */
+.earn-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(74,222,128,0.15);
+  border-radius: 7px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.earn-item.purchased {
+  border-color: rgba(16,185,129,0.5);
+  background: rgba(16,185,129,0.12);
+}
+.earn-item.purchased::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: #10b981;
+}
+.earn-item:active { background: rgba(74,222,128,0.1); }
+
+/* earn-item 내부 수익금 블링크 */
+.earn-roi-blink {
+  animation: earningPulse 2s ease-in-out infinite;
+  color: #4ade80 !important;
+}
+

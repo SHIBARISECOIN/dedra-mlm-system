@@ -508,13 +508,7 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- 오늘 수익 플래시 배너 -->
-          <div id="todayProfitBanner" class="today-profit-banner hidden">
-            <span class="profit-plus-icon">💰</span>
-            <span id="todayProfitBannerText" class="profit-banner-text">+$0.00 오늘 수익 발생!</span>
-          </div>
-
-          <!-- 홈 분할 패널: 왼쪽 DDRA 시세 / 오른쪽 데일리 수익 요약 -->
+          <!-- 홈 분할 패널: 왼쪽 DDRA 시세 / 오른쪽 EARN 상품 목록 -->
           <div class="home-split-panel">
             <!-- 왼쪽: DDRA 현재 시세 -->
             <div class="split-left">
@@ -522,38 +516,24 @@ const HTML = () => `<!DOCTYPE html>
               <div class="split-price" id="deedraPrice">$0.50</div>
               <div class="split-price-sub" id="deedraChange">1 DDRA = $0.5000</div>
               <div class="split-price-updated" id="deedraUpdated"></div>
+              <!-- 오늘 수익 (투자 있을 때만 표시) -->
+              <div id="todayEarnMini" class="today-earn-mini hidden">
+                <div class="today-earn-mini-label">오늘 수익</div>
+                <div id="homeTodayEarn" class="today-earn-mini-amount">+$0.00</div>
+              </div>
             </div>
-            <!-- 오른쪽: 데일리 수익 요약 -->
-            <div class="split-right split-right-earn">
+            <!-- 오른쪽: EARN 상품 (4개, 얇게) -->
+            <div class="split-right">
               <div class="split-earn-header">
-                <span class="split-earn-title">TODAY</span>
+                <span class="split-earn-title">EARN</span>
                 <button class="split-earn-more" onclick="switchPage('invest')" data-i18n="earnSeeAll">전체보기 ›</button>
               </div>
-              <!-- 오늘 수익 표시 (활성 투자 있을 때) -->
-              <div id="todayEarnSummary" class="today-earn-summary">
-                <div class="today-earn-amount-wrap">
-                  <span class="today-earn-plus">+</span>
-                  <span id="homeTodayEarn" class="today-earn-amount">$0.00</span>
-                </div>
-                <div class="today-earn-label">오늘 수익</div>
-                <div id="homeTodayEarnDdra" class="today-earn-ddra">≈ 0.00 DDRA</div>
-              </div>
-              <!-- EARN 상품 리스트 -->
               <div id="homeEarnList" class="home-earn-list">
                 <div class="earn-skeleton"></div>
                 <div class="earn-skeleton"></div>
+                <div class="earn-skeleton"></div>
+                <div class="earn-skeleton"></div>
               </div>
-            </div>
-          </div>
-
-          <!-- 내 투자 현황 홈 카드 (구매한 상품 표시) -->
-          <div id="homeInvestCards" class="home-invest-cards hidden">
-            <div class="home-invest-header">
-              <span class="home-invest-title">❄️ 내 FREEZE 현황</span>
-              <button class="see-all-btn" onclick="switchPage('invest')" data-i18n="seeAll">전체보기</button>
-            </div>
-            <div id="homeInvestCardList" class="home-invest-card-list">
-              <!-- JS로 렌더링 -->
             </div>
           </div>
 

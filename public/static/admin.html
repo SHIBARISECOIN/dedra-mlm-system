@@ -10242,8 +10242,22 @@ const RANK_PROMO_COLORS = {
 async function loadRankPromotionSettings() {
     const r = await api.getRankPromotionSettings();
     if (!r.success) return;
-    currentRankPromoSettings = r.data;
-    renderRankPromoTable(r.data);
+
+    const data = r.data;
+    // criteria의 각 rank에 누락된 필드를 0으로 보완
+    if (data.criteria) {
+        const ranks = ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+        ranks.forEach(rank => {
+            if (!data.criteria[rank]) data.criteria[rank] = {};
+            if (data.criteria[rank].minBalancedVolume == null) data.criteria[rank].minBalancedVolume = 0;
+            if (data.criteria[rank].minSelfInvest    == null) data.criteria[rank].minSelfInvest    = 0;
+            if (data.criteria[rank].minNetworkSales  == null) data.criteria[rank].minNetworkSales  = 0;
+            if (data.criteria[rank].minNetworkMembers== null) data.criteria[rank].minNetworkMembers= 0;
+        });
+    }
+
+    currentRankPromoSettings = data;
+    renderRankPromoTable(data);
 }
 
 function renderRankPromoTable(settings) {
@@ -10345,10 +10359,24 @@ async function saveRankPromotionSettings() {
     const btn = document.getElementById('saveRankPromoBtn');
     const alertEl = document.getElementById('rankPromoAlert');
     if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+    // 디버그: 저장 데이터 확인
+    console.log('[RankPromo] 저장할 데이터:', JSON.stringify(settings.criteria, null, 2));
+
     const r = await api.saveRankPromotionSettings(currentAdmin.uid, settings);
     if (btn) { btn.disabled = false; btn.textContent = '💾 승진조건 저장'; }
     if (r.success) {
         currentRankPromoSettings = settings;
+
+        // 저장 후 즉시 Firestore에서 재로드하여 저장 확인
+        const verify = await api.getRankPromotionSettings();
+        if (verify.success) {
+            console.log('[RankPromo] 저장 검증 - 로드된 데이터:', JSON.stringify(verify.data?.criteria, null, 2));
+            // 검증된 데이터로 UI 재렌더링 (현재 화면 값 유지)
+            // currentRankPromoSettings를 검증된 값으로 업데이트
+            currentRankPromoSettings = verify.data;
+        }
+
         alertEl.innerHTML = '<div class="inline-alert success">✅ 직급 승진 조건이 저장되었습니다.</div>';
         setTimeout(() => { alertEl.innerHTML = ''; }, 3000);
         // 직급 모니터 탭도 갱신

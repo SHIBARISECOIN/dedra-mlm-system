@@ -2409,13 +2409,7 @@ async function loadHomeEarn() {
   }
 }
 
-// 이미지 색상 팔레트 (상품 순서별)
-const EARN_PROD_COLORS = [
-  'linear-gradient(135deg,#1e3a5f,#0d4f3c)',
-  'linear-gradient(135deg,#2d1b69,#1a3a5f)',
-  'linear-gradient(135deg,#4a1942,#1a3a5f)',
-  'linear-gradient(135deg,#3b1a00,#1a3a28)',
-];
+// 상품 아이콘 (상품 순서별)
 const EARN_PROD_ICONS = ['❄️','💎','👑','🔥'];
 
 function renderHomeEarn(products, myInvestments) {
@@ -2426,50 +2420,56 @@ function renderHomeEarn(products, myInvestments) {
     return;
   }
 
-  // 내 활성 투자 상품 ID 세트
+  // 내 활성 투자 상품 ID/이름 세트
   const myProductIds = new Set((myInvestments || []).map(inv => inv.productId || inv.productName));
+  // 구매한 투자의 데일리 수익 맵 (productName → dailyEarn)
+  const myDailyEarnMap = {};
+  (myInvestments || []).forEach(inv => {
+    const roi = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
+    const earn = (inv.amount || 0) * roi;
+    const key = inv.productId || inv.productName;
+    myDailyEarnMap[key] = (myDailyEarnMap[key] || 0) + earn;
+  });
 
-  // 최대 4개 그리드 표시
+  // 최대 4개 리스트 표시 (얇게)
   const show = products.slice(0, 4);
-  listEl.innerHTML = `<div class="earn-products-grid">` + show.map((p, i) => {
+  listEl.innerHTML = show.map((p, i) => {
     const roi = p.roiPercent != null ? p.roiPercent : (p.dailyRoi != null ? p.dailyRoi : 0);
     const days = p.durationDays != null ? p.durationDays : (p.duration != null ? p.duration : '-');
     const isPurchased = myProductIds.has(p.id) || myProductIds.has(p.name);
-    const imgBg = EARN_PROD_COLORS[i % EARN_PROD_COLORS.length];
     const icon = EARN_PROD_ICONS[i % EARN_PROD_ICONS.length];
-    // 데일리 수익 (최소 금액 기준)
-    const dailyMin = (p.minAmount || 0) * roi / 100;
+
+    // 구매한 상품이면 실제 수익금 표시, 아니면 최소 금액 기준 예시
+    const dailyEarn = isPurchased
+      ? (myDailyEarnMap[p.id] || myDailyEarnMap[p.name] || 0)
+      : (p.minAmount || 0) * roi / 100;
 
     return `
-    <div class="earn-prod-card${isPurchased ? ' active-purchase' : ''}" onclick="switchPage('invest')">
-      ${isPurchased ? '<div class="earn-prod-active-dot"></div>' : ''}
-      ${p.imageUrl
-        ? `<img src="${p.imageUrl}" alt="${p.name}" class="earn-prod-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-        : ''}
-      <div class="earn-prod-img-placeholder" style="background:${imgBg};${p.imageUrl?'display:none;':''}">
-        <span style="font-size:26px;">${icon}</span>
+    <div class="earn-item${isPurchased ? ' purchased' : ''}" onclick="switchPage('invest')">
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+        <span style="font-size:14px;flex-shrink:0;">${icon}</span>
+        <div style="min-width:0;">
+          <div class="earn-item-name">${p.name || '-'}</div>
+          <div class="earn-item-period">${days}일</div>
+        </div>
       </div>
-      <div class="earn-prod-name">${p.name || '-'}</div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;">
-        <div>
-          <div class="earn-prod-roi">${roi.toFixed(1)}%</div>
-          <div class="earn-prod-roi-label">/일</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:9px;color:rgba(255,255,255,0.4);">${days}일</div>
-          ${dailyMin > 0 ? `<div style="font-size:9px;color:#4ade80;">+$${fmt(dailyMin)}/일</div>` : ''}
-        </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div class="earn-item-roi">${roi.toFixed(1)}%</div>
+        ${isPurchased && dailyEarn > 0
+          ? `<div class="earn-item-roi-label earn-roi-blink">+$${fmt(dailyEarn)}/일</div>`
+          : `<div class="earn-item-roi-label">${t('dailyRoi')}</div>`
+        }
       </div>
     </div>`;
-  }).join('') + `</div>`;
+  }).join('');
 }
 
-// ===== 오늘 수익 요약 업데이트 =====
+// ===== 오늘 수익 업데이트 =====
 function updateTodayEarnSummary(myInvestments) {
   if (!myInvestments || !myInvestments.length) {
-    // 투자 없으면 TODAY 패널 숨기고 기본 EARN 표시
-    const summaryEl = document.getElementById('todayEarnSummary');
-    if (summaryEl) summaryEl.style.display = 'none';
+    // 투자 없으면 오늘 수익 미니 숨김
+    const miniEl = document.getElementById('todayEarnMini');
+    if (miniEl) miniEl.classList.add('hidden');
     return;
   }
 
@@ -2480,29 +2480,17 @@ function updateTodayEarnSummary(myInvestments) {
     totalDailyEarn += (inv.amount || 0) * roi;
   });
 
-  const p = deedraPrice || 0.5;
-  const ddraEarn = totalDailyEarn / p;
-
-  const summaryEl = document.getElementById('todayEarnSummary');
-  if (summaryEl) summaryEl.style.display = 'block';
-
-  const el = document.getElementById('homeTodayEarn');
-  if (el) el.textContent = '$' + fmt(totalDailyEarn);
-  const ddraEl = document.getElementById('homeTodayEarnDdra');
-  if (ddraEl) ddraEl.textContent = '≈ ' + fmt(ddraEarn) + ' DDRA';
-
-  // 오늘 수익 배너
   if (totalDailyEarn > 0) {
-    const banner = document.getElementById('todayProfitBanner');
-    const bannerText = document.getElementById('todayProfitBannerText');
-    if (banner && bannerText) {
-      bannerText.textContent = '+$' + fmt(totalDailyEarn) + ' 오늘 수익 발생!';
-      banner.classList.remove('hidden');
-    }
+    // 왼쪽 패널 하단에 오늘 수익 표시
+    const miniEl = document.getElementById('todayEarnMini');
+    if (miniEl) miniEl.classList.remove('hidden');
+    const el = document.getElementById('homeTodayEarn');
+    if (el) el.textContent = '+$' + fmt(totalDailyEarn);
+
     // 플로팅 알림 (처음 로드 시)
     if (!window._profitPopShown) {
       window._profitPopShown = true;
-      showFloatingProfitPop('+$' + fmt(totalDailyEarn));
+      showFloatingProfitPop('+$' + fmt(totalDailyEarn) + ' 오늘 수익!');
     }
   }
 }
