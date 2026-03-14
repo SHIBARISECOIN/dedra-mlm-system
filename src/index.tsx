@@ -558,9 +558,8 @@ const HTML = () => `<!DOCTYPE html>
                 <button class="see-all-btn" onclick="loadNewsFeed(true)" id="newsRefreshBtn">새로고침</button>
               </div>
               <div id="newsFeedList" class="news-feed-list">
-                <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
-                <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
-                <div class="skeleton-item" style="height:52px;"></div>
+                <div class="skeleton-item" style="height:22px;margin-bottom:4px;"></div>
+                <div class="skeleton-item" style="height:22px;"></div>
               </div>
             </div>
           </div>
