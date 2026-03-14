@@ -820,19 +820,28 @@ const HTML = () => `<!DOCTYPE html>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body">
-              <div class="gav2-bet-row">
-                <span class="gav2-bet-label">베팅</span>
-                <div class="gav2-bet-val"><span id="oeCurrentBet">10</span> DDRA <small id="oeBetUsdt">≈$5.00</small></div>
-              </div>
-              <div class="bet-slider-wrap">
-                <input type="range" class="bet-slider-v2" id="oeBetSlider" min="1" max="1000" value="10" oninput="updateBetDisplay('oe', this.value)" />
-              </div>
-              <div class="bet-chip-row">
-                <button class="bet-chip" onclick="setBetAmount('oe',10)">10</button>
-                <button class="bet-chip" onclick="setBetAmount('oe',50)">50</button>
-                <button class="bet-chip" onclick="setBetAmount('oe',100)">100</button>
-                <button class="bet-chip" onclick="setBetAmount('oe',500)">500</button>
-                <button class="bet-chip half" onclick="setBetGameHalf('oe')">½ MAX</button>
+              <!-- 베팅 입력 패널 -->
+              <div class="bet-panel">
+                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-input-row">
+                  <button class="bet-adj-btn" onclick="adjustBet('oe',-10)">−10</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('oe',-1)">−1</button>
+                  <div class="bet-input-wrap">
+                    <input type="number" class="bet-number-input" id="oeBetInput" value="10" min="1" step="1"
+                      oninput="updateBetDisplay('oe', this.value)" />
+                    <span class="bet-input-unit">DDRA</span>
+                  </div>
+                  <button class="bet-adj-btn" onclick="adjustBet('oe',1)">+1</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('oe',10)">+10</button>
+                </div>
+                <div class="bet-usdt-eq" id="oeBetUsdt">≈ $5.00 USDT</div>
+                <div class="bet-chip-row">
+                  <button class="bet-chip" onclick="setBetAmount('oe',10)">10</button>
+                  <button class="bet-chip" onclick="setBetAmount('oe',50)">50</button>
+                  <button class="bet-chip" onclick="setBetAmount('oe',100)">100</button>
+                  <button class="bet-chip" onclick="setBetAmount('oe',500)">500</button>
+                  <button class="bet-chip half" onclick="setBetGameHalf('oe')">½ MAX</button>
+                </div>
               </div>
 
               <!-- 코인 애니메이션 -->
@@ -875,16 +884,27 @@ const HTML = () => `<!DOCTYPE html>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body">
-              <div class="gav2-bet-row">
-                <span class="gav2-bet-label">베팅</span>
-                <div class="gav2-bet-val"><span id="diceCurrentBet">10</span> DDRA <small id="diceBetUsdt">≈$5.00</small></div>
-              </div>
-              <div class="bet-chip-row">
-                <button class="bet-chip" onclick="setBetAmount('dice',10)">10</button>
-                <button class="bet-chip" onclick="setBetAmount('dice',50)">50</button>
-                <button class="bet-chip" onclick="setBetAmount('dice',100)">100</button>
-                <button class="bet-chip" onclick="setBetAmount('dice',500)">500</button>
-                <button class="bet-chip half" onclick="setBetGameHalf('dice')">½ MAX</button>
+              <div class="bet-panel">
+                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-input-row">
+                  <button class="bet-adj-btn" onclick="adjustBet('dice',-10)">−10</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('dice',-1)">−1</button>
+                  <div class="bet-input-wrap">
+                    <input type="number" class="bet-number-input" id="diceBetInput" value="10" min="1" step="1"
+                      oninput="updateBetDisplay('dice', this.value)" />
+                    <span class="bet-input-unit">DDRA</span>
+                  </div>
+                  <button class="bet-adj-btn" onclick="adjustBet('dice',1)">+1</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('dice',10)">+10</button>
+                </div>
+                <div class="bet-usdt-eq" id="diceBetUsdt">≈ $5.00 USDT</div>
+                <div class="bet-chip-row">
+                  <button class="bet-chip" onclick="setBetAmount('dice',10)">10</button>
+                  <button class="bet-chip" onclick="setBetAmount('dice',50)">50</button>
+                  <button class="bet-chip" onclick="setBetAmount('dice',100)">100</button>
+                  <button class="bet-chip" onclick="setBetAmount('dice',500)">500</button>
+                  <button class="bet-chip half" onclick="setBetGameHalf('dice')">½ MAX</button>
+                </div>
               </div>
 
               <!-- 3D 주사위 -->
@@ -912,16 +932,27 @@ const HTML = () => `<!DOCTYPE html>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body">
-              <div class="gav2-bet-row">
-                <span class="gav2-bet-label">베팅</span>
-                <div class="gav2-bet-val"><span id="slotCurrentBet">10</span> DDRA <small id="slotBetUsdt">≈$5.00</small></div>
-              </div>
-              <div class="bet-chip-row">
-                <button class="bet-chip" onclick="setBetAmount('slot',10)">10</button>
-                <button class="bet-chip" onclick="setBetAmount('slot',50)">50</button>
-                <button class="bet-chip" onclick="setBetAmount('slot',100)">100</button>
-                <button class="bet-chip" onclick="setBetAmount('slot',500)">500</button>
-                <button class="bet-chip half" onclick="setBetGameHalf('slot')">½ MAX</button>
+              <div class="bet-panel">
+                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-input-row">
+                  <button class="bet-adj-btn" onclick="adjustBet('slot',-10)">−10</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('slot',-1)">−1</button>
+                  <div class="bet-input-wrap">
+                    <input type="number" class="bet-number-input" id="slotBetInput" value="10" min="1" step="1"
+                      oninput="updateBetDisplay('slot', this.value)" />
+                    <span class="bet-input-unit">DDRA</span>
+                  </div>
+                  <button class="bet-adj-btn" onclick="adjustBet('slot',1)">+1</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('slot',10)">+10</button>
+                </div>
+                <div class="bet-usdt-eq" id="slotBetUsdt">≈ $5.00 USDT</div>
+                <div class="bet-chip-row">
+                  <button class="bet-chip" onclick="setBetAmount('slot',10)">10</button>
+                  <button class="bet-chip" onclick="setBetAmount('slot',50)">50</button>
+                  <button class="bet-chip" onclick="setBetAmount('slot',100)">100</button>
+                  <button class="bet-chip" onclick="setBetAmount('slot',500)">500</button>
+                  <button class="bet-chip half" onclick="setBetGameHalf('slot')">½ MAX</button>
+                </div>
               </div>
 
               <!-- 슬롯 머신 -->
@@ -973,16 +1004,27 @@ const HTML = () => `<!DOCTYPE html>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body roulette-body-v2">
-              <div class="gav2-bet-row">
-                <span class="gav2-bet-label">베팅</span>
-                <div class="gav2-bet-val"><span id="rlCurrentBet">10</span> DDRA <small id="rlBetUsdt">≈$5.00</small></div>
-              </div>
-              <div class="bet-chip-row">
-                <button class="bet-chip" onclick="setBetAmount('rl',10)">10</button>
-                <button class="bet-chip" onclick="setBetAmount('rl',50)">50</button>
-                <button class="bet-chip" onclick="setBetAmount('rl',100)">100</button>
-                <button class="bet-chip" onclick="setBetAmount('rl',500)">500</button>
-                <button class="bet-chip half" onclick="setBetGameHalf('rl')">½ MAX</button>
+              <div class="bet-panel">
+                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-input-row">
+                  <button class="bet-adj-btn" onclick="adjustBet('rl',-10)">−10</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('rl',-1)">−1</button>
+                  <div class="bet-input-wrap">
+                    <input type="number" class="bet-number-input" id="rlBetInput" value="10" min="1" step="1"
+                      oninput="updateBetDisplay('rl', this.value)" />
+                    <span class="bet-input-unit">DDRA</span>
+                  </div>
+                  <button class="bet-adj-btn" onclick="adjustBet('rl',1)">+1</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('rl',10)">+10</button>
+                </div>
+                <div class="bet-usdt-eq" id="rlBetUsdt">≈ $5.00 USDT</div>
+                <div class="bet-chip-row">
+                  <button class="bet-chip" onclick="setBetAmount('rl',10)">10</button>
+                  <button class="bet-chip" onclick="setBetAmount('rl',50)">50</button>
+                  <button class="bet-chip" onclick="setBetAmount('rl',100)">100</button>
+                  <button class="bet-chip" onclick="setBetAmount('rl',500)">500</button>
+                  <button class="bet-chip half" onclick="setBetGameHalf('rl')">½ MAX</button>
+                </div>
               </div>
 
               <!-- 룰렛 휠 -->
@@ -1051,16 +1093,27 @@ const HTML = () => `<!DOCTYPE html>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body">
-              <div class="gav2-bet-row">
-                <span class="gav2-bet-label">베팅</span>
-                <div class="gav2-bet-val"><span id="bacCurrentBet">10</span> DDRA <small id="bacBetUsdt">≈$5.00</small></div>
-              </div>
-              <div class="bet-chip-row">
-                <button class="bet-chip" onclick="setBetAmount('bac',10)">10</button>
-                <button class="bet-chip" onclick="setBetAmount('bac',50)">50</button>
-                <button class="bet-chip" onclick="setBetAmount('bac',100)">100</button>
-                <button class="bet-chip" onclick="setBetAmount('bac',500)">500</button>
-                <button class="bet-chip half" onclick="setBetGameHalf('bac')">½ MAX</button>
+              <div class="bet-panel">
+                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-input-row">
+                  <button class="bet-adj-btn" onclick="adjustBet('bac',-10)">−10</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('bac',-1)">−1</button>
+                  <div class="bet-input-wrap">
+                    <input type="number" class="bet-number-input" id="bacBetInput" value="10" min="1" step="1"
+                      oninput="updateBetDisplay('bac', this.value)" />
+                    <span class="bet-input-unit">DDRA</span>
+                  </div>
+                  <button class="bet-adj-btn" onclick="adjustBet('bac',1)">+1</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('bac',10)">+10</button>
+                </div>
+                <div class="bet-usdt-eq" id="bacBetUsdt">≈ $5.00 USDT</div>
+                <div class="bet-chip-row">
+                  <button class="bet-chip" onclick="setBetAmount('bac',10)">10</button>
+                  <button class="bet-chip" onclick="setBetAmount('bac',50)">50</button>
+                  <button class="bet-chip" onclick="setBetAmount('bac',100)">100</button>
+                  <button class="bet-chip" onclick="setBetAmount('bac',500)">500</button>
+                  <button class="bet-chip half" onclick="setBetGameHalf('bac')">½ MAX</button>
+                </div>
               </div>
 
               <!-- 바카라 그린 테이블 -->
@@ -1111,16 +1164,27 @@ const HTML = () => `<!DOCTYPE html>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body">
-              <div class="gav2-bet-row">
-                <span class="gav2-bet-label">앤티 베팅</span>
-                <div class="gav2-bet-val"><span id="pkCurrentBet">10</span> DDRA <small id="pkBetUsdt">≈$5.00</small></div>
-              </div>
-              <div class="bet-chip-row">
-                <button class="bet-chip" onclick="setBetAmount('pk',10)">10</button>
-                <button class="bet-chip" onclick="setBetAmount('pk',50)">50</button>
-                <button class="bet-chip" onclick="setBetAmount('pk',100)">100</button>
-                <button class="bet-chip" onclick="setBetAmount('pk',500)">500</button>
-                <button class="bet-chip half" onclick="setBetGameHalf('pk')">½ MAX</button>
+              <div class="bet-panel">
+                <div class="bet-panel-label">앤티 베팅 금액</div>
+                <div class="bet-input-row">
+                  <button class="bet-adj-btn" onclick="adjustBet('pk',-10)">−10</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('pk',-1)">−1</button>
+                  <div class="bet-input-wrap">
+                    <input type="number" class="bet-number-input" id="pkBetInput" value="10" min="1" step="1"
+                      oninput="updateBetDisplay('pk', this.value)" />
+                    <span class="bet-input-unit">DDRA</span>
+                  </div>
+                  <button class="bet-adj-btn" onclick="adjustBet('pk',1)">+1</button>
+                  <button class="bet-adj-btn" onclick="adjustBet('pk',10)">+10</button>
+                </div>
+                <div class="bet-usdt-eq" id="pkBetUsdt">≈ $5.00 USDT</div>
+                <div class="bet-chip-row">
+                  <button class="bet-chip" onclick="setBetAmount('pk',10)">10</button>
+                  <button class="bet-chip" onclick="setBetAmount('pk',50)">50</button>
+                  <button class="bet-chip" onclick="setBetAmount('pk',100)">100</button>
+                  <button class="bet-chip" onclick="setBetAmount('pk',500)">500</button>
+                  <button class="bet-chip half" onclick="setBetGameHalf('pk')">½ MAX</button>
+                </div>
               </div>
 
               <!-- 포커 테이블 -->

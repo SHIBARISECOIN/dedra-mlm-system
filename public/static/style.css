@@ -3065,3 +3065,567 @@ body {
   color: #4ade80 !important;
 }
 
+
+/* ========================================================
+   카지노 베팅 패널 - 숫자 직접 입력 방식 (새 디자인)
+   ======================================================== */
+.bet-panel {
+  background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.95));
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.bet-panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.bet-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.bet-adj-btn {
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.35);
+  color: #f59e0b;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 38px;
+  text-align: center;
+  user-select: none;
+}
+.bet-adj-btn:hover { background: rgba(245,158,11,0.25); transform: scale(1.05); }
+.bet-adj-btn:active { transform: scale(0.95); background: rgba(245,158,11,0.35); }
+.bet-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(0,0,0,0.4);
+  border: 2px solid rgba(245,158,11,0.5);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.bet-input-wrap:focus-within { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); }
+.bet-number-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f59e0b;
+  font-size: 20px;
+  font-weight: 900;
+  text-align: center;
+  padding: 8px 4px;
+  width: 100%;
+  -moz-appearance: textfield;
+  font-family: 'Courier New', monospace;
+}
+.bet-number-input::-webkit-outer-spin-button,
+.bet-number-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.bet-input-unit {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  padding: 0 10px 0 0;
+  white-space: nowrap;
+}
+.bet-usdt-eq {
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+/* ========================================================
+   코인(홀짝) - 프리미엄 3D 효과
+   ======================================================== */
+.coin-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 8px;
+  position: relative;
+}
+.coin-3d {
+  width: 120px; height: 120px;
+  position: relative;
+  transform-style: preserve-3d;
+  cursor: default;
+  filter: drop-shadow(0 8px 24px rgba(245,158,11,0.5));
+  transition: transform 0.3s;
+}
+.coin-3d.flipping {
+  animation: coinFlipPremium 1.0s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes coinFlipPremium {
+  0%   { transform: rotateY(0deg) rotateX(0deg); }
+  20%  { transform: rotateY(180deg) rotateX(15deg) translateY(-20px); }
+  40%  { transform: rotateY(360deg) rotateX(0deg) translateY(-35px); }
+  60%  { transform: rotateY(540deg) rotateX(-10deg) translateY(-20px); }
+  80%  { transform: rotateY(680deg) rotateX(5deg) translateY(-5px); }
+  100% { transform: rotateY(720deg) rotateX(0deg) translateY(0); }
+}
+.coin-side {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  position: absolute;
+  backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.coin-side.heads {
+  background: radial-gradient(circle at 35% 35%, #fde68a, #f59e0b 40%, #b45309 75%, #78350f);
+  box-shadow: inset -4px -4px 12px rgba(0,0,0,0.3), inset 2px 2px 8px rgba(255,255,255,0.4),
+              0 0 30px rgba(245,158,11,0.6);
+  border: 3px solid rgba(253,230,138,0.6);
+}
+.coin-side.tails {
+  background: radial-gradient(circle at 65% 35%, #c4b5fd, #7c3aed 40%, #4c1d95 75%, #2e1065);
+  box-shadow: inset -4px -4px 12px rgba(0,0,0,0.3), inset 2px 2px 8px rgba(255,255,255,0.2),
+              0 0 30px rgba(124,58,237,0.6);
+  border: 3px solid rgba(196,181,253,0.4);
+  transform: rotateY(180deg);
+}
+.coin-face-inner {
+  font-size: 36px; font-weight: 900; color: rgba(255,255,255,0.9);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  letter-spacing: -1px;
+}
+.coin-shadow {
+  width: 100px; height: 20px;
+  background: radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%);
+  border-radius: 50%;
+  margin-top: 8px;
+  animation: shadowPulse 1s ease-in-out infinite alternate;
+}
+@keyframes shadowPulse { from { opacity: 0.6; transform: scaleX(0.9); } to { opacity: 1; transform: scaleX(1.1); } }
+.coin-hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ========================================================
+   주사위 - 프리미엄 CSS 3D
+   ======================================================== */
+.dice-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0 12px;
+  perspective: 600px;
+}
+.dice-3d-v2 {
+  width: 90px; height: 90px;
+  background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.8),
+    0 8px 32px rgba(0,0,0,0.6),
+    inset 0 2px 4px rgba(255,255,255,0.9),
+    inset 0 -2px 4px rgba(0,0,0,0.15),
+    0 0 40px rgba(99,102,241,0.3);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: transform 0.1s;
+}
+.dice-3d-v2.dice-rolling {
+  animation: diceRollPremium 0.9s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes diceRollPremium {
+  0%   { transform: rotateX(0) rotateY(0) rotateZ(0) scale(1); }
+  15%  { transform: rotateX(180deg) rotateY(90deg) rotateZ(45deg) scale(1.1); }
+  30%  { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg) scale(0.95); }
+  50%  { transform: rotateX(540deg) rotateY(270deg) rotateZ(180deg) scale(1.05); }
+  70%  { transform: rotateX(680deg) rotateY(340deg) rotateZ(220deg) scale(1); }
+  85%  { transform: rotateX(700deg) rotateY(355deg) rotateZ(240deg) scale(1.02); }
+  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(270deg) scale(1); }
+}
+.dice-face-v2 {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  grid-template-rows: repeat(3,1fr);
+  gap: 4px;
+  width: 70px; height: 70px;
+  padding: 4px;
+}
+.dice-dot {
+  width: 14px; height: 14px;
+  background: radial-gradient(circle at 35% 35%, #4338ca, #1e1b4b);
+  border-radius: 50%;
+  box-shadow: inset 0 1px 3px rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.4);
+  margin: auto;
+}
+.dice-glow {
+  width: 120px; height: 20px;
+  background: radial-gradient(ellipse, rgba(99,102,241,0.4) 0%, transparent 70%);
+  border-radius: 50%;
+  margin-bottom: -12px;
+  animation: glowPulse 2s ease-in-out infinite;
+}
+@keyframes glowPulse { 0%,100% { opacity: 0.5; transform: scaleX(0.9); } 50% { opacity: 1; transform: scaleX(1.2); } }
+.dice-hint { text-align: center; font-size: 12px; color: #64748b; margin: 10px 0 8px; font-weight: 600; }
+.dice-btn-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 6px; margin: 0 4px 8px; }
+.dice-num-v2 {
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, rgba(30,41,59,0.9), rgba(15,23,42,0.9));
+  border: 1.5px solid rgba(99,102,241,0.4);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 18px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.dice-num-v2:hover:not(:disabled) {
+  background: linear-gradient(145deg, rgba(99,102,241,0.3), rgba(79,70,229,0.3));
+  border-color: #6366f1;
+  color: #a5b4fc;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99,102,241,0.3);
+}
+.dice-num-v2:active:not(:disabled) { transform: translateY(0) scale(0.95); }
+.dice-num-v2:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ========================================================
+   슬롯머신 - 프리미엄 스타일
+   ======================================================== */
+.slot-machine-v2 {
+  background: linear-gradient(160deg, #1a0533, #0f172a);
+  border-radius: 20px;
+  border: 2px solid rgba(168,85,247,0.4);
+  overflow: hidden;
+  margin: 0 0 16px;
+  box-shadow: 0 0 40px rgba(168,85,247,0.15), inset 0 2px 0 rgba(255,255,255,0.05);
+  position: relative;
+}
+.slot-machine-v2::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, #a855f7, #7c3aed, transparent);
+  animation: scanLine 3s ease-in-out infinite;
+}
+@keyframes scanLine { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+.slot-machine-top {
+  background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(124,58,237,0.15));
+  text-align: center;
+  padding: 10px;
+  border-bottom: 1px solid rgba(168,85,247,0.2);
+}
+.slot-brand {
+  font-size: 13px; font-weight: 900; color: #c084fc;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(168,85,247,0.8);
+}
+.slot-screen {
+  display: flex;
+  gap: 4px;
+  padding: 20px 16px;
+  background: rgba(0,0,0,0.5);
+  position: relative;
+}
+.slot-screen::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 70px;
+  background: rgba(168,85,247,0.06);
+  border-top: 1px solid rgba(168,85,247,0.2);
+  border-bottom: 1px solid rgba(168,85,247,0.2);
+  pointer-events: none;
+}
+.slot-reel-v2 {
+  flex: 1;
+  height: 140px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(15,5,30,0.4) 50%, rgba(0,0,0,0.6) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(168,85,247,0.25);
+  position: relative;
+}
+.slot-reel-v2::before, .slot-reel-v2::after {
+  content: '';
+  position: absolute; left: 0; right: 0;
+  height: 40px;
+  z-index: 2; pointer-events: none;
+}
+.slot-reel-v2::before { top: 0; background: linear-gradient(180deg, rgba(10,0,20,0.9), transparent); }
+.slot-reel-v2::after  { bottom: 0; background: linear-gradient(0deg, rgba(10,0,20,0.9), transparent); }
+.slot-symbols-v2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0s;
+}
+.slot-sym-v2 {
+  font-size: 38px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.2));
+  transition: filter 0.3s;
+}
+.slot-reel-v2.spinning .slot-sym-v2 {
+  filter: blur(2px) drop-shadow(0 0 12px rgba(168,85,247,0.6));
+}
+.slot-jackpot-flash {
+  animation: jackpotFlash 0.3s ease-in-out 6;
+}
+@keyframes jackpotFlash {
+  0%,100% { background: rgba(0,0,0,0.5); }
+  50%      { background: rgba(255,215,0,0.15); box-shadow: 0 0 30px rgba(255,215,0,0.4); }
+}
+
+/* ========================================================
+   룰렛 - 프리미엄 업그레이드
+   ======================================================== */
+.roulette-stage { display: flex; flex-direction: column; align-items: center; margin: 8px 0 12px; }
+.roulette-wheel-v2 {
+  position: relative;
+  width: 260px; height: 260px;
+  filter: drop-shadow(0 0 30px rgba(124,58,237,0.35));
+}
+.roulette-wheel-v2 canvas { display: block; border-radius: 50%; }
+.roulette-pointer-v2 {
+  position: absolute; top: -16px; left: 50%;
+  transform: translateX(-50%);
+  color: #fde68a; font-size: 24px;
+  filter: drop-shadow(0 2px 6px rgba(253,230,138,0.8));
+  z-index: 10; animation: pointerBob 1s ease-in-out infinite;
+}
+@keyframes pointerBob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-3px); } }
+.roulette-center-hub {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 40px; height: 40px;
+  background: radial-gradient(circle, #fde68a, #d97706);
+  border-radius: 50%;
+  border: 3px solid #92400e;
+  box-shadow: 0 0 15px rgba(253,230,138,0.8), inset 0 2px 4px rgba(255,255,255,0.4);
+  z-index: 20;
+}
+
+/* ========================================================
+   바카라 - 고급 그린 펠트 테이블
+   ======================================================== */
+.bac-felt-table {
+  background: linear-gradient(145deg, #064e3b, #065f46, #047857);
+  border-radius: 20px;
+  border: 2px solid rgba(5,150,105,0.4);
+  padding: 16px 12px;
+  margin: 12px 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+  display: flex; gap: 8px;
+}
+.bac-felt-table::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    45deg, transparent, transparent 10px,
+    rgba(255,255,255,0.01) 10px, rgba(255,255,255,0.01) 11px
+  );
+  pointer-events: none;
+}
+.bac-felt-table::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 60px rgba(0,0,0,0.35);
+  pointer-events: none;
+}
+.bac-felt-side { flex: 1; text-align: center; position: relative; z-index: 1; }
+.bac-felt-label { font-size: 11px; font-weight: 700; color: rgba(167,243,208,0.8); letter-spacing: 0.08em; margin-bottom: 8px; }
+.bac-felt-cards {
+  display: flex; gap: 4px; justify-content: center; min-height: 72px;
+  align-items: center;
+}
+.bac-felt-score {
+  font-size: 22px; font-weight: 900; color: #fde68a;
+  text-shadow: 0 0 10px rgba(253,230,138,0.6);
+  margin: 6px 0 4px;
+}
+.bac-felt-odds { font-size: 11px; color: rgba(167,243,208,0.6); font-weight: 600; }
+.bac-felt-center {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; padding: 0 4px; z-index: 1;
+}
+.bac-felt-vs {
+  font-size: 16px; font-weight: 900; color: rgba(255,255,255,0.5);
+  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+.bac-tie-box {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(167,243,208,0.3);
+  border-radius: 8px;
+  padding: 6px 8px; text-align: center;
+}
+.bac-tie-txt { font-size: 11px; color: #6ee7b7; font-weight: 700; }
+.bac-tie-odd { font-size: 13px; font-weight: 900; color: #fde68a; }
+
+/* 카드 스타일 - 프리미엄 */
+.card-v2 {
+  width: 38px; height: 58px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 1px 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 900;
+  position: relative; overflow: hidden;
+  animation: cardDeal 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  transform-origin: top center;
+}
+@keyframes cardDeal {
+  from { transform: translateY(-20px) rotateX(60deg) scale(0.7); opacity: 0; }
+  to   { transform: translateY(0) rotateX(0) scale(1); opacity: 1; }
+}
+.card-v2.red { color: #dc2626; }
+.card-v2.black { color: #1e293b; }
+.card-v2::before {
+  content: attr(data-val);
+  position: absolute; top: 3px; left: 5px;
+  font-size: 10px; font-weight: 900; line-height: 1;
+}
+.card-back {
+  width: 38px; height: 58px;
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  border-radius: 6px;
+  border: 1px solid rgba(99,102,241,0.4);
+  box-shadow: 1px 2px 8px rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  position: relative; overflow: hidden;
+}
+.card-back::after {
+  content: '';
+  position: absolute; inset: 3px;
+  border: 1px solid rgba(99,102,241,0.5);
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    45deg, transparent, transparent 4px,
+    rgba(99,102,241,0.1) 4px, rgba(99,102,241,0.1) 5px
+  );
+}
+
+/* ========================================================
+   포커 - 프리미엄 테이블
+   ======================================================== */
+.poker-table-v2 {
+  background: linear-gradient(160deg, #1c3a2a, #14532d, #166534);
+  border-radius: 20px;
+  border: 2px solid rgba(74,222,128,0.2);
+  padding: 14px;
+  margin: 12px 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative; overflow: hidden;
+}
+.poker-table-v2::before {
+  content: '';
+  position: absolute; inset: 0; border-radius: 18px;
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.4);
+  pointer-events: none;
+}
+
+/* ========================================================
+   게임 결과 - 승/패 고급 표시
+   ======================================================== */
+.game-result-v2 {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 12px;
+  animation: resultSlideIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes resultSlideIn {
+  from { transform: translateY(10px) scale(0.95); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+.game-result-v2.win {
+  background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.15));
+  border: 1px solid rgba(16,185,129,0.5);
+  color: #6ee7b7;
+  box-shadow: 0 0 20px rgba(16,185,129,0.15);
+}
+.game-result-v2.lose {
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(185,28,28,0.1));
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #fca5a5;
+}
+
+/* ========================================================
+   게임 카드 그리드 - 새 스타일
+   ======================================================== */
+.gcv2-card {
+  background: linear-gradient(145deg, rgba(15,23,42,0.95), rgba(30,41,59,0.9));
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 16px;
+  padding: 14px 10px 12px;
+  text-align: center; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  position: relative; overflow: hidden;
+}
+.gcv2-card:hover {
+  border-color: rgba(99,102,241,0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(99,102,241,0.2);
+}
+.gcv2-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+.gcv2-icon-wrap {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 8px;
+  position: relative;
+}
+.gcv2-icon-wrap::after {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.1) 180deg, transparent 360deg);
+  animation: iconSpin 8s linear infinite;
+}
+@keyframes iconSpin { to { transform: rotate(360deg); } }
+.gcv2-badge {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 9px; font-weight: 800;
+  padding: 2px 7px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.badge-live  { background: #dc2626; color: #fff; animation: livePulse 1.5s ease-in-out infinite; }
+.badge-hot   { background: linear-gradient(90deg,#f97316,#ea580c); color: #fff; }
+.badge-jackpot { background: linear-gradient(90deg,#fbbf24,#f59e0b); color: #1c1917; }
+.badge-new   { background: linear-gradient(90deg,#10b981,#059669); color: #fff; }
+@keyframes livePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); } 50% { box-shadow: 0 0 0 4px rgba(220,38,38,0); } }
+.gcv2-name { font-size: 14px; font-weight: 800; color: #e2e8f0; margin-bottom: 4px; }
+.gcv2-sub  { font-size: 10px; color: #64748b; margin-bottom: 4px; }
+.gcv2-rtp  { font-size: 11px; font-weight: 700; color: #4ade80; }

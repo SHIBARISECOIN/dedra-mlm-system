@@ -6,91 +6,227 @@
 // ===== 사운드 엔진 (Web Audio API) =====
 const SFX = (() => {
   let ctx = null;
-  const init = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); };
+  const init = () => {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  };
+
+  // 헬퍼: 리버브(간단한 콘볼루션 시뮬레이션)
+  const addReverb = (source, wet = 0.3) => {
+    try {
+      const convolver = ctx.createConvolver();
+      const len = ctx.sampleRate * 0.3;
+      const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = buf.getChannelData(ch);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+      }
+      convolver.buffer = buf;
+      const dryG = ctx.createGain(); dryG.gain.value = 1 - wet;
+      const wetG = ctx.createGain(); wetG.gain.value = wet;
+      source.connect(dryG); dryG.connect(ctx.destination);
+      source.connect(convolver); convolver.connect(wetG); wetG.connect(ctx.destination);
+      return dryG;
+    } catch(e) { source.connect(ctx.destination); return source; }
+  };
 
   const play = (type) => {
     try {
       init();
       if (ctx.state === 'suspended') ctx.resume();
       const t = ctx.currentTime;
+
       switch(type) {
         case 'click': {
+          // 깔끔한 UI 틱 음
           const o = ctx.createOscillator(); const g = ctx.createGain();
           o.connect(g); g.connect(ctx.destination);
-          o.frequency.setValueAtTime(800, t); o.frequency.exponentialRampToValueAtTime(400, t+0.1);
-          g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
-          o.start(t); o.stop(t+0.1); break;
+          o.type = 'sine';
+          o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(600, t+0.06);
+          g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.06);
+          o.start(t); o.stop(t+0.06); break;
         }
+
         case 'coin': {
-          [0,0.05,0.1,0.15,0.2].forEach((d,i) => {
+          // 코인 투척 + 회전 + 착지 사운드 (3레이어)
+          // 레이어1: 금속 타격
+          [0, 0.04, 0.08].forEach((d, i) => {
             const o = ctx.createOscillator(); const g = ctx.createGain();
             o.connect(g); g.connect(ctx.destination);
-            o.type = 'sine'; o.frequency.setValueAtTime(1200+i*200, t+d);
-            g.gain.setValueAtTime(0.2, t+d); g.gain.exponentialRampToValueAtTime(0.001, t+d+0.15);
-            o.start(t+d); o.stop(t+d+0.15);
-          }); break;
+            o.type = 'sine';
+            o.frequency.setValueAtTime(2000 - i * 300, t + d);
+            o.frequency.exponentialRampToValueAtTime(400, t + d + 0.12);
+            g.gain.setValueAtTime(0.22, t + d); g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.18);
+            o.start(t + d); o.stop(t + d + 0.18);
+          });
+          // 레이어2: 공기 흐름 (화이트 노이즈 버스트)
+          const bufN = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+          const dN = bufN.getChannelData(0);
+          for (let i = 0; i < dN.length; i++) dN[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/dN.length, 3) * 0.06;
+          const srcN = ctx.createBufferSource(); srcN.buffer = bufN;
+          const fN = ctx.createBiquadFilter(); fN.type = 'bandpass'; fN.frequency.value = 3000; fN.Q.value = 0.5;
+          srcN.connect(fN); fN.connect(ctx.destination);
+          srcN.start(t); srcN.stop(t + 0.5);
+          // 레이어3: 착지 저음
+          const oL = ctx.createOscillator(); const gL = ctx.createGain();
+          oL.type = 'sine'; oL.frequency.setValueAtTime(80, t + 0.6);
+          gL.gain.setValueAtTime(0.15, t + 0.6); gL.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+          oL.connect(gL); gL.connect(ctx.destination);
+          oL.start(t + 0.6); oL.stop(t + 0.85);
+          break;
         }
+
         case 'dice_roll': {
-          for(let i=0;i<6;i++){
-            const b = ctx.createOscillator(); const bg = ctx.createGain();
-            b.connect(bg); bg.connect(ctx.destination);
-            b.type = 'square'; b.frequency.setValueAtTime(200+Math.random()*100, t+i*0.07);
-            bg.gain.setValueAtTime(0.08, t+i*0.07); bg.gain.exponentialRampToValueAtTime(0.001, t+i*0.07+0.06);
-            b.start(t+i*0.07); b.stop(t+i*0.07+0.06);
-          } break;
+          // 주사위 굴리기: 나무 타격 × 6 + 슬라이딩 노이즈
+          for (let i = 0; i < 8; i++) {
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.type = 'square';
+            o.frequency.setValueAtTime(150 + Math.random() * 80, t + i * 0.06);
+            g.gain.setValueAtTime(0.12 - i * 0.01, t + i * 0.06);
+            g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.05);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(t + i * 0.06); o.stop(t + i * 0.06 + 0.05);
+          }
+          // 슬라이딩 노이즈
+          const bufD = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate);
+          const dD = bufD.getChannelData(0);
+          for (let i = 0; i < dD.length; i++) dD[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/dD.length, 1.5) * 0.04;
+          const srcD = ctx.createBufferSource(); srcD.buffer = bufD;
+          const fD = ctx.createBiquadFilter(); fD.type = 'highpass'; fD.frequency.value = 800;
+          srcD.connect(fD); fD.connect(ctx.destination);
+          srcD.start(t); srcD.stop(t + 0.6);
+          break;
         }
+
         case 'slot_spin': {
-          const o = ctx.createOscillator(); const g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = 'sawtooth'; o.frequency.setValueAtTime(150,t); o.frequency.linearRampToValueAtTime(80,t+0.8);
-          g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.8);
-          o.start(t); o.stop(t+0.8); break;
+          // 슬롯 스핀: 모터 윙윙 + 릴 클릭
+          const oS = ctx.createOscillator(); const gS = ctx.createGain();
+          oS.type = 'sawtooth';
+          oS.frequency.setValueAtTime(120, t); oS.frequency.linearRampToValueAtTime(60, t + 1.2);
+          gS.gain.setValueAtTime(0.08, t); gS.gain.linearRampToValueAtTime(0.12, t + 0.3);
+          gS.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+          oS.connect(gS); gS.connect(ctx.destination);
+          oS.start(t); oS.stop(t + 1.2);
+          // 릴 클릭 시퀀스
+          for (let i = 0; i < 12; i++) {
+            const oc = ctx.createOscillator(); const gc = ctx.createGain();
+            oc.type = 'square'; oc.frequency.value = 400 + Math.random() * 200;
+            gc.gain.setValueAtTime(0.06, t + i * 0.08); gc.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.04);
+            oc.connect(gc); gc.connect(ctx.destination);
+            oc.start(t + i * 0.08); oc.stop(t + i * 0.08 + 0.04);
+          }
+          break;
         }
+
         case 'card_deal': {
-          const o = ctx.createOscillator(); const g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = 'sine'; o.frequency.setValueAtTime(600,t);
-          g.gain.setValueAtTime(0.1,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
-          o.start(t); o.stop(t+0.08); break;
+          // 카드 슬라이딩 사운드 (사각사각)
+          const bufC = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+          const dC = bufC.getChannelData(0);
+          for (let i = 0; i < dC.length; i++) dC[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/dC.length, 2) * 0.15;
+          const srcC = ctx.createBufferSource(); srcC.buffer = bufC;
+          const fC = ctx.createBiquadFilter(); fC.type = 'bandpass'; fC.frequency.value = 2500; fC.Q.value = 1.5;
+          srcC.connect(fC); fC.connect(ctx.destination);
+          srcC.start(t); srcC.stop(t + 0.12);
+          // 착지 틱
+          const oT = ctx.createOscillator(); const gT = ctx.createGain();
+          oT.type = 'sine'; oT.frequency.setValueAtTime(800, t + 0.09);
+          gT.gain.setValueAtTime(0.08, t + 0.09); gT.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+          oT.connect(gT); gT.connect(ctx.destination);
+          oT.start(t + 0.09); oT.stop(t + 0.14);
+          break;
         }
+
         case 'roulette_spin': {
-          const o = ctx.createOscillator(); const g = ctx.createGain();
+          // 룰렛 스핀: 볼 굴리기 소리 + 감속
+          const oR = ctx.createOscillator(); const gR = ctx.createGain();
           const lfo = ctx.createOscillator(); const lfog = ctx.createGain();
-          lfo.connect(lfog); lfog.connect(o.frequency);
-          lfo.frequency.value = 12; lfog.gain.setValueAtTime(30,t); lfog.gain.exponentialRampToValueAtTime(2,t+3);
-          o.connect(g); g.connect(ctx.destination);
-          o.type = 'sine'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(80,t+3);
-          g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+3);
-          lfo.start(t); o.start(t); lfo.stop(t+3); o.stop(t+3); break;
+          lfo.connect(lfog); lfog.connect(oR.frequency);
+          lfo.frequency.setValueAtTime(20, t); lfo.frequency.exponentialRampToValueAtTime(3, t + 3.5);
+          lfog.gain.setValueAtTime(60, t); lfog.gain.exponentialRampToValueAtTime(5, t + 3.5);
+          oR.type = 'sine';
+          oR.frequency.setValueAtTime(400, t); oR.frequency.exponentialRampToValueAtTime(80, t + 3.5);
+          gR.gain.setValueAtTime(0.12, t); gR.gain.setValueAtTime(0.12, t + 2.5); gR.gain.exponentialRampToValueAtTime(0.001, t + 3.5);
+          oR.connect(gR); gR.connect(ctx.destination);
+          lfo.start(t); oR.start(t); lfo.stop(t + 3.5); oR.stop(t + 3.5);
+          // 딸깍 소리 (볼이 섹션에 부딪히는 소리)
+          for (let i = 0; i < 20; i++) {
+            const delay = i * (0.15 - i * 0.005);
+            if (delay >= 3.5) break;
+            const oc = ctx.createOscillator(); const gc = ctx.createGain();
+            oc.type = 'sine'; oc.frequency.value = 1500;
+            gc.gain.setValueAtTime(0.05, t + delay); gc.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.05);
+            oc.connect(gc); gc.connect(ctx.destination);
+            oc.start(t + delay); oc.stop(t + delay + 0.05);
+          }
+          break;
         }
+
         case 'win': {
-          const notes = [523,659,784,1047];
-          notes.forEach((freq,i) => {
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.connect(g); g.connect(ctx.destination);
-            o.type = 'sine'; o.frequency.value = freq;
-            g.gain.setValueAtTime(0,t+i*0.12); g.gain.linearRampToValueAtTime(0.25,t+i*0.12+0.05);
-            g.gain.exponentialRampToValueAtTime(0.001,t+i*0.12+0.3);
-            o.start(t+i*0.12); o.stop(t+i*0.12+0.3);
-          }); break;
+          // 승리: 상승 팡파레 (4화음 + 하모닉스)
+          const melody = [523, 659, 784, 1047];
+          const harmony = [330, 415, 494, 659];
+          melody.forEach((freq, i) => {
+            // 멜로디
+            const o1 = ctx.createOscillator(); const g1 = ctx.createGain();
+            o1.type = 'sine'; o1.frequency.value = freq;
+            g1.gain.setValueAtTime(0, t + i*0.1); g1.gain.linearRampToValueAtTime(0.2, t + i*0.1 + 0.04);
+            g1.gain.exponentialRampToValueAtTime(0.001, t + i*0.1 + 0.35);
+            o1.connect(g1); g1.connect(ctx.destination);
+            o1.start(t + i*0.1); o1.stop(t + i*0.1 + 0.35);
+            // 하모니
+            const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
+            o2.type = 'triangle'; o2.frequency.value = harmony[i];
+            g2.gain.setValueAtTime(0, t + i*0.1); g2.gain.linearRampToValueAtTime(0.1, t + i*0.1 + 0.04);
+            g2.gain.exponentialRampToValueAtTime(0.001, t + i*0.1 + 0.3);
+            o2.connect(g2); g2.connect(ctx.destination);
+            o2.start(t + i*0.1); o2.stop(t + i*0.1 + 0.3);
+          });
+          // 코인 쏟아지는 소리
+          for (let i = 0; i < 5; i++) {
+            const oc = ctx.createOscillator(); const gc = ctx.createGain();
+            oc.type = 'sine'; oc.frequency.setValueAtTime(1800 + Math.random()*400, t + 0.4 + i*0.04);
+            gc.gain.setValueAtTime(0.1, t + 0.4 + i*0.04); gc.gain.exponentialRampToValueAtTime(0.001, t + 0.4 + i*0.04 + 0.1);
+            oc.connect(gc); gc.connect(ctx.destination);
+            oc.start(t + 0.4 + i*0.04); oc.stop(t + 0.4 + i*0.04 + 0.1);
+          }
+          break;
         }
+
         case 'jackpot': {
-          const notes = [523,587,659,698,784,880,988,1047,1175,1319];
-          notes.forEach((freq,i) => {
+          // 잭팟: 화려한 상승 아르페지오 + 팡파레
+          const scale = [523,587,659,698,784,880,988,1047,1175,1319,1568,2093];
+          scale.forEach((freq, i) => {
             const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.type = i < 6 ? 'sine' : 'triangle'; o.frequency.value = freq;
+            g.gain.setValueAtTime(0, t + i*0.07);
+            g.gain.linearRampToValueAtTime(0.25, t + i*0.07 + 0.03);
+            g.gain.exponentialRampToValueAtTime(0.001, t + i*0.07 + 0.5);
             o.connect(g); g.connect(ctx.destination);
-            o.type = 'sine'; o.frequency.value = freq;
-            g.gain.setValueAtTime(0,t+i*0.08); g.gain.linearRampToValueAtTime(0.3,t+i*0.08+0.04);
-            g.gain.exponentialRampToValueAtTime(0.001,t+i*0.08+0.4);
-            o.start(t+i*0.08); o.stop(t+i*0.08+0.4);
-          }); break;
+            o.start(t + i*0.07); o.stop(t + i*0.07 + 0.5);
+          });
+          // 저음 부스트
+          const oB = ctx.createOscillator(); const gB = ctx.createGain();
+          oB.type = 'sine'; oB.frequency.setValueAtTime(110, t); oB.frequency.linearRampToValueAtTime(220, t + 0.8);
+          gB.gain.setValueAtTime(0.2, t); gB.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+          oB.connect(gB); gB.connect(ctx.destination);
+          oB.start(t); oB.stop(t + 0.8);
+          break;
         }
+
         case 'lose': {
-          const o = ctx.createOscillator(); const g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = 'sawtooth'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(100,t+0.4);
-          g.gain.setValueAtTime(0.15,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
-          o.start(t); o.stop(t+0.4); break;
+          // 패배: 하강 + 둔탁한 저음
+          const o1 = ctx.createOscillator(); const g1 = ctx.createGain();
+          o1.type = 'sawtooth';
+          o1.frequency.setValueAtTime(350, t); o1.frequency.exponentialRampToValueAtTime(80, t + 0.5);
+          g1.gain.setValueAtTime(0.15, t); g1.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          o1.connect(g1); g1.connect(ctx.destination);
+          o1.start(t); o1.stop(t + 0.5);
+          // 둔탁한 저음
+          const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
+          o2.type = 'sine'; o2.frequency.setValueAtTime(60, t + 0.1);
+          g2.gain.setValueAtTime(0.2, t + 0.1); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          o2.connect(g2); g2.connect(ctx.destination);
+          o2.start(t + 0.1); o2.stop(t + 0.5);
+          break;
         }
       }
     } catch(e) {}
@@ -4568,35 +4704,40 @@ window.updateBetDisplay = function(type, val) {
   const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
   val = Math.min(val, maxDdra);
   const usdt = fmt(_ddraToUsdt(val));
-  if (type === 'oe') {
-    oeBetVal = val;
-    const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val;
-    const eu = document.getElementById('oeBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
-  } else if (type === 'dice') {
-    diceBetVal = val;
-    const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val;
-    const eu = document.getElementById('diceBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
-  } else if (type === 'slot') {
-    slotBetVal = val;
-    const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val;
-    const eu = document.getElementById('slotBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
-  } else if (type === 'rl') {
-    rlBetVal = val;
-    const el = document.getElementById('rlCurrentBet'); if (el) el.textContent = val;
-    const eu = document.getElementById('rlBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
-  } else if (type === 'bac') {
-    bacBetVal = val;
-    const el = document.getElementById('bacCurrentBet'); if (el) el.textContent = val;
-    const eu = document.getElementById('bacBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
-  } else if (type === 'pk') {
-    pkBetVal = val;
-    const el = document.getElementById('pkCurrentBet'); if (el) el.textContent = val;
-    const eu = document.getElementById('pkBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
-  }
+
+  // input 요소 값 동기화
+  const inputEl = document.getElementById(type + 'BetInput');
+  if (inputEl && parseInt(inputEl.value) !== val) inputEl.value = val;
+
+  // USDT 환산 표시
+  const usdtEl = document.getElementById(type === 'oe' ? 'oeBetUsdt' :
+                                          type === 'dice' ? 'diceBetUsdt' :
+                                          type === 'slot' ? 'slotBetUsdt' :
+                                          type === 'rl'   ? 'rlBetUsdt'   :
+                                          type === 'bac'  ? 'bacBetUsdt'  :
+                                          type === 'pk'   ? 'pkBetUsdt'   : '');
+  if (usdtEl) usdtEl.textContent = '≈ $' + usdt + ' USDT';
+
+  if      (type === 'oe')   oeBetVal   = val;
+  else if (type === 'dice') diceBetVal = val;
+  else if (type === 'slot') slotBetVal = val;
+  else if (type === 'rl')   rlBetVal   = val;
+  else if (type === 'bac')  bacBetVal  = val;
+  else if (type === 'pk')   pkBetVal   = val;
+};
+
+// +/- 버튼으로 베팅 조정
+window.adjustBet = function(type, delta) {
+  const inputEl = document.getElementById(type + 'BetInput');
+  const current = inputEl ? (parseInt(inputEl.value) || 1) : 1;
+  const next = Math.max(1, current + delta);
+  updateBetDisplay(type, next);
+  SFX.play('click');
 };
 
 window.setBetAmount = function(type, val) {
   updateBetDisplay(type, val);
+  SFX.play('click');
 };
 
 window.setBetGameHalf = function(type) {
