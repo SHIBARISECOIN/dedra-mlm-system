@@ -307,7 +307,7 @@ const HTML = () => `<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <title>DEEDRA</title>
   <link rel="icon" href="/static/favicon.ico" />
   <!-- PWA -->
@@ -508,7 +508,13 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- 홈 분할 패널: 왼쪽 DDRA 시세 / 오른쪽 EARN -->
+          <!-- 오늘 수익 플래시 배너 -->
+          <div id="todayProfitBanner" class="today-profit-banner hidden">
+            <span class="profit-plus-icon">💰</span>
+            <span id="todayProfitBannerText" class="profit-banner-text">+$0.00 오늘 수익 발생!</span>
+          </div>
+
+          <!-- 홈 분할 패널: 왼쪽 DDRA 시세 / 오른쪽 데일리 수익 요약 -->
           <div class="home-split-panel">
             <!-- 왼쪽: DDRA 현재 시세 -->
             <div class="split-left">
@@ -517,12 +523,22 @@ const HTML = () => `<!DOCTYPE html>
               <div class="split-price-sub" id="deedraChange">1 DDRA = $0.5000</div>
               <div class="split-price-updated" id="deedraUpdated"></div>
             </div>
-            <!-- 오른쪽: EARN 상품 -->
-            <div class="split-right">
+            <!-- 오른쪽: 데일리 수익 요약 -->
+            <div class="split-right split-right-earn">
               <div class="split-earn-header">
-                <span class="split-earn-title">EARN</span>
+                <span class="split-earn-title">TODAY</span>
                 <button class="split-earn-more" onclick="switchPage('invest')" data-i18n="earnSeeAll">전체보기 ›</button>
               </div>
+              <!-- 오늘 수익 표시 (활성 투자 있을 때) -->
+              <div id="todayEarnSummary" class="today-earn-summary">
+                <div class="today-earn-amount-wrap">
+                  <span class="today-earn-plus">+</span>
+                  <span id="homeTodayEarn" class="today-earn-amount">$0.00</span>
+                </div>
+                <div class="today-earn-label">오늘 수익</div>
+                <div id="homeTodayEarnDdra" class="today-earn-ddra">≈ 0.00 DDRA</div>
+              </div>
+              <!-- EARN 상품 리스트 -->
               <div id="homeEarnList" class="home-earn-list">
                 <div class="earn-skeleton"></div>
                 <div class="earn-skeleton"></div>
@@ -530,56 +546,36 @@ const HTML = () => `<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- D-Day 투자 현황 -->
-          <div id="ddayCard" class="dday-card hidden">
-            <div class="dday-header">
-              <div class="dday-title" data-i18n="investingNow">❄️ 진행 중인 FREEZE</div>
-              <div class="dday-badge" id="ddayBadge">D-0</div>
+          <!-- 내 투자 현황 홈 카드 (구매한 상품 표시) -->
+          <div id="homeInvestCards" class="home-invest-cards hidden">
+            <div class="home-invest-header">
+              <span class="home-invest-title">❄️ 내 FREEZE 현황</span>
+              <button class="see-all-btn" onclick="switchPage('invest')" data-i18n="seeAll">전체보기</button>
             </div>
-            <div class="dday-name" id="ddayName">-</div>
-            <div class="dday-progress-wrap">
-              <div class="dday-progress-labels">
-                <span id="ddayStart">-</span>
-                <span id="ddayEnd">-</span>
-              </div>
-              <div class="dday-progress-bar">
-                <div class="dday-progress-fill" id="ddayFill" style="width:0%"></div>
-              </div>
-            </div>
-            <div class="dday-stats">
-              <div class="dday-stat">
-                <div class="dday-stat-label" data-i18n="investAmount">FREEZE 금액</div>
-                <div class="dday-stat-value" id="ddayAmount">-</div>
-              </div>
-              <div class="dday-stat">
-                <div class="dday-stat-label" data-i18n="expectedReturn">예상 수익</div>
-                <div class="dday-stat-value green" id="ddayReturn">-</div>
-              </div>
-              <div class="dday-stat">
-                <div class="dday-stat-label" data-i18n="remaining">남은 기간</div>
-                <div class="dday-stat-value" id="ddayRemain">-</div>
-              </div>
+            <div id="homeInvestCardList" class="home-invest-card-list">
+              <!-- JS로 렌더링 -->
             </div>
           </div>
 
-          <!-- 공지사항 -->
+          <!-- 공지사항 (compact: 2줄, 제목+날짜 한 줄) -->
           <div class="section-header">
             <span class="section-title" data-i18n="announcements">📢 공지사항</span>
             <button class="see-all-btn" onclick="showAnnouncementModal()" data-i18n="seeAll">전체보기</button>
           </div>
-          <div id="announcementList" class="announcement-list">
-            <div class="skeleton-item"></div>
-            <div class="skeleton-item"></div>
+          <div id="announcementList" class="ann-compact-list">
+            <div class="skeleton-item" style="height:22px;margin-bottom:4px;"></div>
+            <div class="skeleton-item" style="height:22px;"></div>
           </div>
 
-          <!-- 최근 거래 -->
-          <div class="section-header">
-            <span class="section-title" data-i18n="recentTx">💳 거래 내역</span>
-            <button class="see-all-btn" onclick="showNetworkEarningsPanel('tx')" data-i18n="seeAll">전체보기</button>
+          <!-- 뉴스 피드 -->
+          <div class="section-header" style="margin-top:12px;">
+            <span class="section-title">📰 뉴스</span>
+            <button class="see-all-btn" onclick="loadNewsFeed(true)" id="newsRefreshBtn">새로고침</button>
           </div>
-          <div id="recentTxList" class="tx-list" onclick="showNetworkEarningsPanel('tx')" style="cursor:pointer;">
-            <div class="skeleton-item"></div>
-            <div class="skeleton-item"></div>
+          <div id="newsFeedList" class="news-feed-list">
+            <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
+            <div class="skeleton-item" style="height:52px;margin-bottom:6px;"></div>
+            <div class="skeleton-item" style="height:52px;"></div>
           </div>
 
           <!-- 네트워크 수익 미리보기 -->

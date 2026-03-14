@@ -657,6 +657,52 @@ body {
 /* ===== 공지사항 ===== */
 .announcement-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 
+/* compact 공지 (홈용: 1행에 제목+날짜) */
+.ann-compact-list { display:flex; flex-direction:column; gap:3px; margin-bottom:12px; }
+.ann-compact-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:5px 10px; border-radius:7px; cursor:pointer;
+  background:var(--bg2); border:1px solid var(--border);
+  transition:border-color 0.15s;
+  gap:8px;
+}
+.ann-compact-item:hover { border-color:var(--accent); }
+.ann-compact-title {
+  font-size:11px; font-weight:600; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  flex:1; min-width:0;
+}
+.ann-compact-date { font-size:10px; color:var(--text3); white-space:nowrap; flex-shrink:0; }
+
+/* 뉴스 피드 */
+.news-feed-list { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.news-feed-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:9px 10px; border-radius:10px;
+  background:var(--bg2); border:1px solid var(--border);
+  cursor:pointer; text-decoration:none;
+  transition:border-color 0.15s;
+}
+.news-feed-item:hover { border-color:var(--accent); }
+.news-feed-thumb {
+  width:48px; height:48px; border-radius:7px; object-fit:cover;
+  flex-shrink:0; background:rgba(255,255,255,0.07);
+}
+.news-feed-thumb-placeholder {
+  width:48px; height:48px; border-radius:7px; flex-shrink:0;
+  background:rgba(255,255,255,0.07);
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px;
+}
+.news-feed-body { flex:1; min-width:0; }
+.news-feed-source { font-size:9px; color:var(--accent); font-weight:700; margin-bottom:2px; text-transform:uppercase; letter-spacing:0.3px; }
+.news-feed-title {
+  font-size:11px; font-weight:600; color:var(--text);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden; line-height:1.4;
+}
+.news-feed-date { font-size:9px; color:var(--text3); margin-top:3px; }
+
 .announcement-item {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -2726,3 +2772,249 @@ body {
   white-space: pre-wrap; word-break: break-word;
   padding: 8px 0;
 }
+
+/* ===== 오늘 수익 배너 (홈 최상단) ===== */
+.today-profit-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(59,130,246,0.12));
+  border: 1px solid rgba(16,185,129,0.35);
+  border-radius: 12px; padding: 10px 14px;
+  margin-bottom: 10px;
+  animation: profitBannerSlide 0.4s ease;
+}
+.today-profit-banner.hidden { display: none; }
+@keyframes profitBannerSlide { 0%{transform:translateY(-8px);opacity:0} 100%{transform:translateY(0);opacity:1} }
+.profit-plus-icon { font-size: 20px; }
+.profit-banner-text {
+  font-size: 14px; font-weight: 700; color: #10b981;
+  animation: profitBlink 1.8s ease-in-out infinite;
+}
+@keyframes profitBlink {
+  0%,100% { opacity: 1; color: #10b981; }
+  50% { opacity: 0.6; color: #34d399; }
+}
+
+/* ===== 플로팅 +금액 알림 ===== */
+.floating-profit-pop {
+  position: fixed; right: 20px; top: 80px;
+  background: rgba(16,185,129,0.95);
+  color: #fff; font-size: 15px; font-weight: 800;
+  padding: 8px 16px; border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(16,185,129,0.4);
+  z-index: 9900; pointer-events: none;
+  animation: floatProfitUp 2.5s ease forwards;
+}
+@keyframes floatProfitUp {
+  0%   { opacity:0; transform: translateY(0) scale(0.8); }
+  20%  { opacity:1; transform: translateY(-10px) scale(1); }
+  70%  { opacity:1; transform: translateY(-30px) scale(1); }
+  100% { opacity:0; transform: translateY(-55px) scale(0.9); }
+}
+
+/* ===== 오른쪽 패널: TODAY 수익 ===== */
+.split-right-earn {
+  background: linear-gradient(145deg, #0d2218, #1a3a28) !important;
+}
+.today-earn-summary {
+  text-align: center; padding: 4px 0 6px;
+}
+.today-earn-amount-wrap {
+  display: flex; align-items: baseline; justify-content: center; gap: 1px;
+}
+.today-earn-plus {
+  font-size: 16px; font-weight: 900; color: #4ade80;
+}
+.today-earn-amount {
+  font-size: 22px; font-weight: 900; color: #4ade80;
+  animation: earningPulse 2s ease-in-out infinite;
+  white-space: nowrap;
+}
+@keyframes earningPulse {
+  0%,100% { text-shadow: 0 0 8px rgba(74,222,128,0.5); }
+  50%      { text-shadow: 0 0 18px rgba(74,222,128,0.9); color: #86efac; }
+}
+.today-earn-label {
+  font-size: 9px; color: rgba(74,222,128,0.65); margin-top: 1px;
+}
+.today-earn-ddra {
+  font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px;
+}
+
+/* ===== 홈 내 투자 현황 카드 ===== */
+.home-invest-cards {
+  margin-bottom: 12px;
+}
+.home-invest-cards.hidden { display: none; }
+.home-invest-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.home-invest-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+}
+.home-invest-card-list {
+  display: flex; flex-direction: column; gap: 8px;
+  touch-action: pan-y pinch-zoom;
+}
+/* 홈 투자 카드 아이템 */
+.home-inv-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  position: relative; overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+}
+.home-inv-card.purchased {
+  border-color: rgba(16,185,129,0.4);
+  background: linear-gradient(145deg, rgba(16,185,129,0.08), var(--bg2));
+}
+.home-inv-card-tier-bar {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.home-inv-card-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 8px; margin-top: 4px;
+}
+.home-inv-card-name {
+  font-size: 14px; font-weight: 700; color: var(--text);
+}
+.home-inv-card-amount {
+  font-size: 13px; font-weight: 700; color: var(--accent);
+}
+.home-inv-card-row {
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.home-inv-card-stat {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-width: 60px;
+}
+.home-inv-card-stat-label {
+  font-size: 9px; color: var(--text3); margin-bottom: 2px; white-space: nowrap;
+}
+.home-inv-card-stat-value {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  white-space: nowrap;
+}
+.home-inv-card-stat-value.green { color: #10b981; }
+.home-inv-card-stat-value.blink-green {
+  color: #10b981;
+  animation: earningPulse 1.8s ease-in-out infinite;
+}
+.home-inv-progress {
+  height: 3px; background: var(--bg4); border-radius: 2px;
+  overflow: hidden; margin-top: 8px;
+}
+.home-inv-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #3b82f6);
+  transition: width 0.8s ease;
+}
+/* 구매 뱃지 */
+.purchased-badge {
+  display: inline-block;
+  background: rgba(16,185,129,0.2);
+  color: #10b981; font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+  border: 1px solid rgba(16,185,129,0.4);
+  margin-left: 5px; vertical-align: middle;
+}
+
+/* ===== EARN 상품 이미지 카드 (홈) ===== */
+.earn-products-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 6px; margin-top: 4px;
+}
+.earn-prod-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(74,222,128,0.15);
+  border-radius: 10px; padding: 7px 8px;
+  cursor: pointer; position: relative;
+  transition: all 0.2s; overflow: hidden;
+}
+.earn-prod-card.active-purchase {
+  border-color: rgba(16,185,129,0.5);
+  background: rgba(16,185,129,0.12);
+}
+.earn-prod-card:active { transform: scale(0.97); }
+.earn-prod-img {
+  width: 100%; aspect-ratio: 16/9;
+  object-fit: cover; border-radius: 7px;
+  margin-bottom: 5px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.earn-prod-img-placeholder {
+  width: 100%; aspect-ratio: 16/9;
+  border-radius: 7px; margin-bottom: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.earn-prod-name {
+  font-size: 10px; font-weight: 700; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.earn-prod-roi {
+  font-size: 12px; font-weight: 900; color: #4ade80;
+}
+.earn-prod-roi-label {
+  font-size: 8px; color: rgba(74,222,128,0.6);
+}
+.earn-prod-active-dot {
+  position: absolute; top: 5px; right: 5px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%,100% { transform: scale(1); opacity:1; }
+  50% { transform: scale(1.4); opacity:0.7; }
+}
+/* 구매 이미지 강조 오버레이 */
+.earn-prod-card.active-purchase::after {
+  content: '✅ 보유중';
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(16,185,129,0.75);
+  color: #fff; font-size: 8px; font-weight: 700;
+  text-align: center; padding: 2px 0;
+  border-radius: 0 0 9px 9px;
+}
+
+/* ===== 투자 페이지: 상품 카드 이미지 포함 ===== */
+.product-img-wrap {
+  width: 100%; height: 120px; border-radius: 10px;
+  overflow: hidden; margin-bottom: 12px; margin-top: 6px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.1));
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.product-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.product-img-placeholder {
+  font-size: 48px;
+}
+
+/* ===== 투자 아이템 (내 FREEZE) 상세 ===== */
+.invest-item-extra {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; margin: 8px 0;
+}
+.invest-item-extra-stat {
+  background: var(--bg3); border-radius: 8px;
+  padding: 7px 6px; text-align: center;
+}
+.invest-item-extra-label {
+  font-size: 9px; color: var(--text3); margin-bottom: 2px;
+}
+.invest-item-extra-value {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  white-space: nowrap;
+}
+.invest-item-extra-value.green { color: #10b981; }
+.invest-item-extra-value.blink {
+  color: #10b981;
+  animation: earningPulse 2s ease-in-out infinite;
+}
+

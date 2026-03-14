@@ -2376,55 +2376,230 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
 async function loadHomeEarn() {
   const listEl = document.getElementById('homeEarnList');
   if (!listEl) return;
-  // 이미 캐시된 상품이 있으면 바로 렌더
-  if (productsCache && productsCache.length > 0) {
-    renderHomeEarn(productsCache);
-    return;
-  }
+
   try {
-    const { collection, getDocs, db } = window.FB;
-    const snap = await getDocs(collection(db, 'products'));
-    const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    console.log('[EARN] 전체 상품 수:', allDocs.length, allDocs.map(p => ({name:p.name, isActive:p.isActive, type:p.type})));
-    // type=investment 이거나 type 없는 것만, isActive 체크 없이 전체 표시
-    const products = allDocs
-      .filter(p => !p.type || p.type === 'investment')
-      .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
-    console.log('[EARN] 필터 후 상품 수:', products.length);
-    productsCache = products;
-    renderHomeEarn(products);
+    const { collection, getDocs, query, where, db } = window.FB;
+
+    // 상품 로드 (캐시 활용)
+    if (!productsCache || !productsCache.length) {
+      const snap = await getDocs(collection(db, 'products'));
+      const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      productsCache = allDocs
+        .filter(p => !p.type || p.type === 'investment')
+        .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
+    }
+
+    // 내 활성 투자 로드
+    let myInvestments = [];
+    if (currentUser) {
+      try {
+        const q = query(collection(db, 'investments'), where('userId', '==', currentUser.uid));
+        const iSnap = await getDocs(q);
+        myInvestments = iSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+          .filter(inv => inv.status === 'active');
+      } catch(e) { /* 조용히 */ }
+    }
+
+    renderHomeEarn(productsCache, myInvestments);
+    renderHomeInvestCards(myInvestments, productsCache);
+    updateTodayEarnSummary(myInvestments);
   } catch (e) {
     console.error('[EARN] 상품 로드 오류:', e);
     listEl.innerHTML = `<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">${t('emptyProducts')}</div>`;
   }
 }
 
-function renderHomeEarn(products) {
+// 이미지 색상 팔레트 (상품 순서별)
+const EARN_PROD_COLORS = [
+  'linear-gradient(135deg,#1e3a5f,#0d4f3c)',
+  'linear-gradient(135deg,#2d1b69,#1a3a5f)',
+  'linear-gradient(135deg,#4a1942,#1a3a5f)',
+  'linear-gradient(135deg,#3b1a00,#1a3a28)',
+];
+const EARN_PROD_ICONS = ['❄️','💎','👑','🔥'];
+
+function renderHomeEarn(products, myInvestments) {
   const listEl = document.getElementById('homeEarnList');
   if (!listEl) return;
   if (!products || !products.length) {
     listEl.innerHTML = `<div style="font-size:11px;color:rgba(255,255,255,0.35);text-align:center;padding:12px 0;">${t('emptyProducts')}</div>`;
     return;
   }
-  // 최대 3개만 표시
-  const show = products.slice(0, 3);
-  listEl.innerHTML = show.map(p => {
-    // 필드명 호환: dailyRoi(% 단위 그대로) or roiPercent(%)
-    const roi = p.roiPercent != null ? p.roiPercent
-              : p.dailyRoi  != null  ? p.dailyRoi
-              : 0;
-    const days = p.durationDays != null ? p.durationDays
-               : p.duration    != null  ? p.duration
-               : '-';
+
+  // 내 활성 투자 상품 ID 세트
+  const myProductIds = new Set((myInvestments || []).map(inv => inv.productId || inv.productName));
+
+  // 최대 4개 그리드 표시
+  const show = products.slice(0, 4);
+  listEl.innerHTML = `<div class="earn-products-grid">` + show.map((p, i) => {
+    const roi = p.roiPercent != null ? p.roiPercent : (p.dailyRoi != null ? p.dailyRoi : 0);
+    const days = p.durationDays != null ? p.durationDays : (p.duration != null ? p.duration : '-');
+    const isPurchased = myProductIds.has(p.id) || myProductIds.has(p.name);
+    const imgBg = EARN_PROD_COLORS[i % EARN_PROD_COLORS.length];
+    const icon = EARN_PROD_ICONS[i % EARN_PROD_ICONS.length];
+    // 데일리 수익 (최소 금액 기준)
+    const dailyMin = (p.minAmount || 0) * roi / 100;
+
     return `
-    <div class="earn-item" onclick="switchPage('invest')">
-      <div>
-        <div class="earn-item-name">${p.name || '-'}</div>
-        <div class="earn-item-period">${days}일 · 최소 $${fmt(p.minAmount || 0)}</div>
+    <div class="earn-prod-card${isPurchased ? ' active-purchase' : ''}" onclick="switchPage('invest')">
+      ${isPurchased ? '<div class="earn-prod-active-dot"></div>' : ''}
+      ${p.imageUrl
+        ? `<img src="${p.imageUrl}" alt="${p.name}" class="earn-prod-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ''}
+      <div class="earn-prod-img-placeholder" style="background:${imgBg};${p.imageUrl?'display:none;':''}">
+        <span style="font-size:26px;">${icon}</span>
       </div>
-      <div>
-        <div class="earn-item-roi">${roi.toFixed(1)}%</div>
-        <div class="earn-item-roi-label">${t('dailyRoi')}</div>
+      <div class="earn-prod-name">${p.name || '-'}</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <div>
+          <div class="earn-prod-roi">${roi.toFixed(1)}%</div>
+          <div class="earn-prod-roi-label">/일</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:9px;color:rgba(255,255,255,0.4);">${days}일</div>
+          ${dailyMin > 0 ? `<div style="font-size:9px;color:#4ade80;">+$${fmt(dailyMin)}/일</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+// ===== 오늘 수익 요약 업데이트 =====
+function updateTodayEarnSummary(myInvestments) {
+  if (!myInvestments || !myInvestments.length) {
+    // 투자 없으면 TODAY 패널 숨기고 기본 EARN 표시
+    const summaryEl = document.getElementById('todayEarnSummary');
+    if (summaryEl) summaryEl.style.display = 'none';
+    return;
+  }
+
+  // 데일리 수익 합계 계산
+  let totalDailyEarn = 0;
+  myInvestments.forEach(inv => {
+    const roi = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
+    totalDailyEarn += (inv.amount || 0) * roi;
+  });
+
+  const p = deedraPrice || 0.5;
+  const ddraEarn = totalDailyEarn / p;
+
+  const summaryEl = document.getElementById('todayEarnSummary');
+  if (summaryEl) summaryEl.style.display = 'block';
+
+  const el = document.getElementById('homeTodayEarn');
+  if (el) el.textContent = '$' + fmt(totalDailyEarn);
+  const ddraEl = document.getElementById('homeTodayEarnDdra');
+  if (ddraEl) ddraEl.textContent = '≈ ' + fmt(ddraEarn) + ' DDRA';
+
+  // 오늘 수익 배너
+  if (totalDailyEarn > 0) {
+    const banner = document.getElementById('todayProfitBanner');
+    const bannerText = document.getElementById('todayProfitBannerText');
+    if (banner && bannerText) {
+      bannerText.textContent = '+$' + fmt(totalDailyEarn) + ' 오늘 수익 발생!';
+      banner.classList.remove('hidden');
+    }
+    // 플로팅 알림 (처음 로드 시)
+    if (!window._profitPopShown) {
+      window._profitPopShown = true;
+      showFloatingProfitPop('+$' + fmt(totalDailyEarn));
+    }
+  }
+}
+
+// 플로팅 수익 팝업
+function showFloatingProfitPop(text) {
+  const el = document.createElement('div');
+  el.className = 'floating-profit-pop';
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 2700);
+}
+
+// ===== 홈 투자 현황 카드 렌더링 =====
+const TIER_COLORS = {
+  basic:    'linear-gradient(90deg,#4caf50,#8bc34a)',
+  standard: 'linear-gradient(90deg,#2196f3,#03a9f4)',
+  premium:  'linear-gradient(90deg,#9c27b0,#e91e63)',
+  vip:      'linear-gradient(90deg,#ff9800,#f44336)',
+};
+function getTier(name) {
+  if (!name) return 'basic';
+  if (name.includes('1개월') || name.toLowerCase().includes('basic')) return 'basic';
+  if (name.includes('3개월') || name.toLowerCase().includes('standard')) return 'standard';
+  if (name.includes('6개월') || name.toLowerCase().includes('premium')) return 'premium';
+  if (name.includes('12개월') || name.toLowerCase().includes('vip')) return 'vip';
+  return 'basic';
+}
+
+function renderHomeInvestCards(myInvestments, products) {
+  const wrap = document.getElementById('homeInvestCards');
+  const listEl = document.getElementById('homeInvestCardList');
+  if (!wrap || !listEl) return;
+
+  if (!myInvestments || !myInvestments.length) {
+    wrap.classList.add('hidden');
+    return;
+  }
+
+  wrap.classList.remove('hidden');
+
+  // 제품 맵
+  const prodMap = {};
+  (products || []).forEach(p => { prodMap[p.id] = p; prodMap[p.name] = p; });
+
+  let totalDailyEarn = 0;
+
+  listEl.innerHTML = myInvestments.map(inv => {
+    const tier = getTier(inv.productName || '');
+    const tierColor = TIER_COLORS[tier] || TIER_COLORS.basic;
+
+    const start = inv.startDate?.toDate ? inv.startDate.toDate() : new Date(inv.startDate || Date.now());
+    const end   = inv.endDate?.toDate   ? inv.endDate.toDate()   : new Date(inv.endDate   || Date.now());
+    const now   = new Date();
+    const progress = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
+    const remainDays = Math.max(0, Math.ceil((end - now) / 86400000));
+    const endStr = fmtDateShort ? fmtDateShort(end) : end.toLocaleDateString();
+
+    const roi = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
+    const dailyEarn = (inv.amount || 0) * roi;
+    const paidRoi = inv.paidRoi || 0;
+
+    totalDailyEarn += dailyEarn;
+
+    // 당일 수익 표시 (블링크)
+    const dailyStr = '+$' + fmt(dailyEarn);
+
+    return `
+    <div class="home-inv-card purchased">
+      <div class="home-inv-card-tier-bar" style="background:${tierColor};"></div>
+      <div class="home-inv-card-top">
+        <div>
+          <span class="home-inv-card-name">${inv.productName || 'FREEZE'}</span>
+          <span class="purchased-badge">보유중</span>
+        </div>
+        <span class="home-inv-card-amount">$${fmt(inv.amount)}</span>
+      </div>
+      <div class="home-inv-card-row">
+        <div class="home-inv-card-stat">
+          <div class="home-inv-card-stat-label">당일 수익</div>
+          <div class="home-inv-card-stat-value blink-green">${dailyStr}</div>
+        </div>
+        <div class="home-inv-card-stat">
+          <div class="home-inv-card-stat-label">누적 수익</div>
+          <div class="home-inv-card-stat-value green">$${fmt(paidRoi)}</div>
+        </div>
+        <div class="home-inv-card-stat">
+          <div class="home-inv-card-stat-label">만기일</div>
+          <div class="home-inv-card-stat-value" style="font-size:11px;">${endStr}</div>
+        </div>
+        <div class="home-inv-card-stat">
+          <div class="home-inv-card-stat-label">잔여</div>
+          <div class="home-inv-card-stat-value">${remainDays}일</div>
+        </div>
+      </div>
+      <div class="home-inv-progress">
+        <div class="home-inv-progress-fill" style="width:${progress.toFixed(1)}%"></div>
       </div>
     </div>`;
   }).join('');
@@ -2878,6 +3053,32 @@ function renderAnnouncements(items, containerId) {
     el.innerHTML = `<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyAnnounce')}</div>`;
     return;
   }
+
+  // 홈 compact 목록 (ann-compact-list 컨테이너)
+  if (el.classList.contains('ann-compact-list')) {
+    el.innerHTML = items.slice(0, 2).map(a => {
+      const pin = a.isPinned ? '📌 ' : '';
+      const title = pin + (annTitle(a) || t('noTitle'));
+      // 날짜: MM/DD HH:mm 형식으로 짧게
+      let dateStr = '';
+      try {
+        const d = a.createdAt?.toDate ? a.createdAt.toDate() : new Date((a.createdAt?.seconds || 0) * 1000);
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const dy = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        dateStr = `${mo}/${dy} ${hh}:${mm}`;
+      } catch(_) {}
+      return `
+        <div class="ann-compact-item" onclick="showAnnouncementDetail('${a.id}')">
+          <span class="ann-compact-title">${title}</span>
+          <span class="ann-compact-date">${dateStr}</span>
+        </div>`;
+    }).join('');
+    return;
+  }
+
+  // 전체/모달 목록 (기존 스타일)
   el.innerHTML = items.map(a => `
     <div class="announcement-item" onclick="showAnnouncementDetail('${a.id}')">
       <div class="ann-title">
@@ -3686,7 +3887,7 @@ async function loadProducts() {
     const tierMap = { 'Basic': 'basic', 'Standard': 'standard', 'Premium': 'premium', 'VIP': 'vip' };
     const tagMap = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
 
-    if (listEl) listEl.innerHTML = productsCache.map(p => {
+    if (listEl) listEl.innerHTML = productsCache.map((p, i) => {
       // 필드명 호환: dailyRoi(% 단위 그대로) or roiPercent(%)
       const roi = p.roiPercent != null ? p.roiPercent
                 : p.dailyRoi  != null  ? p.dailyRoi
@@ -3699,9 +3900,18 @@ async function loadProducts() {
       const tier = tierMap[tierName] || (tierName.includes('1개월') ? 'basic' : tierName.includes('3개월') ? 'standard' : tierName.includes('6개월') ? 'premium' : tierName.includes('12개월') ? 'vip' : 'basic');
       const tag  = tagMap[tierName]  || ('tag-' + tier);
       const dailyEarning = (p.minAmount || 0) * roi / 100;
+      const imgBg = EARN_PROD_COLORS ? EARN_PROD_COLORS[i % EARN_PROD_COLORS.length] : 'linear-gradient(135deg,#1e3a5f,#0d4f3c)';
+      const icon = EARN_PROD_ICONS ? EARN_PROD_ICONS[i % EARN_PROD_ICONS.length] : '❄️';
       return `
       <div class="product-card">
         <div class="product-tier-bar tier-${tier}"></div>
+        <!-- 상품 이미지 -->
+        <div class="product-img-wrap" style="margin-top:10px;">
+          ${p.imageUrl
+            ? `<img src="${p.imageUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML='<div class=\\'product-img-placeholder\\'>${icon}</div>'">`
+            : `<div class="product-img-placeholder" style="background:${imgBg};width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;">${icon}</div>`
+          }
+        </div>
         <div class="product-top">
           <div>
             <div class="product-name">${p.name || '-'}</div>
@@ -3866,24 +4076,49 @@ async function loadMyInvestments() {
       const now = new Date();
       const progress = Math.min(100, ((now - start) / (end - start)) * 100);
       const remainDays = Math.max(0, Math.ceil((end - now) / 86400000));
+      const endStr = fmtDateShort ? fmtDateShort(end) : end.toLocaleDateString();
 
       // 일일 ROI 수익 D = 투자금 × roiPercent%
       // roiPercent: % 단위, dailyRoi: % 단위 (0.4 = 0.4%)
       const dailyRoiRate = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
       const dailyD = inv.amount * dailyRoiRate;
+      const paidRoi = inv.paidRoi || 0;
+      const expectedReturn = inv.expectedReturn || 0;
+
+      const tier = getTier ? getTier(inv.productName || '') : 'basic';
+      const tierBg = TIER_COLORS ? (TIER_COLORS[tier] || TIER_COLORS.basic) : 'linear-gradient(90deg,#4caf50,#8bc34a)';
 
       return `
-      <div class="invest-item">
+      <div class="invest-item" style="position:relative;overflow:hidden;">
         <div class="invest-item-header">
-          <span class="invest-item-name">${inv.productName || 'FREEZE'}</span>
+          <span class="invest-item-name">${inv.productName || 'FREEZE'} <span class="purchased-badge">보유중</span></span>
           <span class="invest-item-amount">$${fmt(inv.amount)}</span>
         </div>
-        <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
-          <span>❄️ 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
-          <span>잔여 ${remainDays}일</span>
-        </div>
-        <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
-          총 예상수익(일): +${fmt(inv.expectedReturn || 0)} USDT (원금은 만기 후 출금 가능)
+        <div class="invest-item-extra">
+          <div class="invest-item-extra-stat">
+            <div class="invest-item-extra-label">당일 수익</div>
+            <div class="invest-item-extra-value blink">+$${fmt(dailyD)}</div>
+          </div>
+          <div class="invest-item-extra-stat">
+            <div class="invest-item-extra-label">누적 수익</div>
+            <div class="invest-item-extra-value green">$${fmt(paidRoi)}</div>
+          </div>
+          <div class="invest-item-extra-stat">
+            <div class="invest-item-extra-label">전체 예상</div>
+            <div class="invest-item-extra-value">$${fmt(expectedReturn)}</div>
+          </div>
+          <div class="invest-item-extra-stat">
+            <div class="invest-item-extra-label">이율/일</div>
+            <div class="invest-item-extra-value">${(dailyRoiRate*100).toFixed(2)}%</div>
+          </div>
+          <div class="invest-item-extra-stat">
+            <div class="invest-item-extra-label">만기일</div>
+            <div class="invest-item-extra-value" style="font-size:10px;">${endStr}</div>
+          </div>
+          <div class="invest-item-extra-stat">
+            <div class="invest-item-extra-label">잔여</div>
+            <div class="invest-item-extra-value">${remainDays}일</div>
+          </div>
         </div>
         <div class="invest-progress">
           <div class="invest-progress-fill" style="width:${progress.toFixed(1)}%"></div>
