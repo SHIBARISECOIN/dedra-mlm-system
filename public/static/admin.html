@@ -7274,7 +7274,20 @@ function setupEvents() {
         const isActive= document.getElementById('noticeVisible').value === 'true';
         if (!title || !innerTxt) { showInlineAlert('noticeFormAlert','error','제목과 내용을 입력하세요.'); return; }
         const btn = document.getElementById('saveNoticeBtn');
-        btn.disabled=true; btn.innerHTML='저장 중...';
+        btn.disabled=true; btn.innerHTML='🌐 번역 중...';
+        let r;
+        if (editingNoticeId) {
+            r = await api.updateAnnouncement(currentAdmin.uid, editingNoticeId, {title, content, category, isPinned, isActive});
+        } else {
+            r = await api.createAnnouncement(currentAdmin.uid, title, content, category, isPinned);
+        }
+        if (r.success) {
+            closeModal('noticeModal');
+            showToast('✅ 공지사항이 저장되었습니다. (4개 언어 자동 번역 완료)');
+            loadNotices();
+        } else { showInlineAlert('noticeFormAlert','error','❌ '+r.error); }
+        btn.disabled=false; btn.innerHTML='💾 저장하기';
+    });
         let r;
         if (editingNoticeId) {
             r = await api.updateAnnouncement(currentAdmin.uid, editingNoticeId, {title, content, category, isPinned, isActive});

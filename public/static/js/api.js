@@ -668,11 +668,37 @@ export class DedraAPI {
     } catch(e) { return err(e); }
   }
 
+  // 번역 API 호출 헬퍼 (백엔드 /api/translate/announcement)
+  async _fetchTranslations(title, content) {
+    try {
+      const res = await fetch('/api/translate/announcement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content })
+      });
+      if (!res.ok) return {};
+      const data = await res.json();
+      return data.translations || {};
+    } catch (_) {
+      return {}; // 번역 실패해도 저장은 진행
+    }
+  }
+
   async createAnnouncement(adminId, title, content, category, isPinned) {
     try {
+      // 한국어 원문 저장 + 자동 번역 (en/vi/th)
+      const translations = await this._fetchTranslations(title, content);
       const ref = await addDoc(collection(this.db, 'announcements'), {
         title, content, category: category || 'general',
         isPinned: !!isPinned, isActive: true,
+        // 번역 필드 (번역 실패 시 빈 문자열)
+        title_en: translations.title_en || '',
+        title_vi: translations.title_vi || '',
+        title_th: translations.title_th || '',
+        content_en: translations.content_en || '',
+        content_vi: translations.content_vi || '',
+        content_th: translations.content_th || '',
+        translatedAt: (translations.title_en) ? serverTimestamp() : null,
         createdBy: adminId, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
       });
       await this._auditLog(adminId, 'notice', `공지 생성: ${title}`, { id: ref.id });
@@ -682,7 +708,23 @@ export class DedraAPI {
 
   async updateAnnouncement(adminId, noticeId, updates) {
     try {
-      await updateDoc(doc(this.db, 'announcements', noticeId), { ...updates, updatedAt: serverTimestamp() });
+      // 제목/내용 변경 시 번역 재수행
+      let extraFields = {};
+      if (updates.title || updates.content) {
+        const translations = await this._fetchTranslations(updates.title, updates.content);
+        extraFields = {
+          title_en: translations.title_en || '',
+          title_vi: translations.title_vi || '',
+          title_th: translations.title_th || '',
+          content_en: translations.content_en || '',
+          content_vi: translations.content_vi || '',
+          content_th: translations.content_th || '',
+          translatedAt: (translations.title_en) ? serverTimestamp() : null,
+        };
+      }
+      await updateDoc(doc(this.db, 'announcements', noticeId), {
+        ...updates, ...extraFields, updatedAt: serverTimestamp()
+      });
       await this._auditLog(adminId, 'notice', `공지 수정: ${updates.title || noticeId}`, { id: noticeId });
       return ok(true);
     } catch(e) { return err(e); }

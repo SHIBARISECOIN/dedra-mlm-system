@@ -3173,4 +3173,56 @@ async function checkLowBalances(adminToken: string) {
   } catch (_) {}
 }
 
+// ─── 공지사항 자동 번역 API ───────────────────────────────────────────────────
+// MyMemory 무료 번역 API 사용 (API키 불필요, 한국어 지원)
+// 하루 5,000자 무료 (일반 공지사항 충분)
+// 관리자가 한국어로 공지 저장 시 en/vi/th 자동 번역하여 함께 저장
+
+async function translateText(text: string, targetLang: string): Promise<string> {
+  if (!text || !text.trim()) return ''
+  // HTML 태그 제거하여 텍스트만 번역
+  const plainText = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!plainText) return ''
+
+  // MyMemory API: 무료, API키 불필요, 한국어 지원
+  // 언어코드 매핑
+  const langMap: Record<string, string> = { en: 'en', vi: 'vi', th: 'th' }
+  const targetCode = langMap[targetLang] || targetLang
+
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=ko|${targetCode}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return ''
+    const data: any = await res.json()
+    if (data?.responseStatus === 200 && data?.responseData?.translatedText) {
+      return data.responseData.translatedText
+    }
+  } catch (_) {}
+  return ''
+}
+
+app.post('/api/translate/announcement', async (c) => {
+  try {
+    const { title, content } = await c.req.json()
+    if (!title && !content) return c.json({ error: 'title or content required' }, 400)
+
+    const targets = ['en', 'vi', 'th']
+    const result: any = {}
+
+    // 순차 처리 (MyMemory rate limit 고려)
+    for (const lang of targets) {
+      const [translatedTitle, translatedContent] = await Promise.all([
+        title ? translateText(title, lang) : Promise.resolve(''),
+        content ? translateText(content, lang) : Promise.resolve('')
+      ])
+      result[`title_${lang}`] = translatedTitle
+      result[`content_${lang}`] = translatedContent
+    }
+
+    return c.json({ success: true, translations: result })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
 export default app
