@@ -2629,11 +2629,29 @@ window.handleRegister = async function() {
       userId: user.uid, usdtBalance: 0, dedraBalance: 0, bonusBalance: 0,
       totalDeposit: 0, totalWithdrawal: 0, totalEarnings: 0, createdAt: serverTimestamp(),
     });
-    // 회원가입 후 자동 로그인 (세션 저장 + 앱 진입)
-    localStorage.setItem('deedra_session', JSON.stringify({ uid: user.uid, email }));
-    window.FB._currentUser = user;
+    // 이메일 인증 메일 발송
+    try {
+      const { sendEmailVerification } = window.FB;
+      await sendEmailVerification(user);
+    } catch(_) {}
+
+    // 이메일 인증 안내 화면 표시 (자동 로그인 대신)
+    showScreen('auth');
     showToast(t('registerDone'), 'success');
-    await window.onAuthReady(user);
+    // 인증 안내 팝업
+    setTimeout(() => {
+      const overlay = document.createElement('div');
+      overlay.id = 'emailVerifyOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      overlay.innerHTML = `
+        <div style="background:#1e293b;border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">
+          <div style="font-size:48px;margin-bottom:12px;">📧</div>
+          <h3 style="color:#fff;font-size:18px;margin:0 0 10px;">${t('emailVerifyTitle') || '이메일 인증 필요'}</h3>
+          <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">${email}<br>${t('emailVerifyDesc') || '로 인증 메일을 보냈습니다.<br>메일함을 확인하고 링크를 클릭해주세요.'}</p>
+          <button onclick="document.getElementById('emailVerifyOverlay').remove()" style="background:#6366f1;color:#fff;border:none;border-radius:10px;padding:12px 32px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">${t('confirm') || '확인'}</button>
+        </div>`;
+      document.body.appendChild(overlay);
+    }, 300);
   } catch (err) {
     showScreen('auth');
     showToast(getAuthErrorMsg(err.code), 'error');

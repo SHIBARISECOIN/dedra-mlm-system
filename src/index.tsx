@@ -346,25 +346,25 @@ const HTML = () => `<!DOCTYPE html>
         </div>
 
         <!-- 로그인 폼 -->
-        <div id="loginForm">
+        <form id="loginForm" onsubmit="event.preventDefault();handleLogin()" autocomplete="on">
           <div class="form-group">
             <label class="form-label" data-i18n="labelEmail">이메일</label>
-            <input type="email" id="loginEmail" class="form-input" placeholder="이메일을 입력하세요" data-i18n="placeholderEmail" data-i18n-attr="placeholder" />
+            <input type="email" id="loginEmail" name="email" class="form-input" placeholder="이메일을 입력하세요" autocomplete="username" data-i18n="placeholderEmail" data-i18n-attr="placeholder" />
           </div>
           <div class="form-group">
             <label class="form-label" data-i18n="labelPassword">비밀번호</label>
-            <input type="password" id="loginPassword" class="form-input" placeholder="비밀번호를 입력하세요" data-i18n="placeholderPassword" data-i18n-attr="placeholder" />
+            <input type="password" id="loginPassword" name="password" class="form-input" placeholder="비밀번호를 입력하세요" autocomplete="current-password" data-i18n="placeholderPassword" data-i18n-attr="placeholder" />
           </div>
-          <button class="btn btn-primary btn-full mt-8" onclick="handleLogin()">
+          <button type="submit" class="btn btn-primary btn-full mt-8">
             <i class="fas fa-sign-in-alt"></i> <span data-i18n="btnLogin">로그인</span>
           </button>
-          <button class="btn btn-ghost btn-full mt-8" onclick="handleForgotPassword()" style="font-size:14px" data-i18n="forgotPassword">
+          <button type="button" class="btn btn-ghost btn-full mt-8" onclick="handleForgotPassword()" style="font-size:14px" data-i18n="forgotPassword">
             비밀번호를 잊으셨나요?
           </button>
-        </div>
+        </form>
 
         <!-- 회원가입 폼 -->
-        <div id="registerForm" class="hidden">
+        <form id="registerForm" class="hidden" onsubmit="event.preventDefault();handleRegister()" autocomplete="on">
           <!-- 이름 + 전화번호 (2열) -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div class="form-group" style="margin-bottom:0">
@@ -424,10 +424,10 @@ const HTML = () => `<!DOCTYPE html>
             </div>
             <div id="refCodeHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
           </div>
-          <button class="btn btn-primary btn-full mt-8" onclick="handleRegister()">
+          <button type="submit" class="btn btn-primary btn-full mt-8">
             <i class="fas fa-user-plus"></i> <span data-i18n="btnRegister">회원가입</span>
           </button>
-        </div>
+        </form>
       </div>
     </div>
   </div>
@@ -1516,7 +1516,7 @@ const HTML = () => `<!DOCTYPE html>
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="withdrawPinLabel">출금 PIN (6자리)</label>
-        <input type="password" id="withdrawPin" class="form-input" placeholder="●●●●●●" maxlength="6" />
+        <input type="password" id="withdrawPin" class="form-input" placeholder="●●●●●●" maxlength="6" autocomplete="off" inputmode="numeric" />
       </div>
       <div class="warning-box" data-i18n="withdrawWarning">⚠️ 출금 신청 후 관리자 승인까지 1~3 영업일 소요됩니다.</div>
     </div>
@@ -1559,11 +1559,11 @@ const HTML = () => `<!DOCTYPE html>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label" data-i18n="newPinLabel">새 PIN (6자리)</label>
-        <input type="password" id="newPin" class="form-input" placeholder="●●●●●●" maxlength="6" />
+        <input type="password" id="newPin" class="form-input" placeholder="●●●●●●" maxlength="6" autocomplete="new-password" inputmode="numeric" />
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="confirmPinLabel">PIN 확인</label>
-        <input type="password" id="confirmPin" class="form-input" placeholder="●●●●●●" maxlength="6" />
+        <input type="password" id="confirmPin" class="form-input" placeholder="●●●●●●" maxlength="6" autocomplete="new-password" inputmode="numeric" />
       </div>
     </div>
     <div class="modal-footer">

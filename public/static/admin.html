@@ -1331,6 +1331,48 @@ canvas{width:100% !important;}
       <div class="page-title">출금 관리</div>
       <div class="page-desc">회원 출금 신청을 확인하고 승인/거부하세요</div>
 
+      <!-- ── 출금 자동화 설정 카드 ── -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:15px;font-weight:700;color:#1e293b;">🤖 출금 자동화</span>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <span style="font-size:13px;color:#64748b;" id="autoWithdrawLabel">수동 처리 중</span>
+            <div style="position:relative;width:44px;height:24px;">
+              <input type="checkbox" id="autoWithdrawToggle" onchange="toggleAutoWithdraw(this.checked)"
+                style="opacity:0;width:0;height:0;position:absolute;">
+              <div id="autoWithdrawTrack" style="position:absolute;inset:0;background:#cbd5e1;border-radius:12px;transition:.3s;cursor:pointer;" onclick="document.getElementById('autoWithdrawToggle').click()"></div>
+              <div id="autoWithdrawThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.3s;pointer-events:none;"></div>
+            </div>
+          </label>
+        </div>
+        <div id="autoWithdrawOptions" style="display:none;flex-direction:column;gap:10px;padding-top:10px;border-top:1px solid #f1f5f9;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">최대 자동 승인 금액 (USDT)</label>
+              <input type="number" id="autoWithdrawMaxAmt" value="100" min="1" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">1일 최대 자동 승인 건수</label>
+              <input type="number" id="autoWithdrawDailyLimit" value="10" min="1" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">처리 지연 (시간)</label>
+              <input type="number" id="autoWithdrawDelay" value="1" min="0" max="48" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">PIN 인증 필요</label>
+              <select id="autoWithdrawPinRequired" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+                <option value="true">예 (보안 강화)</option>
+                <option value="false">아니오</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="saveAutoWithdrawSettings()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-end;">💾 설정 저장</button>
+        </div>
+      </div>
+
       <!-- ── DEEDRA 시세 설정 (단순 한 줄) ── -->
       <div id="dedraRateCard" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;margin-bottom:16px;">
 
@@ -6936,7 +6978,7 @@ function setupEvents() {
             const page = item.dataset.page;
             document.getElementById(page+'Page').classList.add('active');
             if (page==='deposits') { loadCompanyWallets(); loadDeposits('pending'); }
-            else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); }
+            else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); }
             else if (page==='members') { allMembers=[]; loadMembers(); }
             else if (page==='bonus') loadBonusLog();
             else if (page==='notices') loadNotices();
@@ -10342,6 +10384,60 @@ async function loadRateHistory() {
 // ══════════════════════════════════════════════════
 // 일일 ROI 정산 (Daily ROI Settlement)
 // ══════════════════════════════════════════════════
+
+// ── 출금 자동화 설정 ──────────────────────────────────────────────
+async function loadAutoWithdrawSettings() {
+  try {
+    const { doc, getDoc, db } = window.FA;
+    const snap = await getDoc(doc(db, 'settings', 'autoWithdraw'));
+    if (snap.exists()) {
+      const d = snap.data();
+      const toggle = document.getElementById('autoWithdrawToggle');
+      if (toggle) {
+        toggle.checked = !!d.enabled;
+        updateAutoWithdrawUI(!!d.enabled);
+      }
+      if (d.maxAmount)    document.getElementById('autoWithdrawMaxAmt').value = d.maxAmount;
+      if (d.dailyLimit)   document.getElementById('autoWithdrawDailyLimit').value = d.dailyLimit;
+      if (d.delayHours !== undefined) document.getElementById('autoWithdrawDelay').value = d.delayHours;
+      if (d.pinRequired !== undefined) document.getElementById('autoWithdrawPinRequired').value = String(d.pinRequired);
+    }
+  } catch(e) { console.error('출금 자동화 설정 로드 실패', e); }
+}
+
+function updateAutoWithdrawUI(enabled) {
+  const track = document.getElementById('autoWithdrawTrack');
+  const thumb = document.getElementById('autoWithdrawThumb');
+  const label = document.getElementById('autoWithdrawLabel');
+  const opts  = document.getElementById('autoWithdrawOptions');
+  if (track) track.style.background = enabled ? '#6366f1' : '#cbd5e1';
+  if (thumb) thumb.style.left = enabled ? '23px' : '3px';
+  if (label) label.textContent = enabled ? '자동 처리 중' : '수동 처리 중';
+  if (opts)  opts.style.display = enabled ? 'flex' : 'none';
+}
+
+window.toggleAutoWithdraw = async function(enabled) {
+  updateAutoWithdrawUI(enabled);
+  if (enabled) showToast('자동화 옵션을 설정하고 저장 버튼을 눌러주세요.', 'info');
+};
+
+window.saveAutoWithdrawSettings = async function() {
+  const enabled    = document.getElementById('autoWithdrawToggle').checked;
+  const maxAmount  = parseFloat(document.getElementById('autoWithdrawMaxAmt').value) || 100;
+  const dailyLimit = parseInt(document.getElementById('autoWithdrawDailyLimit').value) || 10;
+  const delayHours = parseInt(document.getElementById('autoWithdrawDelay').value) || 0;
+  const pinRequired = document.getElementById('autoWithdrawPinRequired').value === 'true';
+  try {
+    const { doc, setDoc, db, serverTimestamp } = window.FA;
+    await setDoc(doc(db, 'settings', 'autoWithdraw'), {
+      enabled, maxAmount, dailyLimit, delayHours, pinRequired,
+      updatedAt: serverTimestamp()
+    });
+    showToast(enabled ? '✅ 출금 자동화가 활성화되었습니다.' : '✅ 수동 처리로 변경되었습니다.', 'success');
+  } catch(e) {
+    showToast('❌ 설정 저장 실패: ' + e.message, 'error');
+  }
+};
 
 // ── Cron URL 초기화 (정산 카드 로드 시 호출) ──
 function initCronUrl() {
