@@ -1700,7 +1700,7 @@ canvas{width:100% !important;}
             <option value="lose">패배</option>
           </select>
           <button class="btn btn-primary btn-sm" id="refreshGameLogBtn">새로고침</button>
-          <span id="gameLogSummary" style="font-size:13px;color:var(--gray);margin-left:auto;"></span>
+          <span id="gameLogSummary" style="font-size:12px;color:var(--gray);margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></span>
         </div>
         <div id="gameLogsWrap"></div>
       </div>
@@ -6229,30 +6229,86 @@ async function saveGameOdds() {
 async function loadGameLogs(gameType='', resultFilter='') {
     const wrap = document.getElementById('gameLogsWrap');
     wrap.innerHTML = loading();
-    const r = await api.getGameLogs(200);
+    const r = await api.getGameLogs(500);
     if (!r.success) { wrap.innerHTML = emptyState('오류: '+r.error); return; }
-    let logs = r.data;
+
+    // ── 필드 정규화 ──
+    // logGame()에서 저장: game, bet, win(bool), ddraChange, userId, userEmail
+    // 구형 포맷 호환: gameType, betAmount, winAmount, netChange 도 지원
+    let logs = r.data.map(l => ({
+        ...l,
+        // 게임명: game(신규) → gameType(구형) → 알 수 없음
+        _gameName: l.game || l.gameType || '알 수 없음',
+        // gameType key: 한글 게임명 → key 변환, 이미 key인 경우도 지원
+        _gameKey:  l.gameType || (() => {
+            const n = (l.game||'').toLowerCase();
+            if (n.includes('홀짝') || n.includes('odd')) return 'oddeven';
+            if (n.includes('주사위') || n.includes('dice')) return 'dice';
+            if (n.includes('슬롯') || n.includes('slot')) return 'slot';
+            if (n.includes('룰렛') || n.includes('roulette')) return 'roulette';
+            if (n.includes('바카라') || n.includes('baccarat')) return 'baccarat';
+            if (n.includes('포커') || n.includes('poker')) return 'poker';
+            return 'slot';
+        })(),
+        // 베팅액: bet(신규) → betAmount(구형)
+        _bet:  l.bet  ?? l.betAmount  ?? 0,
+        // 당첨액: win이 boolean이면 ddraChange 기반, 숫자면 winAmount
+        _win:  typeof l.win === 'boolean'
+                  ? (l.win ? (l.bet ?? l.betAmount ?? 0) : 0)
+                  : (l.winAmount ?? 0),
+        // 순손익: ddraChange(신규) → netChange(구형)
+        _net:  l.ddraChange ?? l.netChange ?? 0,
+        // 회원 표시: userEmail(신규) → userId 앞 12자(구형)
+        _member: l.userEmail || ((l.userId||'').substring(0,14)+'…'),
+    }));
+
     allGameLogs = logs;
-    if (gameType) logs = logs.filter(l=>l.gameType===gameType);
-    if (resultFilter==='win') logs = logs.filter(l=>l.netChange>0);
-    else if (resultFilter==='lose') logs = logs.filter(l=>l.netChange<=0);
-    const totalBet = logs.reduce((s,l)=>s+(l.betAmount||0),0);
-    const totalWin = logs.reduce((s,l)=>s+(l.winAmount||0),0);
-    document.getElementById('gameLogSummary').textContent = `${logs.length}건 | 총베팅: ${totalBet.toFixed(0)} DEEDRA | 총당첨: ${totalWin.toFixed(0)} DEEDRA`;
+
+    // 필터 적용
+    if (gameType) logs = logs.filter(l => l._gameKey === gameType);
+    if (resultFilter==='win')  logs = logs.filter(l => l._net > 0);
+    else if (resultFilter==='lose') logs = logs.filter(l => l._net <= 0);
+
+    // ── 집계 ──
+    const totalBet  = logs.reduce((s,l) => s + l._bet,  0);
+    const totalWin  = logs.reduce((s,l) => s + l._win,  0);
+    const totalNet  = logs.reduce((s,l) => s + l._net,  0);   // 유저 기준 순손익
+    const companyNet = -totalNet;   // 회사 기준 = 유저 손익의 반대
+    const companySign = companyNet >= 0 ? '+' : '';
+    const companyColor = companyNet >= 0 ? '#22c55e' : '#ef4444';
+    const companyIcon  = companyNet >= 0 ? '📈' : '📉';
+
+    // ── 요약 박스 ──
+    const summaryWrap = document.getElementById('gameLogSummary');
+    if (summaryWrap) {
+        summaryWrap.innerHTML = `
+          <span style="margin-right:10px;">${logs.length}건</span>
+          <span style="margin-right:10px;color:#64748b;">나간 금액(베팅): <b style="color:#3b82f6">${totalBet.toFixed(0)} DDRA</b></span>
+          <span style="margin-right:10px;color:#64748b;">들어온 금액(당첨): <b style="color:#f59e0b">${totalWin.toFixed(0)} DDRA</b></span>
+          <span style="color:${companyColor};font-weight:700;">${companyIcon} 회사 순수익: ${companySign}${companyNet.toFixed(0)} DDRA</span>`;
+    }
+
     if (!logs.length) { wrap.innerHTML = emptyState('게임 로그 없음'); return; }
-    const gtLabel = {roulette:'룰렛', slot:'슬롯', randombox:'랜덤박스'};
+
+    const gtLabel = {
+        oddeven:'홀짝', dice:'주사위', slot:'슬롯',
+        roulette:'룰렛', baccarat:'바카라', poker:'포커', randombox:'랜덤박스'
+    };
+
     wrap.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>게임</th><th>회원 UID</th><th>베팅(DEEDRA)</th><th>당첨(DEEDRA)</th><th>순손익</th><th>베팅전 잔액</th><th>베팅후 잔액</th><th>일시</th></tr></thead>
+      <thead><tr><th>게임</th><th>회원 ID</th><th>나간 금액(베팅)</th><th>들어온 금액(당첨)</th><th>순손익(회사)</th><th>일시</th></tr></thead>
       <tbody>${logs.map(l=>{
-        const net = l.netChange||0;
+        const net     = l._net;
+        const compNet = -net;   // 회사 기준
+        const compSign = compNet >= 0 ? '+' : '';
+        const compCls  = compNet >= 0 ? 'win-amount' : 'lose-amount';
+        const gameName = gtLabel[l._gameKey] || l._gameName;
         return `<tr>
-          <td><span class="game-type-badge game-type-${l.gameType||'slot'}">${gtLabel[l.gameType]||l.gameType}</span></td>
-          <td><code style="font-size:11px;">${(l.userId||'').substring(0,12)}...</code></td>
-          <td>${(l.betAmount||0).toFixed(2)}</td>
-          <td>${(l.winAmount||0).toFixed(2)}</td>
-          <td class="${net>0?'win-amount':'lose-amount'}">${net>0?'+':''}${net.toFixed(2)}</td>
-          <td style="font-size:12px;">${(l.balanceBefore||0).toFixed(2)}</td>
-          <td style="font-size:12px;">${(l.balanceAfter||0).toFixed(2)}</td>
+          <td><span class="game-type-badge game-type-${l._gameKey}">${gameName}</span></td>
+          <td><code style="font-size:11px;">${l._member}</code></td>
+          <td style="color:#3b82f6;">${l._bet.toFixed(2)} DDRA</td>
+          <td style="color:#f59e0b;">${l._win.toFixed(2)} DDRA</td>
+          <td class="${compCls}">${compSign}${compNet.toFixed(2)}</td>
           <td style="font-size:12px;">${fmtDate(l.createdAt)}</td>
         </tr>`;
       }).join('')}</tbody></table></div>`;
@@ -8004,15 +8060,32 @@ function drawGameChart(canvasId, gameLogs) {
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
     const gameTypes = {};
+    const labelKo = { oddeven:'홀짝', dice:'주사위', slot:'슬롯', roulette:'룰렛', baccarat:'바카라', poker:'포커', randombox:'랜덤박스' };
     gameLogs.forEach(l => {
-        const t = l.gameType || 'unknown';
-        if (!gameTypes[t]) gameTypes[t] = { bet: 0, win: 0, count: 0 };
-        gameTypes[t].bet += l.betAmount || 0;
-        gameTypes[t].win += l.winAmount || 0;
-        gameTypes[t].count++;
+        // gameType key 추출 (신구 포맷 모두 지원)
+        let key = l.gameType;
+        if (!key && l.game) {
+            const n = (l.game||'').toLowerCase();
+            if (n.includes('홀짝')||n.includes('odd')) key='oddeven';
+            else if (n.includes('주사위')||n.includes('dice')) key='dice';
+            else if (n.includes('슬롯')||n.includes('slot')) key='slot';
+            else if (n.includes('룰렛')||n.includes('roulette')) key='roulette';
+            else if (n.includes('바카라')||n.includes('baccarat')) key='baccarat';
+            else if (n.includes('포커')||n.includes('poker')) key='poker';
+            else key = l.game || 'unknown';
+        }
+        key = key || 'unknown';
+        if (!gameTypes[key]) gameTypes[key] = { bet: 0, win: 0, count: 0 };
+        // 필드 정규화 (신구 포맷 모두 지원)
+        const betVal = l.bet ?? l.betAmount ?? 0;
+        const winVal = typeof l.win === 'boolean'
+            ? (l.win ? betVal : 0)
+            : (l.winAmount ?? 0);
+        gameTypes[key].bet += betVal;
+        gameTypes[key].win += winVal;
+        gameTypes[key].count++;
     });
     const labels = Object.keys(gameTypes);
-    const labelKo = { roulette:'룰렛', slot:'슬롯', randombox:'랜덤박스' };
     chartInstances[canvasId] = new Chart(ctx, {
         type: 'bar',
         data: {
