@@ -1927,7 +1927,25 @@ export class DedraAPI {
   async getRankPromotionSettings() {
     try {
       const snap = await getDoc(doc(this.db, 'settings', 'rankPromotion'));
-      if (snap.exists()) return ok(snap.data());
+      if (snap.exists()) {
+        const raw = snap.data();
+        // criteriaJson 필드가 있으면 파싱, 없으면 criteria 필드 직접 사용 (하위 호환)
+        if (raw.criteriaJson) {
+          try { raw.criteria = JSON.parse(raw.criteriaJson); } catch(e) {}
+        }
+        // criteria가 없거나 각 rank에 minBalancedVolume 누락 시 보완
+        const ranks = ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+        if (!raw.criteria) raw.criteria = {};
+        ranks.forEach(rank => {
+          if (!raw.criteria[rank]) raw.criteria[rank] = {};
+          const c = raw.criteria[rank];
+          if (c.minBalancedVolume  == null) c.minBalancedVolume  = 0;
+          if (c.minSelfInvest      == null) c.minSelfInvest      = 0;
+          if (c.minNetworkSales    == null) c.minNetworkSales    = 0;
+          if (c.minNetworkMembers  == null) c.minNetworkMembers  = 0;
+        });
+        return ok(raw);
+      }
       // 기본값 반환 (추천인 수 기반 레거시와 호환)
       const defaults = {
         networkDepth: 3,              // 산하 계산 깊이 (1~10)
@@ -1963,9 +1981,22 @@ export class DedraAPI {
    */
   async saveRankPromotionSettings(adminId, settings) {
     try {
-      await setDoc(doc(this.db, 'settings', 'rankPromotion'), {
-        ...settings, updatedAt: serverTimestamp(), updatedBy: adminId
-      });
+      // criteria를 JSON 문자열로 직렬화하여 저장 (Firestore 중첩 Map 누락 방지)
+      const toSave = {
+        networkDepth:             settings.networkDepth,
+        promotionMode:            settings.promotionMode,
+        useBalancedVolume:        settings.useBalancedVolume,
+        excludeTopLines:          settings.excludeTopLines,
+        enableAutoPromotion:      settings.enableAutoPromotion ?? false,
+        preventDowngrade:         settings.preventDowngrade ?? true,
+        requireActiveInvestment:  settings.requireActiveInvestment ?? false,
+        reCheckIntervalDays:      settings.reCheckIntervalDays ?? 0,
+        countOnlyDirectReferrals: settings.countOnlyDirectReferrals ?? false,
+        criteriaJson:             JSON.stringify(settings.criteria || {}),
+        updatedAt:                serverTimestamp(),
+        updatedBy:                adminId
+      };
+      await setDoc(doc(this.db, 'settings', 'rankPromotion'), toSave);
       await this._auditLog(adminId, 'settings', '직급 승진 조건 설정 변경', settings);
       return ok(true);
     } catch(e) { return err(e); }

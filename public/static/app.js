@@ -4085,15 +4085,18 @@ async function loadMyInvestments() {
       return `
       <div class="invest-item">
         <div class="invest-item-header">
-          <span class="invest-item-name">${inv.productName || 'FREEZE'}</span>
-          <span class="invest-item-amount">$${fmt(inv.amount)}</span>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <span class="invest-item-name">${inv.productName || 'FREEZE'}</span>
+            <span style="font-size:11px;color:#10b981;font-weight:600;">누적 수익 +$${fmt(paidRoi)} USDT</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+            <span class="invest-item-amount">$${fmt(inv.amount)}</span>
+            <span style="font-size:11px;color:var(--text2);">잔여 ${remainDays}일</span>
+          </div>
         </div>
         <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
           <span>❄️ 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
-          <span>잔여 ${remainDays}일</span>
-        </div>
-        <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
-          누적 수익: <strong style="color:#10b981;">+$${fmt(paidRoi)}</strong> &nbsp;·&nbsp; 총 예상수익: +${fmt(expectedReturn)} USDT (원금은 만기 후 출금 가능)
+          <span style="font-size:11px;color:var(--text2);">만기 ${endStr}</span>
         </div>
         <div class="invest-progress">
           <div class="invest-progress-fill" style="width:${progress.toFixed(1)}%"></div>
