@@ -418,14 +418,52 @@ export class DedraAPI {
   async adjustWalletBalance(adminId, userId, field, newVal, reason) {
     try {
       const db = this.db;
-      const walletQ = query(collection(db, 'wallets'), where('userId', '==', userId));
-      const wSnap = await getDocs(walletQ);
-      if (wSnap.empty) throw new Error('지갑 없음');
-      const oldData = wSnap.docs[0].data();
-      const oldVal = oldData[field] || 0;
-      await updateDoc(wSnap.docs[0].ref, { [field]: parseFloat(newVal), updatedAt: serverTimestamp() });
-      await this._auditLog(adminId, 'wallet_adjust', `잔액 수정 (${field}): ${oldVal} → ${newVal}`, { userId, reason });
-      return ok(true);
+      // wallets 문서ID = userId (setDoc(doc(db,'wallets',uid)) 방식)
+      // 먼저 문서ID로 직접 조회, 없으면 userId 필드로 fallback
+      let wRef = null, oldData = {};
+      const directSnap = await getDoc(doc(db, 'wallets', userId));
+      if (directSnap.exists()) {
+        wRef = directSnap.ref;
+        oldData = directSnap.data();
+      } else {
+        const walletQ = query(collection(db, 'wallets'), where('userId', '==', userId));
+        const wSnap = await getDocs(walletQ);
+        if (wSnap.empty) throw new Error('지갑 없음');
+        wRef = wSnap.docs[0].ref;
+        oldData = wSnap.docs[0].data();
+      }
+      const oldVal = parseFloat(oldData[field] || 0);
+      const nv     = parseFloat(newVal);
+      const delta  = nv - oldVal;
+
+      await updateDoc(wRef, { [field]: nv, updatedAt: serverTimestamp() });
+
+      // ── 변경 이력 저장 (memberEditLogs 컬렉션) ──
+      const FIELD_LABELS = {
+        bonusBalance:  '출금가능 잔액',
+        usdtBalance:   '총 USDT 잔액',
+        totalDeposit:  '총 입금액',
+        totalEarnings: '누적 수익',
+        totalInvested: '운용중 금액',
+        dedraBalance:  'DDRA 잔액',
+      };
+      await addDoc(collection(db, 'memberEditLogs'), {
+        userId,
+        adminId,
+        field,
+        fieldLabel:  FIELD_LABELS[field] || field,
+        oldVal,
+        newVal:      nv,
+        delta,
+        reason:      reason || '',
+        createdAt:   serverTimestamp(),
+      });
+
+      await this._auditLog(adminId, 'wallet_adjust',
+        `잔액 수정 (${FIELD_LABELS[field]||field}): ${oldVal.toFixed(2)} → ${nv.toFixed(2)} (${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`,
+        { userId, reason, field, oldVal, newVal: nv, delta }
+      );
+      return ok({ oldVal, newVal: nv, delta });
     } catch(e) { return err(e); }
   }
 

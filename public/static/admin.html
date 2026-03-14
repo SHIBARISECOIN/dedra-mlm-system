@@ -719,6 +719,92 @@ canvas{width:100% !important;}
 }
 .msave-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(99,102,241,.4); }
 .msave-btn:disabled { opacity:.6; transform:none; cursor:not-allowed; }
+
+/* ── 자산 요약 배너 (헤더 하단) ── */
+.asset-summary-bar {
+  display:grid; grid-template-columns:repeat(4,1fr);
+  background:rgba(0,0,0,.15); border-radius:10px;
+  margin-top:12px; overflow:hidden;
+}
+.asset-summary-item {
+  padding:10px 14px; text-align:center;
+  border-right:1px solid rgba(255,255,255,.1);
+}
+.asset-summary-item:last-child { border-right:none; }
+.asset-summary-label {
+  font-size:10px; color:rgba(255,255,255,.65); font-weight:600;
+  letter-spacing:.4px; text-transform:uppercase; margin-bottom:3px;
+}
+.asset-summary-value {
+  font-size:16px; font-weight:800; color:#fff; letter-spacing:-.3px;
+}
+.asset-summary-value.highlight { color:#fcd34d; }
+.asset-summary-value.green     { color:#6ee7b7; }
+.asset-summary-value.red       { color:#fca5a5; }
+
+/* ── 잔액 수정 필드 인라인 버튼 ── */
+.wallet-edit-row {
+  display:grid; grid-template-columns:1fr 140px 1fr auto; gap:10px;
+  align-items:flex-end; margin-bottom:10px;
+}
+.wallet-edit-label {
+  font-size:11px; font-weight:700; color:#6b7280;
+  text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;
+}
+.wallet-edit-input {
+  width:100%; padding:9px 12px;
+  border:1.5px solid #e5e7eb; border-radius:9px;
+  font-size:13px; color:#111827; background:#fff;
+  transition:border-color .15s;
+}
+.wallet-edit-input:focus { outline:none; border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+.wallet-edit-btn {
+  padding:9px 18px; border:none; border-radius:9px;
+  font-size:12px; font-weight:700; cursor:pointer;
+  transition:all .15s; white-space:nowrap;
+}
+.wallet-edit-btn.apply {
+  background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff;
+  box-shadow:0 2px 8px rgba(245,158,11,.3);
+}
+.wallet-edit-btn.apply:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(245,158,11,.4); }
+.wallet-edit-btn.apply:disabled { opacity:.5; transform:none; cursor:not-allowed; }
+
+/* ── 변경 이력 타임라인 ── */
+.edit-history-timeline { display:flex; flex-direction:column; gap:0; }
+.edit-history-item {
+  display:flex; gap:14px; padding:12px 0;
+  border-bottom:1px solid #f1f5f9; position:relative;
+}
+.edit-history-item:last-child { border-bottom:none; }
+.edit-history-dot {
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; margin-top:2px;
+}
+.edit-history-dot.increase { background:#dcfce7; }
+.edit-history-dot.decrease { background:#fee2e2; }
+.edit-history-dot.neutral  { background:#f1f5f9; }
+.edit-history-body { flex:1; min-width:0; }
+.edit-history-header {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px;
+}
+.edit-history-field {
+  font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;
+  background:#eef2ff; color:#4338ca;
+}
+.edit-history-change {
+  font-size:13px; font-weight:800; color:#111827;
+}
+.edit-history-change.increase { color:#059669; }
+.edit-history-change.decrease { color:#dc2626; }
+.edit-history-meta {
+  font-size:11px; color:#9ca3af; display:flex; gap:10px; flex-wrap:wrap;
+}
+.edit-history-reason {
+  font-size:12px; color:#64748b; margin-top:3px;
+  font-style:italic;
+}
 </style>
 </head>
 <body>
@@ -3939,6 +4025,25 @@ canvas{width:100% !important;}
             <div class="member-meta-value"><span id="me_totalReferrals">0</span>명</div>
           </div>
         </div>
+        <!-- 자산 요약 배너 -->
+        <div class="asset-summary-bar" id="me_assetBar">
+          <div class="asset-summary-item">
+            <div class="asset-summary-label">총 자산 (USDT)</div>
+            <div class="asset-summary-value highlight" id="me_totalAsset">–</div>
+          </div>
+          <div class="asset-summary-item">
+            <div class="asset-summary-label">출금가능 잔액</div>
+            <div class="asset-summary-value green" id="me_withdrawable">–</div>
+          </div>
+          <div class="asset-summary-item">
+            <div class="asset-summary-label">운용중 (락업)</div>
+            <div class="asset-summary-value" id="me_invested">–</div>
+          </div>
+          <div class="asset-summary-item">
+            <div class="asset-summary-label">총 입금 / 출금</div>
+            <div class="asset-summary-value" id="me_depositWithdraw">–</div>
+          </div>
+        </div>
       </div>
 
       <!-- ② 탭 네비게이션 -->
@@ -3947,7 +4052,10 @@ canvas{width:100% !important;}
           ✏️ 기본 정보
         </div>
         <div class="member-modal-tab" data-mtab="wallet">
-          💰 지갑 / 잔액
+          💰 자산 관리
+        </div>
+        <div class="member-modal-tab" data-mtab="editlog">
+          📝 변경 이력
         </div>
         <div class="member-modal-tab" data-mtab="txhistory">
           📋 거래내역
@@ -4103,12 +4211,20 @@ canvas{width:100% !important;}
 
         </div><!-- /mtab-info -->
 
-        <!-- ────── 지갑/잔액 탭 ────── -->
+        <!-- ────── 자산 관리 탭 ────── -->
         <div class="member-modal-tab-content" id="mtab-wallet">
 
-          <!-- 잔액 요약 카드 그리드 -->
-          <div class="wallet-grid" id="memberWalletBody">
-            <!-- JS가 채워줌 -->
+          <!-- 잔액 현황 카드 -->
+          <div class="mcard">
+            <div class="mcard-header">
+              <span class="mcard-icon">📊</span>
+              <span class="mcard-title">현재 자산 현황</span>
+            </div>
+            <div class="mcard-body" style="padding:12px 16px;">
+              <div id="memberWalletBody" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                <!-- JS가 채워줌 -->
+              </div>
+            </div>
           </div>
 
           <!-- 잔액 직접 수정 카드 -->
@@ -4116,37 +4232,117 @@ canvas{width:100% !important;}
             <div class="mcard-header">
               <span class="mcard-icon">🔧</span>
               <span class="mcard-title">잔액 직접 수정</span>
+              <span style="font-size:11px;color:#9ca3af;margin-left:auto;">수정 즉시 이력이 기록됩니다</span>
             </div>
             <div class="mcard-body">
               <div class="malert" id="walletAdjustAlert"></div>
-              <div class="mform-grid cols3">
-                <div class="mfield">
-                  <label class="mfield-label">수정 항목</label>
-                  <select class="mfield-input select" id="walletAdjustField">
-                    <option value="usdtBalance">USDT 잔액</option>
-                    <option value="dedraBalance">DDRA 잔액 (게임)</option>
-                    <option value="totalDeposit">총 입금액</option>
-                    <option value="totalEarnings">총 수익</option>
-                  </select>
-                </div>
-                <div class="mfield">
-                  <label class="mfield-label">새 값</label>
-                  <input type="number" class="mfield-input" id="walletAdjustValue" placeholder="0.00" step="0.01">
-                </div>
-                <div class="mfield">
-                  <label class="mfield-label">수정 사유</label>
-                  <input type="text" class="mfield-input" id="walletAdjustReason" placeholder="사유 입력">
+
+              <!-- 출금가능 잔액 (bonusBalance) -->
+              <div style="margin-bottom:14px;">
+                <div class="wallet-edit-label">💚 출금가능 잔액 (bonusBalance · USDT)</div>
+                <div class="wallet-edit-row">
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">현재 값</div>
+                    <div class="wallet-edit-input" style="background:#f8faff;color:#6b7280;" id="we_bonus_current">–</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">새 값</div>
+                    <input type="number" class="wallet-edit-input" id="we_bonus_new" placeholder="0.00" step="0.01" min="0">
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">수정 사유 <span style="color:#ef4444;">*</span></div>
+                    <input type="text" class="wallet-edit-input" id="we_bonus_reason" placeholder="예: 수동 지급, 오류 수정...">
+                  </div>
+                  <button class="wallet-edit-btn apply" id="we_bonus_btn">적용</button>
                 </div>
               </div>
-              <div style="margin-top:14px;">
-                <button class="btn btn-warning" id="adjustWalletBtn" style="padding:10px 24px;border-radius:10px;font-size:13px;">
-                  💾 잔액 수정 적용
-                </button>
+
+              <hr style="border:none;border-top:1px solid #f1f5f9;margin:14px 0;">
+
+              <!-- USDT 전체 잔액 (usdtBalance) -->
+              <div style="margin-bottom:14px;">
+                <div class="wallet-edit-label">🔵 총 USDT 잔액 (usdtBalance · 운용중 포함)</div>
+                <div class="wallet-edit-row">
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">현재 값</div>
+                    <div class="wallet-edit-input" style="background:#f8faff;color:#6b7280;" id="we_usdt_current">–</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">새 값</div>
+                    <input type="number" class="wallet-edit-input" id="we_usdt_new" placeholder="0.00" step="0.01" min="0">
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">수정 사유 <span style="color:#ef4444;">*</span></div>
+                    <input type="text" class="wallet-edit-input" id="we_usdt_reason" placeholder="예: 입금 확인, 잔액 조정...">
+                  </div>
+                  <button class="wallet-edit-btn apply" id="we_usdt_btn">적용</button>
+                </div>
               </div>
+
+              <hr style="border:none;border-top:1px solid #f1f5f9;margin:14px 0;">
+
+              <!-- 총 입금액 -->
+              <div style="margin-bottom:14px;">
+                <div class="wallet-edit-label">🟢 총 입금액 (totalDeposit)</div>
+                <div class="wallet-edit-row">
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">현재 값</div>
+                    <div class="wallet-edit-input" style="background:#f8faff;color:#6b7280;" id="we_deposit_current">–</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">새 값</div>
+                    <input type="number" class="wallet-edit-input" id="we_deposit_new" placeholder="0.00" step="0.01" min="0">
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">수정 사유 <span style="color:#ef4444;">*</span></div>
+                    <input type="text" class="wallet-edit-input" id="we_deposit_reason" placeholder="예: 입금 수동 반영...">
+                  </div>
+                  <button class="wallet-edit-btn apply" id="we_deposit_btn">적용</button>
+                </div>
+              </div>
+
+              <hr style="border:none;border-top:1px solid #f1f5f9;margin:14px 0;">
+
+              <!-- 총 수익 -->
+              <div>
+                <div class="wallet-edit-label">🟡 누적 총 수익 (totalEarnings)</div>
+                <div class="wallet-edit-row">
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">현재 값</div>
+                    <div class="wallet-edit-input" style="background:#f8faff;color:#6b7280;" id="we_earnings_current">–</div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">새 값</div>
+                    <input type="number" class="wallet-edit-input" id="we_earnings_new" placeholder="0.00" step="0.01" min="0">
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">수정 사유 <span style="color:#ef4444;">*</span></div>
+                    <input type="text" class="wallet-edit-input" id="we_earnings_reason" placeholder="예: 수익 재산정...">
+                  </div>
+                  <button class="wallet-edit-btn apply" id="we_earnings_btn">적용</button>
+                </div>
+              </div>
+
             </div>
           </div>
 
         </div><!-- /mtab-wallet -->
+
+        <!-- ────── 변경 이력 탭 ────── -->
+        <div class="member-modal-tab-content" id="mtab-editlog">
+          <div class="mcard">
+            <div class="mcard-header">
+              <span class="mcard-icon">📝</span>
+              <span class="mcard-title">자산 변경 이력</span>
+              <span style="font-size:11px;color:#9ca3af;margin-left:auto;">관리자가 수정한 모든 이력이 기록됩니다</span>
+            </div>
+            <div class="mcard-body" style="padding:8px 16px;">
+              <div id="memberEditLogWrap">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+            </div>
+          </div>
+        </div><!-- /mtab-editlog -->
 
         <!-- ────── 거래내역 탭 ────── -->
         <div class="member-modal-tab-content" id="mtab-txhistory">
@@ -6400,44 +6596,59 @@ window.showMemberDetail = async (userId) => {
         revokeEl.style.display  = 'none';
     }
 
-    // ── 지갑 정보 (currentMember에 이미 병합된 데이터 사용) ──
-    const wallet = currentMember;
+    // ── 자산 요약 배너 채우기 ──
+    const fmt2 = v => parseFloat(v||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const totalAsset = (wallet.usdtBalance||0) + (wallet.bonusBalance||0);
+    document.getElementById('me_totalAsset').textContent     = '$' + fmt2(totalAsset);
+    document.getElementById('me_withdrawable').textContent   = '$' + fmt2(wallet.bonusBalance);
+    document.getElementById('me_invested').textContent       = '$' + fmt2(wallet.totalInvested);
+    document.getElementById('me_depositWithdraw').textContent = '$' + fmt2(wallet.totalDeposit) + ' / $' + fmt2(wallet.totalWithdrawal);
 
+    // ── 지갑 현황 카드 (3열 그리드) ──
     document.getElementById('memberWalletBody').innerHTML = `
-        <div class="wallet-item">
-            <div class="wallet-item-label">USDT 잔액</div>
-            <div class="wallet-item-value usdt">${(wallet.usdtBalance||wallet.walletBalance||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">USDT</div>
+        <div style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">출금가능 잔액</div>
+          <div style="font-size:22px;font-weight:800;color:#4338ca;">${fmt2(wallet.bonusBalance)}</div>
+          <div style="font-size:11px;color:#6366f1;margin-top:2px;">USDT (bonusBalance)</div>
         </div>
-        <div class="wallet-item">
-            <div class="wallet-item-label">총 투자금액</div>
-            <div class="wallet-item-value deedra">${(wallet.totalInvested||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">USDT</div>
+        <div style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#5b21b6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">총 USDT 잔액</div>
+          <div style="font-size:22px;font-weight:800;color:#5b21b6;">${fmt2(wallet.usdtBalance)}</div>
+          <div style="font-size:11px;color:#7c3aed;margin-top:2px;">USDT (전체)</div>
         </div>
-        <div class="wallet-item">
-            <div class="wallet-item-label">총 입금액</div>
-            <div class="wallet-item-value deposit">${(wallet.totalDeposit||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">USDT</div>
+        <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">운용중 (상품 락업)</div>
+          <div style="font-size:22px;font-weight:800;color:#92400e;">${fmt2(wallet.totalInvested)}</div>
+          <div style="font-size:11px;color:#b45309;margin-top:2px;">USDT (만기 전 잠김)</div>
         </div>
-        <div class="wallet-item">
-            <div class="wallet-item-label">총 출금액</div>
-            <div class="wallet-item-value withdrawal">${(wallet.totalWithdrawal||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">USDT</div>
+        <div style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#065f46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">총 입금액</div>
+          <div style="font-size:22px;font-weight:800;color:#065f46;">${fmt2(wallet.totalDeposit)}</div>
+          <div style="font-size:11px;color:#059669;margin-top:2px;">USDT (누적)</div>
         </div>
-        <div class="wallet-item">
-            <div class="wallet-item-label">보너스 잔액</div>
-            <div class="wallet-item-value earnings">${(wallet.bonusBalance||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">USDT</div>
+        <div style="background:linear-gradient(135deg,#fee2e2,#fecaca);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">총 출금액</div>
+          <div style="font-size:22px;font-weight:800;color:#991b1b;">${fmt2(wallet.totalWithdrawal)}</div>
+          <div style="font-size:11px;color:#dc2626;margin-top:2px;">USDT (누적)</div>
         </div>
-        <div class="wallet-item">
-            <div class="wallet-item-label">누적 수익</div>
-            <div class="wallet-item-value earnings">${(wallet.totalEarnings||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <div class="wallet-item-unit">USDT</div>
+        <div style="background:linear-gradient(135deg,#fff7ed,#fed7aa);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:#7c2d12;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">누적 수익</div>
+          <div style="font-size:22px;font-weight:800;color:#7c2d12;">${fmt2(wallet.totalEarnings)}</div>
+          <div style="font-size:11px;color:#ea580c;margin-top:2px;">USDT (totalEarnings)</div>
         </div>`;
 
-    document.getElementById('walletAdjustField').value  = 'usdtBalance';
-    document.getElementById('walletAdjustValue').value  = '';
-    document.getElementById('walletAdjustReason').value = '';
+    // ── 잔액 수정 필드 현재값 채우기 ──
+    document.getElementById('we_bonus_current').textContent   = fmt2(wallet.bonusBalance)   + ' USDT';
+    document.getElementById('we_usdt_current').textContent    = fmt2(wallet.usdtBalance)    + ' USDT';
+    document.getElementById('we_deposit_current').textContent = fmt2(wallet.totalDeposit)   + ' USDT';
+    document.getElementById('we_earnings_current').textContent= fmt2(wallet.totalEarnings)  + ' USDT';
+    // 입력 초기화
+    ['we_bonus_new','we_usdt_new','we_deposit_new','we_earnings_new'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.value = '';
+    });
+    ['we_bonus_reason','we_usdt_reason','we_deposit_reason','we_earnings_reason'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.value = '';
+    });
     const waAlert = document.getElementById('walletAdjustAlert');
     waAlert.className = 'malert'; waAlert.textContent = '';
 
@@ -6456,6 +6667,7 @@ window.showMemberDetail = async (userId) => {
             const target = tab.dataset.mtab;
             document.getElementById(`mtab-${target}`).classList.add('active');
             if (target === 'txhistory') loadMemberTxHistory(userId);
+            if (target === 'editlog')   loadMemberEditLog(userId);
         };
     });
 
@@ -6573,7 +6785,65 @@ async function loadMemberTxHistory(userId) {
     } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); }
 }
 
-window.closeModal = id => document.getElementById(id).classList.remove('show');
+// ── 변경 이력 탭 로드 ──────────────────────────────────
+async function loadMemberEditLog(userId) {
+    const wrap = document.getElementById('memberEditLogWrap');
+    wrap.innerHTML = loading();
+    try {
+        const q = query(collection(db,'memberEditLogs'), where('userId','==',userId), limit(100));
+        const snap = await getDocs(q);
+        const rows = snap.docs
+            .map(d=>({id:d.id,...d.data()}))
+            .sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+        if (!rows.length) {
+            wrap.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#94a3b8;">
+              <div style="font-size:36px;margin-bottom:10px;">📭</div>
+              <div style="font-size:14px;font-weight:600;">변경 이력이 없습니다</div>
+              <div style="font-size:12px;margin-top:4px;">자산 수정 탭에서 잔액을 수정하면 이곳에 기록됩니다.</div>
+            </div>`;
+            return;
+        }
+
+        // 관리자 이름 캐시
+        const adminNames = {};
+        const adminSnap = await getDocs(query(collection(db,'users'), where('role','==','admin')));
+        adminSnap.docs.forEach(d => { adminNames[d.id] = d.data().name || d.data().email || d.id; });
+
+        const items = rows.map(r => {
+            const delta  = r.delta ?? (r.newVal - r.oldVal);
+            const isInc  = delta > 0;
+            const isDec  = delta < 0;
+            const dotCls = isInc ? 'increase' : isDec ? 'decrease' : 'neutral';
+            const dotIcon= isInc ? '↑' : isDec ? '↓' : '↔';
+            const chgCls = isInc ? 'increase' : isDec ? 'decrease' : '';
+            const diffStr= (delta >= 0 ? '+' : '') + parseFloat(delta).toFixed(2);
+            const adminName = adminNames[r.adminId] || r.adminId?.substring?.(0,10) || '관리자';
+            return `
+            <div class="edit-history-item">
+              <div class="edit-history-dot ${dotCls}">${dotIcon}</div>
+              <div class="edit-history-body">
+                <div class="edit-history-header">
+                  <span class="edit-history-field">${r.fieldLabel || r.field}</span>
+                  <span class="edit-history-change ${chgCls}">
+                    $${parseFloat(r.oldVal||0).toFixed(2)}
+                    <span style="color:#94a3b8;font-weight:400;font-size:12px;"> → </span>
+                    $${parseFloat(r.newVal||0).toFixed(2)}
+                    <span style="font-size:12px;margin-left:4px;">(${diffStr})</span>
+                  </span>
+                </div>
+                ${r.reason ? `<div class="edit-history-reason">💬 "${r.reason}"</div>` : ''}
+                <div class="edit-history-meta">
+                  <span>🧑‍💼 ${adminName}</span>
+                  <span>🕐 ${fmtDate(r.createdAt)}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+
+        wrap.innerHTML = `<div class="edit-history-timeline">${items}</div>`;
+    } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); console.error(e); }
+}
+
 window.navigateTo = (page) => {
     if (page === 'settings') {
         window._openSettingsWithAuth();
@@ -6789,25 +7059,53 @@ function setupEvents() {
     });
 
     // ── 잔액 수정 ──
-    document.getElementById('adjustWalletBtn').addEventListener('click', async () => {
-        const field = document.getElementById('walletAdjustField').value;
-        const newVal = document.getElementById('walletAdjustValue').value;
-        const reason = document.getElementById('walletAdjustReason').value;
-        const waAlert = document.getElementById('walletAdjustAlert');
-        const showWA = (type, msg) => {
-            waAlert.className = `malert ${type} show`;
-            waAlert.textContent = msg;
-        };
-        if (!newVal || isNaN(newVal)) { showWA('error','⚠️ 유효한 숫자를 입력하세요.'); return; }
-        if (!reason) { showWA('error','⚠️ 수정 사유를 입력하세요.'); return; }
-        if (!await _adminConfirm(`${currentMember.name}의 [${field}]를 ${newVal}로 수정하시겠습니까?`)) return;
-        const btn = document.getElementById('adjustWalletBtn');
-        btn.disabled=true; btn.textContent='처리 중...';
-        const r = await api.adjustWalletBalance(currentAdmin.uid, currentMember.id, field, newVal, reason);
-        if (r.success) {
-            showWA('success','✅ 잔액이 수정되었습니다. 창을 닫고 다시 열면 반영됩니다.');
-        } else { showWA('error','❌ '+r.error); }
-        btn.disabled=false; btn.innerHTML='💾 잔액 수정 적용';
+    // ── 잔액 수정 버튼 핸들러 (항목별 개별 적용) ──
+    const WALLET_FIELDS = [
+        { btnId:'we_bonus_btn',    newId:'we_bonus_new',    reasonId:'we_bonus_reason',    curId:'we_bonus_current',    field:'bonusBalance',   label:'출금가능 잔액' },
+        { btnId:'we_usdt_btn',     newId:'we_usdt_new',     reasonId:'we_usdt_reason',     curId:'we_usdt_current',     field:'usdtBalance',    label:'총 USDT 잔액' },
+        { btnId:'we_deposit_btn',  newId:'we_deposit_new',  reasonId:'we_deposit_reason',  curId:'we_deposit_current',  field:'totalDeposit',   label:'총 입금액' },
+        { btnId:'we_earnings_btn', newId:'we_earnings_new', reasonId:'we_earnings_reason', curId:'we_earnings_current', field:'totalEarnings',  label:'누적 수익' },
+    ];
+    WALLET_FIELDS.forEach(({ btnId, newId, reasonId, curId, field, label }) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+            const waAlert = document.getElementById('walletAdjustAlert');
+            const showWA = (type, msg) => {
+                waAlert.className = `malert ${type} show`;
+                waAlert.innerHTML = msg;
+                setTimeout(() => { waAlert.className = 'malert'; waAlert.textContent=''; }, 5000);
+            };
+            const newVal = document.getElementById(newId).value.trim();
+            const reason = document.getElementById(reasonId).value.trim();
+            if (!newVal || isNaN(newVal)) { showWA('error','⚠️ 유효한 숫자를 입력하세요.'); return; }
+            if (!reason)                  { showWA('error','⚠️ 수정 사유를 입력하세요.'); return; }
+            const oldVal = parseFloat(currentMember[field] || 0);
+            const nv     = parseFloat(newVal);
+            const diff   = nv - oldVal;
+            const diffStr= (diff >= 0 ? '+' : '') + diff.toFixed(2);
+            if (!await _adminConfirm(
+                `[${currentMember.name}] ${label}\n현재: $${oldVal.toFixed(2)}  →  새 값: $${nv.toFixed(2)}  (${diffStr})\n\n사유: ${reason}`, '🔧'
+            )) return;
+            btn.disabled = true; btn.textContent = '처리 중...';
+            const r = await api.adjustWalletBalance(currentAdmin.uid, currentMember.id, field, nv, reason);
+            btn.disabled = false; btn.textContent = '적용';
+            if (r.success) {
+                showWA('success', `✅ [${label}] $${oldVal.toFixed(2)} → $${nv.toFixed(2)} (${diffStr}) 수정 완료`);
+                // 현재값 표시 업데이트
+                document.getElementById(curId).textContent = nv.toFixed(2) + ' USDT';
+                currentMember[field] = nv;
+                // 헤더 배너 갱신
+                const w = currentMember;
+                const fmt2 = v => parseFloat(v||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+                const totalAsset = (w.usdtBalance||0) + (w.bonusBalance||0);
+                const el = document.getElementById('me_totalAsset');
+                if (el) el.textContent = '$' + fmt2(totalAsset);
+                const el2 = document.getElementById('me_withdrawable');
+                if (el2) el2.textContent = '$' + fmt2(w.bonusBalance);
+                allMembers = []; // 목록 캐시 무효화
+            } else { showWA('error', '❌ ' + r.error); }
+        });
     });
 
     // ── 회원 비밀번호 임시 변경 ──
