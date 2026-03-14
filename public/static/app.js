@@ -2348,20 +2348,22 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   if (!walletData) return;
   const p = price || 0.5;
 
-  // DDRA 보유 USD 환산
-  const dedraUsd = (walletData.dedraBalance || 0) * p;
+  // 수익잔액(bonusBalance, USDT) → 출금 가능 DDRA 환산
+  const bonus = walletData.bonusBalance || 0;
+  const withdrawableDdra = bonus / p;  // 출금 가능 DDRA = bonusBalance ÷ ddraPrice
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+
+  // splitBonusDdra: USDT 수익의 DDRA 환산 표시
+  setEl('splitBonusDdra',      '≈ $' + fmt(bonus) + ' USDT');
+  setEl('moreWalletBonusDdra', fmt(withdrawableDdra) + ' DDRA');
+
+  // splitDedraUsd: dedraBalance는 게임 전용이므로 표시만 유지
+  const dedraUsd = (walletData.dedraBalance || 0) * p;
   setEl('splitDedraUsd',    '≈ $' + fmt(dedraUsd));
   setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
 
-  // 수익잔액 DDRA 환산
-  const bonus = walletData.bonusBalance || 0;
-  const bonusDdra = bonus / p;
-  setEl('splitBonusDdra',    '≈ ' + fmt(bonusDdra) + ' DDRA');
-  setEl('moreWalletBonusDdra', '≈ ' + fmt(bonusDdra) + ' DDRA');
-
-  // 게임 잔액 업데이트 (DDRA 단위)
-  gameBalanceVal = Math.floor(bonusDdra * 100) / 100;
+  // 게임 잔액: bonusBalance(USDT) ÷ ddraPrice → DDRA 단위
+  gameBalanceVal = Math.floor(withdrawableDdra * 100) / 100;
   setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
 
   // 출금 모달 DDRA 환산 업데이트
@@ -2746,9 +2748,10 @@ function updateHomeUI() {
   if (rankEl) rankEl.textContent = userData.rank || 'G0';
 
   const usdt = walletData.usdtBalance || 0;
-  const dedra = walletData.dedraBalance || 0;
-  const bonus = walletData.bonusBalance || 0;  // 수익 잔액 (USDT 기준, 출금 가능)
-  // 총 자산 = USDT 원금 + 수익 잔액 (DDRA 게임 잔액 제외)
+  const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
+  const p = deedraPrice || 0.5;
+  // 총 자산 = USDT 원금 + ROI 수익 (bonusBalance, USDT 기준)
+  // dedraBalance는 게임 전용 잔액으로 총자산에 포함하지 않음
   const total = usdt + bonus;
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -2763,11 +2766,11 @@ function updateHomeUI() {
     rateInfoEl.textContent = rateText ? '📈 ' + rateText : '';
   }
   setEl('splitUsdt', fmt(usdt) + ' USDT');
-  // splitBonus: DDRA 단위로 표시 (이것이 출금 가능한 수량)
-  const bonusDdra = bonus / (deedraPrice || 0.5);
-  setEl('splitBonus', fmt(bonusDdra) + ' DDRA');
+  // splitBonus: 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ ddraPrice
+  // 즉, 달러 기준 수익을 출금 시점의 DDRA 시세로 환산
+  const withdrawableDdra = bonus / p;
+  setEl('splitBonus', fmt(withdrawableDdra) + ' DDRA');
   setEl('splitBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
-  // splitDedra는 더 이상 별도 UI 없음 (통합됨)
 }
 
 // ===== D-Day 카드 =====
@@ -2992,13 +2995,15 @@ function loadMorePage() {
   const rankEl = document.getElementById('profileRank');
   if (rankEl) rankEl.innerHTML = `<i class="fas fa-star" style="font-size:10px"></i> ${userData.rank || 'G0'}`;
 
-  const dedra = walletData.dedraBalance || 0;
   const bonus = walletData.bonusBalance || 0;
-  const dedraUsd = dedra * deedraPrice;
-  const bonusDdra = bonus / (deedraPrice || 0.5);
+  const p = deedraPrice || 0.5;
+  const withdrawableDdra = bonus / p;  // bonusBalance(USDT) → 출금 가능 DDRA
   setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
-  setEl('moreWalletBonus', fmt(bonus) + ' USDT');  // 수익잔액
-  setEl('moreWalletBonusDdra', '≈ ' + fmt(bonusDdra) + ' DDRA');
+  setEl('moreWalletBonus', fmt(withdrawableDdra) + ' DDRA');  // 수익잔액 DDRA 표시
+  setEl('moreWalletBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
+  // dedraBalance(게임전용)는 내부적으로만 유지
+  const dedra = walletData.dedraBalance || 0;
+  const dedraUsd = dedra * p;
   setEl('moreWalletDedra', fmt(dedra) + ' DDRA');
   setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
 
@@ -3496,11 +3501,14 @@ window.submitDeposit = async function() {
 
 // ===== 출금 신청 =====
 window.showWithdrawModal = function() {
-  const bonus = walletData?.bonusBalance || 0;
-  const bonusDdra = bonus / (deedraPrice || 0.5);  // DDRA 환산
+  // 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ 현재 DDRA 시세
+  // 관리자 설정 시세 우선, 실시간 시세 차선 적용
+  const bonus = walletData?.bonusBalance || 0;  // USDT 기준 수익 잔액
+  const p = deedraPrice || 0.5;
+  const withdrawableDdra = bonus / p;  // USDT → DDRA 환산
   // 출금 가능 DDRA 표시
   const avEl = document.getElementById('withdrawAvailable');
-  if (avEl) avEl.textContent = fmt(bonusDdra);
+  if (avEl) avEl.textContent = fmt(withdrawableDdra);
   // USDT 환산 부제목
   const avUsdtEl = document.getElementById('withdrawAvailableUsdt');
   if (avUsdtEl) avUsdtEl.textContent = '≈ $' + fmt(bonus) + ' USDT';
@@ -3551,7 +3559,7 @@ window.submitWithdraw = async function() {
   const price = deedraPrice || 0.5;
   const amountUsdt = ddrAmt * price;  // USDT 환산
 
-  // 출금 가능 금액 = bonusBalance(USDT) → DDRA 환산 기준
+  // 출금 가능 DDRA = bonusBalance(USDT) ÷ 현재 DDRA 시세
   const availableBonus = walletData?.bonusBalance || 0;
   const availableDdra = availableBonus / price;
   if (availableDdra < ddrAmt) {

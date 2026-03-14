@@ -3098,29 +3098,22 @@ async function runSettle(c: any) {
           }, adminToken)
         }
 
-        // ROI 계산 (일일)
+        // ROI 계산 (일일) — 모든 기준은 USDT
         const roiPct = inv.roiPct || inv.roiPercent || inv.dailyRoi || 0
         const principal = inv.amountUsdt || inv.amount || 0
         // roiPct가 총 수익률이면 기간으로 나눔, 일일 수익률이면 그대로
         const durationDays = inv.durationDays || inv.duration || 30
         const dailyRoiPct = roiPct > 1 ? roiPct / durationDays : roiPct
-        const dailyEarning = principal * (dailyRoiPct / 100)
+        const dailyEarning = principal * (dailyRoiPct / 100)  // USDT 기준
 
         if (dailyEarning <= 0) continue
 
-        // DDRA 환산 (시세 조회)
-        let ddraPrice = 0.5
-        try {
-          const priceRes = await fetch('https://ddra.io/api/price/token?pair=CCWoFv', { signal: AbortSignal.timeout(3000) })
-          if (priceRes.ok) { const pd: any = await priceRes.json(); ddraPrice = pd.price || 0.5 }
-        } catch (_) {}
-        const ddraAmount = ddraPrice > 0 ? dailyEarning / ddraPrice : dailyEarning
-
-        // wallets 업데이트
+        // wallets 업데이트 — ROI는 bonusBalance(USDT)에 적립
+        // 출금 시 당시 DDRA 시세로 환산하여 지급 (bonusBalance ÷ ddraPrice = 출금 가능 DDRA)
         const wallet = await fsGet(`wallets/${inv.userId}`, adminToken)
         const wData = wallet?.fields ? firestoreDocToObj(wallet) : {}
         await fsPatch(`wallets/${inv.userId}`, {
-          dedraBalance: (wData.dedraBalance || 0) + ddraAmount,
+          bonusBalance: (wData.bonusBalance || 0) + dailyEarning,  // USDT로 적립
           totalEarnings: (wData.totalEarnings || 0) + dailyEarning
         }, adminToken)
 
@@ -3134,8 +3127,8 @@ async function runSettle(c: any) {
         await fsCreate('bonuses', {
           userId: inv.userId,
           type: 'roi',
-          amount: ddraAmount,
           amountUsdt: dailyEarning,
+          amount: dailyEarning,  // USDT 기준
           reason: `일일 ROI 정산 (${today})`,
           investmentId: inv.id,
           createdAt: new Date().toISOString()
@@ -3144,13 +3137,12 @@ async function runSettle(c: any) {
         // roi_claimed 자동 푸시
         await fireAutoRules('roi_claimed', inv.userId, {
           amount: dailyEarning.toFixed(4),
-          ddraAmount: ddraAmount.toFixed(2),
           date: today
         }, adminToken)
 
         totalPaid += dailyEarning
         processedCount++
-        details.push({ userId: inv.userId, investmentId: inv.id, paid: dailyEarning, ddra: ddraAmount })
+        details.push({ userId: inv.userId, investmentId: inv.id, paid: dailyEarning })
       } catch (_) { continue }
     }
 
