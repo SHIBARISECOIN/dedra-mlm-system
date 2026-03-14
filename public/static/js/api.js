@@ -1951,6 +1951,8 @@ export class DedraAPI {
       const defaults = {
         networkDepth: 3,              // 산하 계산 깊이 (1~10)
         promotionMode: 'all',         // 'all' = 모든 조건 충족, 'any' = 하나라도 충족
+        useBalancedVolume: false,     // true = 산하 매출 계산 시 최대 라인 제외 (균형 매출)
+        excludeTopLines: 1,           // 제외할 최대 라인 수 (기본 1)
         enableAutoPromotion: false,   // true = 입금 승인 시 자동 승진 체크
         preventDowngrade: true,       // true = 이미 획득한 직급 강등 방지
         requireActiveInvestment: false, // true = 활성 투자가 있어야 직급 유지
@@ -1989,9 +1991,72 @@ export class DedraAPI {
   }
 
   /**
+   * 균형 매출(Balanced Volume) 계산
+   * 전체 산하 매출에서 직1대 하위 중 매출이 가장 큰 N개 라인의 매출을 제외한 값을 반환
+   *
+   * @param {string}   userId       기준 회원 ID
+   * @param {string[]} allDownline  전체 산하 회원 ID 목록
+   * @param {object[]} allUsers     전체 회원 목록 (id, referredBy 포함)
+   * @param {number}   totalSales   전체 산하 매출 합계
+   * @param {number}   excludeN     제외할 최대 라인 수 (기본 1)
+   * @param {object}   db           Firestore db 인스턴스
+   * @returns {number}              균형 매출 값
+   */
+  async _calcBalancedVolume(userId, allDownline, allUsers, totalSales, excludeN = 1, db) {
+    try {
+      if (allDownline.length === 0) return 0;
+
+      // 직1대 하위 목록
+      const direct1st = allUsers.filter(u => u.referredBy === userId).map(u => u.id);
+      if (direct1st.length === 0) return totalSales;
+
+      // 직1대별 산하 전체(자기포함) ID 수집 헬퍼 (BFS)
+      const getLineIds = (rootId) => {
+        const ids = new Set([rootId]);
+        let frontier = [rootId];
+        while (frontier.length > 0) {
+          const next = allUsers.filter(u => frontier.includes(u.referredBy)).map(u => u.id);
+          next.forEach(id => ids.add(id));
+          frontier = next;
+        }
+        return [...ids];
+      };
+
+      // 직1대별 매출 계산
+      const lineSales = [];
+      for (const d1Id of direct1st) {
+        const lineIds = getLineIds(d1Id).filter(id => allDownline.includes(id));
+        if (lineIds.length === 0) { lineSales.push({ id: d1Id, sales: 0 }); continue; }
+        let sales = 0;
+        const chunks = [];
+        for (let i = 0; i < lineIds.length; i += 30) chunks.push(lineIds.slice(i, i + 30));
+        for (const chunk of chunks) {
+          const txSnap = await getDocs(query(
+            collection(db, 'transactions'),
+            where('userId', 'in', chunk),
+            where('type', '==', 'deposit'),
+            where('status', '==', 'approved')
+          ));
+          sales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+        }
+        lineSales.push({ id: d1Id, sales });
+      }
+
+      // 매출 내림차순 정렬, 상위 excludeN개 제외
+      lineSales.sort((a, b) => b.sales - a.sales);
+      const excluded = lineSales.slice(0, excludeN).reduce((s, l) => s + l.sales, 0);
+      return Math.max(0, totalSales - excluded);
+    } catch(e) {
+      console.error('_calcBalancedVolume error:', e);
+      return totalSales; // 오류 시 전체 매출로 폴백
+    }
+  }
+
+  /**
    * 특정 회원의 직급 승진 자격 계산
    * - 본인 투자 총액
    * - networkDepth까지 산하 매출(입금 승인액) 합산
+   * - useBalancedVolume=true 시 균형 매출(최대 라인 제외) 추가 계산
    * - networkDepth까지 산하 인원 수 합산
    * @param {string} userId
    * @param {object} settings  getRankPromotionSettings 결과
@@ -1999,7 +2064,9 @@ export class DedraAPI {
   async calcRankEligibility(userId, settings) {
     try {
       const db = this.db;
-      const depth = settings.networkDepth || 3;
+      const depth           = settings.networkDepth    || 3;
+      const useBalancedVol  = settings.useBalancedVolume === true;
+      const excludeTopLines = settings.excludeTopLines || 1;
 
       // 전체 회원 로드 (referredBy 관계로 조직도 구성)
       const usersSnap = await getDocs(collection(db, 'users'));
@@ -2028,7 +2095,6 @@ export class DedraAPI {
       let networkMembers = downline.length;
 
       if (downline.length > 0) {
-        // Firestore in 쿼리는 최대 30개씩 분할
         const chunks = [];
         for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
         for (const chunk of chunks) {
@@ -2042,7 +2108,13 @@ export class DedraAPI {
         }
       }
 
-      return ok({ selfInvest, networkSales, networkMembers, downlineIds: downline });
+      // 균형 매출 계산 (useBalancedVolume=true일 때)
+      let balancedVolume = networkSales;
+      if (useBalancedVol && downline.length > 0) {
+        balancedVolume = await this._calcBalancedVolume(userId, downline, allUsers, networkSales, excludeTopLines, db);
+      }
+
+      return ok({ selfInvest, networkSales, balancedVolume, networkMembers, downlineIds: downline });
     } catch(e) { return err(e); }
   }
 
@@ -2056,10 +2128,12 @@ export class DedraAPI {
   async _checkAndPromoteSingleUser(userId, settings, adminId) {
     const db = this.db;
     const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
-    const criteria  = settings.criteria || {};
-    const mode      = settings.promotionMode || 'all';
+    const criteria         = settings.criteria || {};
+    const mode             = settings.promotionMode || 'all';
     const preventDowngrade = settings.preventDowngrade !== false;
     const countOnlyDirect  = settings.countOnlyDirectReferrals === true;
+    const useBalancedVol   = settings.useBalancedVolume === true;
+    const excludeTopLines  = settings.excludeTopLines || 1;
     const depth = countOnlyDirect ? 1 : (settings.networkDepth || 3);
 
     // 회원 정보 가져오기
@@ -2109,6 +2183,13 @@ export class DedraAPI {
         networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
       }
     }
+
+    // 균형 매출 계산 (useBalancedVolume=true일 때)
+    let balancedVolume = networkSales;
+    if (useBalancedVol && downline.length > 0) {
+      balancedVolume = await this._calcBalancedVolume(userId, downline, allUsers, networkSales, excludeTopLines, db);
+    }
+
     const networkMembers = downline.length;
 
     // G10부터 G1까지 역순으로 달성 가능한 최고 직급 탐색
@@ -2120,13 +2201,17 @@ export class DedraAPI {
       const c = criteria[rankKey];
       if (!c) continue;
 
-      const meetsInvest  = selfInvest     >= (c.minSelfInvest     || 0);
-      const meetsSales   = networkSales   >= (c.minNetworkSales   || 0);
-      const meetsMembers = networkMembers >= (c.minNetworkMembers || 0);
+      const meetsInvest  = selfInvest      >= (c.minSelfInvest     || 0);
+      const meetsSales   = networkSales    >= (c.minNetworkSales   || 0);
+      const meetsBV      = balancedVolume  >= (c.minBalancedVolume || 0);
+      const meetsMembers = networkMembers  >= (c.minNetworkMembers || 0);
+
+      // 균형 매출 조건: minBalancedVolume > 0 이면 체크, 0이면 무조건 통과
+      const bvRequired = (c.minBalancedVolume || 0) > 0;
 
       const passes = mode === 'any'
-        ? (meetsInvest || meetsSales || meetsMembers)
-        : (meetsInvest && meetsSales && meetsMembers);
+        ? (meetsInvest || meetsSales || (bvRequired && meetsBV) || meetsMembers)
+        : (meetsInvest && meetsSales && (!bvRequired || meetsBV) && meetsMembers);
 
       if (passes) {
         if (i > bestIdx) { bestRank = rankKey; bestIdx = i; }
@@ -2178,6 +2263,8 @@ export class DedraAPI {
       const preventDowngrade        = settings.preventDowngrade !== false;      // 기본 true
       const requireActiveInvestment = settings.requireActiveInvestment === true; // 기본 false
       const countOnlyDirect         = settings.countOnlyDirectReferrals === true; // 기본 false
+      const useBalancedVol          = settings.useBalancedVolume === true;          // 기본 false
+      const excludeTopLines         = settings.excludeTopLines || 1;
 
       const RANK_ORDER = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
 
@@ -2242,6 +2329,13 @@ export class DedraAPI {
             networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
           }
         }
+
+        // 균형 매출 계산
+        let balancedVolume = networkSales;
+        if (useBalancedVol && downline.length > 0) {
+          balancedVolume = await this._calcBalancedVolume(member.id, downline, allUsers, networkSales, excludeTopLines, db);
+        }
+
         const networkMembers = downline.length;
 
         // 달성 가능한 최고 직급 찾기 (전체 범위 스캔)
@@ -2251,13 +2345,16 @@ export class DedraAPI {
           const crit   = criteria[rankId];
           if (!crit) continue;
           const cInvest  = selfInvest     >= (crit.minSelfInvest     || 0);
-          const cSales   = networkSales   >= (crit.minNetworkSales    || 0);
-          const cMembers = networkMembers >= (crit.minNetworkMembers  || 0);
+          const cSales   = networkSales   >= (crit.minNetworkSales   || 0);
+          const cBV      = balancedVolume >= (crit.minBalancedVolume || 0);
+          const cMembers = networkMembers >= (crit.minNetworkMembers || 0);
           // 조건이 모두 0이면 해당 직급 조건 없음으로 간주 (건너뜀)
-          const hasAnyCrit = (crit.minSelfInvest||0)>0 || (crit.minNetworkSales||0)>0 || (crit.minNetworkMembers||0)>0;
+          const hasAnyCrit = (crit.minSelfInvest||0)>0 || (crit.minNetworkSales||0)>0 || (crit.minBalancedVolume||0)>0 || (crit.minNetworkMembers||0)>0;
           if (!hasAnyCrit) continue;
-          const pass = mode === 'any' ? (cInvest || cSales || cMembers)
-                                      : (cInvest && cSales && cMembers);
+          const bvRequired = (crit.minBalancedVolume || 0) > 0;
+          const pass = mode === 'any'
+            ? (cInvest || cSales || (bvRequired && cBV) || cMembers)
+            : (cInvest && cSales && (!bvRequired || cBV) && cMembers);
           if (pass) { targetIdx = i; break; }
         }
 
@@ -2271,11 +2368,11 @@ export class DedraAPI {
           await updateDoc(doc(db, 'users', member.id), { rank: newRank, updatedAt: serverTimestamp() });
           if (targetIdx > curIdx) {
             await this._auditLog(adminId, 'rank', `[일괄승격] ${member.name||member.id}: ${curRank} → ${newRank}`,
-              { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, networkMembers });
+              { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, balancedVolume, networkMembers });
             upgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank });
           } else {
             await this._auditLog(adminId, 'rank', `[일괄강등] ${member.name||member.id}: ${curRank} → ${newRank}`,
-              { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, networkMembers });
+              { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, balancedVolume, networkMembers });
             downgraded.push({ userId: member.id, name: member.name, oldRank: curRank, newRank });
           }
         }

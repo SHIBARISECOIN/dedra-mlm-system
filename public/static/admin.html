@@ -3224,14 +3224,14 @@ canvas{width:100% !important;}
             <span style="font-size:22px;">🎖️</span>
             <div>
               <div style="font-size:16px;font-weight:700;color:#1e293b;">직급 승진 조건 설정</div>
-              <div style="font-size:12px;color:#64748b;margin-top:2px;">각 직급 달성에 필요한 <strong>본인 투자액</strong>, <strong>산하 매출</strong>, <strong>산하 인원</strong> 조건을 설정합니다.</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">각 직급 달성에 필요한 <strong>본인 투자액</strong>, <strong>산하 매출</strong>, <strong>균형 매출</strong>, <strong>산하 인원</strong> 조건을 설정합니다.</div>
             </div>
           </div>
           <button id="saveRankPromoBtn" class="btn btn-primary btn-sm" style="min-width:120px;">💾 승진조건 저장</button>
         </div>
 
         <!-- 글로벌 옵션 -->
-        <div style="background:#f8faff;border:1.5px solid #c7d2fe;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+        <div style="background:#f8faff;border:1.5px solid #c7d2fe;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
           <!-- 산하 계산 깊이 -->
           <div>
             <label style="display:block;font-size:12px;font-weight:700;color:#4338ca;margin-bottom:6px;">📊 산하 계산 깊이 (대수)</label>
@@ -3254,6 +3254,38 @@ canvas{width:100% !important;}
           </div>
         </div>
 
+        <!-- 균형 매출 옵션 -->
+        <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+          <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;flex:1;min-width:260px;">
+              <input type="checkbox" id="rp_useBalancedVolume" style="width:17px;height:17px;margin-top:2px;accent-color:#ea580c;flex-shrink:0;"
+                onchange="window.onRpBalancedVolumeChange()">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#9a3412;">⚖️ 균형 매출(Balanced Volume) 조건 사용</div>
+                <div style="font-size:11px;color:#78350f;margin-top:3px;line-height:1.6;">
+                  산하 매출 합계 계산 시, <strong>직1대 하부 중 매출이 가장 큰 1개 라인의 매출을 제외</strong>하고 나머지 합계로 조건을 검사합니다.<br>
+                  <em>예) 전체 산하 매출 $50,000 중 최대 라인 $30,000 → 균형 매출 = $20,000</em>
+                </div>
+              </div>
+            </label>
+            <div id="rp_balancedVolumeOptions" style="display:none;flex-shrink:0;">
+              <label style="display:block;font-size:11px;font-weight:700;color:#9a3412;margin-bottom:5px;">최대 제외 라인 수</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="number" id="rp_excludeTopLines" min="1" max="3" value="1"
+                  style="width:60px;padding:7px 8px;border:2px solid #fdba74;border-radius:7px;font-size:14px;font-weight:700;text-align:center;color:#9a3412;">
+                <span style="font-size:11px;color:#78350f;">개 라인 제외</span>
+              </div>
+              <div style="font-size:10px;color:#a16207;margin-top:3px;">보통 1개 (최대 라인 1개 제외)</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-radius:7px;font-size:11px;color:#92400e;line-height:1.6;">
+            📌 <strong>균형 매출 규칙</strong>: 승급 기준일 당일 기준, 승급 대상자의 본인 투자금 및
+            직1대 하부 투자자 중 투자금이 가장 큰 <strong>1인(또는 1라인)</strong>의 투자금을 제외한
+            나머지 전체 투자금 합계가 해당 직급의 기준 금액 이상이어야 합니다.<br>
+            ※ 이 옵션을 켜면 <strong>「산하 매출 합계」컬럼이 균형 매출 기준</strong>으로 적용됩니다.
+          </div>
+        </div>
+
         <!-- 직급별 조건 테이블 -->
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;font-size:13px;" id="rankPromoTable">
@@ -3261,7 +3293,8 @@ canvas{width:100% !important;}
               <tr style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;">
                 <th style="padding:10px 14px;text-align:left;font-weight:700;border-radius:8px 0 0 0;">직급</th>
                 <th style="padding:10px 14px;text-align:center;font-weight:700;">💰 본인 투자액 (USDT)</th>
-                <th style="padding:10px 14px;text-align:center;font-weight:700;">📈 산하 매출 합계 (USDT)</th>
+                <th id="rp_salesColHeader" style="padding:10px 14px;text-align:center;font-weight:700;">📈 산하 매출 합계 (USDT)</th>
+                <th style="padding:10px 14px;text-align:center;font-weight:700;">⚖️ 균형 매출 (USDT)</th>
                 <th style="padding:10px 14px;text-align:center;font-weight:700;">👥 산하 인원 수 (명)</th>
               </tr>
             </thead>
@@ -9966,14 +9999,22 @@ function renderRankPromoTable(settings) {
     const criteria = settings.criteria || {};
     const depthEl  = document.getElementById('rp_networkDepth');
     const modeEl   = document.getElementById('rp_promotionMode');
-    if (depthEl) depthEl.value = settings.networkDepth || 3;
-    if (modeEl)  modeEl.value  = settings.promotionMode || 'all';
+    const bvEl     = document.getElementById('rp_useBalancedVolume');
+    const exLinesEl= document.getElementById('rp_excludeTopLines');
+    if (depthEl)   depthEl.value   = settings.networkDepth || 3;
+    if (modeEl)    modeEl.value    = settings.promotionMode || 'all';
+    if (bvEl)      bvEl.checked    = settings.useBalancedVolume === true;
+    if (exLinesEl) exLinesEl.value = settings.excludeTopLines || 1;
+
+    // 균형 매출 옵션 패널 표시 여부
+    const bvOptions = document.getElementById('rp_balancedVolumeOptions');
+    if (bvOptions) bvOptions.style.display = settings.useBalancedVolume ? 'block' : 'none';
 
     const tbody = document.getElementById('rankPromoBody');
     if (!tbody) return;
 
     tbody.innerHTML = RANK_PROMO_ORDER.map((rank, idx) => {
-        const crit = criteria[rank] || { minSelfInvest: 0, minNetworkSales: 0, minNetworkMembers: 0 };
+        const crit = criteria[rank] || { minSelfInvest: 0, minNetworkSales: 0, minBalancedVolume: 0, minNetworkMembers: 0 };
         const color = RANK_PROMO_COLORS[rank] || '#6366f1';
         const bg    = idx % 2 === 0 ? '#f8faff' : '#fff';
         return `
@@ -10004,6 +10045,15 @@ function renderRankPromoTable(settings) {
           </td>
           <td style="padding:8px 10px;text-align:center;">
             <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+              <input type="number" id="rp_bv_${rank}" value="${crit.minBalancedVolume||0}"
+                min="0" step="1"
+                style="width:100px;padding:7px 8px;border:1.5px solid #fdba74;border-radius:7px;font-size:13px;font-weight:700;text-align:center;color:#9a3412;"
+                onfocus="this.style.borderColor='#ea580c'" onblur="this.style.borderColor='#fdba74'">
+              <span style="font-size:11px;color:#94a3b8;">USDT</span>
+            </div>
+          </td>
+          <td style="padding:8px 10px;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
               <input type="number" id="rp_members_${rank}" value="${crit.minNetworkMembers||0}"
                 min="0" step="1"
                 style="width:90px;padding:7px 8px;border:1.5px solid #c7d2fe;border-radius:7px;font-size:13px;font-weight:700;text-align:center;color:#1e293b;"
@@ -10015,18 +10065,28 @@ function renderRankPromoTable(settings) {
     }).join('');
 }
 
+// 균형 매출 체크박스 토글
+window.onRpBalancedVolumeChange = function() {
+    const checked = document.getElementById('rp_useBalancedVolume')?.checked;
+    const bvOptions = document.getElementById('rp_balancedVolumeOptions');
+    if (bvOptions) bvOptions.style.display = checked ? 'block' : 'none';
+};
+
 function collectRankPromoSettings() {
-    const networkDepth   = parseInt(document.getElementById('rp_networkDepth')?.value) || 3;
-    const promotionMode  = document.getElementById('rp_promotionMode')?.value || 'all';
+    const networkDepth      = parseInt(document.getElementById('rp_networkDepth')?.value) || 3;
+    const promotionMode     = document.getElementById('rp_promotionMode')?.value || 'all';
+    const useBalancedVolume = document.getElementById('rp_useBalancedVolume')?.checked === true;
+    const excludeTopLines   = parseInt(document.getElementById('rp_excludeTopLines')?.value) || 1;
     const criteria = {};
     RANK_PROMO_ORDER.forEach(rank => {
         criteria[rank] = {
-            minSelfInvest:     parseFloat(document.getElementById(`rp_invest_${rank}`)?.value)  || 0,
-            minNetworkSales:   parseFloat(document.getElementById(`rp_sales_${rank}`)?.value)   || 0,
-            minNetworkMembers: parseInt(document.getElementById(`rp_members_${rank}`)?.value) || 0,
+            minSelfInvest:      parseFloat(document.getElementById(`rp_invest_${rank}`)?.value)   || 0,
+            minNetworkSales:    parseFloat(document.getElementById(`rp_sales_${rank}`)?.value)    || 0,
+            minBalancedVolume:  parseFloat(document.getElementById(`rp_bv_${rank}`)?.value)       || 0,
+            minNetworkMembers:  parseInt(document.getElementById(`rp_members_${rank}`)?.value)    || 0,
         };
     });
-    return { networkDepth, promotionMode, criteria };
+    return { networkDepth, promotionMode, useBalancedVolume, excludeTopLines, criteria };
 }
 
 async function saveRankPromotionSettings() {
