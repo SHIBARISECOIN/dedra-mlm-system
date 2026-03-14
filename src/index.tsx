@@ -2129,6 +2129,49 @@ async function getAdminToken(): Promise<string> {
   return tokenData.access_token
 }
 
+// ─── Firebase Custom Token 발급 (보조계정 Firestore 접근용) ──────────────────
+async function createFirebaseCustomToken(uid: string, claims: Record<string, any> = {}): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = { alg: 'RS256', typ: 'JWT' }
+  // claims는 단순 문자열만 포함하도록 직렬화 (한글/특수문자 안전 처리)
+  const safeClaims: Record<string, string> = {}
+  for (const [k, v] of Object.entries(claims)) {
+    safeClaims[k] = typeof v === 'string' ? v : JSON.stringify(v)
+  }
+  const payload = {
+    iss: SERVICE_ACCOUNT.client_email,
+    sub: SERVICE_ACCOUNT.client_email,
+    aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytools.v1.IdentityToolkit',
+    uid: uid,
+    iat: now,
+    exp: now + 3600,
+    claims: safeClaims
+  }
+  // UTF-8 안전한 base64url 인코딩
+  const b64url = (obj: any) => {
+    const str = JSON.stringify(obj)
+    const bytes = new TextEncoder().encode(str)
+    let bin = ''
+    bytes.forEach(b => bin += String.fromCharCode(b))
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+  }
+  const sigInput = `${b64url(header)}.${b64url(payload)}`
+
+  const pemKey = SERVICE_ACCOUNT.private_key
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\n/g, '')
+  const keyData = Uint8Array.from(atob(pemKey), c => c.charCodeAt(0))
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', keyData.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  )
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(sigInput))
+  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+  return `${sigInput}.${sigB64}`
+}
+
 // ─── Firestore REST 헬퍼 ─────────────────────────────────────────────────────
 async function fsGet(path: string, token: string) {
   const res = await fetch(`${FIRESTORE_BASE}/${path}`, {
@@ -2315,7 +2358,9 @@ app.post('/api/subadmin/login', async (c) => {
       loginId: account.loginId,
       name: account.name,
       role: 'subadmin',
-      permissions: account.permissions || {},
+      // perms 우선, permissions 폴백 (Firestore 저장 필드명 혼용 대응)
+      perms:       account.perms       || account.permissions || {},
+      permissions: account.permissions || account.perms       || {},
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 86400
     }
@@ -2323,13 +2368,156 @@ app.post('/api/subadmin/login', async (c) => {
     const headerB64 = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
     const token = `${headerB64}.${payloadB64}.subadmin_sig`
 
+    // Firebase Custom Token 발급 (Firestore 직접 접근 허용용)
+    // uid는 'subadmin_<account.id>' 형태로 고정 prefix 사용 → 규칙에서 isSubAdmin() 판별
+    const saFirebaseUid = `subadmin_${account.id}`
+    let customToken = ''
+    try {
+      customToken = await createFirebaseCustomToken(saFirebaseUid, {
+        role: 'subadmin'
+        // perms는 claims에서 제외 (직렬화 복잡도 방지 - 프론트에서 JWT payload로 전달)
+      })
+    } catch(e: any) {
+      console.error('[subadmin/login] customToken 발급 실패:', e.message)
+    }
+
     // 로그인 횟수 업데이트
     await fsPatch(`subAdmins/${account.id}`, {
       lastLogin: new Date().toISOString(),
       triggerCount: (account.triggerCount || 0) + 1
     }, adminToken)
 
-    return c.json({ success: true, token, name: account.name, permissions: account.permissions || {} })
+    return c.json({
+      success: true,
+      token,
+      customToken,
+      uid:  saFirebaseUid,
+      name: account.name,
+      perms:       account.perms       || account.permissions || {},
+      permissions: account.permissions || account.perms       || {},
+    })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// ─── 보조계정 Custom Token 갱신 (세션 복원용) ──────────────────────────────
+app.post('/api/subadmin/refresh-token', async (c) => {
+  try {
+    const { loginId } = await c.req.json()
+    if (!loginId) return c.json({ error: 'loginId 필요' }, 400)
+
+    const adminToken = await getAdminToken()
+    const subAdmins = await fsQuery('subAdmins', adminToken)
+    const account = subAdmins.find((a: any) => a.loginId === loginId && a.isActive)
+    if (!account) return c.json({ error: '계정 없음' }, 404)
+
+    // 만료 확인
+    if (account.expireType === 'date' && account.expireAt) {
+      if (new Date(account.expireAt) < new Date()) return c.json({ error: '만료된 계정' }, 401)
+    }
+
+    const saFirebaseUid = `subadmin_${account.id}`
+    const customToken = await createFirebaseCustomToken(saFirebaseUid, { role: 'subadmin' })
+
+    return c.json({ success: true, customToken, uid: saFirebaseUid })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// ─── 보조계정 JWT 토큰 검증 헬퍼 ──────────────────────────────────────────────
+function verifySubAdminToken(token: string): any | null {
+  try {
+    if (!token || !token.includes('.')) return null
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    // base64url → JSON 디코딩
+    const pad = (s: string) => s + '='.repeat((4 - s.length % 4) % 4)
+    const payload = JSON.parse(atob(pad(parts[1].replace(/-/g,'+').replace(/_/g,'/'))))
+    if (payload.role !== 'subadmin') return null
+    if (payload.exp && payload.exp < Math.floor(Date.now()/1000)) return null
+    return payload
+  } catch { return null }
+}
+
+// ─── 보조계정 범용 데이터 프록시 API ──────────────────────────────────────────
+// 보조계정이 Firestore에 직접 접근할 수 없으므로, 백엔드가 대신 조회해서 반환
+app.post('/api/subadmin/query', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    const sa = verifySubAdminToken(token)
+    if (!sa) return c.json({ error: '인증 실패' }, 401)
+
+    const { collection: col, filters, limit: lim, orderByField, orderDir, docId } = await c.req.json()
+    if (!col) return c.json({ error: 'collection 필요' }, 400)
+
+    const adminToken = await getAdminToken()
+
+    // docId가 있으면 단일 문서 직접 조회 (REST GET)
+    if (docId) {
+      const doc = await fsGet(`${col}/${docId}`, adminToken)
+      if (!doc) return c.json({ success: true, docs: [] })
+      const obj = firestoreDocToObj(doc)
+      return c.json({ success: true, docs: [obj] })
+    }
+
+    // filters 변환 (__name__ 필터는 무시 - structuredQuery 미지원)
+    const fsFilters = (filters || [])
+      .filter((f: any) => f.field !== '__name__')
+      .map((f: any) => ({
+        fieldFilter: {
+          field: { fieldPath: f.field },
+          op: f.op || 'EQUAL',
+          value: typeof f.value === 'number'
+            ? { integerValue: String(f.value) }
+            : typeof f.value === 'boolean'
+            ? { booleanValue: f.value }
+            : { stringValue: String(f.value) }
+        }
+      }))
+
+    const docs = await fsQuery(col, adminToken, fsFilters, lim || 500)
+    return c.json({ success: true, docs })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+// ─── 보조계정 대시보드 통계 API ────────────────────────────────────────────────
+app.get('/api/subadmin/dashboard-stats', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    const sa = verifySubAdminToken(token)
+    if (!sa) return c.json({ error: '인증 실패' }, 401)
+
+    const adminToken = await getAdminToken()
+    const [users, txs, invs] = await Promise.all([
+      fsQuery('users', adminToken, [], 2000),
+      fsQuery('transactions', adminToken, [], 2000),
+      fsQuery('investments', adminToken, [], 2000).catch(() => []),
+    ])
+
+    const deposits    = txs.filter((t: any) => t.type === 'deposit')
+    const withdrawals = txs.filter((t: any) => t.type === 'withdrawal')
+
+    return c.json({
+      success: true,
+      data: {
+        totalUsers:            users.filter((u: any) => u.role !== 'admin').length,
+        activeUsers:           users.filter((u: any) => u.status === 'active' && u.role !== 'admin').length,
+        pendingDeposits:       deposits.filter((t: any) => t.status === 'pending').length,
+        pendingWithdrawals:    withdrawals.filter((t: any) => t.status === 'pending').length,
+        totalDepositAmount:    deposits.filter((t: any) => t.status === 'approved').reduce((s: number, t: any) => s + (t.amount || 0), 0),
+        totalWithdrawalAmount: withdrawals.filter((t: any) => t.status === 'approved').reduce((s: number, t: any) => s + (t.amount || 0), 0),
+        totalGameBet:          0,
+        activeInvestments:     invs.filter((i: any) => i.status === 'active').length,
+        totalInvestAmount:     invs.reduce((s: number, i: any) => s + (i.amount || 0), 0),
+        totalStakedAmount:     invs.filter((i: any) => i.status === 'active').reduce((s: number, i: any) => s + (i.amount || 0), 0),
+      }
+    })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }

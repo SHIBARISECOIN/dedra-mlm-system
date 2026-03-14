@@ -4937,13 +4937,179 @@ canvas{width:100% !important;}
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut, signInWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signOut, signInWithCredential, signInWithCustomToken, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
-    getFirestore, doc, getDoc, collection, getDocs,
+    getFirestore, doc, getDoc as _fsGetDoc, collection, getDocs as _fsGetDocs,
     query, where, orderBy, limit,
     addDoc, updateDoc, deleteDoc, setDoc, serverTimestamp, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { DedraAPI } from '/static/js/api.js';
+
+// ══════════════════════════════════════════════════
+// 보조계정 API 호출 헬퍼
+// ══════════════════════════════════════════════════
+let _currentSubAdmin = null; // 현재 로그인한 보조계정 (최상단 선언 - getDocs 래퍼에서 참조)
+
+async function _subAdminFetch(path, options = {}) {
+    const token = _currentSubAdmin?.token || '';
+    return fetch(path, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...(options.headers || {})
+        }
+    });
+}
+
+// ── 보조계정 모드: getDocs / getDoc 자동 프록시 래퍼 ──────────────────────────
+// 보조계정은 Firestore SDK 직접 접근 권한 없음 → 백엔드 /api/subadmin/query 경유
+
+// Firebase SDK v10 query 객체에서 colName 추출
+function _extractColName(qoc) {
+    // collection() 또는 query() 객체 모두 지원
+    const segs = qoc?._query?.path?.segments
+        || qoc?.path?.segments
+        || qoc?._path?.segments
+        || [];
+    if (segs.length > 0) {
+        // Firestore 경로: ['projects', projId, 'databases', dbId, 'documents', colName]
+        // 또는 짧은 형태: [colName]
+        return segs[segs.length - 1] || '';
+    }
+    return '';
+}
+
+// Firebase SDK v10 filter 값 추출
+function _fsValueToJs(v) {
+    if (!v) return undefined;
+    if ('stringValue'  in v) return v.stringValue;
+    if ('integerValue' in v) return parseInt(v.integerValue);
+    if ('doubleValue'  in v) return v.doubleValue;
+    if ('booleanValue' in v) return v.booleanValue;
+    if ('nullValue'    in v) return null;
+    return undefined;
+}
+
+// Firebase SDK v10 필터 재귀 파싱 (compositeFilter 지원)
+function _extractFilters(filterOrFilters) {
+    if (!filterOrFilters) return [];
+    const results = [];
+
+    // 배열인 경우 (v10에서 _query.filters는 배열)
+    const arr = Array.isArray(filterOrFilters) ? filterOrFilters : [filterOrFilters];
+
+    for (const f of arr) {
+        if (!f) continue;
+        // compositeFilter (AND/OR 복합)
+        if (f.compositeFilter) {
+            results.push(..._extractFilters(f.compositeFilter.filters));
+            continue;
+        }
+        if (f.filters) {
+            results.push(..._extractFilters(f.filters));
+            continue;
+        }
+        // fieldFilter
+        const ff = f.fieldFilter || f;
+        const field = ff?.field?.segments?.[0] || ff?.field?.fieldPath || ff?.field?.segments?.join('.') || '';
+        const opMap = {
+            'EQUAL':'EQUAL','LESS_THAN':'LESS_THAN','LESS_THAN_OR_EQUAL':'LESS_THAN_OR_EQUAL',
+            'GREATER_THAN':'GREATER_THAN','GREATER_THAN_OR_EQUAL':'GREATER_THAN_OR_EQUAL',
+            'NOT_EQUAL':'NOT_EQUAL','ARRAY_CONTAINS':'ARRAY_CONTAINS','IN':'IN',
+            '==':'EQUAL','>':'GREATER_THAN','<':'LESS_THAN',
+            '>=':'GREATER_THAN_OR_EQUAL','<=':'LESS_THAN_OR_EQUAL','!=':'NOT_EQUAL'
+        };
+        const op = opMap[ff?.op] || 'EQUAL';
+        const value = _fsValueToJs(ff?.value);
+        if (field && value !== undefined) results.push({ field, op, value });
+    }
+    return results;
+}
+
+async function getDocs(queryOrCollection) {
+    if (!_currentSubAdmin) return _fsGetDocs(queryOrCollection);
+
+    // 컬렉션 경로 추출
+    let colName = '';
+    let filters = [];
+    let lim = 500;
+
+    try {
+        colName = _extractColName(queryOrCollection);
+
+        // Firebase SDK v10 query 필터 추출 (compositeFilter 지원)
+        const rawFilters = queryOrCollection?._query?.filters || [];
+        filters = _extractFilters(rawFilters);
+
+        lim = queryOrCollection?._query?.limit ?? 500;
+    } catch(_) {}
+
+    if (!colName) {
+        // 파싱 실패 → 빈 결과 반환 (보조계정에서 SDK fallback 시 권한오류 발생하므로)
+        console.warn('[SubAdmin proxy getDocs] colName 파싱 실패 - 빈 결과 반환');
+        return { docs: [], size: 0, empty: true, forEach: () => {} };
+    }
+
+    try {
+        const res = await _subAdminFetch('/api/subadmin/query', {
+            method: 'POST',
+            body: JSON.stringify({ collection: colName, filters, limit: lim })
+        });
+        const json = await res.json();
+        if (!json.success && json.error) {
+            console.warn(`[SubAdmin proxy getDocs:${colName}] 서버 오류:`, json.error);
+            return { docs: [], size: 0, empty: true, forEach: () => {} };
+        }
+        const docs = (json.docs || []).map(d => ({
+            id: d.id || d._id || '',
+            data: () => ({ ...d }),
+            exists: () => true,
+        }));
+        return { docs, size: docs.length, empty: docs.length === 0,
+                 forEach: (fn) => docs.forEach(fn) };
+    } catch(e) {
+        console.error('[SubAdmin proxy getDocs] 네트워크 오류:', e.message);
+        return { docs: [], size: 0, empty: true, forEach: () => {} };
+    }
+}
+
+// getDoc 프록시: 보조계정이면 백엔드 API 경유
+async function getDoc(docRef) {
+    if (!_currentSubAdmin) return _fsGetDoc(docRef);
+
+    try {
+        const segments = docRef?._key?.path?.segments || docRef?.path?.segments || [];
+        // segments: ['projects', projectId, 'databases', db, 'documents', colName, docId]
+        // 또는 짧은 형태: [colName, docId]
+        const docId   = segments[segments.length - 1] || '';
+        const colName = segments[segments.length - 2] || '';
+
+        if (!colName || !docId) {
+            return { id: '', exists: () => false, data: () => null };
+        }
+
+        // /api/subadmin/query에 docId 직접 조회 요청
+        const res = await _subAdminFetch('/api/subadmin/query', {
+            method: 'POST',
+            body: JSON.stringify({
+                collection: colName,
+                docId: docId,   // 백엔드에서 직접 문서 ID로 조회
+                limit: 1
+            })
+        });
+        const json = await res.json();
+        const d = json.docs?.[0] || null;
+        return {
+            id: docId,
+            exists: () => !!d,
+            data: () => d ? { ...d } : null,
+        };
+    } catch(e) {
+        console.error('[SubAdmin proxy getDoc] 오류:', e.message);
+        return { id: '', exists: () => false, data: () => null };
+    }
+}
 
 const firebaseConfig = {
     apiKey: "AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8",
@@ -5026,8 +5192,13 @@ const _authTimeout = setTimeout(() => {
         if (subSess) {
             try {
                 const sa = JSON.parse(subSess);
+                if (!sa.perms && sa.permissions) sa.perms = sa.permissions;
+                sa.perms = sa.perms || {};
                 _currentSubAdmin = sa;
-                _enterSubAdminMode(sa);
+                // Firebase Auth 재시도 (실패해도 JWT 프록시 방식으로 진입)
+                _signInSubAdminFirebase(sa.loginId, null)
+                    .catch(e => console.warn('[subAdmin timeout] Firebase Auth 실패:', e.message))
+                    .finally(() => _enterSubAdminMode(sa));
             } catch(_) {
                 document.getElementById('adminLoginOverlay').style.display = 'flex';
                 document.getElementById('adminMain').style.display = 'none';
@@ -5056,8 +5227,15 @@ onAuthStateChanged(auth, async user => {
         if (subSess) {
             try {
                 const sa = JSON.parse(subSess);
+                // perms 정규화
+                if (!sa.perms && sa.permissions) sa.perms = sa.permissions;
+                sa.perms = sa.perms || {};
                 _currentSubAdmin = sa;
-                _enterSubAdminMode(sa);
+                // 새로고침 시 customToken 재발급 후 Firebase Auth 로그인 시도
+                // 실패해도 JWT 프록시 방식으로 동작
+                _signInSubAdminFirebase(sa.loginId, null)
+                    .catch(e => console.warn('[subAdmin restore] Firebase Auth 실패, JWT 프록시 모드:', e.message))
+                    .finally(() => _enterSubAdminMode(sa));
                 return;
             } catch(_) {}
         }
@@ -5065,6 +5243,26 @@ onAuthStateChanged(auth, async user => {
         document.getElementById('adminMain').style.display = 'none';
         return;
     }
+
+    // ── 보조계정 Firebase 로그인 (uid가 'subadmin_...' 형태)
+    //   customToken으로 로그인됐을 때 → 이미 subAdminDoLogin에서 처리됨
+    if (user.uid && user.uid.startsWith('subadmin_')) {
+        // subAdminDoLogin에서 이미 _enterSubAdminMode 호출됨 → 중복 방지
+        if (!_setupDone) {
+            const subSess = sessionStorage.getItem('subAdminSession');
+            if (subSess) {
+                try {
+                    const sa = JSON.parse(subSess);
+                    if (!sa.perms && sa.permissions) sa.perms = sa.permissions;
+                    sa.perms = sa.perms || {};
+                    _currentSubAdmin = sa;
+                    _enterSubAdminMode(sa);
+                } catch(_) {}
+            }
+        }
+        return;
+    }
+
     try {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (!snap.exists() || snap.data().role !== 'admin') {
@@ -5099,7 +5297,14 @@ onAuthStateChanged(auth, async user => {
 // 대시보드
 // ══════════════════════════════════════════════════
 async function loadDashboard() {
-    const r = await api.getDashboardStats();
+    let r;
+    // 보조계정: 백엔드 API 사용 (Firestore 직접 접근 불가)
+    if (_currentSubAdmin) {
+        const res = await _subAdminFetch('/api/subadmin/dashboard-stats');
+        r = await res.json();
+    } else {
+        r = await api.getDashboardStats();
+    }
     if (!r.success) { console.error('[loadDashboard] 실패:', r.error); return; }
     const d = r.data;
     const _setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -5339,12 +5544,11 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
                 getDocs(collection(db,'users')),
                 getDocs(collection(db,'wallets'))
             ]);
-            // wallets 맵: 문서 ID(= uid) 우선, userId 필드도 fallback으로 매핑
             const walletMap = {};
             walletSnap.docs.forEach(d => {
                 const w = d.data();
-                walletMap[d.id] = w;              // 문서ID 기준 (setDoc(doc(db,'wallets',uid)))
-                if (w.userId) walletMap[w.userId] = w; // userId 필드 기준 fallback
+                walletMap[d.id] = w;
+                if (w.userId) walletMap[w.userId] = w;
             });
             allMembers = snap.docs.map(d=>({id:d.id,...d.data()}));
             allMembers.forEach(m => {
@@ -7937,10 +8141,8 @@ async function loadRankMonitor() {
         const promoMode     = promoSettings?.promotionMode || 'all';
 
         const snap = await getDocs(collection(db, 'users'));
-        allMembersForRank = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.role !== 'admin');
-
-        // 전체 사용자 목록 (BFS용)
         const allUsersArr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allMembersForRank = allUsersArr.filter(u => u.role !== 'admin');
 
         // ── BFS: 각 회원의 산하 인원 계산 ──────────────────────────
         function getDownlineIds(userId, depth) {
@@ -8764,10 +8966,12 @@ async function loadBroadcastHistory() {
     await loadBcSummary();
     await loadBcTargetStats();
     startBcScheduler();
-    // 🔔 신규 회원 가입 실시간 감지 시작
-    startUserJoinListener();
-    // ⏰ pendingSettlements 큐 처리 (회원 앱에서 요청된 정산)
-    setTimeout(() => processPendingSettlements(), 5000);
+    // 🔔 신규 회원 가입 실시간 감지 (보조계정은 Firestore onSnapshot 권한 없으므로 스킵)
+    if (!_currentSubAdmin) {
+        startUserJoinListener();
+        // ⏰ pendingSettlements 큐 처리
+        setTimeout(() => processPendingSettlements(), 5000);
+    }
 }
 
 /* ── 탭 전환 ────────────────────────────────────────── */
@@ -10728,7 +10932,6 @@ async function loadRateHistory() {
 // ── 출금 자동화 설정 ──────────────────────────────────────────────
 async function loadAutoWithdrawSettings() {
   try {
-    const { doc, getDoc, db } = window.FA;
     const snap = await getDoc(doc(db, 'settings', 'autoWithdraw'));
     if (snap.exists()) {
       const d = snap.data();
@@ -10768,7 +10971,6 @@ window.saveAutoWithdrawSettings = async function() {
   const delayHours = parseInt(document.getElementById('autoWithdrawDelay').value) || 0;
   const pinRequired = document.getElementById('autoWithdrawPinRequired').value === 'true';
   try {
-    const { doc, setDoc, db, serverTimestamp } = window.FA;
     await setDoc(doc(db, 'settings', 'autoWithdraw'), {
       enabled, maxAmount, dailyLimit, delayHours, pinRequired,
       updatedAt: serverTimestamp()
@@ -12451,7 +12653,7 @@ window.switchLoginTab = function(tab) {
 // ══════════════════════════════════════════════════
 // 보조계정(서브어드민) 시스템
 // ══════════════════════════════════════════════════
-let _currentSubAdmin = null; // 현재 로그인한 보조계정
+// _currentSubAdmin은 파일 상단(getDocs 래퍼 위)에 선언됨
 
 const SUB_ADMIN_MENUS = [
   { key:'dashboard',   label:'📊 대시보드' },
@@ -12472,6 +12674,15 @@ const SUB_ADMIN_MENUS = [
   { key:'settings',    label:'⚙️ 시스템 설정' },
 ];
 
+// 보조계정 Firebase Auth 로그인 - customToken 방식은 Workers 환경에서 미지원
+// JWT 프록시 방식만 사용하므로 이 함수는 no-op
+async function _signInSubAdminFirebase(loginId, existingCustomToken) {
+  // Cloudflare Workers에서 생성한 RS256 서명이 Firebase Auth와 호환되지 않음
+  // → signInWithCustomToken 불필요, JWT 토큰 기반 백엔드 프록시로만 동작
+  console.log('[subadmin] JWT 프록시 모드 사용 (Firebase Auth 생략)');
+  return false;
+}
+
 // 보조계정 로그인
 window.subAdminDoLogin = async function() {
   const loginId = document.getElementById('subLoginId')?.value.trim();
@@ -12483,7 +12694,6 @@ window.subAdminDoLogin = async function() {
   if (btn) { btn.disabled = true; btn.textContent = '로그인 중...'; }
 
   try {
-    // 백엔드 API를 통해 인증 (Firestore 직접 접근 X)
     const res = await fetch('/api/subadmin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -12497,10 +12707,35 @@ window.subAdminDoLogin = async function() {
       return;
     }
 
-    // 세션 저장
-    const sa = data.subAdmin;
+    // ── 버그 수정: 백엔드는 { success, token, name, permissions } 반환
+    //   프론트의 sa 객체를 직접 조립한다
+    //   Firestore 저장 필드는 'perms', JWT payload는 'permissions'
+    //   → 둘 다 체크해서 perms 로 통일
+    const sa = {
+      uid:     data.uid     || loginId,   // 백엔드에서 uid 내려주면 사용
+      loginId: loginId,
+      name:    data.name    || loginId,
+      token:   data.token   || '',
+      role:    'subadmin',
+      // perms 우선, 없으면 permissions 사용 (필드명 불일치 대응)
+      perms:   data.perms || data.permissions || {},
+    };
+
+    // uid: 백엔드가 내려준 값 사용 (customToken 발급 시 'subadmin_<id>' 형태)
+    if (data.uid) sa.uid = data.uid;
+
     _currentSubAdmin = sa;
     sessionStorage.setItem('subAdminSession', JSON.stringify(sa));
+
+    // Firebase Auth 로그인 시도 (실패해도 JWT 프록시 방식으로 계속 동작)
+    if (data.customToken) {
+      try {
+        await _signInSubAdminFirebase(loginId, data.customToken);
+      } catch(e) {
+        console.warn('[subAdmin] Firebase Auth 실패, JWT 프록시 모드로 진행:', e.message);
+      }
+    }
+
     _enterSubAdminMode(sa);
 
   } catch(e) {
@@ -12520,21 +12755,63 @@ function _enterSubAdminMode(sa) {
   document.getElementById('adminMain').style.display = 'flex';
   // 헤더 이름 표시
   document.getElementById('adminName').textContent = `[보조] ${sa.name}`;
-  // 메뉴 권한 적용 (보조계정 관리 메뉴 항상 숨김 포함)
-  _applySubAdminMenuPerms(sa.perms || {});
+
+  // ── currentAdmin을 보조계정 정보로 설정
+  //   이후 모든 api.someMethod(currentAdmin.uid, ...) 호출이 정상 동작하도록
+  currentAdmin = {
+    uid:        sa.uid || sa.loginId || 'subadmin',
+    email:      sa.loginId || '',
+    name:       sa.name || '',
+    isSubAdmin: true,
+  };
+
+  // ── api 초기화 (보조계정 토큰 주입 - Firestore 직접 접근 대신 프록시 사용)
+  api = new DedraAPI(db, sa.token || null);
+
+  // ── 이벤트·폴링 최초 1회 초기화
   if (!_setupDone) {
-    api = new DedraAPI(db);
-    // 보조계정은 권한 있는 첫 번째 메뉴로 이동
-    const firstPerm = Object.entries(sa.perms || {}).find(([,v]) => v !== 'no');
-    if (firstPerm) {
-      const page = firstPerm[0];
-      setTimeout(() => { if (typeof navigateTo === 'function') navigateTo(page); }, 300);
-    } else {
-      loadDashboard();
-    }
     setupEvents();
+    startAdminNotifPolling();
     _setupDone = true;
   }
+
+  // ── 메뉴 권한 적용 (숨김 처리)
+  _applySubAdminMenuPerms(sa.perms || {});
+
+  // ── 권한 있는 첫 번째 메뉴로 이동하며 데이터 로드
+  const perms = sa.perms || {};
+  const firstPerm = Object.entries(perms).find(([, v]) => v !== 'no');
+  const firstPage = firstPerm ? firstPerm[0] : 'dashboard';
+
+  setTimeout(() => {
+    // 페이지 UI 활성화
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const menuEl = document.querySelector(`.menu-item[data-page="${firstPage}"]`);
+    if (menuEl) menuEl.classList.add('active');
+    const pageEl = document.getElementById(firstPage + 'Page');
+    if (pageEl) pageEl.classList.add('active');
+
+    // 데이터 로드 (메뉴 클릭 이벤트와 동일한 로직)
+    if (firstPage === 'dashboard') loadDashboard();
+    else if (firstPage === 'members') { allMembers = []; loadMembers(); }
+    else if (firstPage === 'deposits') { loadCompanyWallets(); loadDeposits('pending'); }
+    else if (firstPage === 'withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); }
+    else if (firstPage === 'bonus') loadBonusLog();
+    else if (firstPage === 'notices') loadNotices();
+    else if (firstPage === 'news') loadNews();
+    else if (firstPage === 'auditlog') loadAuditLog();
+    else if (firstPage === 'tickets') loadTickets();
+    else if (firstPage === 'statistics') loadStatistics();
+    else if (firstPage === 'rankmonitor') loadRankMonitor();
+    else if (firstPage === 'investments') { _invCurrentTab = 'dashboard'; switchInvestTab('dashboard'); }
+    else if (firstPage === 'broadcast') loadBroadcastHistory();
+    else if (firstPage === 'orgtree') loadOrgTree();
+    else if (firstPage === 'products') loadProducts();
+    else if (firstPage === 'rates') loadRates();
+    else if (firstPage === 'centers') loadCenters();
+    else loadDashboard(); // fallback
+  }, 300);
 }
 
 // 메뉴 권한 적용 (허가되지 않은 메뉴 숨김)
@@ -12569,8 +12846,11 @@ window._checkSubAdminReadOnly = function(menuKey) {
   if (!s) return;
   try {
     const sa = JSON.parse(s);
+    // perms 필드 정규화: 구버전 세션에 permissions만 있을 수 있음
+    if (!sa.perms && sa.permissions) sa.perms = sa.permissions;
+    sa.perms = sa.perms || {};
     _currentSubAdmin = sa;
-    window._subAdminPerms = sa.perms || {};
+    window._subAdminPerms = sa.perms;
   } catch(_) {}
 })();
 
@@ -12730,7 +13010,7 @@ window.saveSubAdmin = async function() {
   if (!name || !loginId) { showErr('이름과 로그인 ID는 필수입니다.'); return; }
   if (!editId && !pass)  { showErr('비밀번호를 입력하세요.'); return; }
 
-  // 퍼미션 수집
+  // perms 수집 (Firestore 저장 필드명: perms, 하위 호환을 위해 permissions도 함께 저장)
   const perms = {};
   SUB_ADMIN_MENUS.forEach(m => {
     perms[m.key] = document.getElementById(`perm_${m.key}`)?.value || 'no';
@@ -12743,7 +13023,7 @@ window.saveSubAdmin = async function() {
     passwordHash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   }
 
-  const data = { name, loginId, memo, expireType, perms, isActive: true, updatedAt: serverTimestamp() };
+  const data = { name, loginId, memo, expireType, perms, permissions: perms, isActive: true, updatedAt: serverTimestamp() };
   if (passwordHash)        data.passwordHash = passwordHash;
   if (expireType === 'duration') data.expireDuration = parseInt(document.getElementById('sa_expireDuration').value)||24;
   if (expireType === 'datetime') {

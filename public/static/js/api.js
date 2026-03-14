@@ -3,21 +3,177 @@
  * admin.html 에서 사용하는 모든 API 메서드를 Firebase Firestore로 구현
  */
 import {
-  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  collection, doc, getDoc as _fsGetDoc, getDocs as _fsGetDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, serverTimestamp, writeBatch, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
 const ok  = data => ({ success: true, data });
 const err = e    => ({ success: false, error: e?.message || String(e) });
 
+// ── 보조계정 프록시 헬퍼 (모듈 레벨) ──────────────────────────────────────────
+// _saToken이 설정되면 아래 함수들이 프록시로 동작
+let _globalSaToken = null;
+
+async function _saQueryFetch(colName, filters = [], lim = 500) {
+  const res = await fetch('/api/subadmin/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_globalSaToken}` },
+    body: JSON.stringify({ collection: colName, filters, limit: lim })
+  });
+  return res.json();
+}
+
+// colName 추출 유틸 (collection/query 객체)
+function _colName(qoc) {
+  const segs = qoc?._query?.path?.segments
+    || qoc?.path?.segments
+    || qoc?._path?.segments
+    || [];
+  if (segs.length > 0) return segs[segs.length - 1] || '';
+  return '';
+}
+
+// Firebase SDK v10 filter 값 추출
+function _fsVal(v) {
+  if (!v) return undefined;
+  if ('stringValue'  in v) return v.stringValue;
+  if ('integerValue' in v) return parseInt(v.integerValue);
+  if ('doubleValue'  in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('nullValue'    in v) return null;
+  return undefined;
+}
+
+// Firebase SDK v10 필터 재귀 파싱 (compositeFilter 지원)
+function _extractFs(filterOrArr) {
+  const out = [];
+  const arr = Array.isArray(filterOrArr) ? filterOrArr : (filterOrArr ? [filterOrArr] : []);
+  const opMap = {
+    'EQUAL':'EQUAL','LESS_THAN':'LESS_THAN','LESS_THAN_OR_EQUAL':'LESS_THAN_OR_EQUAL',
+    'GREATER_THAN':'GREATER_THAN','GREATER_THAN_OR_EQUAL':'GREATER_THAN_OR_EQUAL',
+    'NOT_EQUAL':'NOT_EQUAL','ARRAY_CONTAINS':'ARRAY_CONTAINS','IN':'IN',
+    '==':'EQUAL','>':'GREATER_THAN','<':'LESS_THAN',
+    '>=':'GREATER_THAN_OR_EQUAL','<=':'LESS_THAN_OR_EQUAL','!=':'NOT_EQUAL'
+  };
+  for (const f of arr) {
+    if (!f) continue;
+    if (f.compositeFilter) { out.push(..._extractFs(f.compositeFilter.filters)); continue; }
+    if (f.filters) { out.push(..._extractFs(f.filters)); continue; }
+    const ff = f.fieldFilter || f;
+    const field = ff?.field?.segments?.[0] || ff?.field?.fieldPath || '';
+    const op = opMap[ff?.op] || 'EQUAL';
+    const value = _fsVal(ff?.value);
+    if (field && value !== undefined) out.push({ field, op, value });
+  }
+  return out;
+}
+
+// 프록시 getDocs: 보조계정이면 백엔드 경유
+async function getDocs(q) {
+  if (!_globalSaToken) return _fsGetDocs(q);
+  const colName = _colName(q);
+  if (!colName) return { docs: [], empty: true, size: 0, forEach: ()=>{} };
+
+  // Firebase SDK v10 compositeFilter 포함 필터 파싱
+  const rawFilters = q?._query?.filters || [];
+  const filters = _extractFs(rawFilters);
+
+  const lim = q?._query?.limit ?? 500;
+  try {
+    const json = await _saQueryFetch(colName, filters, lim);
+    const docs = (json.docs || []).map(d => ({
+      id: d.id || d._id || '',
+      data: () => ({ ...d }),
+      exists: () => true,
+    }));
+    return { docs, empty: docs.length === 0, size: docs.length, forEach: fn => docs.forEach(fn) };
+  } catch(e) {
+    console.error(`[api.js proxy getDocs:${colName}]`, e.message);
+    return { docs: [], empty: true, size: 0, forEach: ()=>{} };
+  }
+}
+
+// 프록시 getDoc: 보조계정이면 백엔드 경유
+async function getDoc(docRef) {
+  if (!_globalSaToken) return _fsGetDoc(docRef);
+  const segs = docRef?._key?.path?.segments || docRef?.path?.segments || [];
+  const docId   = segs[segs.length - 1] || '';
+  const colName = segs[segs.length - 2] || '';
+  if (!colName || !docId) return { id: '', exists: () => false, data: () => null };
+  try {
+    const res = await fetch('/api/subadmin/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_globalSaToken}` },
+      body: JSON.stringify({ collection: colName, docId, limit: 1 })
+    });
+    const json = await res.json();
+    const d = json.docs?.[0] || null;
+    return { id: docId, exists: () => !!d, data: () => d ? { ...d } : null };
+  } catch(e) {
+    console.error(`[api.js proxy getDoc:${colName}/${docId}]`, e.message);
+    return { id: docId, exists: () => false, data: () => null };
+  }
+}
+
 export class DedraAPI {
-  constructor(db) { this.db = db; }
+  constructor(db, subAdminToken = null) {
+    this.db = db;
+    this._saToken = subAdminToken; // 보조계정 JWT 토큰 (있으면 프록시 API 사용)
+    // 모듈 레벨 토큰 동기화
+    if (subAdminToken) _globalSaToken = subAdminToken;
+  }
+
+  // 보조계정 모드 여부
+  get _isSubAdmin() { return !!this._saToken; }
+
+  // 보조계정 전용 Fetch 헬퍼
+  async _saFetch(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this._saToken}`,
+        ...(options.headers || {})
+      }
+    });
+    return res.json();
+  }
+
+  // 보조계정: 컬렉션 전체 조회 (하위 호환성 유지 - 실제로는 모듈 레벨 getDocs가 처리)
+  async _saGetDocs(colName, filters = [], lim = 1000) {
+    const json = await this._saFetch('/api/subadmin/query', {
+      method: 'POST',
+      body: JSON.stringify({ collection: colName, filters, limit: lim })
+    });
+    const docs = (json.docs || []).map(d => ({
+      id: d.id,
+      data: () => ({ ...d }),
+      exists: () => true,
+    }));
+    return { docs, empty: docs.length === 0 };
+  }
+
+  // 보조계정: 단일 문서 조회 (하위 호환성 유지)
+  async _saGetDoc(colName, docId) {
+    const json = await this._saFetch('/api/subadmin/query', {
+      method: 'POST',
+      body: JSON.stringify({ collection: colName, docId, limit: 1 })
+    });
+    const d = (json.docs || [])[0];
+    if (!d) return { exists: () => false, data: () => ({}) };
+    return { id: d.id, data: () => ({ ...d }), exists: () => true };
+  }
 
   // ─────────────────────────────────────────────────
   // 대시보드 통계
   // ─────────────────────────────────────────────────
   async getDashboardStats() {
     try {
+      // 보조계정: 전용 API 사용
+      if (this._isSubAdmin) {
+        const json = await this._saFetch('/api/subadmin/dashboard-stats');
+        return json.success ? ok(json.data) : err(new Error(json.error));
+      }
       const db = this.db;
       // gamelogs는 보안규칙상 컬렉션 전체 읽기 불가 → 각각 catch로 처리
       const [usersSnap, txSnap, invSnap] = await Promise.all([
@@ -2451,7 +2607,12 @@ export class DedraAPI {
 
   async getInvestmentAnalytics(dateFrom, dateTo, expireMode) {
     try {
-      const snap = await getDocs(collection(this.db, 'investments'));
+      // 모듈 레벨 getDocs가 보조계정 여부에 따라 자동으로 프록시 경유
+      const [invSnap, prodSnap, walSnap] = await Promise.all([
+          getDocs(collection(this.db, 'investments')),
+          getDocs(collection(this.db, 'products')),
+          getDocs(collection(this.db, 'wallets')),
+      ]);
       // 필드명 정규화
       const normalize = (d) => {
         const raw = { id: d.id, ...d.data() };
@@ -2468,7 +2629,7 @@ export class DedraAPI {
           totalClaimed: raw.totalClaimed ?? raw.totalEarned ?? 0,
         };
       };
-      let data = snap.docs.map(normalize);
+      let data = invSnap.docs.map(normalize);
       if (dateFrom) data = data.filter(i => (i.createdAt?.seconds || 0) >= dateFrom / 1000);
       if (dateTo)   data = data.filter(i => (i.createdAt?.seconds || 0) <= dateTo / 1000);
 
@@ -2484,8 +2645,7 @@ export class DedraAPI {
         data = data.filter(i => i.status === 'expired' || i.status === 'completed' || (i.status === 'active' && endSec(i) > 0 && endSec(i) < nowSec));
       }
 
-      // 상품 목록 (products 컬렉션)
-      const prodSnap = await getDocs(collection(this.db, 'products'));
+      // 상품 목록
       const prodMap = {};
       prodSnap.docs.forEach(d => { prodMap[d.id] = { id: d.id, ...d.data() }; });
 
@@ -2496,8 +2656,7 @@ export class DedraAPI {
       const totalExpectedRoi = data.reduce((s,i) => s + (i.amountUsdt||0)*(i.dailyRoi||0)*(i.duration||0), 0);
       const totalClaimed     = data.reduce((s,i) => s + (i.totalClaimed||0), 0);
 
-      // wallets 합계 (전체 범위)
-      const walSnap = await getDocs(collection(this.db, 'wallets'));
+      // wallets 합계
       const totalDeposit    = walSnap.docs.reduce((s,d) => s + (d.data().totalDeposit||0), 0);
       const totalWithdrawal = walSnap.docs.reduce((s,d) => s + (d.data().totalWithdrawal||0), 0);
 
