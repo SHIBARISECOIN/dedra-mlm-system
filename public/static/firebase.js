@@ -38,7 +38,7 @@ try {
 
 // VAPID 공개키 (Firebase Console → 프로젝트 설정 → 클라우드 메시징 → 웹 푸시 인증서)
 // TODO: Firebase Console에서 발급 후 아래 키로 교체하세요
-const FCM_VAPID_KEY = 'BIMb7ruwDm5TwOlqBB5EVb5m8utmACbfombhPpQPhJQzYwPjmqi0xNR-CiwCkSoq8BsZKYFGZwkDEV_v1F9cebc';
+const FCM_VAPID_KEY = 'BND1xb0pPx4ADH9POB3AVi9ZPRztqQ4leZ9QfnmHg6hYunkbgSy9-a5P91fUaoPLkRnvuJYwSHmhOZ9o1GvZTIs';
 
 /**
  * FCM 푸시 알림 권한 요청 및 토큰 등록
