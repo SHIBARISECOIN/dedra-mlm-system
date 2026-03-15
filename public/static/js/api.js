@@ -263,6 +263,45 @@ export class DedraAPI {
       await batch.commit();
       await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
 
+      // 4. [센터피] (Center Fee) - 입금액의 5% 지급
+      try {
+        const uSnap = await getDoc(doc(db, 'users', tx.userId));
+        if (uSnap.exists()) {
+          const uData = uSnap.data();
+          if (uData.centerId) {
+            const cSnap = await getDoc(doc(db, 'centers', uData.centerId));
+            if (cSnap.exists()) {
+              const cData = cSnap.data();
+              if (cData.managerId) {
+                const feeUsdt = (tx.amount || 0) * 0.05;
+                const mWalletQ = query(collection(db, 'wallets'), where('userId', '==', cData.managerId));
+                const mWSnap = await getDocs(mWalletQ);
+                if (!mWSnap.empty) {
+                  const mWalletRef = mWSnap.docs[0].ref;
+                  await updateDoc(mWalletRef, {
+                    bonusBalance: increment(feeUsdt),
+                    totalEarnings: increment(feeUsdt)
+                  });
+                  await addDoc(collection(db, 'bonuses'), {
+                    userId: cData.managerId,
+                    fromUserId: tx.userId,
+                    type: 'center_fee',
+                    amount: parseFloat((feeUsdt / 0.5).toFixed(8)), // DEDRA rate assumed 0.5
+                    amountUsdt: parseFloat(feeUsdt.toFixed(8)),
+                    reason: `센터피 5% (기준: ${uData.name || tx.userId}, 입금: ${tx.amount} USDT)`,
+                    grantedBy: adminId || 'system',
+                    createdAt: serverTimestamp()
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Center fee error during manual approve:", e);
+      }
+
+
       // ── 관리자 알림: 수동 입금 승인 (SYSTEM 자동승인이 아닌 경우만) ──
       if (adminId !== 'SYSTEM_AUTO_APPROVE') {
         await this._sendAdminNotification(
@@ -2786,6 +2825,42 @@ export class DedraAPI {
         if (ref && childrenMap.has(ref)) childrenMap.get(ref).push(u);
       }
 
+      // ── 전체 노드에 대한 하부 조직 통계(인원, 매출) 사전 계산 ──
+      const statsMap = new Map();
+      const computeStats = (uid) => {
+        if (statsMap.has(uid)) return statsMap.get(uid);
+        // 순환참조 무한루프 방지
+        statsMap.set(uid, { subCount: 0, subSales: 0, gen1Count: 0, gen1Sales: 0, gen2Count: 0, gen2Sales: 0 });
+        
+        let subCount = 0; let subSales = 0;
+        let gen1Count = 0; let gen1Sales = 0;
+        let gen2Count = 0; let gen2Sales = 0;
+
+        const children = childrenMap.get(uid) || [];
+        gen1Count = children.length;
+
+        for (const child of children) {
+          const inv = Number(child.totalInvested || 0);
+          gen1Sales += inv;
+          subCount += 1;
+          subSales += inv;
+
+          const childStats = computeStats(child._uid);
+          gen2Count += childStats.gen1Count;
+          gen2Sales += childStats.gen1Sales;
+          subCount += childStats.subCount;
+          subSales += childStats.subSales;
+        }
+
+        const res = { subCount, subSales, gen1Count, gen1Sales, gen2Count, gen2Sales };
+        statsMap.set(uid, res);
+        return res;
+      };
+      // 모든 유저에 대해 통계 계산 실행
+      for (const u of users) {
+        if (!statsMap.has(u._uid)) computeStats(u._uid);
+      }
+
       // depth 제한 + 순환참조 방지 트리 빌드
       const buildTree = (rootUid) => {
         const visited = new Set();
@@ -2796,12 +2871,14 @@ export class DedraAPI {
           if (depth >= maxDepth) {
             return children.map(child => ({
               ...child,
+              _stats: statsMap.get(child._uid),
               children: [],
               hasMore: (childrenMap.get(child._uid) || []).length > 0
             }));
           }
           return children.map(child => ({
             ...child,
+            _stats: statsMap.get(child._uid),
             children: buildNode(child._uid, depth + 1),
             hasMore: false
           }));
@@ -2812,13 +2889,13 @@ export class DedraAPI {
       if (rootUserId) {
         const root = users.find(u => u.id === rootUserId || u._uid === rootUserId);
         if (!root) return ok([]);
-        return ok([{ ...root, children: buildTree(root._uid), hasMore: false }]);
+        return ok([{ ...root, _stats: statsMap.get(root._uid), children: buildTree(root._uid), hasMore: false }]);
       } else {
         const roots = users.filter(u => {
           const ref = getRef(u);
           return !ref || !uidSet.has(ref);
         });
-        return ok(roots.map(r => ({ ...r, children: buildTree(r._uid), hasMore: false })));
+        return ok(roots.map(r => ({ ...r, _stats: statsMap.get(r._uid), children: buildTree(r._uid), hasMore: false })));
       }
     } catch(e) {
       console.error('[getOrgTree] 에러:', e);

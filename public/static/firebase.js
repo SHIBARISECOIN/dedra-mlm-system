@@ -4,7 +4,7 @@ import {
   getAuth, onAuthStateChanged, signOut,
   signInWithCredential, EmailAuthProvider,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail
+  sendPasswordResetEmail, updatePassword
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
   getFirestore, collection, query, where, getDocs, onSnapshot,
@@ -175,6 +175,7 @@ async function loginViaProxy(email, password) {
 
 // 전역으로 노출
 window.FB = {
+  firebaseConfig,
   app, auth, db, messaging,
   _currentUser: null,
   _idToken: null,
@@ -192,7 +193,7 @@ window.FB = {
   },
   signInWithEmailAndPassword: loginWithEmail,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
+  sendPasswordResetEmail, updatePassword,
   // firestore functions
   collection, query, where, getDocs, onSnapshot, addDoc,
   doc, getDoc, setDoc, updateDoc, deleteDoc, orderBy,

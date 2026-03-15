@@ -5,238 +5,126 @@
 
 // ===== 사운드 엔진 (Web Audio API) =====
 const SFX = (() => {
-  let ctx = null;
-  const init = () => {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const audioUrls = {
+    'click': '/static/audio/coin_flip.mp3', // Shortened or reused? Wait, click should just be simple. Let's use AudioContext for click, it's very fast and clean.
+    'coin': '/static/audio/coin_flip.mp3',
+    'dice_roll': '/static/audio/dice_roll.mp3',
+    'slot_spin': '/static/audio/slot_spin.mp3',
+    'card_deal': '/static/audio/card_deal.mp3',
+    'roulette_spin': '/static/audio/roulette_spin.mp3',
+    'win': '/static/audio/win.mp3',
+    'lose': '/static/audio/lose.mp3'
   };
 
-  // 헬퍼: 리버브(간단한 콘볼루션 시뮬레이션)
-  const addReverb = (source, wet = 0.3) => {
-    try {
-      const convolver = ctx.createConvolver();
-      const len = ctx.sampleRate * 0.3;
-      const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = buf.getChannelData(ch);
-        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
-      }
-      convolver.buffer = buf;
-      const dryG = ctx.createGain(); dryG.gain.value = 1 - wet;
-      const wetG = ctx.createGain(); wetG.gain.value = wet;
-      source.connect(dryG); dryG.connect(ctx.destination);
-      source.connect(convolver); convolver.connect(wetG); wetG.connect(ctx.destination);
-      return dryG;
-    } catch(e) { source.connect(ctx.destination); return source; }
+  const audioObjects = {};
+  
+  // Preload all audio
+  for (const [key, url] of Object.entries(audioUrls)) {
+    if (key !== 'click') {
+      const a = new Audio(url);
+      a.preload = 'auto';
+      audioObjects[key] = a;
+    }
+  }
+
+  let ctx = null;
+  const initCtx = () => {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
   };
 
   const play = (type) => {
     try {
-      init();
-      if (ctx.state === 'suspended') ctx.resume();
-      const t = ctx.currentTime;
-
-      switch(type) {
-        case 'click': {
-          // 깔끔한 UI 틱 음
-          const o = ctx.createOscillator(); const g = ctx.createGain();
-          o.connect(g); g.connect(ctx.destination);
-          o.type = 'sine';
-          o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(600, t+0.06);
-          g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.06);
-          o.start(t); o.stop(t+0.06); break;
-        }
-
-        case 'coin': {
-          // 코인 투척 + 회전 + 착지 사운드 (3레이어)
-          // 레이어1: 금속 타격
-          [0, 0.04, 0.08].forEach((d, i) => {
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.connect(g); g.connect(ctx.destination);
-            o.type = 'sine';
-            o.frequency.setValueAtTime(2000 - i * 300, t + d);
-            o.frequency.exponentialRampToValueAtTime(400, t + d + 0.12);
-            g.gain.setValueAtTime(0.22, t + d); g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.18);
-            o.start(t + d); o.stop(t + d + 0.18);
-          });
-          // 레이어2: 공기 흐름 (화이트 노이즈 버스트)
-          const bufN = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
-          const dN = bufN.getChannelData(0);
-          for (let i = 0; i < dN.length; i++) dN[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/dN.length, 3) * 0.06;
-          const srcN = ctx.createBufferSource(); srcN.buffer = bufN;
-          const fN = ctx.createBiquadFilter(); fN.type = 'bandpass'; fN.frequency.value = 3000; fN.Q.value = 0.5;
-          srcN.connect(fN); fN.connect(ctx.destination);
-          srcN.start(t); srcN.stop(t + 0.5);
-          // 레이어3: 착지 저음
-          const oL = ctx.createOscillator(); const gL = ctx.createGain();
-          oL.type = 'sine'; oL.frequency.setValueAtTime(80, t + 0.6);
-          gL.gain.setValueAtTime(0.15, t + 0.6); gL.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
-          oL.connect(gL); gL.connect(ctx.destination);
-          oL.start(t + 0.6); oL.stop(t + 0.85);
-          break;
-        }
-
-        case 'dice_roll': {
-          // 주사위 굴리기: 나무 타격 × 6 + 슬라이딩 노이즈
-          for (let i = 0; i < 8; i++) {
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.type = 'square';
-            o.frequency.setValueAtTime(150 + Math.random() * 80, t + i * 0.06);
-            g.gain.setValueAtTime(0.12 - i * 0.01, t + i * 0.06);
-            g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.05);
-            o.connect(g); g.connect(ctx.destination);
-            o.start(t + i * 0.06); o.stop(t + i * 0.06 + 0.05);
-          }
-          // 슬라이딩 노이즈
-          const bufD = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate);
-          const dD = bufD.getChannelData(0);
-          for (let i = 0; i < dD.length; i++) dD[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/dD.length, 1.5) * 0.04;
-          const srcD = ctx.createBufferSource(); srcD.buffer = bufD;
-          const fD = ctx.createBiquadFilter(); fD.type = 'highpass'; fD.frequency.value = 800;
-          srcD.connect(fD); fD.connect(ctx.destination);
-          srcD.start(t); srcD.stop(t + 0.6);
-          break;
-        }
-
-        case 'slot_spin': {
-          // 슬롯 스핀: 모터 윙윙 + 릴 클릭
-          const oS = ctx.createOscillator(); const gS = ctx.createGain();
-          oS.type = 'sawtooth';
-          oS.frequency.setValueAtTime(120, t); oS.frequency.linearRampToValueAtTime(60, t + 1.2);
-          gS.gain.setValueAtTime(0.08, t); gS.gain.linearRampToValueAtTime(0.12, t + 0.3);
-          gS.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-          oS.connect(gS); gS.connect(ctx.destination);
-          oS.start(t); oS.stop(t + 1.2);
-          // 릴 클릭 시퀀스
-          for (let i = 0; i < 12; i++) {
-            const oc = ctx.createOscillator(); const gc = ctx.createGain();
-            oc.type = 'square'; oc.frequency.value = 400 + Math.random() * 200;
-            gc.gain.setValueAtTime(0.06, t + i * 0.08); gc.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.04);
-            oc.connect(gc); gc.connect(ctx.destination);
-            oc.start(t + i * 0.08); oc.stop(t + i * 0.08 + 0.04);
-          }
-          break;
-        }
-
-        case 'card_deal': {
-          // 카드 슬라이딩 사운드 (사각사각)
-          const bufC = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
-          const dC = bufC.getChannelData(0);
-          for (let i = 0; i < dC.length; i++) dC[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/dC.length, 2) * 0.15;
-          const srcC = ctx.createBufferSource(); srcC.buffer = bufC;
-          const fC = ctx.createBiquadFilter(); fC.type = 'bandpass'; fC.frequency.value = 2500; fC.Q.value = 1.5;
-          srcC.connect(fC); fC.connect(ctx.destination);
-          srcC.start(t); srcC.stop(t + 0.12);
-          // 착지 틱
-          const oT = ctx.createOscillator(); const gT = ctx.createGain();
-          oT.type = 'sine'; oT.frequency.setValueAtTime(800, t + 0.09);
-          gT.gain.setValueAtTime(0.08, t + 0.09); gT.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-          oT.connect(gT); gT.connect(ctx.destination);
-          oT.start(t + 0.09); oT.stop(t + 0.14);
-          break;
-        }
-
-        case 'roulette_spin': {
-          // 룰렛 스핀: 볼 굴리기 소리 + 감속
-          const oR = ctx.createOscillator(); const gR = ctx.createGain();
-          const lfo = ctx.createOscillator(); const lfog = ctx.createGain();
-          lfo.connect(lfog); lfog.connect(oR.frequency);
-          lfo.frequency.setValueAtTime(20, t); lfo.frequency.exponentialRampToValueAtTime(3, t + 3.5);
-          lfog.gain.setValueAtTime(60, t); lfog.gain.exponentialRampToValueAtTime(5, t + 3.5);
-          oR.type = 'sine';
-          oR.frequency.setValueAtTime(400, t); oR.frequency.exponentialRampToValueAtTime(80, t + 3.5);
-          gR.gain.setValueAtTime(0.12, t); gR.gain.setValueAtTime(0.12, t + 2.5); gR.gain.exponentialRampToValueAtTime(0.001, t + 3.5);
-          oR.connect(gR); gR.connect(ctx.destination);
-          lfo.start(t); oR.start(t); lfo.stop(t + 3.5); oR.stop(t + 3.5);
-          // 딸깍 소리 (볼이 섹션에 부딪히는 소리)
-          for (let i = 0; i < 20; i++) {
-            const delay = i * (0.15 - i * 0.005);
-            if (delay >= 3.5) break;
-            const oc = ctx.createOscillator(); const gc = ctx.createGain();
-            oc.type = 'sine'; oc.frequency.value = 1500;
-            gc.gain.setValueAtTime(0.05, t + delay); gc.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.05);
-            oc.connect(gc); gc.connect(ctx.destination);
-            oc.start(t + delay); oc.stop(t + delay + 0.05);
-          }
-          break;
-        }
-
-        case 'win': {
-          // 승리: 상승 팡파레 (4화음 + 하모닉스)
-          const melody = [523, 659, 784, 1047];
-          const harmony = [330, 415, 494, 659];
-          melody.forEach((freq, i) => {
-            // 멜로디
-            const o1 = ctx.createOscillator(); const g1 = ctx.createGain();
-            o1.type = 'sine'; o1.frequency.value = freq;
-            g1.gain.setValueAtTime(0, t + i*0.1); g1.gain.linearRampToValueAtTime(0.2, t + i*0.1 + 0.04);
-            g1.gain.exponentialRampToValueAtTime(0.001, t + i*0.1 + 0.35);
-            o1.connect(g1); g1.connect(ctx.destination);
-            o1.start(t + i*0.1); o1.stop(t + i*0.1 + 0.35);
-            // 하모니
-            const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
-            o2.type = 'triangle'; o2.frequency.value = harmony[i];
-            g2.gain.setValueAtTime(0, t + i*0.1); g2.gain.linearRampToValueAtTime(0.1, t + i*0.1 + 0.04);
-            g2.gain.exponentialRampToValueAtTime(0.001, t + i*0.1 + 0.3);
-            o2.connect(g2); g2.connect(ctx.destination);
-            o2.start(t + i*0.1); o2.stop(t + i*0.1 + 0.3);
-          });
-          // 코인 쏟아지는 소리
-          for (let i = 0; i < 5; i++) {
-            const oc = ctx.createOscillator(); const gc = ctx.createGain();
-            oc.type = 'sine'; oc.frequency.setValueAtTime(1800 + Math.random()*400, t + 0.4 + i*0.04);
-            gc.gain.setValueAtTime(0.1, t + 0.4 + i*0.04); gc.gain.exponentialRampToValueAtTime(0.001, t + 0.4 + i*0.04 + 0.1);
-            oc.connect(gc); gc.connect(ctx.destination);
-            oc.start(t + 0.4 + i*0.04); oc.stop(t + 0.4 + i*0.04 + 0.1);
-          }
-          break;
-        }
-
-        case 'jackpot': {
-          // 잭팟: 화려한 상승 아르페지오 + 팡파레
-          const scale = [523,587,659,698,784,880,988,1047,1175,1319,1568,2093];
-          scale.forEach((freq, i) => {
-            const o = ctx.createOscillator(); const g = ctx.createGain();
-            o.type = i < 6 ? 'sine' : 'triangle'; o.frequency.value = freq;
-            g.gain.setValueAtTime(0, t + i*0.07);
-            g.gain.linearRampToValueAtTime(0.25, t + i*0.07 + 0.03);
-            g.gain.exponentialRampToValueAtTime(0.001, t + i*0.07 + 0.5);
-            o.connect(g); g.connect(ctx.destination);
-            o.start(t + i*0.07); o.stop(t + i*0.07 + 0.5);
-          });
-          // 저음 부스트
-          const oB = ctx.createOscillator(); const gB = ctx.createGain();
-          oB.type = 'sine'; oB.frequency.setValueAtTime(110, t); oB.frequency.linearRampToValueAtTime(220, t + 0.8);
-          gB.gain.setValueAtTime(0.2, t); gB.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-          oB.connect(gB); gB.connect(ctx.destination);
-          oB.start(t); oB.stop(t + 0.8);
-          break;
-        }
-
-        case 'lose': {
-          // 패배: 하강 + 둔탁한 저음
-          const o1 = ctx.createOscillator(); const g1 = ctx.createGain();
-          o1.type = 'sawtooth';
-          o1.frequency.setValueAtTime(350, t); o1.frequency.exponentialRampToValueAtTime(80, t + 0.5);
-          g1.gain.setValueAtTime(0.15, t); g1.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-          o1.connect(g1); g1.connect(ctx.destination);
-          o1.start(t); o1.stop(t + 0.5);
-          // 둔탁한 저음
-          const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
-          o2.type = 'sine'; o2.frequency.setValueAtTime(60, t + 0.1);
-          g2.gain.setValueAtTime(0.2, t + 0.1); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-          o2.connect(g2); g2.connect(ctx.destination);
-          o2.start(t + 0.1); o2.stop(t + 0.5);
-          break;
-        }
+      if (type === 'click') {
+        initCtx();
+        if (ctx.state === 'suspended') ctx.resume();
+        const t = ctx.currentTime;
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(600, t+0.06);
+        g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.06);
+        o.start(t); o.stop(t+0.06);
+        return;
       }
-    } catch(e) {}
+      
+      const audio = audioObjects[type];
+      if (audio) {
+        // Clone the node so we can play overlapping sounds
+        const clone = audio.cloneNode();
+        clone.volume = 0.6; // Adjust volume as needed
+        clone.play().catch(e => console.warn('SFX play failed', e));
+      }
+    } catch(e) { console.warn('SFX Error:', e); }
   };
+
   return { play };
 })();
 
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+
+    diceHint: '숫자를 선택하여 베팅하세요',
+    earnSeeAll: '수익 전체보기',
+    freezingNow: '❄️ 진행중',
+    gameStartHint: '칩을 선택하여 베팅하세요',
+    labelCountry: '국가',
+    netPerfAll: '산하 조직 실적',
+    netPerfGen1: '1대 조직 실적',
+    netPerfGen2: '2대 조직 실적',
+    networkDetail: '조직 상세',
+    networkEarnings: '네트워크 수익',
+    playWithEarn: '수익으로 즉시 플레이',
+    rank_next_label: '다음 직급:',
+    rank_referral: '추천인',
+    rank_referral_unit: '명',
+    subMembers: '하부 인원',
+    todayEarn: '당일 수익',
+    todayEarnLabel: '오늘 수익',
+    todayEarnSummary: 'TODAY 당일 수익 요약',
+    totalEarnSum: '전체 당일 수익 합계',
+    totalEarnings: '누적 수익',
+    totalSubMembersEarn: '총 하부 인원 · 누적 수익',
+    viewDetail: '상세보기 ›',
+    withdrawNoticeText: '※ 처리 완료까지 1-3일 소요',
+    withdrawableDdra: '출금 가능 DDRA',
+    withdrawableDdraLabel: '출금 가능 DDRA',
+    tabGen1: '1대 조직',
+    tabGen2: '2대 조직',
+    tabDeep: '산하 조직',
+    tabTx: '거래내역',
+    emptySubGen: '{gen}대 하부 멤버가 없습니다',
+    emptyDeepGen: '3대 이하 하부 멤버가 없습니다',
+    genSub: '{gen}대 하부',
+    orgTitle: '하부 {n}명 조직 수익 현황',
+    myInvestTitle: '📋 내 FREEZE 현황',
+    emptyInvest: '진행 중인 FREEZE가 없습니다',
+    dailyReturnLabel: '❄️ 일 수익:',
+    remainDaysLabel: '잔여 {n}일',
+    totalExpectedLabel: '총 예상수익(일): +{n} USDT (원금은 만기 후 출금 가능)',
+    investUnit: '건',
+    perDay: '/일',
+    productMonth1: '1개월',
+    productMonth3: '3개월',
+    productMonth6: '6개월',
+    productMonth12: '12개월',
+    productHint1: '{min} USDT FREEZE 시 일 수익',
+    productHint2: '만기 후 언프리즈 가능',
+    ddraConvert: 'DDRA 환산',
+    maturityDate: '만기일',
+    emptyNotice: '공지사항이 없습니다',
+    loadFail: '불러오기 실패',
+    emptyTx: '거래 내역이 없습니다',
+    emptyBonus: '수익 내역이 없습니다',
+    emptyBonusSub: '관리자가 일일 정산을 실행하면 여기에 표시됩니다.',
+    emptyProducts: 'FREEZE 플랜이 없습니다',
+    emptyNoti: '알림이 없습니다',
+    emptyTicket: '문의 내역이 없습니다',
+    emptyRef: '추천인이 없습니다',
+    notiTitleMature: '✅ FREEZE 만기 완료',
+    notiMsgMature: '[{name}] FREEZE 계약이 만료되었습니다. 원금 {amt} USDT가 지갑에 언프리즈되었습니다.',
+    toastMature: '❄️ 만기 FREEZE {n}건의 원금이 언프리즈되었습니다.',
+  
     // 로그인/회원가입
     authTagline: '🔐 안전하고 스마트한 가상자산 FREEZE',
     loginTab: '로그인',
@@ -324,6 +212,11 @@ const TRANSLATIONS = {
     coinHint: '홀 또는 짝을 선택하세요',
     choiceOdd: '홀 (Odd)',
     choiceEven: '짝 (Even)',
+    betOddBtn: '홀 (Odd)',
+    betEvenBtn: '짝 (Even)',
+    newsTitle: '📰 뉴스',
+    refresh: '새로고침',
+    peopleUnit: '명',
     gameAreaOddEven: '🪙 홀짝 게임',
     gameAreaDice: '🎲 주사위 게임',
     gameAreaSlot: '🎰 슬롯머신',
@@ -697,6 +590,68 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+
+    diceHint: 'Select a number to bet',
+    earnSeeAll: 'See All Earnings',
+    freezingNow: '❄️ Freezing',
+    gameStartHint: 'Select chips to bet',
+    labelCountry: 'Country',
+    netPerfAll: 'Total Org Perf.',
+    netPerfGen1: 'Gen1 Perf.',
+    netPerfGen2: 'Gen2 Perf.',
+    networkDetail: 'Network Detail',
+    networkEarnings: 'Network Earnings',
+    playWithEarn: 'Play with Earnings',
+    rank_next_label: 'Next Rank:',
+    rank_referral: 'Referrals',
+    rank_referral_unit: ' members',
+    subMembers: 'Sub Members',
+    todayEarn: 'Today Earn',
+    todayEarnLabel: 'Today Earn',
+    todayEarnSummary: 'TODAY Earnings Summary',
+    totalEarnSum: 'Total Earnings Sum',
+    totalEarnings: 'Total Earnings',
+    totalSubMembersEarn: 'Total Sub Members & Earn',
+    viewDetail: 'Details ›',
+    withdrawNoticeText: '※ 1-3 days for processing',
+    withdrawableDdra: 'Withdrawable DDRA',
+    withdrawableDdraLabel: 'Withdrawable DDRA',
+    tabGen1: 'Gen 1',
+    tabGen2: 'Gen 2',
+    tabDeep: 'Deep Org',
+    tabTx: 'Transactions',
+    emptySubGen: 'No sub-members in Gen {gen}',
+    emptyDeepGen: 'No sub-members in Gen 3+',
+    genSub: 'Gen {gen}',
+    orgTitle: 'Org Perf. ({n} members)',
+    myInvestTitle: '📋 My FREEZE',
+    emptyInvest: 'No active FREEZE found',
+    dailyReturnLabel: '❄️ Daily Return:',
+    remainDaysLabel: '{n} days left',
+    totalExpectedLabel: 'Total Expected/Day: +{n} USDT (Principal withdrawable at maturity)',
+    investUnit: ' items',
+    perDay: '/day',
+    productMonth1: '1 Month',
+    productMonth3: '3 Months',
+    productMonth6: '6 Months',
+    productMonth12: '12 Months',
+    productHint1: 'Daily return for {min} USDT FREEZE',
+    productHint2: 'Principal unlockable after maturity',
+    ddraConvert: 'DDRA Conv.',
+    maturityDate: 'Maturity Date',
+    emptyNotice: 'No announcements',
+    loadFail: 'Failed to load',
+    emptyTx: 'No transaction history',
+    emptyBonus: 'No earnings history',
+    emptyBonusSub: 'Will be displayed here when admin runs daily settlement.',
+    emptyProducts: 'No FREEZE plans available',
+    emptyNoti: 'No notifications',
+    emptyTicket: 'No support tickets',
+    emptyRef: 'No referrals',
+    notiTitleMature: '✅ FREEZE Matured',
+    notiMsgMature: '[{name}] FREEZE contract has matured. Principal {amt} USDT has been unfrozen to your wallet.',
+    toastMature: '❄️ {n} matured FREEZE principals have been unfrozen.',
+  
     authTagline: '🔐 Safe and Smart Crypto FREEZE',
     loginTab: 'Login',
     registerTab: 'Register',
@@ -779,6 +734,11 @@ const TRANSLATIONS = {
     coinHint: 'Choose Odd or Even',
     choiceOdd: 'Odd',
     choiceEven: 'Even',
+    betOddBtn: 'Odd',
+    betEvenBtn: 'Even',
+    newsTitle: '📰 News',
+    refresh: 'Refresh',
+    peopleUnit: ' users',
     gameAreaOddEven: '🪙 Odd/Even Game',
     gameAreaDice: '🎲 Dice Game',
     gameAreaSlot: '🎰 Slot Machine',
@@ -1147,6 +1107,68 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+
+    diceHint: 'Chọn một số để cược',
+    earnSeeAll: 'Xem tất cả',
+    freezingNow: '❄️ Đang đóng băng',
+    gameStartHint: 'Chọn chip để cược',
+    labelCountry: 'Quốc gia',
+    netPerfAll: 'Thành tích toàn bộ',
+    netPerfGen1: 'Thành tích F1',
+    netPerfGen2: 'Thành tích F2',
+    networkDetail: 'Chi tiết mạng lưới',
+    networkEarnings: 'Thu nhập mạng lưới',
+    playWithEarn: 'Chơi bằng Thu nhập',
+    rank_next_label: 'Hạng tiếp theo:',
+    rank_referral: 'Giới thiệu',
+    rank_referral_unit: ' TV',
+    subMembers: 'TV cấp dưới',
+    todayEarn: 'Thu nhập HN',
+    todayEarnLabel: 'Thu nhập Hôm nay',
+    todayEarnSummary: 'Tóm tắt thu nhập HÔM NAY',
+    totalEarnSum: 'Tổng thu nhập',
+    totalEarnings: 'Tổng thu nhập',
+    totalSubMembersEarn: 'Tổng TV & Thu nhập',
+    viewDetail: 'Chi tiết ›',
+    withdrawNoticeText: '※ Xử lý trong 1-3 ngày',
+    withdrawableDdra: 'DDRA có thể rút',
+    withdrawableDdraLabel: 'DDRA có thể rút',
+    tabGen1: 'Thế hệ 1',
+    tabGen2: 'Thế hệ 2',
+    tabDeep: 'Mạng lưới',
+    tabTx: 'Giao dịch',
+    emptySubGen: 'Không có thành viên ở F{gen}',
+    emptyDeepGen: 'Không có thành viên ở F3+',
+    genSub: 'F{gen}',
+    orgTitle: 'Thành tích lưới ({n} TV)',
+    myInvestTitle: '📋 Đầu tư của tôi',
+    emptyInvest: 'Không có FREEZE nào đang hoạt động',
+    dailyReturnLabel: '❄️ Lợi nhuận hàng ngày:',
+    remainDaysLabel: 'Còn lại {n} ngày',
+    totalExpectedLabel: 'Tổng dự kiến/ngày: +{n} USDT (Gốc có thể rút khi đáo hạn)',
+    investUnit: ' mục',
+    perDay: '/ngày',
+    productMonth1: '1 Tháng',
+    productMonth3: '3 Tháng',
+    productMonth6: '6 Tháng',
+    productMonth12: '12 Tháng',
+    productHint1: 'Lợi nhuận hàng ngày với {min} USDT FREEZE',
+    productHint2: 'Gốc có thể rút sau khi đáo hạn',
+    ddraConvert: 'Quy đổi DDRA',
+    maturityDate: 'Ngày đáo hạn',
+    emptyNotice: 'Không có thông báo',
+    loadFail: 'Tải thất bại',
+    emptyTx: 'Không có lịch sử giao dịch',
+    emptyBonus: 'Không có lịch sử thu nhập',
+    emptyBonusSub: 'Sẽ hiển thị ở đây khi admin chạy quyết toán hàng ngày.',
+    emptyProducts: 'Không có gói FREEZE',
+    emptyNoti: 'Không có thông báo',
+    emptyTicket: 'Không có phiếu hỗ trợ',
+    emptyRef: 'Không có người giới thiệu',
+    notiTitleMature: '✅ FREEZE Đáo hạn',
+    notiMsgMature: '[{name}] Hợp đồng FREEZE đã đáo hạn. Gốc {amt} USDT đã được hoàn lại vào ví.',
+    toastMature: '❄️ {n} khoản gốc FREEZE đáo hạn đã được hoàn lại.',
+  
     authTagline: '🔐 FREEZE tài sản số an toàn & thông minh',
     loginTab: 'Đăng nhập',
     registerTab: 'Đăng ký',
@@ -1229,6 +1251,11 @@ const TRANSLATIONS = {
     coinHint: 'Chọn Lẻ hoặc Chẵn',
     choiceOdd: 'Lẻ (Odd)',
     choiceEven: 'Chẵn (Even)',
+    betOddBtn: 'Lẻ (Odd)',
+    betEvenBtn: 'Chẵn (Even)',
+    newsTitle: '📰 Tin tức',
+    refresh: 'Làm mới',
+    peopleUnit: ' người',
     gameAreaOddEven: '🪙 Game Lẻ/Chẵn',
     gameAreaDice: '🎲 Game Xúc xắc',
     gameAreaSlot: '🎰 Máy đánh bạc',
@@ -1597,6 +1624,68 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+
+    diceHint: 'เลือกหมายเลขเพื่อเดิมพัน',
+    earnSeeAll: 'ดูรายได้ทั้งหมด',
+    freezingNow: '❄️ กำลังแช่แข็ง',
+    gameStartHint: 'เลือกชิปเพื่อเดิมพัน',
+    labelCountry: 'ประเทศ',
+    netPerfAll: 'ผลงานองค์กรทั้งหมด',
+    netPerfGen1: 'ผลงาน G1',
+    netPerfGen2: 'ผลงาน G2',
+    networkDetail: 'รายละเอียดเครือข่าย',
+    networkEarnings: 'รายได้เครือข่าย',
+    playWithEarn: 'เล่นด้วยรายได้',
+    rank_next_label: 'ตำแหน่งถัดไป:',
+    rank_referral: 'แนะนำ',
+    rank_referral_unit: ' คน',
+    subMembers: 'สมาชิกระดับล่าง',
+    todayEarn: 'รายได้วันนี้',
+    todayEarnLabel: 'รายได้วันนี้',
+    todayEarnSummary: 'สรุปรายได้วันนี้',
+    totalEarnSum: 'ยอดรวมรายได้ทั้งหมด',
+    totalEarnings: 'รายได้สะสม',
+    totalSubMembersEarn: 'สมาชิกย่อยทั้งหมด & รายได้',
+    viewDetail: 'รายละเอียด ›',
+    withdrawNoticeText: '※ ใช้เวลาดำเนินการ 1-3 วัน',
+    withdrawableDdra: 'DDRA ที่ถอนได้',
+    withdrawableDdraLabel: 'DDRA ที่ถอนได้',
+    tabGen1: 'รุ่นที่ 1',
+    tabGen2: 'รุ่นที่ 2',
+    tabDeep: 'องค์กรลึก',
+    tabTx: 'ธุรกรรม',
+    emptySubGen: 'ไม่มีสมาชิกในรุ่น {gen}',
+    emptyDeepGen: 'ไม่มีสมาชิกในรุ่น 3+',
+    genSub: 'รุ่น {gen}',
+    orgTitle: 'ผลงานองค์กร (สมาชิก {n})',
+    myInvestTitle: '📋 การลงทุนของฉัน',
+    emptyInvest: 'ไม่พบ FREEZE ที่กำลังใช้งาน',
+    dailyReturnLabel: '❄️ ผลตอบแทนรายวัน:',
+    remainDaysLabel: 'เหลือ {n} วัน',
+    totalExpectedLabel: 'คาดการณ์รวม/วัน: +{n} USDT (ถอนเงินต้นได้เมื่อครบกำหนด)',
+    investUnit: ' รายการ',
+    perDay: '/วัน',
+    productMonth1: '1 เดือน',
+    productMonth3: '3 เดือน',
+    productMonth6: '6 เดือน',
+    productMonth12: '12 เดือน',
+    productHint1: 'ผลตอบแทนรายวันสำหรับ FREEZE {min} USDT',
+    productHint2: 'เงินต้นสามารถถอนได้เมื่อครบกำหนด',
+    ddraConvert: 'แปลงเป็น DDRA',
+    maturityDate: 'วันครบกำหนด',
+    emptyNotice: 'ไม่มีประกาศ',
+    loadFail: 'โหลดล้มเหลว',
+    emptyTx: 'ไม่มีประวัติการทำธุรกรรม',
+    emptyBonus: 'ไม่มีประวัติรายได้',
+    emptyBonusSub: 'จะแสดงที่นี่เมื่อผู้ดูแลระบบดำเนินการสรุปยอดประจำวัน',
+    emptyProducts: 'ไม่มีแผน FREEZE',
+    emptyNoti: 'ไม่มีการแจ้งเตือน',
+    emptyTicket: 'ไม่มีตั๋วสนับสนุน',
+    emptyRef: 'ไม่มีการแนะนำ',
+    notiTitleMature: '✅ FREEZE ครบกำหนด',
+    notiMsgMature: '[{name}] สัญญา FREEZE ครบกำหนดแล้ว เงินต้น {amt} USDT ถูกปลดล็อคเข้ากระเป๋าของคุณ',
+    toastMature: '❄️ เงินต้น FREEZE ที่ครบกำหนด {n} รายการถูกปลดล็อคแล้ว',
+  
     authTagline: '🔐 FREEZE สินทรัพย์ดิจิทัลอย่างปลอดภัย',
     loginTab: 'เข้าสู่ระบบ',
     registerTab: 'สมัครสมาชิก',
@@ -1679,6 +1768,11 @@ const TRANSLATIONS = {
     coinHint: 'เลือก คี่ หรือ คู่',
     choiceOdd: 'คี่ (Odd)',
     choiceEven: 'คู่ (Even)',
+    betOddBtn: 'คี่ (Odd)',
+    betEvenBtn: 'คู่ (Even)',
+    newsTitle: '📰 ข่าวสาร',
+    refresh: 'รีเฟรช',
+    peopleUnit: ' คน',
     gameAreaOddEven: '🪙 เกมคี่/คู่',
     gameAreaDice: '🎲 เกมลูกเต๋า',
     gameAreaSlot: '🎰 สล็อตแมชชีน',
@@ -2186,14 +2280,18 @@ const DICE_DOT_PATTERNS = {
 
 // 주사위 점 렌더링
 function renderDiceDots(num) {
-  const dotsEl = document.getElementById('diceDots');
-  if (!dotsEl) return;
-  const pattern = DICE_DOT_PATTERNS[num] || [];
-  dotsEl.innerHTML = '';
-  for (let i = 0; i < 9; i++) {
-    const dot = document.createElement('div');
-    dot.className = pattern.includes(i) ? 'dice-dot' : 'dice-dot empty';
-    dotsEl.appendChild(dot);
+  const dice3d = document.getElementById('dice3d');
+  if (!dice3d) return;
+  // Make sure it doesn't have the animation class when forcing a result
+  if (!dice3d.classList.contains('dice-rolling')) {
+    let rotX = -10, rotY = -10;
+    if (num === 1) { rotX = -10; rotY = -10; }
+    else if (num === 6) { rotX = -10; rotY = -190; }
+    else if (num === 3) { rotX = -10; rotY = -100; }
+    else if (num === 4) { rotX = -10; rotY = 80; }
+    else if (num === 2) { rotX = -100; rotY = 0; }
+    else if (num === 5) { rotX = 80; rotY = 0; }
+    dice3d.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
   }
 }
 
@@ -2304,6 +2402,7 @@ window.onAuthReady = async (user) => {
 };
 
 async function initApp() {
+  console.log('initApp: started');
   try {
     const { doc, getDoc, db } = window.FB;
     const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
@@ -2325,9 +2424,9 @@ async function initApp() {
       window.DDRATokenRegister.loadConfig(db, doc, getDoc).catch(() => {});
     }
 
-    await loadWalletData();
-    await loadDeedraPrice();
-    await loadGameOdds();
+    console.log('initApp: before loadWalletData'); await loadWalletData(); console.log('initApp: after loadWalletData');
+    console.log('initApp: before loadDeedraPrice'); await loadDeedraPrice(); console.log('initApp: after loadDeedraPrice');
+    console.log('initApp: before loadGameOdds'); await loadGameOdds(); console.log('initApp: after loadGameOdds');
 
     // 실시간 환율 로드 (백그라운드 - UI 블로킹 없음)
     fetchForexRates().then(() => {
@@ -2335,10 +2434,11 @@ async function initApp() {
       updateHomeUI();
     }).catch(() => {});
 
-    showScreen('main');
+    console.log('initApp: showing main screen'); showScreen('main');
 
     updateHomeUI();
     loadAnnouncements();
+    if (typeof loadNewsFeed === "function") loadNewsFeed();
     loadRecentTransactions();
     loadDDayCard();
     loadHomeEarn();
@@ -2503,7 +2603,7 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
 
   // 출금 모달 DDRA 환산 업데이트
-  updateWithdrawDdraCalc && updateWithdrawDdraCalc();
+  if (typeof updateWithdrawDdraCalc === "function") updateWithdrawDdraCalc();
 }
 
 
@@ -2591,8 +2691,8 @@ function renderHomeEarn(products, myInvestments) {
       <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
         <span style="font-size:14px;flex-shrink:0;">${icon}</span>
         <div style="min-width:0;">
-          <div class="earn-item-name">${p.name || '-'}</div>
-          <div class="earn-item-period">${days}일</div>
+          <div class="earn-item-name">${p.name === "1개월" ? t("productMonth1") : p.name === "3개월" ? t("productMonth3") : p.name === "6개월" ? t("productMonth6") : p.name === "12개월" ? t("productMonth12") : (p.name || "-")}</div>
+          <div class="earn-item-period">${days}${t("days")}</div>
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0;">
@@ -2781,6 +2881,7 @@ window.changeLang = function(lang) {
     if (currentPage === 'home') {
       if (typeof loadHomeEarn === 'function') loadHomeEarn();
       if (typeof loadAnnouncements === 'function') loadAnnouncements();
+      if (typeof loadNewsFeed === "function") loadNewsFeed();
       if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
       if (typeof updateHomeUI === 'function') updateHomeUI();
     } else if (currentPage === 'invest') {
@@ -3046,11 +3147,10 @@ function updateHomeUI() {
 
   const greetEl = document.getElementById('greetingMsg');
   const nameEl = document.getElementById('userNameDisplay');
-  const rankEl = document.getElementById('userRankBadge');
-
-  if (greetEl) greetEl.textContent = greeting;
-  if (nameEl) nameEl.textContent = userData.name || '-';
-  if (rankEl) rankEl.textContent = userData.rank || 'G0';
+  const rankImg = document.getElementById('userRankBadgeImg');
+  if (rankImg) rankImg.src = '/static/ranks/' + (userData.rank || 'G0').toLowerCase() + '.png';
+  if (greetEl) greetEl.textContent = greeting + ' 👋';
+  if (nameEl) nameEl.textContent = (userData.name || '회원') + ' (' + (userData.referralCode || '') + ')님';
 
   const usdt = walletData.usdtBalance || 0;
   const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
@@ -3066,9 +3166,21 @@ function updateHomeUI() {
   setEl('totalAssetKrw', '≈ ' + formatLocalCurrency(total));
   // 환율 정보 표시 (예: "1 USDT ≈ ₩1,380")
   const rateInfoEl = document.getElementById('forexRateInfo');
-  if (rateInfoEl) {
-    const rateText = getForexInfoText();
-    rateInfoEl.textContent = rateText ? '📈 ' + rateText : '';
+  const rateValueEl = document.getElementById('forexRateValue');
+  if (rateInfoEl && rateValueEl) {
+    const cur = getCurrentCurrency();
+    if (cur.code === 'USD') {
+      rateInfoEl.style.display = 'none';
+    } else {
+      rateInfoEl.style.display = 'flex';
+      const rate = (_fxRates && _fxRates[cur.code]) ? _fxRates[cur.code] : null;
+      if (rate) {
+        const rateStr = cur.code === 'KRW' ? Math.round(rate).toLocaleString() :
+              cur.code === 'VND' ? Math.round(rate).toLocaleString() :
+              rate.toFixed(2);
+        rateValueEl.textContent = cur.symbol + rateStr;
+      }
+    }
   }
   setEl('splitUsdt', fmt(usdt) + ' USDT');
   // splitBonus: 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ ddraPrice
@@ -3130,26 +3242,6 @@ async function loadDDayCard() {
 }
 
 // ===== 공지사항 =====
-// 공지사항 언어별 제목/내용 반환 헬퍼
-// 번역 필드가 있으면 번역본 사용, 없으면 한국어 원문 표시
-function annTitle(a) {
-  if (!a) return '';
-  const lang = (typeof currentLang !== 'undefined') ? currentLang : 'ko';
-  if (lang !== 'ko') {
-    const translated = a[`title_${lang}`];
-    if (translated && translated.trim()) return translated;
-  }
-  return a.title || '';
-}
-function annContent(a) {
-  if (!a) return '';
-  const lang = (typeof currentLang !== 'undefined') ? currentLang : 'ko';
-  if (lang !== 'ko') {
-    const translated = a[`content_${lang}`];
-    if (translated && translated.trim()) return translated;
-  }
-  return a.content || '';
-}
 async function loadAnnouncements() {
   const { collection, query, where, getDocs, db } = window.FB;
   try {
@@ -3172,7 +3264,7 @@ async function loadAnnouncements() {
   } catch (err) {
     console.error('[announcements] load error:', err);
     const el = document.getElementById('announcementList');
-    if (el) el.innerHTML = `<div class="empty-state">${t('emptyAnnounce')}</div>`;
+    if (el) el.innerHTML = '<div class="empty-state">공지사항이 없습니다</div>';
   }
 }
 
@@ -3180,39 +3272,13 @@ function renderAnnouncements(items, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items.length) {
-    el.innerHTML = `<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyAnnounce')}</div>`;
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i>공지사항이 없습니다</div>';
     return;
   }
-
-  // 홈 compact 목록 (ann-compact-list 컨테이너)
-  if (el.classList.contains('ann-compact-list')) {
-    el.innerHTML = items.slice(0, 2).map(a => {
-      const pin = a.isPinned ? '📌 ' : '';
-      const title = pin + (annTitle(a) || t('noTitle'));
-      // 날짜: MM/DD HH:mm 형식으로 짧게
-      let dateStr = '';
-      try {
-        const d = a.createdAt?.toDate ? a.createdAt.toDate() : new Date((a.createdAt?.seconds || 0) * 1000);
-        const mo = String(d.getMonth() + 1).padStart(2, '0');
-        const dy = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
-        const mm = String(d.getMinutes()).padStart(2, '0');
-        dateStr = `${mo}/${dy} ${hh}:${mm}`;
-      } catch(_) {}
-      return `
-        <div class="ann-compact-item" onclick="showAnnouncementDetail('${a.id}')">
-          <span class="ann-compact-title">${title}</span>
-          <span class="ann-compact-date">${dateStr}</span>
-        </div>`;
-    }).join('');
-    return;
-  }
-
-  // 전체/모달 목록 (기존 스타일)
   el.innerHTML = items.map(a => `
     <div class="announcement-item" onclick="showAnnouncementDetail('${a.id}')">
       <div class="ann-title">
-        ${a.isPinned ? `<span class="pin-badge">${t('pinBadge')}</span>` : ''}${annTitle(a) || t('noTitle')}
+        ${a.isPinned ? '<span class="pin-badge">공지</span>' : ''}${a.title || '제목 없음'}
       </div>
       <div class="ann-date">${fmtDate(a.createdAt)}</div>
     </div>
@@ -3239,7 +3305,7 @@ window.showAnnouncementModal = async function() {
       });
     renderAnnouncements(items, 'announcementFullList');
   } catch {
-    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
 };
 
@@ -3252,17 +3318,17 @@ window.showAnnouncementDetail = async function(id) {
   const titleEl = document.getElementById('annDetailTitle');
   const dateEl  = document.getElementById('annDetailDate');
   const bodyEl  = document.getElementById('annDetailBody');
-  if (titleEl) titleEl.textContent = t('loading');
+  if (titleEl) titleEl.textContent = '불러오는 중...';
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
-    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('emptyNotice')}</div>`; return; }
+    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">공지사항을 찾을 수 없습니다.</div>'; return; }
     const a = snap.data();
-    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (annTitle(a) || t('noTitle'));
+    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || '제목 없음');
     if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
-    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(annContent(a) || t('noContent')).replace(/\n/g, '<br>')}</div>`;
+    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(a.content || '내용 없음').replace(/\n/g, '<br>')}</div>`;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
 };
 
@@ -3282,7 +3348,7 @@ async function loadRecentTransactions() {
     renderTxList(txs, 'recentTxList');
   } catch (err) {
     const el = document.getElementById('recentTxList');
-    if (el) el.innerHTML = `<div class="empty-state">${t('emptyTx')}</div>`;
+    if (el) el.innerHTML = '<div class="empty-state">거래 내역이 없습니다</div>';
   }
 }
 
@@ -3290,11 +3356,11 @@ function renderTxList(txs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!txs.length) {
-    el.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i>${t('emptyTx')}</div>`;
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i>거래 내역이 없습니다</div>';
     return;
   }
   const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
-  const statusTxt = { pending: t('statusPending'), approved: t('statusApproved'), rejected: t('statusRejected') };
+  const statusTxt = { pending: '승인 대기', approved: '완료', rejected: '거부됨' };
 
   el.innerHTML = txs.map(tx => {
     const isPlus = ['deposit', 'bonus'].includes(tx.type);
@@ -3326,15 +3392,13 @@ function loadMorePage() {
   const rankEl = document.getElementById('profileRank');
   if (rankEl) rankEl.innerHTML = `<i class="fas fa-star" style="font-size:10px"></i> ${userData.rank || 'G0'}`;
 
-  const bonus = walletData.bonusBalance || 0;
-  const p = deedraPrice || 0.5;
-  const withdrawableDdra = bonus / p;  // bonusBalance(USDT) → 출금 가능 DDRA
-  setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
-  setEl('moreWalletBonus', fmt(withdrawableDdra) + ' DDRA');  // 수익잔액 DDRA 표시
-  setEl('moreWalletBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
-  // dedraBalance(게임전용)는 내부적으로만 유지
   const dedra = walletData.dedraBalance || 0;
-  const dedraUsd = dedra * p;
+  const bonus = walletData.bonusBalance || 0;
+  const dedraUsd = dedra * deedraPrice;
+  const bonusDdra = bonus / (deedraPrice || 0.5);
+  setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
+  setEl('moreWalletBonus', fmt(bonus) + ' USDT');  // 수익잔액
+  setEl('moreWalletBonusDdra', '≈ ' + fmt(bonusDdra) + ' DDRA');
   setEl('moreWalletDedra', fmt(dedra) + ' DDRA');
   setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
 
@@ -3351,86 +3415,113 @@ async function loadTxHistory(typeFilter) {
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
 
   try {
-    // ROI 탭: bonuses 컬렉션
-    if (typeFilter === 'roi') {
-      const q = query(
-        collection(db, 'bonuses'),
-        where('userId', '==', currentUser.uid),
-        limit(40)
-      );
+    let txs = [];
+    
+    // Helper function to format date
+    const getSortTime = (item) => item.createdAt?.seconds || item.createdAt?.toMillis?.() / 1000 || 0;
+
+    // Fetch Transactions
+    if (['all', 'deposit', 'withdrawal', 'invest'].includes(typeFilter)) {
+      let q;
+      if (typeFilter === 'all') {
+        q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), limit(50));
+      } else {
+        q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(50));
+      }
       const snap = await getDocs(q);
-      const bonuses = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => {
-          const ta = a.createdAt?.seconds || a.createdAt?.toMillis?.() / 1000 || 0;
-          const tb = b.createdAt?.seconds || b.createdAt?.toMillis?.() / 1000 || 0;
-          return tb - ta;
-        });
-      renderBonusList(bonuses, 'txHistoryList');
+      const fetchedTxs = snap.docs.map(d => ({ id: d.id, _collection: 'transactions', ...d.data() }));
+      txs = txs.concat(fetchedTxs);
+    }
+
+    // Fetch Bonuses
+    if (['all', 'invest', 'matching'].includes(typeFilter)) {
+      let q = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), limit(50));
+      const snap = await getDocs(q);
+      let fetchedBonuses = snap.docs.map(d => ({ id: d.id, _collection: 'bonuses', ...d.data() }));
+      
+      // Filter bonuses based on tab
+      if (typeFilter === 'invest') {
+        // Only daily profits (ROI)
+        fetchedBonuses = fetchedBonuses.filter(b => (b.type === 'roi_income' || b.type === 'roi'));
+      } else if (typeFilter === 'matching') {
+        // Matching bonuses (direct, unilevel, rank)
+        fetchedBonuses = fetchedBonuses.filter(b => (b.type !== 'roi_income' && b.type !== 'roi'));
+      }
+      
+      txs = txs.concat(fetchedBonuses);
+    }
+
+    // Sort combined list descending
+    txs.sort((a, b) => getSortTime(b) - getSortTime(a));
+    txs = txs.slice(0, 40); // Limit total shown
+
+    if (txs.length === 0) {
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>내역이 없습니다</div>';
       return;
     }
 
-    // 일반 거래내역 - 복합 인덱스 없이 단일 필터로 조회 후 JS 정렬
-    let q;
-    if (typeFilter === 'all') {
-      q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), limit(50));
-    } else {
-      q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(50));
-    }
-    const snap = await getDocs(q);
-    const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => {
-        const ta = a.createdAt?.seconds || a.createdAt?.toMillis?.() / 1000 || 0;
-        const tb = b.createdAt?.seconds || b.createdAt?.toMillis?.() / 1000 || 0;
-        return tb - ta;
-      })
-      .slice(0, 30);
-    renderTxList(txs, 'txHistoryList');
+    // Unified render
+    const typeLabel = {
+      deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
+      roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
+      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 판권 매칭',
+      rank_equal_or_higher_override_1pct: '🛡️ 예외(1%) 보너스',
+      center_fee: '🏢 센터 피'
+    };
+
+    listEl.innerHTML = txs.map(item => {
+      const isBonus = item._collection === 'bonuses';
+      let label = typeLabel[item.type] || item.type;
+      
+      // Date and details
+      const dateStr = fmtDate(item.createdAt);
+      let details = '';
+      let base = '';
+      
+      if (isBonus) {
+        // Bonus specific
+        details = item.settlementDate ? `정산일: ${item.settlementDate}` : (item.reason || '');
+        if (item.level) label += ` · ${item.level}단계`;
+        base = item.baseIncome ? ` · 기준 D: $${fmt(item.baseIncome)}` : (item.investAmount ? ` · FREEZE $${fmt(item.investAmount)}` : '');
+      } else {
+        // Transaction specific
+        if (item.type === 'invest') {
+          details = `만기: ${item.durationDays}일 (${item.dailyRate}%/일)`;
+        } else {
+          details = item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료됨');
+        }
+      }
+
+      // Icon
+      let icon = isBonus ? '💰' : (item.type === 'invest' ? '🔒' : (item.type === 'deposit' ? '⬇️' : '⬆️'));
+      let iconClass = item.type;
+      if (isBonus) iconClass = 'bonus';
+      
+      // Amount format
+      let amtSign = (item.type === 'withdrawal' || item.type === 'invest' && !isBonus) ? '-' : '+';
+      let amtColor = (amtSign === '-') ? 'minus' : 'plus';
+      
+      return `
+      <div class="tx-item">
+        <div class="tx-icon ${iconClass}">${icon}</div>
+        <div class="tx-info">
+          <div class="tx-title">${label}</div>
+          <div class="tx-date">${dateStr}${base}</div>
+          <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
+        </div>
+        <div>
+          <div class="tx-amount ${amtColor}">${amtSign}${fmt(item.amount)} ${item.currency || 'USDT'}</div>
+          <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)')}">
+            ${isBonus ? '완료' : (item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료'))}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    
   } catch (err) {
     console.error('loadTxHistory error:', err);
-    if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i><br>${t('emptyTx')}</div>`;
+    if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>거래 내역이 없습니다</div>';
   }
-}
-
-/**
- * bonuses 컬렉션 내역 렌더링
- * type: roi_income (본인 ROI), direct_bonus, unilevel_bonus
- */
-function renderBonusList(bonuses, containerId) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  if (!bonuses.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-coins"></i>수익 내역이 없습니다<br><span style="font-size:12px;color:var(--text2);">관리자가 일일 정산을 실행하면 여기에 표시됩니다.</span></div>';
-    return;
-  }
-
-  const typeLabel = {
-    roi_income:    t('bonusRoiIncome'),
-    direct_bonus:  t('bonusDirectBonus'),
-    unilevel_bonus: t('bonusUnilevelBonus'),
-    rank_bonus:    t('bonusRankBonus'),
-  };
-
-  el.innerHTML = bonuses.map(b => {
-    const label = typeLabel[b.type] || b.type || t('bonusDefault');
-    const dateStr = fmtDate(b.createdAt);
-    const details = b.settlementDate ? `${t('bonusSettleDate')}${b.settlementDate}` : (b.reason || '');
-    const level   = b.level ? ` · ${b.level}${t('bonusLevel')}` : '';
-    const base    = b.baseIncome ? ` · ${t('bonusBaseIncome')}${fmt(b.baseIncome)}` : (b.investAmount ? ` · FREEZE $${fmt(b.investAmount)}` : '');
-
-    return `
-    <div class="tx-item">
-      <div class="tx-icon bonus">💰</div>
-      <div class="tx-info">
-        <div class="tx-title">${label}${level}</div>
-        <div class="tx-date">${dateStr}${base}</div>
-        <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
-      </div>
-      <div>
-        <div class="tx-amount plus">+${fmt(b.amount)} USDT</div>
-        <div class="tx-status" style="color:var(--green)">${t('bonusCompleted')}</div>
-      </div>
-    </div>`;
-  }).join('');
 }
 
 window.switchTxTab = function(type, el) {
@@ -3474,44 +3565,44 @@ window.updateDepWalletFee = function(val) {
   const amt = parseFloat(val) || 0;
   const el  = document.getElementById('depWalletFeeNote');
   if (el && amt > 0) {
-    el.textContent = `${t('walletFeeNote')}${amt.toFixed(2)}${t('walletFeeNote2')}`;
+    el.textContent = `전송 금액 $${amt.toFixed(2)} USDT + 네트워크 수수료 ~$0.001`;
   }
 };
 
 // 지갑 연결
 window.connectSolanaWallet = async function() {
   const btn = document.getElementById('btnConnectWallet');
-  btn.disabled = true; btn.textContent = t('walletConnecting');
+  btn.disabled = true; btn.textContent = '연결 중...';
   try {
     // solana-wallet.js 의 SolanaWallet 사용
     const sw = window.SolanaWallet;
-    if (!sw) throw new Error(t('walletConnecting'));
+    if (!sw) throw new Error('지갑 모듈 로딩 중입니다. 잠시 후 다시 시도해주세요.');
 
     const { address, walletName } = await sw.connect();
 
     // UI 업데이트
     document.getElementById('depWalletConnect').style.display    = 'none';
     document.getElementById('depWalletConnected').style.display  = '';
-    document.getElementById('depWalletName').textContent = `✅ ${walletName} ${t('walletConnected')}`;
+    document.getElementById('depWalletName').textContent         = `✅ ${walletName} 연결됨`;
     document.getElementById('depWalletAddr').textContent         = address;
 
     // USDT 잔액 조회
-    document.getElementById('depWalletBalance').textContent = t('walletInquiring');
+    document.getElementById('depWalletBalance').textContent = '조회중...';
     const balance = await sw.getUsdtBalance(address);
     document.getElementById('depWalletBalance').textContent = `$${balance.toFixed(2)} USDT`;
 
   } catch (e) {
     if (e.message === 'NO_WALLET') {
-      showToast(t('walletNoWallet'), 'error');
+      showToast('❌ 지갑이 감지되지 않습니다.\nPhantom 또는 TokenPocket을 설치해주세요.', 'error');
     } else if (e.message === 'USER_REJECTED') {
-      showToast(t('walletCancelConnect'), 'warning');
+      showToast('연결을 취소했습니다.', 'warning');
     } else if (e.message === 'MOBILE_DEEPLINK') {
-      showToast(t('walletMovingApp'), 'info');
+      showToast('앱으로 이동합니다...', 'info');
     } else {
       showToast('❌ ' + e.message, 'error');
     }
   } finally {
-    btn.disabled = false; btn.innerHTML = `<span style="font-size:20px;">👻</span> ${t('walletBtnConnect')}`;
+    btn.disabled = false; btn.innerHTML = '<span style="font-size:20px;">👻</span> Phantom / 지갑 연결';
   }
 };
 
@@ -3528,8 +3619,8 @@ window.doWalletDeposit = async function() {
   const sw     = window.SolanaWallet;
   const amount = parseFloat(document.getElementById('depWalletAmount')?.value || 0);
 
-  if (!sw?.publicKey) { showToast(t('walletConnectFirst'), 'warning'); return; }
-  if (!amount || amount < 1) { showToast(t('walletMinDeposit'), 'warning'); return; }
+  if (!sw?.publicKey) { showToast('먼저 지갑을 연결하세요.', 'warning'); return; }
+  if (!amount || amount < 1) { showToast('최소 입금액은 $1 USDT입니다.', 'warning'); return; }
 
   // 회사 지갑 주소 가져오기
   let toAddress = '';
@@ -3540,7 +3631,7 @@ window.doWalletDeposit = async function() {
       toAddress = w?.address || '';
     }
   } catch {}
-  if (!toAddress) { showToast(t('walletNoCompanyAddr'), 'error'); return; }
+  if (!toAddress) { showToast('❌ 회사 지갑 주소가 설정되지 않았습니다.', 'error'); return; }
 
   const btn    = document.getElementById('btnWalletSend');
   const status = document.getElementById('depWalletStatus');
@@ -3553,15 +3644,15 @@ window.doWalletDeposit = async function() {
     status.textContent       = msg;
   };
 
-  btn.disabled = true; btn.textContent = t('walletProcessing');
+  btn.disabled = true; btn.textContent = '⏳ 처리 중...';
 
   try {
     // ── Step 1: 서명 + 브로드캐스트
-    setStatus(t('walletSigning'), '#6366f1');
+    setStatus('🔐 지갑 서명 요청 중... (지갑 팝업을 확인하세요)', '#6366f1');
     const signature = await sw.sendUsdt(toAddress, amount);
 
     // ── Step 2: Firestore 저장 + 온체인 자동 검증
-    setStatus(t('walletVerifying'), '#f59e0b');
+    setStatus('📡 온체인 확인 중... (최대 30초 소요)', '#f59e0b');
     const r = await window.api.submitWalletDeposit(
       currentUser.uid, currentUser.email,
       amount, signature,
@@ -3570,12 +3661,12 @@ window.doWalletDeposit = async function() {
 
     if (r.success) {
       if (r.data.autoApproved) {
-        setStatus(t('walletDepositComplete'), '#16a34a');
+        setStatus('✅ 입금 완료! 잔액이 자동으로 업데이트되었습니다.', '#16a34a');
         showToast(`✅ $${amount} USDT 입금 완료!`, 'success');
         setTimeout(() => { closeModal('depositModal'); refreshWallet?.(); }, 2500);
       } else {
         setStatus(`⏳ 전송 완료! 관리자 확인 후 승인됩니다.\n해시: ${signature.slice(0,16)}...`, '#f59e0b');
-        showToast(t('walletTransferDone'), 'info');
+        showToast('전송 완료! 관리자 확인 후 승인됩니다.', 'info');
       }
     } else {
       setStatus('❌ ' + r.error, '#dc2626');
@@ -3583,19 +3674,19 @@ window.doWalletDeposit = async function() {
     }
   } catch (e) {
     if (e.message === 'USER_REJECTED') {
-      setStatus(t('walletCancelSign'), '#64748b');
-      showToast(t('walletCancelSign'), 'warning');
+      setStatus('서명을 취소했습니다.', '#64748b');
+      showToast('서명을 취소했습니다.', 'warning');
     } else if (e.message === 'WALLET_NOT_CONNECTED') {
-      setStatus(t('walletDisconnected'), '#dc2626');
+      setStatus('지갑 연결이 끊겼습니다. 다시 연결해주세요.', '#dc2626');
     } else if (e.message?.includes('insufficient')) {
-      setStatus(t('walletInsufficientSol'), '#dc2626');
-      showToast(t('walletInsufficientSolMsg'), 'error');
+      setStatus('❌ USDT 또는 SOL 잔액이 부족합니다.', '#dc2626');
+      showToast('❌ 잔액이 부족합니다 (USDT 또는 수수료용 SOL 확인)', 'error');
     } else {
-      setStatus('❌ ' + (e.message || t('walletTransferFail')), '#dc2626');
+      setStatus('❌ ' + (e.message || '전송 실패'), '#dc2626');
       showToast('❌ ' + e.message, 'error');
     }
   } finally {
-    btn.disabled = false; btn.innerHTML = t('walletBtnSend');
+    btn.disabled = false; btn.innerHTML = '🚀 지갑으로 즉시 전송';
   }
 };
 
@@ -3608,7 +3699,7 @@ window.handleAddDdraToken = async function() {
   const btnText = document.getElementById('addDdraTokenBtnText');
 
   if (!window.DDRATokenRegister) {
-    showToast(t('walletModuleFail'), 'error'); return;
+    showToast('❌ 지갑 모듈을 불러오지 못했습니다', 'error'); return;
   }
 
   // 감지된 지갑 안내
@@ -3635,16 +3726,16 @@ window.handleAddDdraToken = async function() {
       // 3초 후 원래 버튼으로 복원
       setTimeout(() => {
         if (btnIcon) btnIcon.textContent = '➕';
-        if (btnText) btnText.textContent = t('ddraBtnAdd');
+        if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
         if (btn) btn.disabled = false;
       }, 3000);
     } else {
       if (btnIcon) btnIcon.textContent = '➕';
-      if (btnText) btnText.textContent = t('ddraBtnAdd');
+      if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
       if (btn) btn.disabled = false;
 
       if (result.error === 'USER_REJECTED') {
-        showToast(t('ddraCanceled'), 'info');
+        showToast('취소되었습니다', 'info');
       } else if (result.error === 'NO_MINT' || result.error === 'NO_CONTRACT') {
         _showAddDdraManualModal(result);
       } else if (result.error === 'NOT_SUPPORTED') {
@@ -3655,7 +3746,7 @@ window.handleAddDdraToken = async function() {
     }
   } catch(e) {
     if (btnIcon) btnIcon.textContent = '➕';
-    if (btnText) btnText.textContent = t('ddraBtnAdd');
+    if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
     if (btn) btn.disabled = false;
     showToast('❌ 오류: ' + e.message, 'error');
   }
@@ -3703,7 +3794,7 @@ function _showAddDdraNoWalletModal() {
 function _showAddDdraManualModal(result) {
   const reg = window.DDRATokenRegister;
   const solanaMint  = reg?.config?.solanaMint  || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
-  const bscContract = reg?.config?.bscContract || t('ddraAdminPending');
+  const bscContract = reg?.config?.bscContract || '관리자 설정 대기 중';
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
@@ -3767,12 +3858,12 @@ window.showDepositModal = function() {
     const addrEl        = document.getElementById('depWalletAddr');
     if (connectDiv)   connectDiv.style.display   = 'none';
     if (connectedDiv) connectedDiv.style.display = '';
-    if (nameEl)       nameEl.textContent = `✅ ${sw.walletName} ${t('walletConnected')}`;
+    if (nameEl)       nameEl.textContent         = `✅ ${sw.walletName} 연결됨`;
     if (addrEl)       addrEl.textContent         = sw.publicKey;
     // USDT 잔액 갱신
     const balEl = document.getElementById('depWalletBalance');
     if (balEl) {
-      balEl.textContent = t('walletInquiring');
+      balEl.textContent = '조회중...';
       sw.getUsdtBalance(sw.publicKey).then(bal => {
         balEl.textContent = `$${bal.toFixed(2)} USDT`;
       });
@@ -3789,16 +3880,16 @@ async function loadCompanyWallet() {
     const { doc, getDoc, db } = window.FB;
     const snap = await getDoc(doc(db, 'settings', 'wallets'));
     const addr = document.getElementById('companyWalletAddr');
-    if (snap.exists() && addr) addr.textContent = snap.data().trc20 || t('walletAddrNotSet');
+    if (snap.exists() && addr) addr.textContent = snap.data().trc20 || '주소 미설정 (관리자 문의)';
   } catch {
     const addr = document.getElementById('companyWalletAddr');
-    if (addr) addr.textContent = t('loadFail');
+    if (addr) addr.textContent = '주소 로드 실패';
   }
 }
 
 window.copyWalletAddress = function() {
   const addr = document.getElementById('companyWalletAddr');
-  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast(t('toastAddrCopied'), 'success'));
+  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast('주소가 복사되었습니다!', 'success'));
 };
 
 window.submitDeposit = async function() {
@@ -3806,11 +3897,11 @@ window.submitDeposit = async function() {
   const txid = document.getElementById('depositTxid').value.trim();
   const memo = document.getElementById('depositMemo').value.trim();
 
-  if (!amount || amount <= 0) { showToast(t('toastEnterDepAmt'), 'warning'); return; }
-  if (!txid) { showToast(t('toastEnterTxid'), 'warning'); return; }
+  if (!amount || amount <= 0) { showToast('입금 금액을 입력하세요.', 'warning'); return; }
+  if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = t('walletProcessing');
+  btn.disabled = true; btn.textContent = '처리중...';
 
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
@@ -3820,7 +3911,7 @@ window.submitDeposit = async function() {
       status: 'pending', createdAt: serverTimestamp(),
     });
     closeModal('depositModal');
-    showToast(t('toastDepositDone'), 'success');
+    showToast('입금 신청 완료! 관리자 승인을 기다려주세요.', 'success');
     document.getElementById('depositAmount').value = '';
     document.getElementById('depositTxid').value = '';
   } catch (err) {
@@ -3832,14 +3923,11 @@ window.submitDeposit = async function() {
 
 // ===== 출금 신청 =====
 window.showWithdrawModal = function() {
-  // 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ 현재 DDRA 시세
-  // 관리자 설정 시세 우선, 실시간 시세 차선 적용
-  const bonus = walletData?.bonusBalance || 0;  // USDT 기준 수익 잔액
-  const p = deedraPrice || 0.5;
-  const withdrawableDdra = bonus / p;  // USDT → DDRA 환산
+  const bonus = walletData?.bonusBalance || 0;
+  const bonusDdra = bonus / (deedraPrice || 0.5);  // DDRA 환산
   // 출금 가능 DDRA 표시
   const avEl = document.getElementById('withdrawAvailable');
-  if (avEl) avEl.textContent = fmt(withdrawableDdra);
+  if (avEl) avEl.textContent = fmt(bonusDdra);
   // USDT 환산 부제목
   const avUsdtEl = document.getElementById('withdrawAvailableUsdt');
   if (avUsdtEl) avUsdtEl.textContent = '≈ $' + fmt(bonus) + ' USDT';
@@ -3877,11 +3965,11 @@ window.submitWithdraw = async function() {
   if (!ddrAmt || ddrAmt <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit'), 'warning'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast('PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
 
   // PIN 미설정 시 설정 유도
   if (!userData?.withdrawPin) {
-    showToast(t('toastEnterPin'), 'warning');
+    showToast('출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.', 'warning');
     closeModal('withdrawModal');
     setTimeout(() => showWithdrawPinSetup(), 300);
     return;
@@ -3890,16 +3978,16 @@ window.submitWithdraw = async function() {
   const price = deedraPrice || 0.5;
   const amountUsdt = ddrAmt * price;  // USDT 환산
 
-  // 출금 가능 DDRA = bonusBalance(USDT) ÷ 현재 DDRA 시세
+  // 출금 가능 금액 = bonusBalance(USDT) → DDRA 환산 기준
   const availableBonus = walletData?.bonusBalance || 0;
   const availableDdra = availableBonus / price;
   if (availableDdra < ddrAmt) {
-    showToast(`${t('toastInsufficientBal')} (${fmt(availableDdra)} DDRA)`, 'error'); return;
+    showToast(`출금 가능 DDRA 부족 (가능: ${fmt(availableDdra)} DDRA)`, 'error'); return;
   }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = t('walletProcessing');
+  btn.disabled = true; btn.textContent = '처리중...';
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
@@ -3956,8 +4044,8 @@ window.submitWithdraw = async function() {
     }
 
     closeModal('withdrawModal');
-    const feeMsg = feeAmount > 0 ? ` (${t('withdrawFee')} ${fmt(feeAmount)} DDRA)` : '';
-    showToast(`${t('toastWithdrawDone2')} ${fmt(netDdra)} DDRA${feeMsg}`, 'success');
+    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} DDRA)` : '';
+    showToast(`출금 신청 완료! ${fmt(netDdra)} DDRA${feeMsg} 지급 예정`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
@@ -4010,14 +4098,14 @@ async function loadProducts() {
       .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
 
     if (!productsCache.length) {
-      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-snowflake"></i>${t('emptyFreezePlan')}</div>`;
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>FREEZE 플랜이 없습니다</div>';
       return;
     }
 
     const tierMap = { 'Basic': 'basic', 'Standard': 'standard', 'Premium': 'premium', 'VIP': 'vip' };
-    const tagMap  = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
+    const tagMap = { 'Basic': 'tag-basic', 'Standard': 'tag-standard', 'Premium': 'tag-premium', 'VIP': 'tag-vip' };
 
-    if (listEl) listEl.innerHTML = productsCache.map((p, i) => {
+    if (listEl) listEl.innerHTML = productsCache.map(p => {
       // 필드명 호환: dailyRoi(% 단위 그대로) or roiPercent(%)
       const roi = p.roiPercent != null ? p.roiPercent
                 : p.dailyRoi  != null  ? p.dailyRoi
@@ -4026,12 +4114,10 @@ async function loadProducts() {
                  : p.duration    != null  ? p.duration
                  : 0;
       const tierName = p.name || '';
+      const tierMap2 = ['1개월','Basic'];
       const tier = tierMap[tierName] || (tierName.includes('1개월') ? 'basic' : tierName.includes('3개월') ? 'standard' : tierName.includes('6개월') ? 'premium' : tierName.includes('12개월') ? 'vip' : 'basic');
       const tag  = tagMap[tierName]  || ('tag-' + tier);
       const dailyEarning = (p.minAmount || 0) * roi / 100;
-      // onclick에 상품명 특수문자 안전하게 전달 (data-attribute 방식)
-      const safeId = (p.id || '').replace(/'/g,"&#39;");
-      const safeName = (p.name || '').replace(/'/g,"&#39;");
       return `
       <div class="product-card">
         <div class="product-tier-bar tier-${tier}"></div>
@@ -4042,33 +4128,70 @@ async function loadProducts() {
           </div>
           <div class="product-roi-block">
             <div class="product-roi">${roi.toFixed(1)}%</div>
-            <div class="product-roi-label">${t('dailyRoi')}</div>
+            <div class="product-roi-label">${t('dailyRoi') || '일 수익률'}</div>
           </div>
         </div>
+        
+        <div class="product-graph" style="height:40px; margin: 8px 0 12px; position:relative; opacity:0.8;">
+          <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible;">
+            <defs>
+              <linearGradient id="gradLine-${p.id}" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="var(--primary)"/>
+                <stop offset="100%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}"/>
+              </linearGradient>
+              <linearGradient id="gradFill-${p.id}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,28 Q25,25 50,15 T100,2" fill="none" stroke="url(#gradLine-${p.id})" stroke-width="2" vector-effect="non-scaling-stroke"/>
+            <path d="M0,28 Q25,25 50,15 T100,2 L100,30 L0,30 Z" fill="url(#gradFill-${p.id})"/>
+            <!-- Add a pulse dot at the end -->
+            <circle cx="100" cy="2" r="2.5" fill="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}">
+               <animate attributeName="r" values="2.5; 5; 2.5" dur="2s" repeatCount="indefinite" />
+               <animate attributeName="opacity" values="1; 0.3; 1" dur="2s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        </div>
+        
+        <div class="product-graph" style="height:40px; margin: 8px 0 12px; position:relative; opacity:0.8;">
+          <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible;">
+            <defs>
+              <linearGradient id="gradLine-${p.id}" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="var(--primary)"/>
+                <stop offset="100%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}"/>
+              </linearGradient>
+              <linearGradient id="gradFill-${p.id}" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,28 Q25,25 50,15 T100,2" fill="none" stroke="url(#gradLine-${p.id})" stroke-width="2" vector-effect="non-scaling-stroke"/>
+            <path d="M0,28 Q25,25 50,15 T100,2 L100,30 L0,30 Z" fill="url(#gradFill-${p.id})"/>
+            <!-- Add a pulse dot at the end -->
+            <circle cx="100" cy="2" r="2.5" fill="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}">
+               <animate attributeName="r" values="2.5; 5; 2.5" dur="2s" repeatCount="indefinite" />
+               <animate attributeName="opacity" values="1; 0.3; 1" dur="2s" repeatCount="indefinite" />
+            </circle>
+          </svg>
+        </div>
         <div class="product-meta">
-          <div class="product-meta-item">${t('periodLabel')}: <strong>${days}${t('days')}</strong></div>
-          <div class="product-meta-item">${t('minLabel')}: <strong>${fmt(p.minAmount)} USDT</strong></div>
-          <div class="product-meta-item">${t('maxLabel')}: <strong>${fmt(p.maxAmount)} USDT</strong></div>
+          <div class="product-meta-item">기간: <strong>${days}일</strong></div>
+          <div class="product-meta-item">${t('minLabel') || '최소'}: <strong>${fmt(p.minAmount)} USDT</strong></div>
+          <div class="product-meta-item">${t('maxLabel') || '최대'}: <strong>${fmt(p.maxAmount)} USDT</strong></div>
         </div>
         <div class="product-conversion">
-          ❄️ ${fmt(p.minAmount)} USDT FREEZE ${t('productHint2')} <strong>~${fmt(dailyEarning)} USDT</strong>
-          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/${t('days')}) · 🔒 ${t('principalUnfreeze')}
+          ❄️ ${fmt(p.minAmount)} USDT FREEZE 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
+          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 만기 후 언프리즈 가능
         </div>
-        <button class="invest-btn"
-          data-pid="${safeId}"
-          data-pname="${safeName}"
-          data-roi="${roi}"
-          data-days="${days}"
-          data-min="${p.minAmount||0}"
-          data-max="${p.maxAmount||9999}"
-          onclick="openInvestModal(this.dataset.pid,this.dataset.pname,parseFloat(this.dataset.roi),parseInt(this.dataset.days),parseFloat(this.dataset.min),parseFloat(this.dataset.max))">
+        <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name || ''}',${roi},${days},${p.minAmount||0},${p.maxAmount||9999})">
           ❄️ FREEZE
         </button>
       </div>`;
     }).join('');
   } catch (err) {
-    console.error('[loadProducts] 에러:', err);
-    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    console.warn(err);
+    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
 }
 
@@ -4103,10 +4226,10 @@ window.runSimulator = function() {
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('simInputAmount', fmt(amount) + ' USDT');
-  setEl('simDays', days + t('days'));
+  setEl('simDays', days + '일');
   setEl('simRoi', roi + '%');
-  setEl('simEarning', fmt(earning) + ' USDT/' + t('days') + ' (' + fmt(earningDdra) + ' DDRA)');
-  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + t('days') + ' ' + t('simTotal') + ')');
+  setEl('simEarning', fmt(earning) + ' USDT/일 (' + fmt(earningDdra) + ' DDRA)');
+  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + '일 합계)');
 
   result.classList.add('show');
 };
@@ -4191,12 +4314,12 @@ async function loadMyInvestments() {
     });
 
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    setEl('activeInvestCount', sumItems.count + t('units'));
+    setEl('activeInvestCount', sumItems.count + '건');
     setEl('totalInvestAmount', '$' + fmt(sumItems.total));
-    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/' + t('days'));
+    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/일');
 
     if (!invests.length) {
-      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-snowflake"></i>${t('emptyActiveFreeze')}</div>`;
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>진행 중인 FREEZE가 없습니다</div>';
       return;
     }
 
@@ -4206,33 +4329,33 @@ async function loadMyInvestments() {
       const now = new Date();
       const progress = Math.min(100, ((now - start) / (end - start)) * 100);
       const remainDays = Math.max(0, Math.ceil((end - now) / 86400000));
-      const endStr = fmtDateShort ? fmtDateShort(end) : end.toLocaleDateString();
 
       // 일일 ROI 수익 D = 투자금 × roiPercent%
       // roiPercent: % 단위, dailyRoi: % 단위 (0.4 = 0.4%)
       const dailyRoiRate = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
       const dailyD = inv.amount * dailyRoiRate;
-      const paidRoi = inv.paidRoi || 0;
-      const expectedReturn = inv.expectedReturn || 0;
-
-      const tier = getTier ? getTier(inv.productName || '') : 'basic';
-      const tierBg = TIER_COLORS ? (TIER_COLORS[tier] || TIER_COLORS.basic) : 'linear-gradient(90deg,#4caf50,#8bc34a)';
 
       return `
+
       <div class="invest-item">
-        <div class="invest-item-header">
-          <div style="display:flex;flex-direction:column;gap:3px;">
-            <span class="invest-item-name">${inv.productName || 'FREEZE'}</span>
-            <span style="font-size:11px;color:#10b981;font-weight:600;">누적 수익 +$${fmt(paidRoi)} USDT</span>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-            <span class="invest-item-amount">$${fmt(inv.amount)}</span>
-            <span style="font-size:11px;color:var(--text2);">잔여 ${remainDays}일</span>
-          </div>
+        <!-- SVG background accent -->
+        <div style="position:absolute; top:0; right:0; opacity:0.04; width:150px; height:100px; pointer-events:none;">
+            <svg viewBox="0 0 100 100" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 0L93.3013 25V75L50 100L6.69873 75V25L50 0Z"/>
+            </svg>
+        </div>
+        <div class="invest-item-header" style="position:relative; z-index:1;">
+          <span class="invest-item-name" style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:6px;">
+             ${inv.productName || 'FREEZE'}
+          </span>
+          <span class="invest-item-amount" style="font-size:16px; font-weight:800; color:var(--primary-light);">${fmt(inv.amount)}</span>
         </div>
         <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
-          <span>❄️ 일 수익: <strong style="color:var(--green)">+$${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%/일)</span>
-          <span style="font-size:11px;color:var(--text2);">만기 ${endStr}</span>
+          <span>${t('dailyReturnLabel')} <strong style="color:var(--green)">+${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%${t('perDay')})</span>
+          <span>${t('remainDaysLabel').replace('{n}', remainDays)}</span>
+        </div>
+        <div class="invest-item-detail" style="color:var(--text2);font-size:11px;margin-top:2px;">
+          ${t('totalExpectedLabel').replace('{n}', fmt(inv.expectedReturn || 0))}
         </div>
         <div class="invest-progress">
           <div class="invest-progress-fill" style="width:${progress.toFixed(1)}%"></div>
@@ -4242,7 +4365,7 @@ async function loadMyInvestments() {
 
   } catch (err) {
     console.warn(err);
-    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
 }
 
@@ -4256,11 +4379,11 @@ window.openInvestModal = function(id, name, roi, days, minAmt, maxAmt) {
       <div style="font-size:24px;font-weight:900;color:var(--green)">${roi}% <span style="font-size:13px;font-weight:600;">/ 일</span></div>
     </div>
     <div style="font-size:13px;color:var(--text2)">
-      ${t('periodLabel')}: <strong>${days}${t('days')}</strong> · ${t('minLabel')} ${fmt(minAmt)} USDT ~ ${t('maxLabel')} ${fmt(maxAmt)} USDT
+      ${t('simPeriod')}: <strong>${days}${t('unit_days')}</strong> · ${t('minLabel')||'최소'} ${fmt(minAmt)} USDT ~ ${t('maxLabel')||'최대'} ${fmt(maxAmt)} USDT
     </div>`;
 
   const hintEl = document.getElementById('investAmountHint');
-  if (hintEl) hintEl.textContent = `${t('minLabel')} ${fmt(minAmt)} USDT ~ ${t('maxLabel')} ${fmt(maxAmt)} USDT`;
+  if (hintEl) hintEl.textContent = `${t('minLabel')||'최소'} ${fmt(minAmt)} USDT ~ ${t('maxLabel')||'최대'} ${fmt(maxAmt)} USDT`;
 
   const amtEl = document.getElementById('investAmount');
   if (amtEl) amtEl.value = '';
@@ -4280,23 +4403,23 @@ window.updateInvestPreview = function() {
   const earningDdra = earning / (deedraPrice || 0.5);
   previewEl.style.display = 'block';
   previewEl.innerHTML = `
-    📌 ${t('dailyRoi')}: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
-    💡 ${t('ddraEquiv')}: ≈ ${fmt(earningDdra)} DDRA/${t('days')} (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
-    📅 ${t('expiryDate')}: ${getDaysLaterStr(selectedProduct.days)}<br>
-    🔒 ${t('principalUnfreeze')}`;
+    📌 일 수익: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
+    💡 DDRA 환산: ≈ ${fmt(earningDdra)} DDRA/일 (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
+    📅 만기일: ${getDaysLaterStr(selectedProduct.days)}<br>
+    🔒 원금은 만기 후 언프리즈 가능합니다.`;
 };
 
 window.submitInvest = async function() {
   if (!selectedProduct) return;
   const amount = parseFloat(document.getElementById('investAmount').value);
 
-  if (!amount || amount <= 0) { showToast(t('toastEnterInvAmt'), 'warning'); return; }
+  if (!amount || amount <= 0) { showToast('FREEZE 금액을 입력하세요.', 'warning'); return; }
   if (amount < selectedProduct.minAmt) { showToast(t('toastMinInvest') + selectedProduct.minAmt, 'warning'); return; }
   if (amount > selectedProduct.maxAmt) { showToast(t('toastMaxInvest') + selectedProduct.maxAmt, 'warning'); return; }
-  if ((walletData?.usdtBalance || 0) < amount) { showToast(t('toastInsufficientUsdt'), 'error'); return; }
+  if ((walletData?.usdtBalance || 0) < amount) { showToast('USDT 잔액이 부족합니다.', 'error'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = t('walletProcessing');
+  btn.disabled = true; btn.textContent = '처리중...';
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, updateDoc, increment, writeBatch } = window.FB;
@@ -4417,7 +4540,7 @@ function updateRankUI() {
         progressDesc = `FREEZE $${cur.toFixed(0)}/$${req}`;
       } else {
         progressPct  = 100;
-        progressDesc = t('condNotSet');
+        progressDesc = '조건 미설정';
         needed       = '';
       }
 
@@ -4451,7 +4574,7 @@ function updateRankUI() {
     const fill = document.getElementById('rankProgressFill');
     if (fill) fill.style.width = progress.toFixed(1) + '%';
   } else {
-    setEl('rankNextLabel', t('topRankAchieved'));
+    setEl('rankNextLabel', '최고 직급 달성! 🏆');
     const fill = document.getElementById('rankProgressFill');
     if (fill) fill.style.width = '100%';
   }
@@ -4481,7 +4604,7 @@ async function loadReferralList() {
     setEl('rankReferralCount', refs.length);
 
     if (!refs.length) {
-      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends"></i>${t('emptyRefs')}</div>`;
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-user-friends"></i>추천인이 없습니다</div>';
       return;
     }
 
@@ -4496,14 +4619,14 @@ async function loadReferralList() {
       </div>`).join('');
 
   } catch (err) {
-    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
 }
 
 async function buildOrgTree() {
   const treeEl = document.getElementById('orgTree');
   if (!treeEl) return;
-  treeEl.innerHTML = `<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>${t('loading')}</div>`;
+  treeEl.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>로딩 중...</div>';
 
   try {
     const { collection, query, where, getDocs, db } = window.FB;
@@ -4519,7 +4642,7 @@ async function buildOrgTree() {
             <div class="org-node-rank">${userData?.rank || 'G0'}</div>
           </div>
           <div style="margin-top:16px;font-size:13px;color:var(--text3)">
-            ${t('shareToExpand')}
+            추천 링크를 공유하여 네트워크를 확장해보세요!
           </div>
         </div>`;
       return;
@@ -4554,7 +4677,7 @@ async function buildOrgTree() {
     setupOrgPanZoom();
 
   } catch (err) {
-    treeEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    treeEl.innerHTML = '<div class="empty-state">조직도 로드 실패</div>';
   }
 }
 
@@ -4616,7 +4739,7 @@ window.resetOrgZoom = function() {
 
 window.copyReferralCode = function() {
   const code = document.getElementById('myReferralCode');
-  if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast(t('toastRefCodeCopied'), 'success'));
+  if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast('추천 코드 복사 완료!', 'success'));
 };
 
 window.shareReferralLink = function() {
@@ -4625,7 +4748,7 @@ window.shareReferralLink = function() {
   if (navigator.share) {
     navigator.share({ title: 'DEEDRA 초대', text: '추천 코드: ' + code, url });
   } else {
-    navigator.clipboard.writeText(url).then(() => showToast(t('toastInviteLinkCopied'), 'success'));
+    navigator.clipboard.writeText(url).then(() => showToast('초대 링크 복사 완료!', 'success'));
   }
 };
 
@@ -4650,7 +4773,7 @@ window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
 window.startGame = function(type) {
   if (gameBalanceVal <= 0) {
-    showToast(t('noGameDdra'), 'warning');
+    showToast('게임 가능 DDRA가 없습니다. FREEZE 수익이 발생하면 바로 게임 가능합니다.', 'warning');
     return;
   }
   closeAllGames();
@@ -4677,7 +4800,7 @@ window.startGame = function(type) {
   }
   if (type === 'oddeven') {
     const coinText = document.getElementById('coinResultText');
-    if (coinText) { coinText.textContent = t('coinHint'); coinText.style.color = ''; }
+    if (coinText) { coinText.textContent = '홀 또는 짝을 선택하세요'; coinText.style.color = ''; }
   }
   if (type === 'roulette') {
     initRouletteCanvas();
@@ -4704,40 +4827,35 @@ window.updateBetDisplay = function(type, val) {
   const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
   val = Math.min(val, maxDdra);
   const usdt = fmt(_ddraToUsdt(val));
-
-  // input 요소 값 동기화
-  const inputEl = document.getElementById(type + 'BetInput');
-  if (inputEl && parseInt(inputEl.value) !== val) inputEl.value = val;
-
-  // USDT 환산 표시
-  const usdtEl = document.getElementById(type === 'oe' ? 'oeBetUsdt' :
-                                          type === 'dice' ? 'diceBetUsdt' :
-                                          type === 'slot' ? 'slotBetUsdt' :
-                                          type === 'rl'   ? 'rlBetUsdt'   :
-                                          type === 'bac'  ? 'bacBetUsdt'  :
-                                          type === 'pk'   ? 'pkBetUsdt'   : '');
-  if (usdtEl) usdtEl.textContent = '≈ $' + usdt + ' USDT';
-
-  if      (type === 'oe')   oeBetVal   = val;
-  else if (type === 'dice') diceBetVal = val;
-  else if (type === 'slot') slotBetVal = val;
-  else if (type === 'rl')   rlBetVal   = val;
-  else if (type === 'bac')  bacBetVal  = val;
-  else if (type === 'pk')   pkBetVal   = val;
-};
-
-// +/- 버튼으로 베팅 조정
-window.adjustBet = function(type, delta) {
-  const inputEl = document.getElementById(type + 'BetInput');
-  const current = inputEl ? (parseInt(inputEl.value) || 1) : 1;
-  const next = Math.max(1, current + delta);
-  updateBetDisplay(type, next);
-  SFX.play('click');
+  if (type === 'oe') {
+    oeBetVal = val;
+    const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('oeBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'dice') {
+    diceBetVal = val;
+    const el = document.getElementById('diceCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('diceBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'slot') {
+    slotBetVal = val;
+    const el = document.getElementById('slotCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('slotBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'rl') {
+    rlBetVal = val;
+    const el = document.getElementById('rlCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('rlBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'bac') {
+    bacBetVal = val;
+    const el = document.getElementById('bacCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('bacBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'pk') {
+    pkBetVal = val;
+    const el = document.getElementById('pkCurrentBet'); if (el) el.textContent = val;
+    const eu = document.getElementById('pkBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  }
 };
 
 window.setBetAmount = function(type, val) {
   updateBetDisplay(type, val);
-  SFX.play('click');
 };
 
 window.setBetGameHalf = function(type) {
@@ -4747,7 +4865,7 @@ window.setBetGameHalf = function(type) {
 
 window.playOddEven = function(choice) {
   SFX.play('coin');
-  if (gameBalanceVal < oeBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
+  if (gameBalanceVal < oeBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const btnOdd = document.getElementById('oeBtnOdd');
   const btnEven = document.getElementById('oeBtnEven');
@@ -4758,7 +4876,7 @@ window.playOddEven = function(choice) {
   const coinText = document.getElementById('coinResultText');
   if (coin) {
     coin.classList.add('coin-flipping');
-    if (coinText) coinText.textContent = t('coinFlying');
+    if (coinText) coinText.textContent = '동전이 날아갑니다...';
   }
 
   setTimeout(() => {
@@ -4775,9 +4893,23 @@ window.playOddEven = function(choice) {
     updateGameUI();
     updateHomeUI();
 
-    if (coin) coin.classList.remove('coin-flipping');
+    if (coin) {
+      coin.classList.remove('coin-flipping');
+      // Update coin appearance dynamically
+      const heads = coin.querySelector('.heads');
+      const inner = heads.querySelector('.coin-face-inner');
+      if (forcedResult === 'odd') {
+         heads.style.background = 'radial-gradient(circle at 35% 35%, #93c5fd, #3b82f6 40%, #1d4ed8 75%, #1e3a8a)';
+         heads.style.boxShadow = 'inset -4px -4px 12px rgba(0,0,0,0.3), inset 2px 2px 8px rgba(255,255,255,0.4), 0 0 30px rgba(59,130,246,0.6)';
+         inner.textContent = '홀';
+      } else {
+         heads.style.background = 'radial-gradient(circle at 35% 35%, #fca5a5, #ef4444 40%, #b91c1c 75%, #7f1d1d)';
+         heads.style.boxShadow = 'inset -4px -4px 12px rgba(0,0,0,0.3), inset 2px 2px 8px rgba(255,255,255,0.4), 0 0 30px rgba(239,68,68,0.6)';
+         inner.textContent = '짝';
+      }
+    }
     if (coinText) {
-      coinText.textContent = forcedResult === 'odd' ? `🔴 ${t('choiceOdd')}` : `🔵 ${t('choiceEven')}`;
+      coinText.textContent = forcedResult === 'odd' ? '🔴 홀 (Odd)' : '🔵 짝 (Even)';
       coinText.style.color = forcedResult === 'odd' ? '#90caf9' : '#ef9a9a';
     }
 
@@ -4793,13 +4925,13 @@ window.playOddEven = function(choice) {
 
     if (btnOdd) btnOdd.disabled = false;
     if (btnEven) btnEven.disabled = false;
-    logGame(t('gameOddEven'), win, oeBetVal);
+    logGame('홀짝', win, oeBetVal);
   }, 900);
 };
 
 window.playDice = function(chosenNum) {
   SFX.play('dice_roll');
-  if (gameBalanceVal < diceBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
+  if (gameBalanceVal < diceBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   // 버튼 비활성화
   document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = true);
@@ -4812,13 +4944,8 @@ window.playDice = function(chosenNum) {
   if (dice3d) {
     dice3d.classList.add('dice-rolling');
     // 굴리는 동안 랜덤 숫자 표시
-    let flickerCount = 0;
-    const flickerInterval = setInterval(() => {
-      const randNum = Math.ceil(Math.random() * 6);
-      renderDiceDots(randNum);
-      flickerCount++;
-      if (flickerCount > 8) clearInterval(flickerInterval);
-    }, 100);
+    // Animation handles the rolling look
+    dice3d.style.transform = ''; // clear inline style so animation works
   }
 
   setTimeout(() => {
@@ -4849,13 +4976,13 @@ window.playDice = function(chosenNum) {
     }
 
     document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = false);
-    logGame(t('gameDice'), win, diceBetVal);
+    logGame('주사위', win, diceBetVal);
   }, 1000);
 };
 
 window.playSpin = function() {
   SFX.play('slot_spin');
-  if (gameBalanceVal < slotBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
+  if (gameBalanceVal < slotBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const spinBtn = document.getElementById('spinBtn');
   if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spinRotate 0.3s linear infinite">🎰</span> 스피닝...'; }
@@ -4863,9 +4990,15 @@ window.playSpin = function() {
   const reels = ['reel1', 'reel2', 'reel3'].map(id => document.getElementById(id));
 
   // 각 릴마다 다른 타이밍으로 스핀 시작
+  const spinIntervals = [];
   reels.forEach((r, i) => {
     if (r) {
-      setTimeout(() => r.classList.add('spinning'), i * 100);
+      setTimeout(() => {
+        r.classList.add('spinning');
+        spinIntervals[i] = setInterval(() => {
+          r.textContent = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+        }, 50); // 빠르게 이미지 변경
+      }, i * 100);
     }
   });
 
@@ -4889,6 +5022,7 @@ window.playSpin = function() {
   reels.forEach((r, i) => {
     setTimeout(() => {
       if (r) {
+        clearInterval(spinIntervals[i]);
         r.classList.remove('spinning');
         r.textContent = result[i];
         // 멈출 때 잠깐 바운스
@@ -4929,7 +5063,7 @@ window.playSpin = function() {
       el.classList.remove('hidden');
     }
     if (spinBtn) { spinBtn.disabled = false; document.getElementById('spinBtnIcon').textContent='🎰'; document.getElementById('spinBtnText').textContent='SPIN!'; spinBtn.disabled = false; }
-    logGame(t('gameSlot'), win, slotBetVal);
+    logGame('슬롯머신', win, slotBetVal);
   }, 1600);
 };
 
@@ -5061,7 +5195,7 @@ function initRouletteCanvas() {
   rlSelectedBet = null;
   document.querySelectorAll('.rl-chip-btn, .rl-num-v2').forEach(b => b.classList.remove('selected'));
   const sv = document.getElementById('rlSelValue');
-  if (sv) sv.textContent = t('rlNone');
+  if (sv) sv.textContent = '없음';
 }
 
 /* 베팅 탭 전환 */
@@ -5100,8 +5234,8 @@ window.selectRlBet = function(type) {
 /* 스핀 실행 */
 window.playRoulette = function() {
   SFX.play('roulette_spin');
-  if (!rlSelectedBet) { showToast(t('toastSelectBet'), 'warning'); return; }
-  if (gameBalanceVal < rlBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
+  if (!rlSelectedBet) { showToast('베팅을 먼저 선택하세요.', 'warning'); return; }
+  if (gameBalanceVal < rlBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
   if (rlSpinning) return;
 
   rlSpinning = true;
@@ -5167,7 +5301,7 @@ window.playRoulette = function() {
       drawRouletteWheel(rlAngle);
       rlSpinning = false;
       showRouletteResult(resultNum);
-      if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = `🎡 ${t('spinAgain')}`; }
+      if (spinBtn) { spinBtn.disabled = false; spinBtn.innerHTML = '🎡 다시 스핀!'; }
     }
   }
 
@@ -5227,7 +5361,7 @@ function showRouletteResult(num) {
     setTimeout(() => numBtn.classList.remove('selected'), 3000);
   }
 
-  logGame(t('gameRoulette'), win, rlBetVal);
+  logGame('룰렛', win, rlBetVal);
 }
 
 function logGame(gameName, win, bet) {
@@ -5242,7 +5376,7 @@ function logGame(gameName, win, bet) {
   item.innerHTML = `
     <div class="tx-icon game">${win ? '🎉' : '😢'}</div>
     <div class="tx-info">
-      <div class="tx-title">${gameName} ${win ? t('winText') : t('loseText')}</div>
+      <div class="tx-title">${gameName} ${win ? '승리' : '패배'}</div>
       <div class="tx-date">${new Date().toLocaleTimeString('ko-KR')}</div>
     </div>
     <div class="tx-amount ${win ? 'plus' : 'minus'}">
@@ -5345,7 +5479,7 @@ function initBaccarat() {
 window.playBaccarat = async function(betSide) {
   SFX.play('card_deal');
   if (bacBtnsLocked) return;
-  if (gameBalanceVal < bacBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
+  if (gameBalanceVal < bacBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   bacBtnsLocked = true;
   document.querySelectorAll('.bac-action-btn').forEach(b => b.disabled = true);
@@ -5424,16 +5558,16 @@ window.playBaccarat = async function(betSide) {
   let win = false, multiplier = 0, resultMsg = '';
   if (betSide === 'player' && outcome === 'player') {
     win = true; multiplier = 2;
-    resultMsg = `🎉 <strong>${t('bacPlayerWin')}!</strong> +${bacBetVal} DDRA`;
+    resultMsg = `🎉 <strong>플레이어 승리!</strong> +${bacBetVal} DDRA`;
   } else if (betSide === 'banker' && outcome === 'banker') {
     win = true; multiplier = 1.95;
-    resultMsg = `🎉 <strong>${t('bacBankerWin')}!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5%)`;
+    resultMsg = `🎉 <strong>뱅커 승리!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5% 수수료)`;
   } else if (betSide === 'tie' && outcome === 'tie') {
     win = true; multiplier = 8;
-    resultMsg = `🎉 <strong>${t('bacTie')}!</strong> +${bacBetVal * 8} DDRA`;
+    resultMsg = `🎉 <strong>타이!</strong> +${bacBetVal * 8} DDRA`;
   } else if (outcome === 'tie') {
     win = false; multiplier = 0;
-    resultMsg = `🤝 <strong>${t('bacTiePush')}</strong>`;
+    resultMsg = `🤝 <strong>타이 - 푸쉬</strong> (베팅 반환)`;
     // 타이일 때 플레이어/뱅커 베팅은 환불
     win = true; multiplier = 1; // 원금 반환
   } else {
@@ -5461,7 +5595,7 @@ window.playBaccarat = async function(betSide) {
     resEl.classList.remove('hidden');
   }
 
-  logGame(t('gameBaccarat'), ddraChange >= 0, Math.abs(ddraChange));
+  logGame('바카라', ddraChange >= 0, Math.abs(ddraChange));
 
   // 버튼 재활성
   setTimeout(() => {
@@ -5519,14 +5653,14 @@ function evaluatePokerHand(cards) {
   const straightFlush = flushSuit ? isStraight(flushCards) : 0;
   const royalFlush = straightFlush === 14;
 
-  if (royalFlush)    return { rank: 9, name: `🏆 ${t('pkRoyal')}`, multiplier: 100 };
-  if (straightFlush) return { rank: 8, name: `💎 ${t('pkStraightFlush')}`, multiplier: 50 };
-  if (counts[0]===4) return { rank: 7, name: `🎴 ${t('pkFour')}`, multiplier: 25 };
-  if (counts[0]===3 && counts[1]===2) return { rank: 6, name: `🏠 ${t('pkFullHouse')}`, multiplier: 9 };
-  if (flushSuit)     return { rank: 5, name: `🌊 ${t('pkFlush')}`, multiplier: 6 };
-  if (straight)      return { rank: 4, name: `📈 ${t('pkStraight')}`, multiplier: 4 };
-  if (counts[0]===3) return { rank: 3, name: `🎲 ${t('pkThree')}`, multiplier: 3 };
-  if (counts[0]===2 && counts[1]===2) return { rank: 2, name: `✌️ ${t('pkTwoPair')}`, multiplier: 2 };
+  if (royalFlush)    return { rank: 9, name: '🏆 로열 플러시', multiplier: 100 };
+  if (straightFlush) return { rank: 8, name: '💎 스트레이트 플러시', multiplier: 50 };
+  if (counts[0]===4) return { rank: 7, name: '🎴 포카드', multiplier: 25 };
+  if (counts[0]===3 && counts[1]===2) return { rank: 6, name: '🏠 풀 하우스', multiplier: 9 };
+  if (flushSuit)     return { rank: 5, name: '🌊 플러시', multiplier: 6 };
+  if (straight)      return { rank: 4, name: '📈 스트레이트', multiplier: 4 };
+  if (counts[0]===3) return { rank: 3, name: '🎲 쓰리 카드', multiplier: 3 };
+  if (counts[0]===2 && counts[1]===2) return { rank: 2, name: '✌️ 투 페어', multiplier: 2 };
   if (counts[0]===2) {
     // 원 페어: J이상이면 1.5배, 아니면 패배
     const pairVal = parseInt(Object.entries(valCounts).find(([,v])=>v===2)?.[0]);
@@ -5549,17 +5683,17 @@ function initPoker() {
   const res = document.getElementById('pkResult');
   if (res) { res.className = 'game-result-v2 hidden'; res.innerHTML = ''; }
   const btn = document.getElementById('pkDealBtn');
-  if (btn) { btn.disabled = false; btn.textContent = `🃏 ${t('pkDeal')}`; }
+  if (btn) { btn.disabled = false; btn.textContent = '🃏 딜 (카드 받기)'; }
 }
 
 window.dealPoker = async function() {
   SFX.play('card_deal');
   if (pkDealing) return;
-  if (gameBalanceVal < pkBetVal) { showToast(t('toastNoBalance') + ' (' + fmt(gameBalanceVal) + ' DDRA)', 'error'); return; }
+  if (gameBalanceVal < pkBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   pkDealing = true;
   const btn = document.getElementById('pkDealBtn');
-  if (btn) { btn.disabled = true; btn.textContent = `🃏 ${t('pkDealing')}`; }
+  if (btn) { btn.disabled = true; btn.textContent = '🃏 딜링...'; }
 
   if (pkDeck.length < 20) pkDeck = shuffleDeck(makeDeck());
 
@@ -5651,11 +5785,11 @@ window.dealPoker = async function() {
     resEl.classList.remove('hidden');
   }
 
-  logGame(t('gamePoker'), ddraChange >= 0, Math.abs(ddraChange));
+  logGame('포커', ddraChange >= 0, Math.abs(ddraChange));
 
   setTimeout(() => {
     pkDealing = false;
-    if (btn) { btn.disabled = false; btn.textContent = `🃏 ${t('pkReDeal')}`; }
+    if (btn) { btn.disabled = false; btn.textContent = '🃏 다시 딜!'; }
   }, 1000);
 };
 
@@ -5675,27 +5809,27 @@ window.saveProfile = async function() {
   const name    = document.getElementById('editName').value.trim();
   const phone   = document.getElementById('editPhone').value.trim();
   const country = document.getElementById('editCountry')?.value || '';
-  if (!name) { showToast(t('toastEnterName'), 'warning'); return; }
+  if (!name) { showToast('이름을 입력하세요.', 'warning'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = t('saving');
+  btn.disabled = true; btn.textContent = '저장 중...';
   try {
     const { doc, updateDoc, db } = window.FB;
     await updateDoc(doc(db, 'users', currentUser.uid), { name, phone, country });
     userData.name = name; userData.phone = phone; userData.country = country;
     closeModal('profileModal');
-    showToast(t('toastProfileSaved'), 'success');
+    showToast('프로필이 저장되었습니다.', 'success');
     loadMorePage();
     updateHomeUI();
   } catch (err) {
-    showToast(t('saveFail') + err.message, 'error');
+    showToast('저장 실패: ' + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = t('btnSave');
+    btn.disabled = false; btn.textContent = '저장';
   }
 };
 
 window.showPasswordChange = function() {
-  showToast(t('toastPasswordChangeSent'), 'info');
+  showToast('비밀번호 변경 이메일을 발송했습니다.', 'info');
   const { sendPasswordResetEmail, auth } = window.FB;
   if (currentUser) sendPasswordResetEmail(auth, currentUser.email).catch(() => {});
 };
@@ -5709,9 +5843,9 @@ window.showWithdrawPinSetup = function() {
 window.saveWithdrawPin = async function() {
   const pin = document.getElementById('newPin').value;
   const confirm = document.getElementById('confirmPin').value;
-  if (!pin || pin.length !== 6) { showToast(t('toastPinLen'), 'warning'); return; }
-  if (pin !== confirm) { showToast(t('toastPinMismatch'), 'error'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit'), 'warning'); return; }
+  if (!pin || pin.length !== 6) { showToast('6자리 PIN을 입력하세요.', 'warning'); return; }
+  if (pin !== confirm) { showToast('PIN이 일치하지 않습니다.', 'error'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast('숫자 6자리를 입력하세요.', 'warning'); return; }
 
   const btn = event.target;
   btn.disabled = true;
@@ -5720,9 +5854,9 @@ window.saveWithdrawPin = async function() {
     await updateDoc(doc(db, 'users', currentUser.uid), { withdrawPin: btoa(pin) });
     userData.withdrawPin = btoa(pin);
     closeModal('pinModal');
-    showToast(t('toastPinSuccess'), 'success');
+    showToast('출금 PIN이 설정되었습니다.', 'success');
   } catch (err) {
-    showToast(t('toastSettingFail') + ' ' + err.message, 'error');
+    showToast('설정 실패: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -5745,7 +5879,7 @@ window.showTickets = async function() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (!tickets.length) {
-      if (listEl) listEl.innerHTML = `<div class="empty-state">${t('emptyTickets')}</div>`;
+      if (listEl) listEl.innerHTML = '<div class="empty-state">문의 내역이 없습니다</div>';
       return;
     }
     if (listEl) listEl.innerHTML = tickets.map(t => `
@@ -5757,17 +5891,17 @@ window.showTickets = async function() {
         </span>
       </div>`).join('');
   } catch (err) {
-    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
+    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
   }
 };
 
 window.submitTicket = async function() {
   const title = document.getElementById('ticketTitle').value.trim();
   const content = document.getElementById('ticketContent').value.trim();
-  if (!title || !body) { showToast(t('toastEnterTicket'), 'warning'); return; }
+  if (!title || !content) { showToast('제목과 내용을 입력하세요.', 'warning'); return; }
 
   const btn = event.target;
-  btn.disabled = true; btn.textContent = t('registering');
+  btn.disabled = true; btn.textContent = '등록 중...';
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     await addDoc(collection(db, 'tickets'), {
@@ -5777,11 +5911,11 @@ window.submitTicket = async function() {
     document.getElementById('ticketTitle').value = '';
     document.getElementById('ticketContent').value = '';
     closeModal('ticketModal');
-    showToast(t('toastTicketDone'), 'success');
+    showToast('문의가 등록되었습니다.', 'success');
   } catch (err) {
-    showToast(t('regFail') + err.message, 'error');
+    showToast('등록 실패: ' + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = t('btnSubmitTicket');
+    btn.disabled = false; btn.textContent = '문의 등록';
   }
 };
 
@@ -5837,7 +5971,7 @@ window.showNotifications = async function() {
       await batch.commit();
     }
     if (!items.length) {
-      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><br>${t('emptyNotifs')}</div>`;
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-bell-slash"></i><br>알림이 없습니다</div>';
       return;
     }
     const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
@@ -5852,9 +5986,95 @@ window.showNotifications = async function() {
       </div>
     `).join('');
   } catch(e) {
+    if (listEl) listEl.innerHTML = '<div class="empty-state">알림을 불러올 수 없습니다</div>';
+  }
+};
+
+
+// ─── News Logic (Automated 소식통) ───────────────────────────────────────────────────────────
+window._cachedNews = null;
+
+window.loadNewsFeed = async function(isRefresh = false) {
+  const listEl = document.getElementById('newsFeedList');
+  if (isRefresh && listEl) listEl.innerHTML = '<div class="skeleton-item" style="height:22px;margin-bottom:4px;"></div><div class="skeleton-item" style="height:22px;"></div>';
+  try {
+    const res = await fetch('/api/news-digest');
+    const data = await res.json();
+    let items = data.items || [];
+    window._cachedNews = items; // save for modal
+    renderNewsFeed(items, 'newsFeedList');
+  } catch (err) {
+    console.error('[news] load error:', err);
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail')}</div>`;
   }
 };
+
+window.showNewsModal = function() {
+  const modal = document.getElementById('newsModal');
+  if (modal) modal.classList.remove('hidden');
+  
+  const el = document.getElementById('newsFullList');
+  if (!el) return;
+  
+  const items = window._cachedNews || [];
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-state">${t('emptyNotice') || '등록된 뉴스가 없습니다'}</div>`;
+    return;
+  }
+  
+  el.innerHTML = items.map((n, idx) => {
+    const dateStr = n.pubDate ? new Date(n.pubDate).toLocaleDateString() : '';
+    return `
+      <div class="news-feed-item" style="display:block; padding:16px; margin-bottom:12px; border-bottom:1px solid var(--border);">
+        <div style="font-size:11px; color:var(--accent); font-weight:700; margin-bottom:4px;">📰 소식통 (Daily Digest)</div>
+        <div style="font-size:14px; font-weight:800; color:var(--text); margin-bottom:8px; line-height:1.4;">${n.title}</div>
+        <div style="font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:10px;">${n.description}</div>
+        <div style="font-size:11px; color:var(--text3); display:flex; justify-content:space-between;">
+          <span>${dateStr}</span>
+          <a href="${n.link}" target="_blank" style="color:var(--blue); text-decoration:none;">원문 보기 &rarr;</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+function renderNewsFeed(items, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-state">${t('emptyNotice') || '등록된 뉴스가 없습니다'}</div>`;
+    return;
+  }
+
+  const isHome = (containerId === 'newsFeedList');
+  const displayItems = isHome ? items.slice(0, 3) : items;
+
+  el.innerHTML = displayItems.map((n, idx) => {
+    let title = n.title;
+    let source = '소식통';
+    
+    let dateStr = '';
+    try {
+      const d = new Date(n.pubDate);
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const dy = String(d.getDate()).padStart(2, '0');
+      dateStr = `${mo}/${dy}`;
+    } catch {}
+
+    const thumbHtml = `<div class="news-feed-thumb-placeholder">📰</div>`;
+
+    return `
+      <div onclick="showNewsModal()" style="cursor:pointer;" class="news-feed-item">
+        ${thumbHtml}
+        <div class="news-feed-body">
+          <div class="news-feed-source">${source}</div>
+          <div class="news-feed-title">${title}</div>
+          <div class="news-feed-date">${dateStr}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
 // ===== 모달 =====
 window.closeModal = function(id) {
@@ -6364,15 +6584,15 @@ async function _loadNepSummary() {
     // ── 요약 카드 업데이트 ──
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('nepGen1Today', '$' + fmt(todayGen1));
-    setEl('nepGen1Count', gen1ids.length + '명');
+    setEl('nepGen1Count', gen1ids.length + t('memberCount'));
     setEl('nepGen2Today', '$' + fmt(todayGen2));
-    setEl('nepGen2Count', gen2ids.length + '명');
+    setEl('nepGen2Count', gen2ids.length + t('memberCount'));
     setEl('nepGen3Today', '$' + fmt(todayGen3));
-    setEl('nepGen3Count', gen3ids.length + '명');
+    setEl('nepGen3Count', gen3ids.length + t('memberCount'));
     setEl('nepTodayEarning', '$' + fmt(todayTotal));
     setEl('nepTotalMembers', totalMembers + t('memberCount'));
     setEl('nepTotalEarning', '$' + fmt(totalEarning));
-    setEl('nepSubTitle', `하부 ${totalMembers}명 · 당일 $${fmt(todayTotal)}`);
+    setEl('nepSubTitle', `${t('subMembers')} ${totalMembers}${t('peopleUnit')} · ${t('todayEarn')} $${fmt(todayTotal)}`);
 
     // ── 홈 미리보기 업데이트 ──
     setEl('homeNetTodayEarn', '$' + fmt(todayTotal));
@@ -6416,7 +6636,7 @@ async function _loadNepTxTab(contentEl) {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (!txs.length) {
-      contentEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>거래 내역이 없습니다</div>';
+      contentEl.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i><br>${t('emptyTx')}</div>`;
       return;
     }
 
@@ -6483,7 +6703,7 @@ async function _loadNepGenTab(contentEl, gen) {
     }
 
     if (!members.length) {
-      contentEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends"></i><br>${gen}대 하부 멤버가 없습니다</div>`;
+      contentEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends"></i><br>${t('emptySubGen').replace('{gen}', gen)}</div>`;
       return;
     }
 
@@ -6650,7 +6870,7 @@ async function _loadNepDeepTab(contentEl) {
     const deepIds = Object.entries(genMap).filter(([, g]) => g >= 3).map(([id]) => id);
 
     if (!deepIds.length) {
-      contentEl.innerHTML = '<div class="empty-state"><i class="fas fa-network-wired"></i><br>3대 이하 하부 멤버가 없습니다</div>';
+      contentEl.innerHTML = `<div class="empty-state"><i class="fas fa-network-wired"></i><br>${t('emptyDeepGen')}</div>`;
       return;
     }
 
@@ -6827,12 +7047,12 @@ async function loadTodayEarnCard() {
 
     // 오늘 ROI 수익
     const todayRoi = bonuses
-      .filter(b => b.settlementDate === today && b.type === 'roi_income')
+      .filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi'))
       .reduce((s, b) => s + (b.amount || 0), 0);
 
     // 오늘 보너스 (네트워크 보너스 등)
     const todayBonus = bonuses
-      .filter(b => b.settlementDate === today && b.type !== 'roi_income')
+      .filter(b => b.settlementDate === today && (b.type !== 'roi_income' && b.type !== 'roi'))
       .reduce((s, b) => s + (b.amount || 0), 0);
 
     // 누적 총 수익 (walletData.totalEarnings 사용)
@@ -6885,7 +7105,7 @@ async function loadEarnHistoryTab() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     // 요약 계산
-    const todayRoi   = bonuses.filter(b => b.settlementDate === today && b.type === 'roi_income').reduce((s,b) => s+(b.amount||0),0);
+    const todayRoi   = bonuses.filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi')).reduce((s,b) => s+(b.amount||0),0);
     const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amount||0),0);
     const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amount||0),0);
     const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee'].includes(b.type)).reduce((s,b) => s+(b.amount||0),0);
@@ -6956,3 +7176,23 @@ function renderEarnList(bonuses, listEl, typeFilter) {
 }
 
 // cache-bust: ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu
+
+window.openNewsInApp = function(url) {
+  if (!url || url === '#') {
+    showToast('링크가 없습니다.');
+    return;
+  }
+  const iframe = document.getElementById('newsIframe');
+  if (iframe) iframe.src = url;
+  
+  const modal = document.getElementById('newsViewerModal');
+  if (modal) modal.classList.remove('hidden');
+};
+
+window.closeNewsViewer = function() {
+  const modal = document.getElementById('newsViewerModal');
+  if (modal) modal.classList.add('hidden');
+  
+  const iframe = document.getElementById('newsIframe');
+  if (iframe) iframe.src = '';
+};
