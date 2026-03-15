@@ -4252,3 +4252,44 @@ body {
   gap: 3px;
   margin-bottom: 12px;
 }
+
+/* =========================================
+   CAVE TREE ORG CHART (OVERRIDES)
+   ========================================= */
+.org-chart-wrap {
+    width: 100%;
+    min-height: 500px;
+    background: radial-gradient(circle at center, #1e293b 0%, var(--bg) 100%) !important;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+    padding: 30px 10px;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+}
+
+.org-tree {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+}
+
+.org-node-wrap {
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+#caveChildrenWrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    max-width: 100%;
+    padding: 10px;
+}

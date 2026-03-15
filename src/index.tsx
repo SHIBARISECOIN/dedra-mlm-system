@@ -1407,27 +1407,86 @@ app.post('/api/solana/check-deposits', async (c) => {
 
     // Firestore에서 회사 입금 지갑 주소 조회
     const settingsDoc = await fsGet('settings/companyWallets', adminToken)
-    const depositAddress = settingsDoc
-      ? fromFirestoreValue(settingsDoc.fields?.solana || { stringValue: '' })
-      : ''
+    let depositAddress = '';
+    if (settingsDoc && settingsDoc.fields && settingsDoc.fields.wallets && settingsDoc.fields.wallets.arrayValue && settingsDoc.fields.wallets.arrayValue.values) {
+      const wallets = settingsDoc.fields.wallets.arrayValue.values;
+      if (wallets.length > 0 && wallets[0].mapValue && wallets[0].mapValue.fields && wallets[0].mapValue.fields.address) {
+        depositAddress = wallets[0].mapValue.fields.address.stringValue || '';
+      }
+    }
 
     if (!depositAddress || depositAddress.length < 32) {
       return c.json({ error: 'Solana deposit address not configured' }, 400)
     }
 
     // Solana SPL Token 트랜잭션 조회 (Helius public RPC)
-    const rpcUrl = 'https://mainnet.helius-rpc.com/?api-key=public'
-    const rpcRes = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method: 'getSignaturesForAddress',
-        params: [depositAddress, { limit: 20 }]
-      }),
-      signal: AbortSignal.timeout(15000)
-    })
-    if (!rpcRes.ok) return c.json({ error: 'Solana RPC error' }, 500)
+    // Solana SPL Token 트랜잭션 조회 (공용 RPC로 교체)
+    // Helius public key는 막힐 수 있으므로 무료 공용 엔드포인트 사용
+            // QuickNode and Triton are generally more reliable for free tier
+        // Use completely different RPC providers to bypass Cloudflare / regional blocks
+        // Use QuickNode public and basic mainnet (avoid domains that cause CF SSL errors)
+    const rpcUrls = [
+      'https://solana-mainnet.core.chainstack.com/2a8a815a5bb1d9f8e4e9f3b5',
+      'https://api.mainnet-beta.solana.com',
+      'https://solana-rpc.publicnode.com'
+    ];
+    
+    let rpcRes = null;
+    let successUrl = '';
+    
+        let lastError = '';
+    for (const url of rpcUrls) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1,
+            method: 'getSignaturesForAddress',
+            params: [
+              depositAddress, 
+              { limit: 20, commitment: 'confirmed' }
+            ]
+          }),
+          signal: AbortSignal.timeout(8000)
+        });
+        
+        if (res.ok) {
+          const text = await res.text();
+          try {
+            const data = JSON.parse(text);
+            if (data.error) {
+              lastError = data.error.message || 'RPC JSON Error';
+              continue; // Try next URL if this RPC returns an error payload
+            }
+            
+            // Create a mock response object that returns the parsed data
+            rpcRes = {
+              ok: true,
+              json: async () => data
+            };
+            successUrl = url;
+            break;
+          } catch(e) {
+            lastError = 'JSON Parse Error';
+            continue;
+          }
+        } else {
+          lastError = `HTTP ${res.status} ${res.statusText}`;
+        }
+      } catch (e: any) {
+        lastError = e.message || 'Network Error';
+      }
+    }
+    
+    if (!rpcRes) {
+      return c.json({ error: `Solana RPC error: All endpoints failed. Last error: ${lastError}` }, 500);
+    }
+    
+    if (!rpcRes) {
+      // Fallback
+      return c.json({ error: 'Solana RPC error: All public endpoints failed. Network might be busy.' }, 500);
+    }
     const rpcData: any = await rpcRes.json()
     const signatures: any[] = rpcData.result || []
 
@@ -1442,7 +1501,7 @@ app.post('/api/solana/check-deposits', async (c) => {
       if (alreadyProcessed) continue
 
       // tx 상세 조회
-      const txRes = await fetch(rpcUrl, {
+      const txRes = await fetch(successUrl || rpcUrls[0], {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

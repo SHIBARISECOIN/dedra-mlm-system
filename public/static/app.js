@@ -63,6 +63,9 @@ const SFX = (() => {
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+    noSubMembers: '산하 회원이 없습니다.',
+    orgDepthLimitTitle: '조직도 열람 권한 제한',
+    orgDepthLimitDesc: '현재 <strong>{rank}</strong> 직급은 <strong>{depth}대</strong>까지만 열람할 수 있습니다.<br>직급을 승급하여 더 깊은 산하 파트너를 확인해 보세요! 🚀',
 
     diceHint: '숫자를 선택하여 베팅하세요',
     earnSeeAll: '수익 전체보기',
@@ -590,6 +593,9 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+    noSubMembers: 'No downline members.',
+    orgDepthLimitTitle: 'Organization Chart Access Restricted',
+    orgDepthLimitDesc: 'Your current <strong>{rank}</strong> rank can only view up to <strong>level {depth}</strong>.<br>Upgrade your rank to see deeper into your network! 🚀',
 
     diceHint: 'Select a number to bet',
     earnSeeAll: 'See All Earnings',
@@ -1107,6 +1113,9 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+    noSubMembers: 'Không có thành viên tuyến dưới.',
+    orgDepthLimitTitle: 'Hạn chế quyền xem sơ đồ tổ chức',
+    orgDepthLimitDesc: 'Cấp bậc <strong>{rank}</strong> hiện tại của bạn chỉ có thể xem tối đa <strong>thế hệ {depth}</strong>.<br>Hãy thăng cấp để xem sâu hơn vào mạng lưới của bạn! 🚀',
 
     diceHint: 'Chọn một số để cược',
     earnSeeAll: 'Xem tất cả',
@@ -1624,6 +1633,9 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+    noSubMembers: 'ไม่มีสมาชิกดาวน์ไลน์',
+    orgDepthLimitTitle: 'จำกัดสิทธิ์การดูแผนผังองค์กร',
+    orgDepthLimitDesc: 'ตำแหน่ง <strong>{rank}</strong> ปัจจุบันของคุณสามารถดูได้ถึง <strong>ระดับ {depth}</strong> เท่านั้น<br>เลื่อนระดับเพื่อดูเครือข่ายที่ลึกขึ้น! 🚀',
 
     diceHint: 'เลือกหมายเลขเพื่อเดิมพัน',
     earnSeeAll: 'ดูรายได้ทั้งหมด',
@@ -2494,11 +2506,23 @@ async function createUserData(user) {
 }
 
 async function loadWalletData() {
-  const { doc, getDoc, db } = window.FB;
-  const snap = await getDoc(doc(db, 'wallets', currentUser.uid));
+  const { doc, getDoc, db, onSnapshot } = window.FB;
+  const ref = doc(db, 'wallets', currentUser.uid);
+  
+  // 첫 데이터는 동기적으로 가져옴 (초기화 보장)
+  const snap = await getDoc(ref);
   walletData = snap.exists() ? snap.data() : { usdtBalance: 0, dedraBalance: 0, bonusBalance: 0 };
-  // 게임 잔액 = 수익 잔액(bonusBalance) ÷ deedraPrice = DDRA 단위
   gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+
+  // 실시간 구독 설정 (입금 승인 시 즉시 반영)
+  if (window._walletUnsubscribe) window._walletUnsubscribe();
+  window._walletUnsubscribe = onSnapshot(ref, (docSnap) => {
+    if (docSnap.exists()) {
+      walletData = docSnap.data();
+      gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+      updateWalletUI(); // UI 갱신 (총자산 등 애니메이션 포함)
+    }
+  });
 }
 
 // ===== DEEDRA 실시간 가격 시스템 =====
@@ -2707,32 +2731,64 @@ function renderHomeEarn(products, myInvestments) {
 }
 
 // ===== 오늘 수익 업데이트 =====
-function updateTodayEarnSummary(myInvestments) {
-  if (!myInvestments || !myInvestments.length) {
-    // 투자 없으면 오늘 수익 미니 숨김
-    const miniEl = document.getElementById('todayEarnMini');
-    if (miniEl) miniEl.classList.add('hidden');
-    return;
+async function updateTodayEarnSummary(myInvestments) {
+  // 데일리 수익 합계 계산 (기대 수익)
+  let totalDailyEarn = 0;
+  if (myInvestments && myInvestments.length) {
+    myInvestments.forEach(inv => {
+      const roi = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
+      totalDailyEarn += (inv.amount || 0) * roi;
+    });
   }
 
-  // 데일리 수익 합계 계산
-  let totalDailyEarn = 0;
-  myInvestments.forEach(inv => {
-    const roi = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
-    totalDailyEarn += (inv.amount || 0) * roi;
-  });
+  // 실제 지급된 보너스 합산 (DB 조회)
+  let actualRoi = 0;
+  let otherBonuses = 0;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { collection, query, where, getDocs, db } = window.FB;
+    const snap = await getDocs(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid)));
+    
+    snap.docs.forEach(d => {
+      const b = d.data();
+      if (b.settlementDate === today) {
+        if (b.type === 'roi_income' || b.type === 'roi') {
+          actualRoi += (b.amount || 0);
+        } else {
+          otherBonuses += (b.amount || 0);
+        }
+      }
+    });
+  } catch(e) {
+    console.warn('Failed to fetch today bonuses', e);
+  }
 
-  if (totalDailyEarn > 0) {
-    // 왼쪽 패널 하단에 오늘 수익 표시
+  // 정산 전이면 기대수익을, 정산 후면 실제수익을 반영. 추가 네트워크 보너스는 합산.
+  const effectiveRoi = actualRoi > 0 ? actualRoi : totalDailyEarn;
+  const totalToday = effectiveRoi + otherBonuses;
+
+  if (totalToday > 0) {
     const miniEl = document.getElementById('todayEarnMini');
     if (miniEl) miniEl.classList.remove('hidden');
     const el = document.getElementById('homeTodayEarn');
-    if (el) el.textContent = '+$' + fmt(totalDailyEarn);
+    
+    if (el) {
+      // 깜빡이는 화살표 애니메이션과 숫자 카운트업
+      window.animateValue(el, 0, totalToday, 1500, (v) => {
+        return `<span style="color:#ef4444; font-weight:800;">+${fmt(v)}</span> <span style="color:#ef4444; font-size:12px; display:inline-block; animation: blink 1s infinite; vertical-align:middle;">▲</span>`;
+      });
+    }
 
     // 플로팅 알림 (처음 로드 시)
     if (!window._profitPopShown) {
       window._profitPopShown = true;
-      showFloatingProfitPop('+$' + fmt(totalDailyEarn) + ' 오늘 수익!');
+      showFloatingProfitPop('+$' + fmt(totalToday) + ' 오늘 수익!');
+    }
+  } else {
+    // 투자도 없고 수익도 없으면 숨김
+    if (!myInvestments || !myInvestments.length) {
+      const miniEl = document.getElementById('todayEarnMini');
+      if (miniEl) miniEl.classList.add('hidden');
     }
   }
 }
@@ -3139,6 +3195,27 @@ function updateWalletUI() {
 }
 
 // ===== 홈 UI 업데이트 =====
+
+// 숫자 카운트업 애니메이션
+window.animateValue = function(el, start, end, duration, formatFn) {
+  if (!el) return;
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    // easeOutCubic
+    const easeOut = 1 - Math.pow(1 - progress, 3);
+    const current = start + (end - start) * easeOut;
+    el.innerHTML = formatFn(current);
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    } else {
+      el.innerHTML = formatFn(end);
+    }
+  };
+  window.requestAnimationFrame(step);
+};
+
 function updateHomeUI() {
   if (!userData || !walletData) return;
 
@@ -3161,7 +3238,11 @@ function updateHomeUI() {
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-  setEl('totalAsset', fmt(total) + ' USDT');
+  if (document.getElementById('totalAsset')) {
+    window.animateValue(document.getElementById('totalAsset'), 0, total, 1500, (v) => fmt(v) + ' USDT');
+  } else {
+    setEl('totalAsset', fmt(total) + ' USDT');
+  }
   // 실시간 환율로 현지 통화 표시 (환율 미로드 시 기본값 사용)
   setEl('totalAssetKrw', '≈ ' + formatLocalCurrency(total));
   // 환율 정보 표시 (예: "1 USDT ≈ ₩1,380")
@@ -4501,7 +4582,15 @@ function updateRankUI() {
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-  setEl('rankCurrent', rank);
+  // Don't overwrite the whole div, just update the image
+  const rankImg = document.getElementById('rankCurrentImg');
+  if (rankImg) {
+    rankImg.src = `/static/ranks/${rank.toLowerCase()}.png`;
+  } else {
+    // fallback if img is missing
+    const rc = document.getElementById('rankCurrent');
+    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${rank.toLowerCase()}.png" alt="${rank}" style="width:80px;height:auto;object-fit:contain;" />`;
+  }
 
   // ── 새 승진 조건 (관리자 설정) 방식 ──────────────────────────
   if (rankPromoSettings && rankPromoSettings.criteria && nextRankObj) {
@@ -4520,6 +4609,8 @@ function updateRankUI() {
       const hasInvestCond  = (crit.minSelfInvest     || 0) > 0;
       const hasSalesCond   = (crit.minNetworkSales   || 0) > 0;
       const hasMemberCond  = (crit.minNetworkMembers || 0) > 0;
+      const hasBalancedCond= (crit.minBalancedVolume || 0) > 0;
+      const useBalanced    = rankPromoSettings.useBalancedVolume === true;
 
       // 진행도: 가장 의미 있는 조건을 선택
       let progressPct  = 0;
@@ -4547,8 +4638,14 @@ function updateRankUI() {
       // 다음 직급 표시
       const modeLabel = mode === 'any' ? '[OR]' : '[AND]';
       const condParts = [];
-      if (hasInvestCond)  condParts.push(`FREEZE $${crit.minSelfInvest}`);
-      if (hasSalesCond)   condParts.push(`매출 $${crit.minNetworkSales}`);
+      if (hasInvestCond)  condParts.push(`FREEZE ${crit.minSelfInvest}`);
+      
+      if (useBalanced && hasBalancedCond) {
+        condParts.push(`균형매출 ${crit.minBalancedVolume}`);
+      } else if (hasSalesCond) {
+        condParts.push(`매출 ${crit.minNetworkSales}`);
+      }
+      
       if (hasMemberCond)  condParts.push(`인원 ${crit.minNetworkMembers}명`);
       const condStr = condParts.length ? condParts.join(' / ') : '조건 없음';
 
@@ -4623,121 +4720,153 @@ async function loadReferralList() {
   }
 }
 
+
+window.cavePath = [];
+
 async function buildOrgTree() {
   const treeEl = document.getElementById('orgTree');
   if (!treeEl) return;
-  treeEl.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>로딩 중...</div>';
+
+  // Initialize with root if empty
+  if (window.cavePath.length === 0) {
+    window.cavePath = [{
+      id: currentUser.uid,
+      name: userData?.name || '나',
+      rank: userData?.rank || 'G0',
+      createdAt: userData?.createdAt
+    }];
+  }
+
+  await renderCaveTree();
+}
+
+window.renderCaveTree = async function() {
+  const treeEl = document.getElementById('orgTree');
+  if (!treeEl) return;
+  
+  const colorMap = {
+    g0: '#4b5563', g1: '#3b82f6', g2: '#10b981', g3: '#059669', g4: '#d97706',
+    g5: '#ea580c', g6: '#e11d48', g7: '#dc2626', g8: '#9333ea', g9: '#7c3aed',
+    g10: 'linear-gradient(45deg, #fbbf24, #f59e0b, #d97706)'
+  };
+
+  const renderNode = (n, isPathNode, pathIndex) => {
+    const isMe = n.id === currentUser.uid;
+    const cHex = colorMap[(n.rank||'g0').toLowerCase()] || '#4b5563';
+    const bg = isMe ? 'linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(30, 30, 40, 0.95))' : 'rgba(30, 30, 40, 0.95)';
+    const border = isMe ? '2px solid #9d4edd' : `1px solid ${cHex.includes('gradient') ? '#f59e0b' : cHex}`;
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.name}&backgroundColor=transparent`;
+    const shadow = isPathNode ? '0 0 25px rgba(157, 78, 221, 0.4)' : '0 5px 15px rgba(0,0,0,0.3)';
+    const opacity = isPathNode && pathIndex < window.cavePath.length - 1 ? '0.7' : '1';
+    const transform = isPathNode && pathIndex < window.cavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
+
+    return `
+      <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+        <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
+             onclick="handleCaveNodeClick('${n.id}', '${n.name}', '${n.rank}', ${isPathNode}, ${pathIndex})">
+           <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden; flex-shrink:0;">
+              <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
+           </div>
+           <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
+             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.name}</div>
+             <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2;">${n.rank||'G0'}</div>
+           </div>
+        </div>
+      </div>
+    `;
+  };
+
+  // 1. Render active path
+  let html = `<div style="display:flex; flex-direction:column; align-items:center; width:100%;">`;
+  
+  for (let i = 0; i < window.cavePath.length; i++) {
+     html += renderNode(window.cavePath[i], true, i);
+     // V-connector to next node or children
+     html += `<div style="width:2px; height:30px; background:linear-gradient(to bottom, #9d4edd, rgba(157,78,221,0.2)); margin:4px 0; position:relative;"></div>`;
+  }
+
+  // Loading spinner for children
+  html += `<div id="caveChildrenWrap" style="display:flex; flex-wrap:wrap; justify-content:center; gap:20px; max-width:100%; padding:10px;">
+              <div class="spinner" style="margin:20px;"></div>
+           </div>`;
+  
+  html += `</div>`;
+  treeEl.innerHTML = html; const scroller = treeEl.querySelector('div'); if (scroller) { scroller.style.overflowX = 'auto'; window.makeDraggableMap(scroller); } else { window.makeDraggableMap(treeEl); }
+
+  // 2. Fetch children for the last node in path
+  const lastNode = window.cavePath[window.cavePath.length - 1];
+
+  // --- Rank-based Depth Restriction ---
+  const getMaxDepth = (rank) => {
+     const r = (rank || 'g0').toLowerCase();
+     if (r === 'g0') return 1;
+     if (r === 'g1') return 2;
+     if (r === 'g2') return 3;
+     if (r === 'g3') return 5;
+     if (r === 'g4') return 10;
+     return 999;
+  };
+  
+  const userRank = userData?.rank || 'G0';
+  const maxDepth = getMaxDepth(userRank);
+  const currentDepthToFetch = window.cavePath.length; // path length 1 fetches depth 1
+  
+  if (currentDepthToFetch > maxDepth) {
+     const childrenWrap = document.getElementById('caveChildrenWrap');
+     if (childrenWrap) {
+        childrenWrap.innerHTML = `
+           <div style="background:rgba(20,20,30,0.8); border:1px solid rgba(157,78,221,0.3); border-radius:16px; padding:24px 30px; text-align:center; max-width:85%; box-shadow:0 10px 30px rgba(0,0,0,0.5); backdrop-filter:blur(5px); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+             <div style="font-size:36px; margin-bottom:12px; filter:drop-shadow(0 0 10px rgba(245,158,11,0.5));">🔒</div>
+             <div style="color:#f59e0b; font-weight:800; font-size:16px; margin-bottom:8px; letter-spacing:0.5px;">${t('orgDepthLimitTitle')}</div>
+             <div style="color:#cbd5e1; font-size:13px; line-height:1.6;">
+                ${t('orgDepthLimitDesc').replace('{rank}', userRank).replace('{depth}', maxDepth)}
+             </div>
+           </div>
+        `;
+     }
+     return;
+  }
+  // -------------------------------------
 
   try {
     const { collection, query, where, getDocs, db } = window.FB;
-    const q = query(collection(db, 'users'), where('referredBy', '==', currentUser.uid));
+    const q = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
     const snap = await getDocs(q);
     const children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    if (!children.length) {
-      treeEl.innerHTML = `
-        <div style="text-align:center;padding:30px">
-          <div class="org-node me" style="display:inline-block">
-            <div class="org-node-name">${userData?.name || '나'}</div>
-            <div class="org-node-rank">${userData?.rank || 'G0'}</div>
-          </div>
-          <div style="margin-top:16px;font-size:13px;color:var(--text3)">
-            추천 링크를 공유하여 네트워크를 확장해보세요!
-          </div>
-        </div>`;
-      return;
+    const childrenWrap = document.getElementById('caveChildrenWrap');
+    if (!childrenWrap) return;
+
+    if (children.length === 0) {
+       childrenWrap.innerHTML = `<div style="color:var(--text3); font-size:13px; text-align:center; padding:20px;">
+          ${lastNode.id === currentUser.uid ? t('shareToExpand') : t('noSubMembers')}
+       </div>`;
+    } else {
+       childrenWrap.innerHTML = children.map(c => renderNode(c, false, -1)).join('');
     }
-
-    const meNode = `
-      <div class="org-node-wrap">
-        <div class="org-node root" onclick="showOrgTooltip(event, '${userData?.name}', '${userData?.rank}', '나', '')">
-          <div class="org-node-name">${userData?.name || '나'}</div>
-          <div class="org-node-rank">${userData?.rank || 'G0'}</div>
-        </div>
-        <div class="org-connector-v"></div>
-      </div>`;
-
-    const childNodes = children.map(c => `
-      <div class="org-node-wrap">
-        <div class="org-connector-v" style="height:12px"></div>
-        <div class="org-node" onclick="showOrgTooltip(event, '${c.name}', '${c.rank}', '추천인', '${fmtDateShort(c.createdAt)}')">
-          <div class="org-node-name">${c.name || '회원'}</div>
-          <div class="org-node-rank">${c.rank || 'G0'}</div>
-        </div>
-      </div>`).join('');
-
-    treeEl.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:0">
-        ${meNode}
-        <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
-          ${childNodes}
-        </div>
-      </div>`;
-
-    setupOrgPanZoom();
-
   } catch (err) {
-    treeEl.innerHTML = '<div class="empty-state">조직도 로드 실패</div>';
+    console.error(err);
+    const childrenWrap = document.getElementById('caveChildrenWrap');
+    if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
   }
-}
-
-window.showOrgTooltip = function(event, name, rank, relation, date) {
-  const tooltip = document.getElementById('orgTooltip');
-  if (!tooltip) return;
-  tooltip.innerHTML = `
-    <div style="font-weight:700;margin-bottom:4px">${name}</div>
-    <div style="color:var(--accent);font-size:12px">${rank} · ${relation}</div>
-    ${date ? `<div style="color:var(--text3);font-size:11px;margin-top:2px">가입: ${date}</div>` : ''}`;
-  tooltip.style.left = Math.min(event.clientX - 10, window.innerWidth - 220) + 'px';
-  tooltip.style.top = (event.clientY + 12) + 'px';
-  tooltip.classList.remove('hidden');
-  setTimeout(() => tooltip.classList.add('hidden'), 3000);
 };
 
-function setupOrgPanZoom() {
-  const wrap = document.getElementById('orgChartWrap');
-  const tree = document.getElementById('orgTree');
-  if (!wrap || !tree) return;
-
-  let scale = 1, startDist = 0, isDragging = false;
-  let startX = 0, startY = 0, scrollLeft = 0, scrollTop = 0;
-
-  wrap.addEventListener('mousedown', e => {
-    isDragging = true;
-    startX = e.pageX - wrap.offsetLeft;
-    startY = e.pageY - wrap.offsetTop;
-    scrollLeft = wrap.scrollLeft;
-    scrollTop = wrap.scrollTop;
-  });
-  wrap.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    wrap.scrollLeft = scrollLeft - (e.pageX - wrap.offsetLeft - startX);
-    wrap.scrollTop = scrollTop - (e.pageY - wrap.offsetTop - startY);
-  });
-  wrap.addEventListener('mouseup', () => { isDragging = false; });
-
-  wrap.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      startDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-    }
-  }, { passive: true });
-
-  wrap.addEventListener('touchmove', e => {
-    if (e.touches.length === 2) {
-      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      scale = Math.min(2, Math.max(0.4, scale * (dist / startDist)));
-      tree.style.transform = `scale(${scale})`;
-      startDist = dist;
-    }
-  }, { passive: true });
-}
-
-window.resetOrgZoom = function() {
-  const tree = document.getElementById('orgTree');
-  if (tree) tree.style.transform = 'scale(1)';
+window.handleCaveNodeClick = function(id, name, rank, isPathNode, pathIndex) {
+   if (isPathNode) {
+      // Clicked a node already in the path -> truncate path to this node
+      if (pathIndex === window.cavePath.length - 1) return; // Already the tip
+      window.cavePath = window.cavePath.slice(0, pathIndex + 1);
+      window.renderCaveTree();
+   } else {
+      // Clicked a child -> add to path
+      window.cavePath.push({ id, name, rank });
+      window.renderCaveTree();
+   }
 };
 
-window.copyReferralCode = function() {
+// Remove resetOrgZoom logic entirely, not needed.
+
+  window.copyReferralCode = function() {
   const code = document.getElementById('myReferralCode');
   if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast('추천 코드 복사 완료!', 'success'));
 };
@@ -7195,4 +7324,97 @@ window.closeNewsViewer = function() {
   
   const iframe = document.getElementById('newsIframe');
   if (iframe) iframe.src = '';
+};
+
+window.makeDraggableMap = function(ele) {
+    if (!ele || ele._dragInit) return;
+    ele._dragInit = true;
+    ele.style.cursor = 'grab';
+    
+    let isDown = false;
+    let startX, startY, scrollLeft, scrollTop;
+    let isDragging = false;
+
+    // Prevent native image dragging
+    ele.addEventListener('dragstart', (e) => e.preventDefault());
+
+    // Mouse Events
+    ele.addEventListener('mousedown', (e) => {
+        isDown = true;
+        ele.style.cursor = 'grabbing';
+        isDragging = false;
+        startX = e.pageX - ele.offsetLeft;
+        startY = e.pageY - ele.offsetTop;
+        scrollLeft = ele.scrollLeft;
+        scrollTop = ele.scrollTop;
+    });
+
+    ele.addEventListener('mouseleave', () => {
+        isDown = false;
+        ele.style.cursor = 'grab';
+    });
+
+    ele.addEventListener('mouseup', () => {
+        isDown = false;
+        ele.style.cursor = 'grab';
+    });
+
+    ele.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault(); // Prevent text selection
+        const x = e.pageX - ele.offsetLeft;
+        const y = e.pageY - ele.offsetTop;
+        const walkX = (x - startX);
+        const walkY = (y - startY);
+        
+        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
+            isDragging = true;
+        }
+        
+        ele.scrollLeft = scrollLeft - walkX;
+        ele.scrollTop = scrollTop - walkY;
+    });
+
+    // Touch Events
+    ele.addEventListener('touchstart', (e) => {
+        isDown = true;
+        isDragging = false;
+        startX = e.touches[0].pageX - ele.offsetLeft;
+        startY = e.touches[0].pageY - ele.offsetTop;
+        scrollLeft = ele.scrollLeft;
+        scrollTop = ele.scrollTop;
+    }, { passive: true });
+
+    ele.addEventListener('touchend', () => {
+        isDown = false;
+    });
+
+    ele.addEventListener('touchcancel', () => {
+        isDown = false;
+    });
+
+    ele.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - ele.offsetLeft;
+        const y = e.touches[0].pageY - ele.offsetTop;
+        const walkX = (x - startX);
+        const walkY = (y - startY);
+        
+        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
+            isDragging = true;
+            if (e.cancelable) e.preventDefault(); // Prevent native scroll
+        }
+        
+        ele.scrollLeft = scrollLeft - walkX;
+        ele.scrollTop = scrollTop - walkY;
+    }, { passive: false });
+
+    // Prevent click if we were dragging
+    ele.addEventListener('click', function(e) {
+        if (isDragging) {
+            e.preventDefault();
+            e.stopPropagation();
+            isDragging = false;
+        }
+    }, true);
 };
