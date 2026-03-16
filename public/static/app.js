@@ -132,9 +132,11 @@ const TRANSLATIONS = {
     authTagline: '🔐 안전하고 스마트한 가상자산 FREEZE',
     loginTab: '로그인',
     registerTab: '회원가입',
-    labelEmail: '아이디',
+    labelUsername: '아이디',
+    labelEmail: '이메일',
     labelPassword: '비밀번호',
-    placeholderEmail: '아이디를 입력하세요',
+    placeholderUsername: '아이디를 입력하세요',
+    placeholderEmail: '이메일을 입력하세요',
     placeholderPassword: '비밀번호를 입력하세요',
     placeholderPasswordMin: '6자리 이상 입력하세요',
     btnLogin: '로그인',
@@ -661,9 +663,12 @@ const TRANSLATIONS = {
     authTagline: '🔐 Safe and Smart Crypto FREEZE',
     loginTab: 'Login',
     registerTab: 'Register',
-    labelEmail: 'Username',
+    labelUsername: 'Username',
+    labelUsername: 'ID',
+    labelEmail: 'Email',
     labelPassword: 'Password',
-    placeholderEmail: 'Enter your username',
+    placeholderUsername: 'Enter your username',
+    placeholderEmail: 'Enter your email',
     placeholderPassword: 'Enter your password',
     placeholderPasswordMin: 'At least 4 characters',
     btnLogin: 'Login',
@@ -1181,6 +1186,7 @@ const TRANSLATIONS = {
     authTagline: '🔐 FREEZE tài sản số an toàn & thông minh',
     loginTab: 'Đăng nhập',
     registerTab: 'Đăng ký',
+    labelUsername: 'ID',
     labelEmail: 'Email',
     labelPassword: 'Mật khẩu',
     placeholderEmail: 'Nhập email của bạn',
@@ -2447,6 +2453,12 @@ async function initApp() {
     }).catch(() => {});
 
     console.log('initApp: showing main screen'); showScreen('main');
+    // 강제 비밀번호 변경 체크
+    if (sessionStorage.getItem('deedra_force_pw') === '1' || userData?.forcePwChange === true) {
+      const modal = document.getElementById('forcePwModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
 
     updateHomeUI();
     loadAnnouncements();
@@ -2999,7 +3011,10 @@ window.switchAuthTab = function(tab) {
 
 // ===== 로그인 =====
 window.handleLogin = async function() {
-  const usernameInput = document.getElementById('loginEmail').value.trim();
+  let usernameInput = document.getElementById('loginEmail').value.trim();
+  if (!usernameInput.includes('@')) {
+    usernameInput = usernameInput.toLowerCase();
+  }
   const pw = document.getElementById('loginPassword').value;
   if (!usernameInput || !pw) { showToast(t('loginIdPwRequired'), 'warning'); return; }
 
@@ -3012,6 +3027,7 @@ window.handleLogin = async function() {
       // 이메일 직접 로그인 (기존 방식 유지)
       const { signInWithEmailAndPassword, auth } = window.FB;
       const result = await signInWithEmailAndPassword(auth, usernameInput, pw);
+      if (pw === '000000') sessionStorage.setItem('deedra_force_pw', '1');
       if (result?.user) {
         localStorage.setItem('deedra_session', JSON.stringify({
           uid: result.user.uid, email: result.user.email
@@ -3035,6 +3051,7 @@ window.handleLogin = async function() {
       // idToken을 직접 사용해 Firebase 세션 시작
       try {
         const result = await signInWithEmailAndPassword(auth, data.email, pw);
+        if (pw === '000000') sessionStorage.setItem('deedra_force_pw', '1');
         if (result?.user) {
           localStorage.setItem('deedra_session', JSON.stringify({
             uid: result.user.uid, email: result.user.email
@@ -3062,6 +3079,7 @@ window.handleLogin = async function() {
 window.handleRegister = async function() {
   const name    = document.getElementById('regName').value.trim();
   const phone   = document.getElementById('regPhone')?.value.trim() || '';
+  const username = document.getElementById('regUsername').value.trim().toLowerCase();
   const email   = document.getElementById('regEmail').value.trim();
   const pw      = document.getElementById('regPassword').value;
   const country = document.getElementById('regCountry')?.value || '';
@@ -3069,6 +3087,7 @@ window.handleRegister = async function() {
 
   if (!name)    { showToast(t('registerEnterName'), 'warning'); return; }
   if (!phone)   { showToast(t('registerEnterPhone'), 'warning'); return; }
+  if (!username) { showToast(t('registerEnterUsername') || '아이디를 입력해주세요.', 'warning'); return; }
   if (!email)   { showToast(t('registerEnterEmail'), 'warning'); return; }
   if (!pw)      { showToast(t('registerEnterPw'), 'warning'); return; }
   if (pw.length < 6) { showToast(t('registerPwMin'), 'warning'); return; }
@@ -3085,7 +3104,7 @@ window.handleRegister = async function() {
     const myCode = generateReferralCode(user.uid);
 
     await setDoc(doc(db, 'users', user.uid), {
-      uid: user.uid, email, name, role: 'member', rank: 'G0', status: 'active',
+      uid: user.uid, username, email, name, role: 'member', rank: 'G0', status: 'active',
       referralCode: myCode, referredBy: referrer.uid, referredByCode: refCode,
       createdAt: serverTimestamp(), phone, country, withdrawPin: null,
     });
@@ -3124,14 +3143,53 @@ window.handleRegister = async function() {
 
 // ===== 비밀번호 찾기 =====
 window.handleForgotPassword = async function() {
-  const email = document.getElementById('loginEmail').value.trim();
-  if (!email) { showToast(t('forgotEmailFirst'), 'warning'); return; }
+  const modal = document.getElementById('guestTicketModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    // auto-fill username if entered
+    const currentId = document.getElementById('loginEmail').value.trim();
+    if (currentId) document.getElementById('guestTicketUsername').value = currentId;
+  } else {
+    showToast('문의 기능을 로드할 수 없습니다.', 'error');
+  }
+};
+
+window.submitGuestTicket = async function() {
+  const username = document.getElementById('guestTicketUsername').value.trim();
+  const name = document.getElementById('guestTicketName').value.trim();
+  const phone = document.getElementById('guestTicketPhone').value.trim();
+
+  if (!username || !name || !phone) {
+    showToast('아이디, 이름, 전화번호를 모두 입력해주세요.', 'warning');
+    return;
+  }
+
+  const btn = document.getElementById('btnSubmitGuestTicket');
+  btn.disabled = true;
+  btn.textContent = '등록 중...';
+
   try {
-    const { sendPasswordResetEmail, auth } = window.FB;
-    await sendPasswordResetEmail(auth, email);
-    showToast(t('forgotEmailSent'), 'success');
+    const res = await fetch('/api/tickets/guest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, name, phone })
+    });
+    
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || '문의 등록 실패');
+    
+    document.getElementById('guestTicketModal').style.display = 'none';
+    showToast('비밀번호 찾기 문의가 접수되었습니다. 관리자 확인 후 처리됩니다.', 'success');
+    
+    // clear fields
+    document.getElementById('guestTicketUsername').value = '';
+    document.getElementById('guestTicketName').value = '';
+    document.getElementById('guestTicketPhone').value = '';
   } catch (err) {
-    showToast(getAuthErrorMsg(err.code), 'error');
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '문의 등록';
   }
 };
 
@@ -6285,6 +6343,54 @@ function getAuthErrorMsg(code) {
   if (normalized.includes('too-many')) return '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.';
   return t('authError') + code;
 }
+
+
+// ===== 강제 비밀번호 변경 (초기 000000) =====
+window.submitForcePw = async function() {
+  const newPw = document.getElementById('forcePwNew').value;
+  const confirmPw = document.getElementById('forcePwConfirm').value;
+  
+  if (!newPw || newPw.length < 6) {
+    showToast('새 비밀번호는 6자리 이상이어야 합니다.', 'warning');
+    return;
+  }
+  if (newPw !== confirmPw) {
+    showToast('비밀번호가 일치하지 않습니다.', 'warning');
+    return;
+  }
+  if (newPw === '000000') {
+    showToast('000000 외의 다른 비밀번호를 사용해주세요.', 'warning');
+    return;
+  }
+  
+  const btn = document.getElementById('forcePwBtn');
+  btn.disabled = true;
+  btn.textContent = '변경 중...';
+  
+  try {
+    const { updatePassword, auth, doc, updateDoc, db } = window.FB;
+    const user = auth.currentUser;
+    if (!user) throw new Error('로그인 정보가 없습니다.');
+    
+    // 1. Auth 비밀번호 변경
+    await updatePassword(user, newPw);
+    
+    // 2. DB 업데이트 (플래그 해제)
+    await updateDoc(doc(db, 'users', user.uid), {
+      forcePwChange: false
+    });
+    
+    sessionStorage.removeItem('deedra_force_pw');
+    document.getElementById('forcePwModal').style.display = 'none';
+    showToast('비밀번호가 안전하게 변경되었습니다.', 'success');
+  } catch (err) {
+    console.error('PW Change Error:', err);
+    showToast(getAuthErrorMsg(err.code) || '비밀번호 변경 중 오류가 발생했습니다. 다시 로그인해주세요.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '비밀번호 변경 완료';
+  }
+};
 
 // ===== 토스트 =====
 let toastTimer = null;
