@@ -4817,7 +4817,7 @@ window.renderCaveTree = async function() {
     return `
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
         <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
-             onclick="handleCaveNodeClick('${n.id}', '${n.name}', '${n.rank}', ${isPathNode}, ${pathIndex})">
+             onclick="showNodeActionModal('${n.id}', '${n.name}', '${n.rank}', ${isPathNode}, ${pathIndex})">
            <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden; flex-shrink:0;">
               <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
            </div>
@@ -4903,6 +4903,52 @@ window.renderCaveTree = async function() {
     const childrenWrap = document.getElementById('caveChildrenWrap');
     if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
   }
+};
+
+window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex) {
+   if (id === currentUser.uid) {
+      // 본인이면 그냥 탐색만 (최상단이면 아무것도 안함)
+      if (isPathNode && pathIndex === window.cavePath.length - 1) return;
+      window.handleCaveNodeClick(id, name, rank, isPathNode, pathIndex);
+      return;
+   }
+
+   const modalHtml = `
+      <div id="nodeActionModal" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:9999; display:flex; align-items:center; justify-content:center; animation: fadeIn 0.2s;">
+         <div style="background:var(--bg-card); padding:24px; border-radius:16px; width:300px; text-align:center; border:1px solid rgba(255,255,255,0.1); animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div style="width:50px; height:50px; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden; margin:0 auto 12px;">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${name}&backgroundColor=transparent" style="width:100%;height:100%;object-fit:cover;" />
+            </div>
+            <h3 style="margin-top:0; margin-bottom:16px; color:#fff;">${name} <span style="font-size:12px; font-weight:normal; background:var(--primary); padding:2px 6px; border-radius:8px;">${rank}</span></h3>
+            
+            <button onclick="window.doNodeAction('chat', '${id}', '${name}')" style="width:100%; padding:14px; border-radius:10px; border:none; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-weight:bold; margin-bottom:10px; cursor:pointer; font-size:15px; display:flex; justify-content:center; align-items:center; gap:8px;">
+                <i class="fas fa-comment-dots"></i> 1:1 채팅하기
+            </button>
+            <button onclick="window.doNodeAction('nav', '${id}', '${name}', '${rank}', ${isPathNode}, ${pathIndex})" style="width:100%; padding:14px; border-radius:10px; border:none; background:rgba(255,255,255,0.1); color:#fff; font-weight:bold; margin-bottom:12px; cursor:pointer; font-size:15px; display:flex; justify-content:center; align-items:center; gap:8px;">
+                <i class="fas fa-sitemap"></i> ${isPathNode ? '이곳으로 이동' : '상세보기 (하위 조직)'}
+            </button>
+            
+            <button onclick="document.getElementById('nodeActionModal').remove()" style="width:100%; padding:12px; border-radius:10px; border:none; background:transparent; color:var(--text-sec); cursor:pointer; font-size:14px;">
+                닫기
+            </button>
+         </div>
+      </div>
+   `;
+   document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.doNodeAction = function(action, id, name, rank, isPathNode, pathIndex) {
+   const modal = document.getElementById('nodeActionModal');
+   if (modal) modal.remove();
+   
+   if (action === 'chat') {
+       window.switchPage('chat');
+       if (window.chatManager && window.chatManager.openDirectChat) {
+           window.chatManager.openDirectChat(id, name);
+       }
+   } else if (action === 'nav') {
+       window.handleCaveNodeClick(id, name, rank, isPathNode, pathIndex);
+   }
 };
 
 window.handleCaveNodeClick = function(id, name, rank, isPathNode, pathIndex) {

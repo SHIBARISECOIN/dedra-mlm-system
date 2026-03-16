@@ -1,6 +1,7 @@
 // chat.js - Firebase Chat logic
 window.chatManager = {
-  currentRoom: 'group', // 'group' or 'upline'
+  currentRoom: 'group', // 'group' or 'upline' or 'direct'
+  directRoomId: null,
   unsubscribe: null,
   sponsorId: null,
 
@@ -20,6 +21,14 @@ window.chatManager = {
   switchChatRoom(room) {
     this.currentRoom = room;
     
+    // Show tabs if group or upline
+    const tabsWrap = document.getElementById('chatTabsWrap');
+    if (tabsWrap) tabsWrap.style.display = 'flex';
+
+    // Reset title
+    const titleEl = document.getElementById('chatTitle');
+    if (titleEl) titleEl.innerHTML = window.t ? window.t('pageChat') : '💬 채팅';
+
     // Update Tab UI
     const btnGroup = document.getElementById('tabChatGroup');
     const btnUpline = document.getElementById('tabChatUpline');
@@ -45,7 +54,30 @@ window.chatManager = {
     this.loadMessages();
   },
 
+  openDirectChat(targetUid, targetName) {
+    const user = window.currentUser || window.userData;
+    const myUid = user ? (user.uid || user.id) : null;
+    if (!myUid) return;
+
+    // Sort alphabetically to create a unique room ID for the pair
+    const uids = [myUid, targetUid].sort();
+    this.directRoomId = `direct_${uids[0]}_${uids[1]}`;
+    this.currentRoom = 'direct';
+
+    // Hide tabs, change title
+    const tabsWrap = document.getElementById('chatTabsWrap');
+    if (tabsWrap) tabsWrap.style.display = 'none';
+
+    const titleEl = document.getElementById('chatTitle');
+    if (titleEl) titleEl.innerHTML = `💬 ${targetName} 님과의 1:1 채팅`;
+
+    this.loadMessages();
+  },
+
   getRoomId() {
+    if (this.currentRoom === 'direct') {
+      return this.directRoomId;
+    }
     const user = window.currentUser || window.userData;
     const uid = user ? (user.uid || user.id) : null;
     

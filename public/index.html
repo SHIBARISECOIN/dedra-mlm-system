@@ -376,11 +376,8 @@
       <!-- ======== NETWORK 페이지 ======== -->
       <div id="networkPage" class="page">
         <div class="page-scroll">
-          <div class="page-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="page-title">
             <span data-i18n="pageNetwork">🌐 네트워크</span>
-            <button onclick="switchPage('chat')" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
-              <i class="fas fa-comments"></i> <span data-i18n="pageChat">채팅</span>
-            </button>
           </div>
 
           <!-- 네트워크 통계 -->
@@ -427,9 +424,11 @@
           </div>
 
           <!-- 조직도 -->
-          <div class="section-header">
+          <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
             <span class="section-title" data-i18n="orgChart">🗂 조직도</span>
-            
+            <button onclick="switchPage('chat'); window.chatManager.switchChatRoom('group');" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <i class="fas fa-comments"></i> <span>그룹 채팅</span>
+            </button>
           </div>
           <div class="org-chart-wrap" id="orgChartWrap">
             <div class="org-tree" id="orgTree">
@@ -977,11 +976,11 @@
             <button onclick="switchPage('network')" style="background:none; border:none; color:var(--text); font-size:18px; cursor:pointer; padding:0;">
               <i class="fas fa-chevron-left"></i>
             </button>
-            <span data-i18n="pageChat">💬 채팅</span>
+            <span id="chatTitle" data-i18n="pageChat">💬 채팅</span>
           </div>
           
           <!-- Chat Room Selection (Tabs) -->
-          <div style="display:flex; padding-bottom: 10px; border-bottom:1px solid var(--border);">
+          <div id="chatTabsWrap" style="display:flex; padding-bottom: 10px; border-bottom:1px solid var(--border);">
             <button id="tabChatGroup" onclick="window.chatManager.switchChatRoom('group')" style="flex:1; padding:10px; background:var(--primary); color:#fff; border:none; border-radius:12px; font-weight:700; margin-right:5px; cursor:pointer; font-size:14px; transition:all 0.2s;">👥 내 그룹</button>
             <button id="tabChatUpline" onclick="window.chatManager.switchChatRoom('upline')" style="flex:1; padding:10px; background:var(--surface); color:var(--text-sec); border:1px solid var(--border); border-radius:12px; font-weight:700; margin-left:5px; cursor:pointer; font-size:14px; transition:all 0.2s;">👤 스폰서</button>
           </div>
