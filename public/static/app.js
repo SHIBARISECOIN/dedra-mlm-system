@@ -7024,9 +7024,17 @@ async function _loadNepGenTab(contentEl, gen) {
     for (let i = 0; i < memberIds.length; i += 10) chunks.push(memberIds.slice(i, i + 10));
     for (const chunk of chunks) {
       if (!chunk.length) continue;
+      
       const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
-      const txs = await getDocs(txq);
+      let txs;
+      try {
+        txs = await getDocs(txq);
+      } catch (err) {
+        // 권한 에러 무시 (일반 유저는 타인의 transactions 읽기 불가)
+        txs = { docs: [] };
+      }
       txs.docs.forEach(d => {
+
         const data = d.data();
         if (data.type === 'deposit' && data.status === 'approved')
           totalDepMap[data.userId] = (totalDepMap[data.userId] || 0) + (data.amount || 0);
@@ -7200,9 +7208,17 @@ async function _loadNepDeepTab(contentEl) {
       for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
       for (const chunk of chunks) {
         if (!chunk.length) continue;
-        const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
-        const txs = await getDocs(txq);
-        txs.docs.forEach(d => {
+        
+      const txq = query(collection(db, 'transactions'), where('userId', 'in', chunk));
+      let txs;
+      try {
+        txs = await getDocs(txq);
+      } catch (err) {
+        // 권한 에러 무시 (일반 유저는 타인의 transactions 읽기 불가)
+        txs = { docs: [] };
+      }
+      txs.docs.forEach(d => {
+
           const data = d.data();
           if (data.type === 'deposit' && data.status === 'approved')
             genSales[g] += (data.amount || 0);

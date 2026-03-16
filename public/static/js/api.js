@@ -2951,19 +2951,33 @@ export class DedraAPI {
           bonusBalance:  wallet.bonusBalance  || data.bonusBalance  || 0,
         };
       });
-      const users = allDocs.filter(u => u.role !== 'admin');
-
-      // uid → user 맵
+      
+      // uid → user 맵 (관리자 포함)
       const userMap = new Map();
-      users.forEach(u => { userMap.set(u._uid, u); userMap.set(u.id, u); });
+      allDocs.forEach(u => { userMap.set(u._uid, u); userMap.set(u.id, u); });
 
       // 자식 맵
       const childrenMap = new Map();
-      users.forEach(u => childrenMap.set(u._uid, []));
-      users.forEach(u => {
+      allDocs.forEach(u => childrenMap.set(u._uid, []));
+      allDocs.forEach(u => {
+        // 관리자는 누군가의 하위로 들어가지 않게 처리
+        if (u.role === 'admin') return;
         const ref = u.referredBy;
-        if (ref && ref !== '' && childrenMap.has(ref)) childrenMap.get(ref).push(u);
+        if (ref && ref !== '' && childrenMap.has(ref)) {
+           childrenMap.get(ref).push(u);
+        } else if (!ref || ref === 'admin' || ref === 'COMPANY ROOT') {
+           // Admin의 하위로 명시적으로 연결
+           // admin uid를 찾아서 넣거나, 그냥 최상위 admin에게 연결
+           const admins = allDocs.filter(a => a.role === 'admin');
+           if (admins.length > 0) {
+               const adminUid = admins[0]._uid;
+               if (childrenMap.has(adminUid)) {
+                   childrenMap.get(adminUid).push(u);
+               }
+           }
+        }
       });
+
 
       const target = userMap.get(targetUserId);
       if (!target) return ok(null);
