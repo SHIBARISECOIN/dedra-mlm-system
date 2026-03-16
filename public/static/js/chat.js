@@ -72,6 +72,16 @@ window.chatManager = {
     if (titleEl) titleEl.innerHTML = `💬 ${targetName} 님과의 1:1 채팅`;
 
     this.loadMessages();
+
+    // Clear unread flag for this room
+    if (myUid) {
+      try {
+        const { doc, setDoc, db } = window.FB;
+        setDoc(doc(db, 'chats', this.directRoomId), {
+          [`unread_${myUid}`]: false
+        }, { merge: true }).catch(()=>{});
+      } catch(e) {}
+    }
   },
 
   getRoomId() {
@@ -173,7 +183,7 @@ window.chatManager = {
     input.style.height = '45px'; // reset height
 
     try {
-      const { collection, addDoc, serverTimestamp, db } = window.FB;
+      const { collection, addDoc, serverTimestamp, doc, setDoc, db } = window.FB;
       const user = window.currentUser || window.userData;
       const uid = user ? (user.uid || user.id) : null;
       let userName = '사용자';
@@ -186,6 +196,19 @@ window.chatManager = {
         text: text,
         createdAt: serverTimestamp()
       });
+
+      // Update room metadata for unread badges in direct chat
+      if (this.currentRoom === 'direct') {
+        const parts = this.directRoomId.replace('direct_', '').split('_');
+        const targetUid = parts[0] === uid ? parts[1] : parts[0];
+        
+        await setDoc(doc(db, 'chats', roomId), {
+          participants: [uid, targetUid],
+          updatedAt: serverTimestamp(),
+          [`unread_${targetUid}`]: true
+        }, { merge: true }).catch(e => console.error(e));
+      }
+
     } catch (err) {
       console.error(err);
       window.showToast('메시지 전송 실패', 'error');
@@ -204,3 +227,84 @@ window.chatManager = {
     );
   }
 };
+
+// 1:1 채팅 알림 리스너 (앱 초기화 시 호출)
+window.unreadChatSenders = new Set();
+window.unreadChatPaths = new Set();
+const chatReferredByCache = {};
+
+window.startChatNotificationListener = function() {
+  const user = window.currentUser || window.userData;
+  const myUid = user ? (user.uid || user.id) : null;
+  if (!myUid) return;
+
+  const { collection, query, where, onSnapshot, doc, getDoc, db } = window.FB;
+  const q = query(collection(db, 'chats'), where('participants', 'array-contains', myUid));
+
+  onSnapshot(q, async (snap) => {
+    window.unreadChatSenders.clear();
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (data[`unread_${myUid}`]) {
+        const otherUid = data.participants.find(p => p !== myUid);
+        if (otherUid) window.unreadChatSenders.add(otherUid);
+      }
+    }
+
+    // 네비게이션/버튼에 뱃지 표시 로직
+    updateChatBadgeUI();
+
+    // 조직도 뱃지를 위한 path 계산 (역산)
+    window.unreadChatPaths.clear();
+    for (const senderId of window.unreadChatSenders) {
+      let curId = senderId;
+      // myUid가 나올때까지 조상을 추적
+      while (curId && curId !== myUid) {
+        window.unreadChatPaths.add(curId);
+        
+        // 캐시 확인
+        if (chatReferredByCache[curId] !== undefined) {
+          curId = chatReferredByCache[curId];
+        } else {
+          try {
+            const docSnap = await getDoc(doc(db, 'users', curId));
+            if (docSnap.exists()) {
+              const refId = docSnap.data().referredBy || null;
+              chatReferredByCache[curId] = refId;
+              curId = refId;
+            } else {
+              chatReferredByCache[curId] = null;
+              curId = null;
+            }
+          } catch(e) {
+            curId = null;
+          }
+        }
+      }
+    }
+
+    // 조직도가 열려있다면 다시 렌더링해서 뱃지 띄우기
+    if (document.getElementById('orgTree') && window.renderCaveTree) {
+       window.renderCaveTree();
+    }
+  });
+};
+
+function updateChatBadgeUI() {
+  const btn = document.querySelector('button[onclick*="switchPage(\\'chat\\')"]');
+  if (!btn) return;
+  
+  let badge = btn.querySelector('.chat-unread-badge');
+  if (window.unreadChatSenders.size > 0) {
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'chat-unread-badge';
+      badge.style.cssText = 'position:absolute; top:-4px; right:-4px; width:12px; height:12px; background:#ef4444; border-radius:50%; border:2px solid var(--surface); animation: pulse 2s infinite; z-index: 10;';
+      btn.style.position = 'relative';
+      btn.appendChild(badge);
+    }
+  } else {
+    if (badge) badge.remove();
+  }
+}

@@ -2475,6 +2475,9 @@ async function initApp() {
     // 언어 재적용 (동적 렌더링 후)
     applyLang();
 
+    // 1:1 채팅 알림 리스너 시작
+    if (typeof startChatNotificationListener === "function") startChatNotificationListener();
+
   } catch (err) {
     console.error('앱 초기화 실패:', err);
     showToast('초기화 실패. 다시 시도해주세요.', 'error');
@@ -4814,8 +4817,13 @@ window.renderCaveTree = async function() {
     const opacity = isPathNode && pathIndex < window.cavePath.length - 1 ? '0.7' : '1';
     const transform = isPathNode && pathIndex < window.cavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
 
+    // 안읽은 메시지가 있는 사용자(또는 그 하위 조직에 있는 사용자)에게 뱃지 표시
+    const hasUnread = window.unreadChatPaths && window.unreadChatPaths.has(n.id) && !isMe;
+    const badgeHtml = hasUnread ? `<div style="position:absolute; top:-4px; right:-4px; width:14px; height:14px; background:#ef4444; border-radius:50%; border:2px solid var(--surface); animation: pulse 2s infinite; z-index: 5;"></div>` : '';
+
     return `
-      <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+      <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
+        ${badgeHtml}
         <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
              onclick="showNodeActionModal('${n.id}', '${n.name}', '${n.rank}', ${isPathNode}, ${pathIndex})">
            <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden; flex-shrink:0;">
