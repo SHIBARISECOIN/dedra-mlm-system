@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'deedra-v8';
+const CACHE_VERSION = 'deedra-v9';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
@@ -82,6 +82,8 @@ self.addEventListener('fetch', (event) => {
 
   // GET 요청만 처리
   if (request.method !== 'GET') return;
+  // http, https 요청만 처리 (chrome-extension 등 제외)
+  if (!request.url.startsWith('http')) return;
 
   // API / 외부 서비스 → 캐시 없이 네트워크 직접 호출
   if (shouldSkipCache(request.url)) return;
