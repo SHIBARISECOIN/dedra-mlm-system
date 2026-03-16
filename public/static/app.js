@@ -8372,3 +8372,87 @@ window.initGlobalMapAnimation = function() {
     }
     draw();
 };
+
+
+// Pull-to-Refresh 구현
+document.addEventListener('DOMContentLoaded', () => {
+    const pContainer = document.getElementById('pageContainer');
+    if(!pContainer) return;
+    
+    let startY = 0;
+    let isPulling = false;
+    let ptrIndicator = null;
+    
+    pContainer.addEventListener('touchstart', (e) => {
+        if(pContainer.scrollTop <= 0) {
+            startY = e.touches[0].clientY;
+            isPulling = true;
+        }
+    }, {passive: true});
+    
+    pContainer.addEventListener('touchmove', (e) => {
+        if(!isPulling) return;
+        const currentY = e.touches[0].clientY;
+        if(currentY > startY && pContainer.scrollTop <= 0) {
+            const pullDistance = currentY - startY;
+            
+            // 인디케이터 생성
+            if(!ptrIndicator) {
+                ptrIndicator = document.createElement('div');
+                ptrIndicator.style.position = 'absolute';
+                ptrIndicator.style.top = '60px'; // 헤더 아래
+                ptrIndicator.style.left = '0';
+                ptrIndicator.style.width = '100%';
+                ptrIndicator.style.display = 'flex';
+                ptrIndicator.style.justifyContent = 'center';
+                ptrIndicator.style.zIndex = '1000';
+                ptrIndicator.innerHTML = '<div style="background:var(--card-bg,#fff);border-radius:50%;width:36px;height:36px;box-shadow:0 2px 5px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:18px;"><i class="fas fa-sync-alt" id="ptrIcon"></i></div>';
+                document.body.appendChild(ptrIndicator);
+            }
+            
+            const translateY = Math.min(pullDistance / 2, 60);
+            ptrIndicator.style.transform = `translateY(${translateY}px)`;
+            
+            const icon = document.getElementById('ptrIcon');
+            if(icon) {
+                icon.style.transform = `rotate(${pullDistance}deg)`;
+                if(pullDistance > 100) {
+                    icon.style.color = '#10b981'; // 당기기 완료 시 초록색으로
+                } else {
+                    icon.style.color = ''; 
+                }
+            }
+        }
+    }, {passive: true});
+    
+    pContainer.addEventListener('touchend', (e) => {
+        if(!isPulling) return;
+        isPulling = false;
+        if(!ptrIndicator) return;
+        
+        const currentY = e.changedTouches[0]?.clientY || 0;
+        // 터치 끝난 위치가 없는 경우가 있으므로 ptrIndicator의 translateY값으로 판단할 수도 있음
+        // 간단히 translateY 값으로 판단
+        const match = ptrIndicator.style.transform.match(/translateY\(([^p]+)px\)/);
+        const y = match ? parseFloat(match[1]) : 0;
+        
+        if(y > 50) {
+            // 새로고침 실행
+            const icon = document.getElementById('ptrIcon');
+            if(icon) icon.classList.add('fa-spin');
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        } else {
+            // 원위치
+            ptrIndicator.style.transition = 'transform 0.3s ease-out';
+            ptrIndicator.style.transform = 'translateY(-40px)';
+            setTimeout(() => {
+                if(ptrIndicator && ptrIndicator.parentNode) {
+                    ptrIndicator.parentNode.removeChild(ptrIndicator);
+                    ptrIndicator = null;
+                }
+            }, 300);
+        }
+    });
+});
