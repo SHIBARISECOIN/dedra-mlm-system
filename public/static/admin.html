@@ -908,6 +908,22 @@ canvas{width:100% !important;}
     100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 </style>
+
+<style id="orgChartCss">
+.css-tree { display: inline-block; padding: 20px; white-space: nowrap; }
+.css-tree ul { padding-top: 20px; position: relative; transition: all 0.3s; display: flex; justify-content: center; padding-left: 0; margin: 0; }
+.css-tree li { float: left; text-align: center; list-style-type: none; position: relative; padding: 20px 5px 0 5px; transition: all 0.3s; }
+.css-tree li::before, .css-tree li::after { content: ''; position: absolute; top: 0; right: 50%; border-top: 2px solid #94a3b8; width: 50%; height: 20px; }
+.css-tree li::after { right: auto; left: 50%; border-left: 2px solid #94a3b8; }
+.css-tree li:only-child::after, .css-tree li:only-child::before { display: none; }
+.css-tree li:only-child { padding-top: 0; }
+.css-tree li:first-child::before, .css-tree li:last-child::after { border: 0 none; }
+.css-tree li:last-child::before { border-right: 2px solid #94a3b8; border-radius: 0 6px 0 0; }
+.css-tree li:first-child::after { border-radius: 6px 0 0 0; }
+.css-tree ul::before { content: ''; position: absolute; top: 0; left: calc(50% - 1px); border-left: 2px solid #94a3b8; width: 0; height: 20px; }
+.css-tree .node-card { border-radius: 12px; transition: all 0.3s; background: #fff; display: inline-flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; text-decoration: none; text-align: left; }
+.css-tree .node-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important; }
+</style>
 </head>
 <body>
 
@@ -11799,86 +11815,48 @@ function orgZoom() {}
 function orgZoomReset() {}
 window.currentOrgRootId = null;
 
-function buildIndentNode(n, indentLvl, lineStack) {
-    const container = document.createElement('div');
-    
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;margin-bottom:3px;min-height:34px;';
-    
-    const INDENT = 28;
-    
-    // 선 그리기
-    for (let i = 0; i < indentLvl; i++) {
-        const hasLine = lineStack[i];
-        const isLastIndent = (i === indentLvl - 1);
-        
-        const sp = document.createElement('div');
-        sp.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
-        
-        if (!isLastIndent) {
-            if (hasLine) {
-                const vl = document.createElement('div');
-                vl.style.cssText = `width:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:0;bottom:0;`;
-                sp.appendChild(vl);
-            }
-        } else {
-            // 마지막 인덴트: ㄱ자 꺾임 (코너)
-            const vp = document.createElement('div');
-            vp.style.cssText = `width:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:0;height:50%;`;
-            if (hasLine) {
-                vp.style.height = '100%'; // 아래로 계속 이어져야 함
-            }
-            const hp = document.createElement('div');
-            hp.style.cssText = `height:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:50%;width:${INDENT/2+2}px;transform:translateY(-50%);`;
-            
-            sp.appendChild(vp);
-            sp.appendChild(hp);
-        }
-        row.appendChild(sp);
-    }
-    
+
+function buildCssTreeNode(n) {
     const rc = orgRankColor(n.rank || 'G0');
     const invested = Number(n.totalInvested || 0);
     const bonus = Number(n.bonusBalance || 0);
-    const uid = (n._uid || n.id || '').slice(0, 14);
+    const uid = (n._uid || n.id || '').slice(0, 10);
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.name}&backgroundColor=transparent`;
     
-    const card = document.createElement('div');
-    card.style.cssText = `
-        display:inline-flex;align-items:center;gap:6px;
-        background:${rc.card};
-        border:1.5px solid ${rc.border};
-        border-left:5px solid ${rc.bg};
-        border-radius:7px;
-        padding:4px 10px 4px 8px;
-        font-size:12px;cursor:pointer;
-        box-shadow:0 1px 4px rgba(0,0,0,0.10);
-        transition:box-shadow 0.12s;
-        opacity:0.95;
+    // 카드 모양 (기존 cave tree 스타일과 유사하게)
+    let cardHtml = `
+      <div class="node-card" style="border: 2px solid ${rc.line}; box-shadow: 0 4px 6px rgba(0,0,0,0.05);" onclick="loadOrgTreeCentered('${n.id}')">
+         <div style="width:36px; height:36px; border-radius:50%; background:#f1f5f9; overflow:hidden; flex-shrink:0;">
+            <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
+         </div>
+         <div style="display:flex; flex-direction:column; overflow:hidden;">
+           <div style="font-weight:700; font-size:14px; color:#1e293b; margin-bottom:4px; white-space:nowrap;">${n.name||'(이름없음)'}</div>
+           <div style="display:flex; gap:6px; align-items:center;">
+              <div style="background:${rc.bg}; color:#fff; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:bold;">${n.rank||'G0'}</div>
+              <div style="font-size:10px; color:#64748b; font-family:monospace;">${uid}</div>
+           </div>
+           <div style="display:flex; gap:4px; margin-top:4px;">
+              ${invested>0 ? `<span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:1px 4px;color:#1e293b;">💰${invested.toLocaleString()}</span>` : ''}
+              ${bonus>0 ? `<span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:1px 4px;color:#10b981;">🎁${Math.round(bonus).toLocaleString()}</span>` : ''}
+           </div>
+         </div>
+      </div>
     `;
-    card.innerHTML = `
-        <span style="background:${rc.bg};color:${rc.text};font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px;">${n.rank||'G0'}</span>
-        <span style="font-weight:700;color:#0f172a;white-space:nowrap;">${n.name||'(이름없음)'}</span>
-        <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${uid}</span>
-        <span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:0 4px;">💰${invested>0?invested.toLocaleString():'0'}</span>
-        ${bonus>0 ? `<span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:0 4px;color:#10b981;">🎁${Math.round(bonus).toLocaleString()}</span>` : ''}
-    `;
-    card.onclick = () => loadOrgTreeCentered(n.id);
-    
-    row.appendChild(card);
-    container.appendChild(row);
+
+    let html = `<li>${cardHtml}`;
     
     if (n.children && n.children.length > 0) {
-        n.children.forEach((c, idx) => {
-            const isLastChild = idx === n.children.length - 1;
-            const nextLineStack = [...lineStack];
-            nextLineStack[indentLvl - 1] = lineStack[indentLvl - 1]; // 부모의 마지막 선 유지 상태
-            nextLineStack.push(!isLastChild); // 현재 노드의 자식들을 위한 선 유지 여부
-            container.appendChild(buildIndentNode(c, indentLvl + 1, nextLineStack));
+        html += `<ul>`;
+        n.children.forEach(c => {
+            html += buildCssTreeNode(c);
         });
+        html += `</ul>`;
     }
     
-    return container;
+    html += `</li>`;
+    return html;
 }
+
 
 async function loadOrgTreeCentered(userId, nodeHint) {
     window.currentOrgRootId = userId;
@@ -11921,131 +11899,47 @@ async function loadOrgTreeCentered(userId, nodeHint) {
     `;
     inner.appendChild(topBar);
 
-    // ── 부모 체인 (위쪽) ──
-    if (parents.length > 0) {
-        const parentLabel = document.createElement('div');
-        parentLabel.style.cssText = 'font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:4px;padding-left:4px;';
-        parentLabel.textContent = `▲ 상위 ${parents.length}단계`;
-        inner.appendChild(parentLabel);
-
+    
+    // CSS Tree 렌더링 (수평 레이아웃)
+    const treeContainer = document.createElement('div');
+    treeContainer.className = 'css-tree';
+    
+    let html = '<ul>';
+    
+    // 부모를 위쪽에 차례대로 렌더링 (단일 체인)
+    // 부모 체인을 재귀적으로 감싸는 구조 생성
+    if (parents && parents.length > 0) {
+        // Build nested ul>li for parents
+        let parentHtml = '';
+        let closingTags = '';
         parents.forEach((p, idx) => {
-            const pRc  = orgRankColor(p.rank || 'G0');
-            const isTopmost = idx === 0;
-            const invested  = Number(p.totalInvested || 0);
-            const uid       = (p._uid || p.id || '').slice(0, 14);
-
-            const pRow = document.createElement('div');
-            pRow.style.cssText = 'display:flex;align-items:center;margin-bottom:3px;min-height:34px;';
-
-            // 들여쓰기 (부모는 인덱스 순으로 들여쓰기)
-            const INDENT = 28;
-            for (let i = 0; i < idx; i++) {
-                const sp = document.createElement('div');
-                sp.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
-                // 수직선
-                const vl = document.createElement('div');
-                vl.style.cssText = `width:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:0;bottom:0;`;
-                sp.appendChild(vl);
-                pRow.appendChild(sp);
-            }
-            if (idx > 0) {
-                const corner = document.createElement('div');
-                corner.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
-                const vp = document.createElement('div');
-                vp.style.cssText = `width:2px;background:${pRc.line};position:absolute;left:${INDENT/2-1}px;top:0;height:50%;`;
-                const hp = document.createElement('div');
-                hp.style.cssText = `height:2px;background:${pRc.line};position:absolute;left:${INDENT/2-1}px;top:50%;width:${INDENT/2+2}px;transform:translateY(-50%);`;
-                corner.appendChild(vp); corner.appendChild(hp);
-                pRow.appendChild(corner);
-            }
-
-            const pCard = document.createElement('div');
-            pCard.style.cssText = `
-                display:inline-flex;align-items:center;gap:6px;
-                background:${pRc.card};
-                border:1.5px solid ${pRc.border};
-                border-left:5px solid ${pRc.bg};
-                border-radius:7px;
-                padding:4px 10px 4px 8px;
-                font-size:12px;cursor:pointer;
-                box-shadow:0 1px 4px rgba(0,0,0,0.10);
-                transition:box-shadow 0.12s;
-                opacity:0.85;
+            const rc = orgRankColor(p.rank || 'G0');
+            const pInvested = Number(p.totalInvested || 0);
+            const pUid = (p._uid || p.id || '').slice(0, 10);
+            
+            parentHtml += `
+                <ul><li>
+                  <div class="node-card" style="border: 2px solid ${rc.line}; opacity: 0.8; padding: 8px 12px; margin-bottom: 0px;" onclick="loadOrgTreeCentered('${p.id}')">
+                    <div style="font-size:12px; font-weight:700;">${p.name||'(이름없음)'}</div>
+                    <div style="font-size:10px; color:#64748b;">${p.rank||'G0'} | ${pUid}</div>
+                    <div style="font-size:10px; color:#6366f1; margin-top:2px;">▲ 상위 ${parents.length - idx}단계</div>
+                  </div>
             `;
-            pCard.innerHTML = `
-                <span style="background:${pRc.bg};color:${pRc.text};font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px;">${p.rank||'G0'}</span>
-                <span style="font-weight:700;color:#0f172a;white-space:nowrap;">${p.name||'(이름없음)'}</span>
-                <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${uid}</span>
-                <span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${pRc.border};border-radius:3px;padding:0 4px;">💰$${invested>0?invested.toLocaleString():'0'}</span>
-                <span style="font-size:10px;color:#6366f1;font-weight:700;padding:0 4px;border:1px solid #6366f1;border-radius:4px;background:#eef2ff;">📍기준으로</span>
-            `;
-            pCard.onclick = () => loadOrgTreeCentered(p.id, p);
-            pRow.appendChild(pCard);
-            inner.appendChild(pRow);
+            closingTags += '</li></ul>';
         });
-
-        // 부모-대상 연결선
-        const conn = document.createElement('div');
-        conn.style.cssText = `width:2px;height:16px;background:${orgRankColor(target.rank||'G0').line};margin-left:${28*(parents.length-1)+14}px;margin-bottom:3px;`;
-        inner.appendChild(conn);
+        
+        // Target node as the child of the last parent
+        parentHtml += `<ul>${buildCssTreeNode(target)}</ul>`;
+        html += parentHtml + closingTags;
+    } else {
+        // No parents, just target and children
+        html += buildCssTreeNode(target);
     }
+    
+    html += '</ul>';
+    treeContainer.innerHTML = html;
+    inner.appendChild(treeContainer);
 
-    // ── 대상 본인 (강조) ──
-    const targetRc  = orgRankColor(target.rank || 'G0');
-    const tInvested = Number(target.totalInvested || 0);
-    const tBonus    = Number(target.bonusBalance  || 0);
-    const tUid      = (target._uid || target.id || '').slice(0, 14);
-
-    const targetRow = document.createElement('div');
-    targetRow.style.cssText = 'display:flex;align-items:center;margin-bottom:6px;min-height:40px;';
-
-    // 부모가 있으면 들여쓰기
-    const tIndent = parents.length;
-    const INDENT = 28;
-    for (let i = 0; i < tIndent; i++) {
-        const sp = document.createElement('div');
-        sp.style.cssText = `width:${INDENT}px;flex-shrink:0;`;
-        targetRow.appendChild(sp);
-    }
-
-    const targetCard = document.createElement('div');
-    targetCard.style.cssText = `
-        display:inline-flex;align-items:center;gap:6px;
-        background:${targetRc.bg};
-        border:3px solid ${targetRc.border};
-        border-left:7px solid #fff;
-        border-radius:9px;
-        padding:7px 14px 7px 10px;
-        font-size:13px;cursor:pointer;
-        box-shadow:0 4px 16px rgba(0,0,0,0.25);
-    `;
-    targetCard.innerHTML = `
-        <span style="background:#fff;color:${targetRc.bg};font-size:10px;font-weight:900;padding:2px 7px;border-radius:4px;">📍${target.rank||'G0'}</span>
-        <span style="font-weight:800;color:#fff;white-space:nowrap;font-size:14px;">${target.name||'(이름없음)'}</span>
-        <span style="font-size:10px;color:rgba(255,255,255,0.7);font-family:monospace;">${tUid}</span>
-        <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);border-radius:4px;padding:1px 6px;color:#fff;">💰$${tInvested>0?tInvested.toLocaleString():'0'}</span>
-        ${tBonus>0?`<span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);border-radius:4px;padding:1px 6px;color:#fff;">🎁$${Math.round(tBonus).toLocaleString()}</span>`:''}
-    `;
-    targetCard.onclick = () => showCustomerDetail(target.id);
-    targetRow.appendChild(targetCard);
-    inner.appendChild(targetRow);
-
-    // ── 자식 트리 ──
-    if ((target.children||[]).length > 0) {
-        const childLabel = document.createElement('div');
-        childLabel.style.cssText = 'font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:4px;' +
-            `padding-left:${INDENT * tIndent + 4}px;`;
-        childLabel.textContent = `▼ 하위 ${depth}단계`;
-        inner.appendChild(childLabel);
-
-        const childBlock = document.createElement('div');
-        childBlock.style.paddingLeft = `${INDENT * tIndent}px`;
-        target.children.forEach((child, idx) => {
-            const isLast = idx === target.children.length - 1;
-            childBlock.appendChild(buildIndentNode(child, 1, [!isLast]));
-        });
-        inner.appendChild(childBlock);
-    }
 
     // ── 마우스 휠 확대/축소 ──
     scroller.addEventListener('wheel', (e) => {
