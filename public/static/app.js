@@ -383,7 +383,7 @@ const TRANSLATIONS = {
     emptyTx: '거래 내역이 없습니다',
     emptyBonus: '수익 내역이 없습니다',
     emptyBonusSub: '관리자가 일일 정산을 실행하면 여기에 표시됩니다.',
-    emptyNotice: '${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}',
+    emptyNotice: '공지사항을 찾을 수 없습니다.',
     loadFail: '불러오기 실패',
     loading: '불러오는 중...',
     noTitle: '제목 없음',
@@ -3523,7 +3523,7 @@ async function loadAnnouncements() {
   } catch (err) {
     console.error('[announcements] load error:', err);
     const el = document.getElementById('announcementList');
-    if (el) el.innerHTML = '<div class="empty-state">${t('emptyNotice')}</div>';
+    if (el) el.innerHTML = `<div class="empty-state">${t('emptyNotice')}</div>`;
   }
 }
 
@@ -3531,7 +3531,7 @@ function renderAnnouncements(items, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyNotice')}</div>';
+    el.innerHTML = `<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyNotice')}</div>`;
     return;
   }
   el.innerHTML = items.map(a => `
@@ -3581,7 +3581,7 @@ window.showAnnouncementDetail = async function(id) {
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
-    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}</div>'; return; }
+    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}</div>`; return; }
     const a = snap.data();
     if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || '제목 없음');
     if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
