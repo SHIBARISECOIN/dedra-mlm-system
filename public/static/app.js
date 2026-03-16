@@ -2758,7 +2758,7 @@ async function updateTodayEarnSummary(myInvestments) {
   let otherBonuses = 0;
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const { collection, query, where, getDocs, db } = window.FB;
+    const { collection, query, where, getDocs, limit, db } = window.FB;
     const snap = await getDocs(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid)));
     
     snap.docs.forEach(d => {
@@ -3332,7 +3332,7 @@ function updateHomeUI() {
 // ===== D-Day 카드 =====
 async function loadDDayCard() {
   try {
-    const { collection, query, where, getDocs, db } = window.FB;
+    const { collection, query, where, getDocs, limit, db } = window.FB;
     // 단일 where만 사용 → JS에서 필터·정렬 (복합 인덱스 불필요)
     const q = query(
       collection(db, 'investments'),
@@ -3382,7 +3382,7 @@ async function loadDDayCard() {
 
 // ===== 공지사항 =====
 async function loadAnnouncements() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   try {
     // 단일 where만 사용 (복합 인덱스 불필요) → JS로 정렬·필터
     const q = query(
@@ -3425,7 +3425,7 @@ function renderAnnouncements(items, containerId) {
 }
 
 window.showAnnouncementModal = async function() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   const modal = document.getElementById('announcementModal');
   if (modal) modal.classList.remove('hidden');
   const listEl = document.getElementById('announcementFullList');
@@ -3473,7 +3473,7 @@ window.showAnnouncementDetail = async function(id) {
 
 // ===== 최근 거래 =====
 async function loadRecentTransactions() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   try {
     // 단일 where → JS 정렬·슬라이스 (복합 인덱스 불필요)
     const q = query(
@@ -4427,7 +4427,7 @@ async function autoCompleteExpiredInvestments(investDocs) {
 }
 
 async function loadMyInvestments() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   const listEl = document.getElementById('myInvestList');
   const sumItems = { count: 0, total: 0, returns: 0 };
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
@@ -4736,7 +4736,7 @@ function updateRankUI() {
 }
 
 async function loadReferralList() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   const listEl = document.getElementById('referralList');
   const netBonus = document.getElementById('netBonus');
   const netDirect = document.getElementById('netDirectCount');
@@ -4892,10 +4892,55 @@ window.renderCaveTree = async function() {
   // -------------------------------------
 
   try {
-    const { collection, query, where, getDocs, db } = window.FB;
-    const q = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
-    const snap = await getDocs(q);
-    const children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const availableDepth = Math.max(1, maxDepth - window.cavePath.length + 1);
+    const fetchDepth = Math.min(3, availableDepth); // 3 depths max at once
+    
+    let children = [];
+    const { collection, query, where, getDocs, limit, db } = window.FB;
+    
+    // Level 1
+    const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
+    const snap1 = await getDocs(q1);
+    children = snap1.docs.map(d => ({ id: d.id, ...d.data(), children: [], hasMore: false }));
+    
+    if (fetchDepth >= 2 && children.length > 0) {
+        await Promise.all(children.map(async p1 => {
+            const q2 = query(collection(db, 'users'), where('referredBy', '==', p1.id));
+            const s2 = await getDocs(q2);
+            p1.children = s2.docs.map(d => ({ id: d.id, ...d.data(), children: [], hasMore: false }));
+            
+            if (fetchDepth >= 3 && p1.children.length > 0) {
+                await Promise.all(p1.children.map(async p2 => {
+                    const q3 = query(collection(db, 'users'), where('referredBy', '==', p2.id));
+                    const s3 = await getDocs(q3);
+                    p2.children = s3.docs.map(d => ({ id: d.id, ...d.data(), children: [], hasMore: false }));
+                    
+                    // check hasMore for level 3
+                    if (p2.children.length > 0) {
+                        await Promise.all(p2.children.map(async p3 => {
+                            const q4 = query(collection(db, 'users'), limit(1), where('referredBy', '==', p3.id));
+                            const s4 = await getDocs(q4);
+                            p3.hasMore = !s4.empty;
+                        }));
+                    }
+                }));
+            } else if (p1.children.length > 0) {
+                // check hasMore for level 2
+                await Promise.all(p1.children.map(async p2 => {
+                    const qt = query(collection(db, 'users'), limit(1), where('referredBy', '==', p2.id));
+                    const st = await getDocs(qt);
+                    p2.hasMore = !st.empty;
+                }));
+            }
+        }));
+    } else if (children.length > 0) {
+        // check hasMore for level 1
+        await Promise.all(children.map(async p1 => {
+            const qt = query(collection(db, 'users'), limit(1), where('referredBy', '==', p1.id));
+            const st = await getDocs(qt);
+            p1.hasMore = !st.empty;
+        }));
+    }
 
     const childrenWrap = document.getElementById('caveChildrenWrap');
     if (!childrenWrap) return;
@@ -4905,7 +4950,40 @@ window.renderCaveTree = async function() {
           ${lastNode.id === currentUser.uid ? t('shareToExpand') : t('noSubMembers')}
        </div>`;
     } else {
-       childrenWrap.innerHTML = children.map(c => renderNode(c, false, -1)).join('');
+       const buildNestedHtml = (nodes, currentDepth) => {
+          if (!nodes || nodes.length === 0) return '';
+          let html = `<div style="display:flex; justify-content:center; align-items:flex-start; position:relative;">`;
+          
+          nodes.forEach((n, idx) => {
+             html += `<div style="display:flex; flex-direction:column; align-items:center; position:relative; padding:0 8px;">`;
+             
+             if (nodes.length > 1) {
+                 let left = idx === 0 ? '50%' : '0';
+                 let width = (idx === 0 || idx === nodes.length - 1) ? '50%' : '100%';
+                 html += `<div style="position:absolute; top:0; left:${left}; width:${width}; height:2px; background:rgba(157,78,221,0.5); z-index:0;"></div>`;
+             }
+
+             html += `<div style="width:2px; height:24px; background:rgba(157,78,221,0.5); z-index:0;"></div>`;
+             
+             html += `<div style="z-index:1;">`;
+             html += renderNode(n, false, -1);
+             html += `</div>`;
+
+             if (n.children && n.children.length > 0 && currentDepth < fetchDepth) {
+                 html += `<div style="width:2px; height:24px; background:rgba(157,78,221,0.5); margin:0; z-index:0;"></div>`;
+                 html += buildNestedHtml(n.children, currentDepth + 1);
+             } else if (n.hasMore || (n.children && n.children.length > 0)) {
+                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${n.name}', '${n.rank}', false, -1)">▼ 더보기 (${n.rank||'G0'})</div>`;
+             }
+             
+             html += `</div>`;
+          });
+          
+          html += `</div>`;
+          return html;
+       };
+
+       childrenWrap.innerHTML = buildNestedHtml(children, 1);
     }
   
   } catch (err) {
@@ -6122,7 +6200,7 @@ window.saveWithdrawPin = async function() {
 };
 
 window.showTickets = async function() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   document.getElementById('ticketModal').classList.remove('hidden');
   const listEl = document.getElementById('ticketList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
@@ -6368,7 +6446,7 @@ function generateReferralCode(uid) {
 }
 
 async function findUserByReferralCode(code) {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   try {
     const q = query(collection(db, 'users'), where('referralCode', '==', code));
     const snap = await getDocs(q);
@@ -6849,7 +6927,7 @@ function _activateNepTab(tab) {
 /** 요약 카드 데이터 로드 — 1대/2대/3대+ 당일 수익 각각 집계 */
 async function _loadNepSummary() {
   if (!currentUser) return;
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
     // ── 전체 사용자 로드 (캐시) ──
@@ -6951,7 +7029,7 @@ async function _loadNepTab(tab) {
 /** 💳 거래내역 탭 */
 async function _loadNepTxTab(contentEl) {
   contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item" style="margin-bottom:8px"></div><div class="skeleton-item"></div>`;
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
     // 단일 where만 사용 (복합 인덱스 불필요)
@@ -7005,7 +7083,7 @@ async function _loadNepTxTab(contentEl) {
 /** 👤 1대 / 👥 2대 탭 — compact 목록 (ID·데일리·합계) */
 async function _loadNepGenTab(contentEl, gen) {
   contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:6px"></div><div class="skeleton-item" style="margin-bottom:6px"></div><div class="skeleton-item"></div>`;
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
     if (!_nepAllUsers) {
@@ -7175,7 +7253,7 @@ async function _loadNepGenTab(contentEl, gen) {
 /** 🌐 3대+ 탭 — 전체 집계 + 대별 compact 표 */
 async function _loadNepDeepTab(contentEl) {
   contentEl.innerHTML = `<div class="skeleton-item" style="margin-bottom:6px"></div><div class="skeleton-item"></div>`;
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
     if (!_nepAllUsers) {
@@ -7379,7 +7457,7 @@ async function checkAndTriggerDailyROI() {
 // ═══════════════════════════════════════════════════════════════
 async function loadTodayEarnCard() {
   try {
-    const { collection, query, where, getDocs, db } = window.FB;
+    const { collection, query, where, getDocs, limit, db } = window.FB;
     const today = new Date().toISOString().slice(0, 10);
     const thisMonth = today.slice(0, 7); // YYYY-MM
 
@@ -7438,7 +7516,7 @@ async function loadTodayEarnCard() {
 // ═══════════════════════════════════════════════════════════════
 async function loadEarnHistoryTab() {
   try {
-    const { collection, query, where, getDocs, db } = window.FB;
+    const { collection, query, where, getDocs, limit, db } = window.FB;
     const today = new Date().toISOString().slice(0, 10);
     const thisMonth = today.slice(0, 7);
 

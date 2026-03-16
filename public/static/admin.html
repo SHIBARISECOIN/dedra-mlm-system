@@ -11727,48 +11727,12 @@ window.renderAdminCaveTree = async function() {
   // 2. Fetch children for the last node in path
   const lastNode = window.adminCavePath[window.adminCavePath.length - 1];
   try {
+    const fetchDepth = 3; // admin 항상 3단계 씩 노출
+    const r = await api.getOrgTreeCentered(lastNode.id || lastNode.uid, 0, fetchDepth);
+    
     let children = [];
-    if (window.adminCavePath.length === 1 && (lastNode.role === 'admin' || lastNode.name === 'COMPANY ROOT' || lastNode.id === 'admin')) {
-        let snap;
-        try {
-            snap = await getDocs(collection(db, 'users'));
-        } catch(e) {
-            console.warn('Fallback to query for all users', e);
-            snap = await getDocs(query(collection(db, 'users')));
-        }
-        
-        const docs = snap.docs || (snap.forEach ? [] : snap);
-        if (snap.forEach && !snap.docs) {
-            snap.forEach(d => docs.push(d));
-        }
-        
-        docs.forEach(d => {
-            const data = d.data ? d.data() : d;
-            if (data.role !== 'admin') {
-                const ref = data.referredBy;
-                if (!ref || ref === 'admin' || ref === 'root' || ref === lastNode.id || ref === lastNode.uid) {
-                    children.push({ id: d.id || d.uid, ...data });
-                }
-            }
-        });
-    } else {
-        const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
-        let snap = await getDocs(q1);
-        
-        let docs = snap.docs || [];
-        if (snap.forEach && !snap.docs) {
-            snap.forEach(d => docs.push(d));
-        }
-        
-        if (docs.length === 0 && lastNode.uid && lastNode.uid !== lastNode.id) {
-            const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
-            snap = await getDocs(q2);
-            docs = snap.docs || [];
-            if (snap.forEach && !snap.docs) {
-                snap.forEach(d => docs.push(d));
-            }
-        }
-        children = docs.map(d => ({ id: d.id || d.uid, ...(d.data ? d.data() : d) }));
+    if (r.success && r.data && r.data.target) {
+        children = r.data.target.children || [];
     }
 
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');
@@ -11779,7 +11743,40 @@ window.renderAdminCaveTree = async function() {
           산하 회원이 없습니다.
        </div>`;
     } else {
-       childrenWrap.innerHTML = children.map(c => renderNode(c, false, -1)).join('');
+       const buildNestedHtml = (nodes, currentDepth) => {
+          if (!nodes || nodes.length === 0) return '';
+          let html = `<div style="display:flex; justify-content:center; align-items:flex-start; position:relative;">`;
+          
+          nodes.forEach((n, idx) => {
+             html += `<div style="display:flex; flex-direction:column; align-items:center; position:relative; padding:0 10px;">`;
+             
+             if (nodes.length > 1) {
+                 let left = idx === 0 ? '50%' : '0';
+                 let width = (idx === 0 || idx === nodes.length - 1) ? '50%' : '100%';
+                 html += `<div style="position:absolute; top:0; left:${left}; width:${width}; height:2px; background:rgba(99,102,241,0.5); z-index:0;"></div>`;
+             }
+
+             html += `<div style="width:2px; height:24px; background:rgba(99,102,241,0.5); z-index:0;"></div>`;
+             
+             html += `<div style="z-index:1;">`;
+             html += renderNode(n, false, -1);
+             html += `</div>`;
+
+             if (n.children && n.children.length > 0 && currentDepth < fetchDepth) {
+                 html += `<div style="width:2px; height:24px; background:rgba(99,102,241,0.5); margin:0; z-index:0;"></div>`;
+                 html += buildNestedHtml(n.children, currentDepth + 1);
+             } else if (n.hasMore || (n.children && n.children.length > 0)) {
+                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); padding:6px 12px; border-radius:12px; color:#6366f1; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition:all 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.2)'" onmouseout="this.style.background='rgba(99,102,241,0.1)'" onclick="handleAdminCaveNodeClick('${n.id}', '${n.name}', '${n.rank}', '${n.uid}', false, -1)">▼ 더보기 (${n.rank||'G0'})</div>`;
+             }
+             
+             html += `</div>`;
+          });
+          
+          html += `</div>`;
+          return html;
+       };
+
+       childrenWrap.innerHTML = buildNestedHtml(children, 1);
     }
     
     setTimeout(() => {
