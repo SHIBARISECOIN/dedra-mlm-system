@@ -6205,20 +6205,41 @@ async function startNotificationListener() {
   const { collection, query, where, onSnapshot, db, limit } = window.FB;
   if (_notiUnsubscribe) _notiUnsubscribe(); // 기존 리스너 해제
   try {
-    // isRead==false + userId 단일 필드 → 복합 인덱스 없이 동작하도록
-    // userId 단일 where로 조회 후 JS에서 필터
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', currentUser.uid),
       limit(50)
     );
+    let isInitialLoad = true;
     _notiUnsubscribe = onSnapshot(q, (snap) => {
+      // 뱃지 업데이트
       const count = snap.docs.filter(d => !d.data().isRead).length;
       const badge = document.getElementById('notiBadge');
       if (badge) {
         if (count > 0) { badge.classList.remove('hidden'); badge.textContent = count > 9 ? '9+' : count; }
         else { badge.classList.add('hidden'); badge.textContent = ''; }
       }
+
+      // 새 알림 토스트 띄우기 및 관련 뷰 새로고침
+      if (!isInitialLoad) {
+        snap.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            if (!data.isRead) {
+               showToast(`🔔 ${data.title || '새 알림이 도착했습니다.'}`, 'info');
+               
+               // 입/출금 승인 알림이면 실시간으로 내역 목록도 리로드
+               if (data.type === 'deposit_approved' || data.type === 'withdrawal_approved') {
+                 if (window.currentPage === 'asset') {
+                     setTimeout(() => window.switchPage('asset'), 500);
+                 }
+               }
+            }
+          }
+        });
+      }
+      isInitialLoad = false;
+
     }, () => {});
   } catch(e) { console.warn('[Noti] 리스너 오류:', e); }
 }
