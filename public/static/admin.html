@@ -7592,9 +7592,10 @@ function setupEvents() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    adminUid: currentAdmin?.uid || '',
-                    memberId: currentMember.id,
+                    uid: currentMember.id,
                     newPassword: newPw,
+                    adminSecret: 'deedra-cron-2026',
+                    adminUid: currentAdmin?.uid || '',
                     reason: reason || '관리자 임시 변경'
                 })
             });
