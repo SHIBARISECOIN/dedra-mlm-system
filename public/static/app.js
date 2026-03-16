@@ -2422,7 +2422,7 @@ window.onAuthReady = async (user) => {
 };
 
 async function initApp() {
-    setTimeout(() => { try { window.initGlobalMapAnimation(); }catch(e){} }, 1000);
+    
 
   console.log('initApp: started');
   try {
@@ -3324,6 +3324,8 @@ window.animateValue = function(el, start, end, duration, formatFn) {
 };
 
 function updateHomeUI() {
+  setTimeout(() => { try { window.initGlobalMapAnimation && window.initGlobalMapAnimation(); }catch(e){} }, 300);
+
   if (!userData || !walletData) return;
 
   const hour = new Date().getHours();
@@ -8233,4 +8235,140 @@ window.openGalaxyMode = async function() {
     loading.innerHTML = '우주 탐색 실패 🚀💥';
     setTimeout(() => overlay.remove(), 2000);
   }
+};
+
+
+// ==========================================
+// 실시간 글로벌 네트워크 맵 애니메이션 (1번 요구사항)
+// ==========================================
+window.initGlobalMapAnimation = function() {
+    const canvas = document.getElementById('globalMapCanvas');
+    if (!canvas) return;
+    if (canvas.dataset.initialized) return;
+    canvas.dataset.initialized = 'true';
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Resize dynamically in the draw loop instead of statically
+    let w = canvas.parentElement.clientWidth || window.innerWidth;
+    let h = canvas.parentElement.clientHeight || 180;
+    canvas.width = w;
+    canvas.height = h;
+
+    // 세계 지도 노드(도시) 임의 좌표 (상대적 위치)
+    const cities = [
+        {name: 'Seoul', x: 0.8, y: 0.4},
+        {name: 'Tokyo', x: 0.85, y: 0.42},
+        {name: 'New York', x: 0.25, y: 0.4},
+        {name: 'London', x: 0.3, y: 0.35},
+        {name: 'Paris', x: 0.45, y: 0.3},
+        {name: 'Dubai', x: 0.55, y: 0.45},
+        {name: 'Singapore', x: 0.6, y: 0.5},
+        {name: 'Hong Kong', x: 0.75, y: 0.6},
+        {name: 'Sydney', x: 0.78, y: 0.7},
+        {name: 'Mumbai', x: 0.62, y: 0.48},
+        {name: 'Ho Chi Minh', x: 0.76, y: 0.55}
+    ];
+
+    let nodes = cities.map(c => ({
+        name: c.name,
+        x: c.x * w,
+        y: c.y * h
+    }));
+
+    let lines = [];
+    
+    function addRandomLine() {
+        if(nodes.length < 2) return;
+        const from = nodes[Math.floor(Math.random() * nodes.length)];
+        let to = nodes[Math.floor(Math.random() * nodes.length)];
+        while(to === from) to = nodes[Math.floor(Math.random() * nodes.length)];
+        
+        lines.push({
+            from, to,
+            progress: 0,
+            speed: 0.01 + Math.random() * 0.02,
+            color: Math.random() > 0.5 ? '#10b981' : '#3b82f6'
+        });
+
+        const actions = ['joined', 'deposited', 'upgraded', 'freezed'];
+        const amt = Math.floor(Math.random()*9000 + 100);
+        const action = actions[Math.floor(Math.random()*actions.length)];
+        const ticker = document.getElementById('globalMapTicker');
+        if(ticker) {
+            ticker.style.opacity = 0;
+            setTimeout(() => {
+                if (action === 'joined') ticker.innerText = `New user joined in ${to.name}`;
+                else if (action === 'deposited') ticker.innerText = `${amt} USDT Deposited from ${from.name}`;
+                else if (action === 'upgraded') ticker.innerText = `Rank upgraded in ${to.name}`;
+                else ticker.innerText = `${amt} USDT FREEZE in ${from.name}`;
+                ticker.style.opacity = 1;
+            }, 500);
+        }
+    }
+
+    setInterval(addRandomLine, 3000);
+    setTimeout(addRandomLine, 1000);
+
+    function draw() {
+        // Handle resize dynamically
+        const pw = canvas.parentElement ? canvas.parentElement.clientWidth : w;
+        const ph = canvas.parentElement ? canvas.parentElement.clientHeight : h;
+        if (pw > 0 && ph > 0 && (w !== pw || h !== ph)) {
+            w = pw;
+            h = ph;
+            canvas.width = w;
+            canvas.height = h;
+            nodes = cities.map(c => ({
+                name: c.name,
+                x: c.x * w,
+                y: c.y * h
+            }));
+        }
+
+        ctx.fillStyle = 'rgba(11, 15, 25, 0.3)';
+        ctx.fillRect(0, 0, w, h);
+
+        // draw nodes
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        for (let n of nodes) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, 2, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // draw lines
+        for (let i = lines.length - 1; i >= 0; i--) {
+            let l = lines[i];
+            l.progress += l.speed;
+            
+            const curX = l.from.x + (l.to.x - l.from.x) * l.progress;
+            const curY = l.from.y + (l.to.y - l.from.y) * l.progress - Math.sin(l.progress * Math.PI) * 30; // arc
+            
+            ctx.beginPath();
+            ctx.moveTo(l.from.x, l.from.y);
+            ctx.quadraticCurveTo(
+                (l.from.x + l.to.x)/2, 
+                (l.from.y + l.to.y)/2 - 50, 
+                curX, curY
+            );
+            ctx.strokeStyle = l.color;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 1 - l.progress;
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+
+            if(l.progress >= 1) {
+                // draw explosion
+                ctx.beginPath();
+                ctx.arc(l.to.x, l.to.y, 6, 0, Math.PI*2);
+                ctx.fillStyle = l.color;
+                ctx.fill();
+                lines.splice(i, 1);
+            }
+        }
+        
+        requestAnimationFrame(draw);
+    }
+    draw();
 };
