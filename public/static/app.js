@@ -179,6 +179,7 @@ const TRANSLATIONS = {
     myInvestTitle: '📋 내 FREEZE 현황',
     // 네트워크
     pageNetwork: '🌐 네트워크',
+    pageChat: '💬 채팅',
     directRef: '직접 추천',
     totalDownline: '전체 하위',
     earnedBonus: '획득 보너스',
@@ -262,6 +263,7 @@ const TRANSLATIONS = {
     language: '언어',
     notification: '알림',
     appVersion: '앱 버전',
+    playMenu: '🎮 게임 플레이',
     logout: '로그아웃',
     // 모달
     modalDeposit: '💰 USDT 입금 신청',
@@ -705,6 +707,7 @@ const TRANSLATIONS = {
     productListTitle: '❄️ FREEZE Plans',
     myInvestTitle: '📋 My FREEZE',
     pageNetwork: '🌐 Network',
+    pageChat: '💬 Chat',
     directRef: 'Direct Refs',
     totalDownline: 'Total Downline',
     earnedBonus: 'Earned Bonus',
@@ -786,6 +789,7 @@ const TRANSLATIONS = {
     language: 'Language',
     notification: 'Notifications',
     appVersion: 'App Version',
+    playMenu: '🎮 Play Game',
     logout: 'Logout',
     modalDeposit: '💰 USDT Deposit Request',
     depositAddrLabel: 'Company Wallet Address (Solana SPL)',
@@ -1225,6 +1229,7 @@ const TRANSLATIONS = {
     productListTitle: '❄️ FREEZE Plans',
     myInvestTitle: '📋 Đầu tư của tôi',
     pageNetwork: '🌐 Mạng lưới',
+    pageChat: '💬 Chat',
     directRef: 'Giới thiệu trực tiếp',
     totalDownline: 'Tổng hạ tầng',
     earnedBonus: 'Tiền thưởng',
@@ -1306,6 +1311,7 @@ const TRANSLATIONS = {
     language: 'Ngôn ngữ',
     notification: 'Thông báo',
     appVersion: 'Phiên bản',
+    playMenu: '🎮 Chơi game',
     logout: 'Đăng xuất',
     modalDeposit: '💰 Yêu cầu nạp USDT',
     depositAddrLabel: 'Địa chỉ ví công ty (Solana SPL)',
@@ -1745,6 +1751,7 @@ const TRANSLATIONS = {
     productListTitle: '❄️ FREEZE Plans',
     myInvestTitle: '📋 การลงทุนของฉัน',
     pageNetwork: '🌐 เครือข่าย',
+    pageChat: '💬 แชท',
     directRef: 'แนะนำโดยตรง',
     totalDownline: 'เครือข่ายทั้งหมด',
     earnedBonus: 'โบนัสที่ได้รับ',
@@ -1826,6 +1833,7 @@ const TRANSLATIONS = {
     language: 'ภาษา',
     notification: 'การแจ้งเตือน',
     appVersion: 'เวอร์ชัน',
+    playMenu: '🎮 เล่นเกม',
     logout: 'ออกจากระบบ',
     modalDeposit: '💰 คำขอฝาก USDT',
     depositAddrLabel: 'ที่อยู่กระเป๋าบริษัท (Solana SPL)',
@@ -2973,6 +2981,11 @@ function showScreen(name) {
 
 // ===== 탭 전환 =====
 window.switchPage = function(page) {
+  if (page === 'chat' && !window.currentUser) {
+    showToast(t('loginRequired') || '로그인이 필요합니다.', 'warning');
+    return;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -2982,6 +2995,11 @@ window.switchPage = function(page) {
   if (navEl) navEl.classList.add('active');
 
   currentPage = page;
+
+  // Chat 초기화
+  if (page === 'chat' && window.chatManager) {
+    window.chatManager.init();
+  }
 
   if (page === 'invest') loadInvestPage();
   else if (page === 'network') loadNetworkPage();
