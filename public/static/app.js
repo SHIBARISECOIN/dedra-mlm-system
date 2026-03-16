@@ -2699,10 +2699,7 @@ async function _fetchAndApplyLivePrice(pair) {
     if (!data.success || !data.price) return;
     deedraPrice = data.price;
 
-    // Set chart iframes if not set
-    const miniIframe = document.getElementById('miniChartIframe');
-    if (miniIframe && !miniIframe.src.includes(pair)) {
-      miniIframe.src = `https://dexscreener.com/solana/${pair}?embed=1&theme=dark&info=0`;
+    
     }
 
     updatePriceTicker(deedraPrice, null, data.source, data.priceChange24h, true);
@@ -8634,8 +8631,15 @@ window.showFullscreenChart = function() {
   const modal = document.getElementById('chartModal');
   const fullIframe = document.getElementById('fullChartIframe');
   const pair = _livePrice_pair || 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c';
-  if (fullIframe && !fullIframe.src) {
-    fullIframe.src = `https://dexscreener.com/solana/${pair}?embed=1&theme=dark&info=0`;
+  
+  if (fullIframe) {
+    const targetSrc = `https://dexscreener.com/solana/${pair}?embed=1&theme=dark&info=0`;
+    // DOM iframe src gets fully qualified, so check if it includes dexscreener
+    if (!fullIframe.src.includes('dexscreener')) {
+      fullIframe.src = targetSrc;
+    }
+  }
+?embed=1&theme=dark&info=0`;
   }
   if (modal) modal.style.display = 'flex';
 };

@@ -250,10 +250,17 @@
               <div class="split-price-sub" id="deedraChange">1 DDRA = $0.5000</div>
               <div class="split-price-updated" id="deedraUpdated"></div>
               <!-- 소형 차트 (클릭 시 확대) -->
-              <div id="miniChartContainer" onclick="showFullscreenChart()" style="margin-top:12px; height:100px; width:100%; border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); position:relative; cursor:pointer;">
-                <div style="position:absolute;inset:0;z-index:10;"></div> <!-- 클릭 이벤트 캐치용 오버레이 -->
-                <iframe id="miniChartIframe" src="" width="100%" height="200" style="border:none; pointer-events:none; transform:scale(1); transform-origin:0 0; margin-top:-50px;" scrolling="no"></iframe>
-                <div style="position:absolute;bottom:4px;right:6px;font-size:10px;color:rgba(255,255,255,0.5);z-index:10;"><i class="fas fa-expand"></i> 확대</div>
+              <div onclick="showFullscreenChart()" style="margin-top:16px; padding:14px; background:linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1)); border:1px solid rgba(99,102,241,0.2); border-radius:12px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; transition:all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.15))'" onmouseout="this.style.background='linear-gradient(135deg, rgba(59,130,246,0.1), rgba(139,92,246,0.1))'">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:36px; height:36px; border-radius:10px; background:rgba(99,102,241,0.2); display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;">
+                    <i class="fas fa-chart-column"></i>
+                  </div>
+                  <div>
+                    <div style="color:#fff; font-weight:700; font-size:14px;">실시간 차트 보기</div>
+                    <div style="color:#94a3b8; font-size:11px;">DexScreener 거래내역</div>
+                  </div>
+                </div>
+                <div style="color:#8b5cf6;"><i class="fas fa-chevron-right"></i></div>
               </div>
               <!-- 오늘 수익 (투자 있을 때만 표시) -->
               <div id="todayEarnMini" class="today-earn-mini hidden">
@@ -1728,7 +1735,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1773678020458"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=1773679540719"></script>
+<script src="/static/app.js?v=1773680728269"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널
