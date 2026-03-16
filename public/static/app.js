@@ -3332,7 +3332,7 @@ function updateHomeUI() {
   const greetEl = document.getElementById('greetingMsg');
   const nameEl = document.getElementById('userNameDisplay');
   const rankImg = document.getElementById('userRankBadgeImg');
-  if (rankImg) let r = (userData.rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = '/static/ranks/' + r + '.png?v=2';
+  if (rankImg) { let r = (userData.rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = '/static/ranks/' + r + '.png?v=2'; }
   if (greetEl) greetEl.textContent = greeting + ' 👋';
   if (nameEl) nameEl.textContent = (userData.name || '회원') + ' (' + (userData.referralCode || '') + ')님';
 
