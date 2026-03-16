@@ -2783,16 +2783,26 @@ export class DedraAPI {
   async getOrgTree(rootUserId, maxDepth = 5) {
     try {
       // users + wallets 병렬 로드
-      const [userSnap, walletSnap] = await Promise.all([
-        getDocs(collection(this.db, 'users')),
-        getDocs(collection(this.db, 'wallets'))
-      ]);
-
-      // wallets 맵: uid → {totalInvested, bonusBalance, ...}
+      
+      let userSnap, walletSnap;
+      try {
+        userSnap = await getDocs(collection(this.db, 'users'));
+      } catch (e) {
+        console.error('Failed to get users', e);
+        return fail(e);
+      }
+      
       const walletMap = new Map();
-      walletSnap.docs.forEach(d => {
-        walletMap.set(d.id, d.data());
-      });
+      try {
+        walletSnap = await getDocs(collection(this.db, 'wallets'));
+        if (walletSnap && walletSnap.docs) {
+            walletSnap.docs.forEach(d => walletMap.set(d.id, d.data()));
+        }
+      } catch (e) {
+        console.warn('Failed to get wallets (permission denied usually for non-admins)', e.message);
+        // continue without wallets
+      }
+
 
       const allDocs = userSnap.docs.map(d => {
         const data = d.data();
@@ -2908,13 +2918,26 @@ export class DedraAPI {
   // ─────────────────────────────────────────────────
   async getOrgTreeCentered(targetUserId, upDepth = 2, downDepth = 3) {
     try {
-      const [userSnap, walletSnap] = await Promise.all([
-        getDocs(collection(this.db, 'users')),
-        getDocs(collection(this.db, 'wallets'))
-      ]);
-
+      
+      let userSnap, walletSnap;
+      try {
+        userSnap = await getDocs(collection(this.db, 'users'));
+      } catch (e) {
+        console.error('Failed to get users', e);
+        return fail(e);
+      }
+      
       const walletMap = new Map();
-      walletSnap.docs.forEach(d => walletMap.set(d.id, d.data()));
+      try {
+        walletSnap = await getDocs(collection(this.db, 'wallets'));
+        if (walletSnap && walletSnap.docs) {
+            walletSnap.docs.forEach(d => walletMap.set(d.id, d.data()));
+        }
+      } catch (e) {
+        console.warn('Failed to get wallets (permission denied usually for non-admins)', e.message);
+        // continue without wallets
+      }
+
 
       const allDocs = userSnap.docs.map(d => {
         const data = d.data();
