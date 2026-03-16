@@ -62,11 +62,23 @@ window.SolanaWallet = {
   async connect() {
     const provider = this.detectProvider();
     if (!provider) {
-      // 모바일: 딥링크로 Phantom 앱 오픈
-      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+      const ua = navigator.userAgent;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+      
       if (isMobile) {
-        const url = encodeURIComponent(window.location.href);
-        window.open(`https://phantom.app/ul/browse/${url}?ref=${url}`, '_blank');
+        if (/android/i.test(ua)) {
+          window.location.href = 'market://details?id=app.phantom';
+          // Fallback to web link if market:// fails
+          setTimeout(() => {
+            window.location.href = 'https://play.google.com/store/apps/details?id=app.phantom';
+          }, 500);
+        } else if (/ipad|iphone|ipod/i.test(ua)) {
+          window.location.href = 'itms-apps://itunes.apple.com/app/id1598432977';
+          // Fallback to web link if itms-apps:// fails
+          setTimeout(() => {
+            window.location.href = 'https://apps.apple.com/app/id1598432977';
+          }, 500);
+        }
         throw new Error('MOBILE_DEEPLINK');
       }
       throw new Error('NO_WALLET');

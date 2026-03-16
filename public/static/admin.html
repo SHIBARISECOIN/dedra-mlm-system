@@ -5,6 +5,100 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DEEDRA - 관리자</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+window.makeDraggableMap = function(ele) {
+    if (!ele || ele._dragInit) return;
+    ele._dragInit = true;
+    ele.style.cursor = 'grab';
+    
+    let isDown = false;
+    let startX, startY, scrollLeft, scrollTop;
+    let isDragging = false;
+
+    // Prevent native image dragging
+    ele.addEventListener('dragstart', (e) => e.preventDefault());
+
+    // Mouse Events
+    ele.addEventListener('mousedown', (e) => {
+        isDown = true;
+        ele.style.cursor = 'grabbing';
+        isDragging = false;
+        startX = e.pageX - ele.offsetLeft;
+        startY = e.pageY - ele.offsetTop;
+        scrollLeft = ele.scrollLeft;
+        scrollTop = ele.scrollTop;
+    });
+
+    ele.addEventListener('mouseleave', () => {
+        isDown = false;
+        ele.style.cursor = 'grab';
+    });
+
+    ele.addEventListener('mouseup', () => {
+        isDown = false;
+        ele.style.cursor = 'grab';
+    });
+
+    ele.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault(); // Prevent text selection
+        const x = e.pageX - ele.offsetLeft;
+        const y = e.pageY - ele.offsetTop;
+        const walkX = (x - startX);
+        const walkY = (y - startY);
+        
+        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
+            isDragging = true;
+        }
+        
+        ele.scrollLeft = scrollLeft - walkX;
+        ele.scrollTop = scrollTop - walkY;
+    });
+
+    // Touch Events
+    ele.addEventListener('touchstart', (e) => {
+        isDown = true;
+        isDragging = false;
+        startX = e.touches[0].pageX - ele.offsetLeft;
+        startY = e.touches[0].pageY - ele.offsetTop;
+        scrollLeft = ele.scrollLeft;
+        scrollTop = ele.scrollTop;
+    }, { passive: true });
+
+    ele.addEventListener('touchend', () => {
+        isDown = false;
+    });
+
+    ele.addEventListener('touchcancel', () => {
+        isDown = false;
+    });
+
+    ele.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - ele.offsetLeft;
+        const y = e.touches[0].pageY - ele.offsetTop;
+        const walkX = (x - startX);
+        const walkY = (y - startY);
+        
+        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
+            isDragging = true;
+            if (e.cancelable) e.preventDefault(); // Prevent native scroll
+        }
+        
+        ele.scrollLeft = scrollLeft - walkX;
+        ele.scrollTop = scrollTop - walkY;
+    }, { passive: false });
+
+    // Prevent click if we were dragging
+    ele.addEventListener('click', function(e) {
+        if (isDragging) {
+            e.preventDefault();
+            e.stopPropagation();
+            isDragging = false;
+        }
+    }, true);
+};
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{--primary:#6366f1;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--dark:#1f2937;--gray:#6b7280;--light:#f3f4f6;--white:#ffffff;--sidebar-w:210px;}
@@ -804,6 +898,14 @@ canvas{width:100% !important;}
 .edit-history-reason {
   font-size:12px; color:#64748b; margin-top:3px;
   font-style:italic;
+}
+
+      .hover-row { transition: background-color 0.2s; }
+      .hover-row:hover { background-color: var(--bg2) !important; }
+    
+@keyframes popIn {
+    0% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 </style>
 </head>
@@ -2985,7 +3087,6 @@ canvas{width:100% !important;}
         </div>
         <div id="newRatesAlert" style="margin-top:12px;"></div>
       </div>
-    </div>
 
     <!-- ══════════════════════════════════════════════
            보너스 지급 패턴 설정 카드 (SECTION 1~3)
@@ -4747,7 +4848,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, onAuthStateChanged, signOut, signInWithCredential, signInWithCustomToken, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
     getFirestore, doc, getDoc as _fsGetDoc, collection, getDocs as _fsGetDocs,
-    query, where, orderBy, limit,
+    query, where, orderBy, limit, onSnapshot,
     addDoc, updateDoc, deleteDoc, setDoc, serverTimestamp, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { DedraAPI } from '/static/js/api.js';
@@ -5137,14 +5238,18 @@ async function loadRecentActivity() {
     try {
         const q1 = query(collection(db,'transactions'), where('type','==','deposit'), limit(20));
         const snap1 = await getDocs(q1);
-        const rows1 = snap1.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,5);
+        const rows1 = snap1.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=> {
+            const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+            const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+            return timeB - timeA;
+        }).slice(0,5);
         const el1 = document.getElementById('recentDeposits');
         if (!rows1.length) { el1.innerHTML = '<div class="empty-state">입금 신청 없음</div>'; }
         else el1.innerHTML = rows1.map(r=>`
             <div class="activity-item">
               <div class="activity-dot ${r.status==='pending'?'orange':r.status==='approved'?'green':'red'}"></div>
               <div>
-                <div class="activity-text"><strong>${r.amount?.toFixed(2)} USDT</strong> · <span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></div>
+                <div class="activity-text"><strong>${parseFloat(r.amount || 0).toFixed(2)} USDT</strong> · <span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></div>
                 <div class="activity-time">${r.userId?.substring(0,10)}... · ${fmtDate(r.createdAt)}</div>
               </div>
               ${r.status==='pending'?`<button class="btn btn-primary btn-xs" onclick="navigateTo('deposits');showDepositDetail('${r.id}')">처리</button>`:''}
@@ -5155,14 +5260,18 @@ async function loadRecentActivity() {
     try {
         const q2 = query(collection(db,'transactions'), where('type','==','withdrawal'), limit(20));
         const snap2 = await getDocs(q2);
-        const rows2 = snap2.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,5);
+        const rows2 = snap2.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=> {
+            const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+            const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+            return timeB - timeA;
+        }).slice(0,5);
         const el2 = document.getElementById('recentWithdrawals');
         if (!rows2.length) { el2.innerHTML = '<div class="empty-state">출금 신청 없음</div>'; }
         else el2.innerHTML = rows2.map(r=>`
             <div class="activity-item">
               <div class="activity-dot ${r.status==='pending'?'orange':r.status==='approved'?'green':'red'}"></div>
               <div>
-                <div class="activity-text"><strong>${r.amount?.toFixed(2)} DEEDRA</strong> · <span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></div>
+                <div class="activity-text"><strong>${parseFloat(r.amount || 0).toFixed(2)} DEEDRA</strong> · <span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></div>
                 <div class="activity-time">${r.userId?.substring(0,10)}... · ${fmtDate(r.createdAt)}</div>
               </div>
               ${r.status==='pending'?`<button class="btn btn-primary btn-xs" onclick="navigateTo('withdrawals');showWithdrawalDetail('${r.id}')">처리</button>`:''}
@@ -5228,48 +5337,89 @@ function showWalletsAlert(type, msg) {
 // ══════════════════════════════════════════════════
 // 입금/출금 목록
 // ══════════════════════════════════════════════════
+let _unsubDeposits = null;
+let _pollDeposits = null;
+
 async function loadDeposits(status = 'pending') {
     currentDepositStatus = status;
     const wrap = document.getElementById('depositsTableWrap');
+    
+    if (_unsubDeposits) { _unsubDeposits(); _unsubDeposits = null; }
+    if (_pollDeposits) { clearInterval(_pollDeposits); _pollDeposits = null; }
+    
     wrap.innerHTML = loading();
-    try {
-        const q = query(collection(db,'transactions'), where('type','==','deposit'), where('status','==',status));
-        const snap = await getDocs(q);
-        const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    
+    const q = query(collection(db,'transactions'), where('type','==','deposit'), where('status','==',status));
+    
+    const renderRows = (snap) => {
+        const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=> {
+            const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+            const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+            return timeB - timeA;
+        });
         if (!rows.length) { wrap.innerHTML = emptyState('입금 내역이 없습니다'); return; }
         wrap.innerHTML = `<div class="table-wrap"><table>
           <thead><tr><th>회원 UID</th><th>금액 (USDT)</th><th>TXID</th><th>신청일</th><th>상태</th><th>작업</th></tr></thead>
           <tbody>${rows.map(r=>`<tr>
             <td><code style="font-size:12px;">${r.userId?.substring(0,12)}...</code></td>
-            <td><strong style="color:var(--success)">${r.amount?.toFixed(2)}</strong></td>
+            <td><strong style="color:var(--success)">${parseFloat(r.amount || 0).toFixed(2)}</strong></td>
             <td title="${r.txid||''}"><code style="font-size:11px;">${(r.txid||'없음').substring(0,16)}${r.txid?.length>16?'...':''}</code></td>
             <td>${fmtDate(r.createdAt)}</td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
             <td><button class="btn btn-primary btn-sm" onclick="showDepositDetail('${r.id}')">상세</button></td>
           </tr>`).join('')}</tbody></table></div>`;
-    } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); }
+    };
+
+    try {
+        const snap = await getDocs(q);
+        renderRows(snap);
+    } catch(e) { 
+        wrap.innerHTML = emptyState('오류: '+e.message);
+        return;
+    }
+
+    if (!_currentSubAdmin) {
+        try {
+            _unsubDeposits = onSnapshot(q, (snap) => renderRows(snap));
+        } catch(e) {}
+    } else {
+        _pollDeposits = setInterval(async () => {
+            try { const snap = await getDocs(q); renderRows(snap); } catch(e) {}
+        }, 5000);
+    }
 }
 
 // 전역 DEEDRA 시세 캐시
 let _cachedDedraRate = null;
 
+let _unsubWithdrawals = null;
+let _pollWithdrawals = null;
+
 async function loadWithdrawals(status = 'pending') {
     currentWithdrawalStatus = status;
     const wrap = document.getElementById('withdrawalsTableWrap');
+    
+    if (_unsubWithdrawals) { _unsubWithdrawals(); _unsubWithdrawals = null; }
+    if (_pollWithdrawals) { clearInterval(_pollWithdrawals); _pollWithdrawals = null; }
+    
     wrap.innerHTML = loading();
-    try {
-        // DEEDRA 시세 로드 (캐시 활용)
-        let dedraRate = _cachedDedraRate;
-        if (!dedraRate) {
-            try {
-                const rSnap = await getDoc(doc(db,'settings','dedra_rate'));
-                if (rSnap.exists()) { dedraRate = rSnap.data().dedraPerUsd; _cachedDedraRate = dedraRate; }
-            } catch(e) {}
-        }
+    
+    let dedraRate = _cachedDedraRate;
+    if (!dedraRate) {
+        try {
+            const rSnap = await getDoc(doc(db,'settings','dedra_rate'));
+            if (rSnap.exists()) { dedraRate = rSnap.data().dedraPerUsd; _cachedDedraRate = dedraRate; }
+        } catch(e) {}
+    }
 
-        const q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','==',status));
-        const snap = await getDocs(q);
-        const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','==',status));
+    
+    const renderRows = (snap) => {
+        const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=> {
+            const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+            const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+            return timeB - timeA;
+        });
         if (!rows.length) { wrap.innerHTML = emptyState('출금 내역이 없습니다'); return; }
 
         const rateInfo = `<div style="font-size:11px;color:#6366f1;background:#ede9fe;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">💱 출금 = USDT 기준 신청 → DDRA 코인으로 지급</div>`;
@@ -5287,24 +5437,41 @@ async function loadWithdrawals(status = 'pending') {
           </tr></thead>
           <tbody>${rows.map(r => {
             const amtUsdt = (r.amountUsdt || r.amount || 0).toFixed(2);
-            const amtDdra = (r.amount || 0).toFixed(4);
-            const wallet = r.walletAddress || '';
-            const walletShort = wallet ? wallet.substring(0,6)+'...'+wallet.substring(wallet.length-4) : '없음';
+            let dAmt = r.amountDedra;
+            if (!dAmt && r.amountUsdt && r.dedraRateAtTime) dAmt = r.amountUsdt * r.dedraRateAtTime;
+            const amtDedra = dAmt ? dAmt.toFixed(4) : '-';
+            const rateText = r.dedraRateAtTime ? ` (${r.dedraRateAtTime})` : '';
             return `<tr>
               <td><code style="font-size:12px;">${r.userId?.substring(0,12)}...</code></td>
-              <td><strong style="color:#dc2626;font-size:14px;">${amtUsdt}</strong><div style="font-size:10px;color:#94a3b8;">USDT</div></td>
-              <td><strong style="color:#6d28d9;font-size:13px;">${amtDdra}</strong><div style="font-size:10px;color:#94a3b8;">DDRA</div></td>
-              <td title="${wallet}">
-                <code style="font-size:11px;">${walletShort}</code>
-                ${wallet ? `<button onclick="navigator.clipboard.writeText('${wallet}').then(()=>showToast('주소 복사됨','success'))" style="background:none;border:none;cursor:pointer;font-size:10px;color:#6366f1;padding:0 2px;vertical-align:middle;" title="복사">📋</button>` : ''}
-              </td>
+              <td><strong style="color:var(--danger)">${amtUsdt}</strong></td>
+              <td>${amtDedra !== '-' ? `<strong style="color:#6366f1;">${amtDedra}</strong><span style="font-size:10px;color:#94a3b8;">${rateText}</span>` : '-'}</td>
+              <td title="${r.walletAddress||''}"><code style="font-size:11px;">${(r.walletAddress||'없음').substring(0,12)}...</code></td>
               <td>${fmtDate(r.createdAt)}</td>
               <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
-              <td>${r.txid?`<code style="font-size:11px;">${r.txid.substring(0,10)}...</code>`:'-'}</td>
+              <td title="${r.txid||''}"><code style="font-size:11px;">${(r.txid||'-').substring(0,8)}...</code></td>
               <td><button class="btn btn-primary btn-sm" onclick="showWithdrawalDetail('${r.id}')">상세</button></td>
             </tr>`;
-          }).join('')}</tbody></table></div>`;
-    } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); }
+          }).join('')}</tbody>
+        </table></div>`;
+    };
+
+    try {
+        const snap = await getDocs(q);
+        renderRows(snap);
+    } catch(e) {
+        wrap.innerHTML = emptyState('오류: '+e.message);
+        return;
+    }
+
+    if (!_currentSubAdmin) {
+        try {
+            _unsubWithdrawals = onSnapshot(q, (snap) => renderRows(snap));
+        } catch(e) {}
+    } else {
+        _pollWithdrawals = setInterval(async () => {
+            try { const snap = await getDocs(q); renderRows(snap); } catch(e) {}
+        }, 5000);
+    }
 }
 
 // ══════════════════════════════════════════════════
@@ -5560,7 +5727,11 @@ async function loadBonusLog() {
         const snap = await getDocs(query(collection(db,'bonuses'), limit(100)));
         const rows = snap.docs
             .map(d=>({id:d.id,...d.data()}))
-            .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0))
+            .sort((a,b)=> {
+                const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+                const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+                return timeB - timeA;
+            })
             .slice(0,50);
         if (!rows.length) { wrap.innerHTML = emptyState('보너스 지급 내역 없음'); return; }
         wrap.innerHTML = `<div class="table-wrap"><table>
@@ -7051,7 +7222,11 @@ async function loadMemberTxHistory(userId) {
         const snap = await getDocs(q);
         const rows = snap.docs
             .map(d=>({id:d.id,...d.data()}))
-            .sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+            .sort((a,b)=> {
+                const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+                const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+                return timeB - timeA;
+            });
         if (!rows.length) { wrap.innerHTML = emptyState('거래 내역 없음'); return; }
         wrap.innerHTML = `<div class="table-wrap"><table>
           <thead><tr><th>유형</th><th>금액</th><th>상태</th><th>TXID</th><th>일시</th></tr></thead>
@@ -8124,21 +8299,80 @@ async function loadRankMonitor() {
     }
 }
 
+window._rankMonitorPage = 1;
+window._lastRankMonitorFilter = '';
+
 function renderRankMemberList(rankFilter) {
     const wrap = document.getElementById('rankMemberListWrap');
+    if (!wrap) return;
+    
+    // Reset page if filter changes
+    const currentFilter = rankFilter || '';
+    if (window._lastRankMonitorFilter !== currentFilter) {
+        window._rankMonitorPage = 1;
+        window._lastRankMonitorFilter = currentFilter;
+    }
+
     let members = allMembersForRank;
     if (rankFilter) members = members.filter(m => (m.rank || 'G0') === rankFilter);
     if (!members.length) { wrap.innerHTML = emptyState('해당 직급 회원이 없습니다'); return; }
-    wrap.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>이름</th><th>이메일</th><th>직급</th><th>추천인수</th><th>상태</th><th>가입일</th></tr></thead>
-      <tbody>${members.slice(0, 100).map(m => `<tr>
+
+    const PAGE_SIZE = 50;
+    const totalPages = Math.ceil(members.length / PAGE_SIZE);
+    const curPage = Math.min(Math.max(window._rankMonitorPage || 1, 1), Math.max(totalPages, 1));
+    window._rankMonitorPage = curPage;
+
+    const pageMembers = members.slice((curPage-1)*PAGE_SIZE, curPage*PAGE_SIZE);
+
+    let html = `<div style="margin-bottom:10px;font-size:13px;color:var(--gray);text-align:right;">총 ${members.length}명</div>`;
+    html += `<div class="table-wrap"><table>
+      <thead><tr>
+        <th>이름</th>
+        <th>아이디(이메일)</th>
+        <th>전화번호</th>
+        <th>파트너 코드</th>
+        <th>직급</th>
+        <th>추천인수</th>
+        <th>상태</th>
+        <th>가입일</th>
+      </tr></thead>
+      <tbody>`;
+      
+    html += pageMembers.map(m => `<tr onclick="showMemberDetail('${m.id}')" style="cursor:pointer;" class="hover-row">
         <td><strong>${m.name||'-'}</strong></td>
-        <td style="font-size:12px;">${m.email||'-'}</td>
+        <td style="font-size:12px;">${m.email||m.uid||'-'}</td>
+        <td style="font-size:12px;">${m.phone||'-'}</td>
+        <td style="font-size:12px;font-family:monospace;color:var(--primary);font-weight:bold;">${m.referralCode||'-'}</td>
         <td><span class="badge badge-rank">${m.rank||'G0'}</span></td>
         <td>${m.totalReferrals||0}명</td>
         <td><span class="badge badge-${m.status==='active'?'active':'suspended'}">${m.status==='active'?'활성':'정지'}</span></td>
         <td style="font-size:12px;">${fmtDate(m.createdAt)}</td>
-      </tr>`).join('')}</tbody></table></div>`;
+      </tr>`).join('');
+      
+    html += `</tbody></table></div>`;
+
+    // Pagination Controls
+    if (totalPages > 1) {
+        html += `<div class="pagination" style="margin-top:16px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">`;
+        if (curPage > 1) {
+            html += `<button class="btn btn-sm btn-outline" onclick="window._rankMonitorPage=${curPage-1}; renderRankMemberList('${currentFilter}');">◀ 이전</button>`;
+        }
+        
+        let startPage = Math.max(1, curPage - 4);
+        let endPage = Math.min(totalPages, startPage + 9);
+        if (endPage - startPage < 9) startPage = Math.max(1, endPage - 9);
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="btn btn-sm ${i === curPage ? 'btn-primary' : 'btn-outline'}" onclick="window._rankMonitorPage=${i}; renderRankMemberList('${currentFilter}');">${i}</button>`;
+        }
+        
+        if (curPage < totalPages) {
+            html += `<button class="btn btn-sm btn-outline" onclick="window._rankMonitorPage=${curPage+1}; renderRankMemberList('${currentFilter}');">다음 ▶</button>`;
+        }
+        html += `</div>`;
+    }
+
+    wrap.innerHTML = html;
 }
 
 window.applyRankUpgrade = async (userId, newRank, name) => {
@@ -11529,299 +11763,168 @@ const ORG_RANK_COLORS = {
 };
 function orgRankColor(rank) { return ORG_RANK_COLORS[rank] || ORG_RANK_COLORS['G0']; }
 
+window.adminCavePath = [];
+
 async function loadOrgTree(rootId = null) {
-    const wrap  = document.getElementById('orgTreeWrapAdmin');
-    const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
+    const wrap = document.getElementById('orgTreeWrapAdmin');
+    if (!wrap) return;
+
     wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>조직 트리 로딩 중...</span></div>';
 
-    const r = await api.getOrgTree(rootId, depth);
-    if (!r.success) { wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>${r.error}</div></div>`; return; }
-
-    let totalNodes = 0;
-    const countNodes = (ns) => ns.forEach(n => { totalNodes++; countNodes(n.children||[]); });
-    countNodes(r.data);
-    document.getElementById('orgTreeStats').textContent = `표시: ${totalNodes}명 (최대 ${depth}단계)`;
-
-    if (!r.data.length) { wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">🌐</div><div>조직 트리가 없습니다</div></div>'; return; }
-
-    // 스크롤 컨테이너
-    wrap.innerHTML = '';
-    const scroller = document.createElement('div');
-    scroller.style.cssText = 'overflow:auto;width:100%;height:100%;min-height:400px;';
-    wrap.appendChild(scroller);
-
-    const inner = document.createElement('div');
-    inner.id = 'orgTreeInner';
-    inner.style.cssText = `transform-origin:top left;transform:scale(${orgScale});display:inline-block;min-width:100%;padding:20px 24px 60px;`;
-    scroller.appendChild(inner);
-
-    // 루트 목록 렌더
-    r.data.forEach(root => inner.appendChild(buildIndentNode(root, 0, [])));
-
-    // ── 마우스 휠 확대/축소 ──
-    scroller.addEventListener('wheel', (e) => {
-        if (!e.ctrlKey && !e.metaKey) return;
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.08 : 0.08;
-        orgScale = Math.min(3, Math.max(0.2, orgScale + delta));
-        inner.style.transform = `scale(${orgScale})`;
-        const lbl = document.getElementById('orgZoomLabel');
-        if (lbl) lbl.textContent = Math.round(orgScale * 100) + '%';
-    }, { passive: false });
-
-    // 이벤트
-    document.getElementById('orgTreeSearchBtn').onclick = async () => {
-        const q = document.getElementById('orgTreeSearchInput').value.trim();
-        if (!q) return;
-        const snap = await getDocs(query(collection(db, 'users'), where('name', '==', q)));
-        if (!snap.empty) { loadOrgTree(snap.docs[0].id); return; }
-        const snap2 = await getDocs(collection(db, 'users'));
-        const found = snap2.docs.find(d => d.id===q || d.data().uid===q || d.data().email===q);
-        if (found) loadOrgTree(found.id); else showToast('해당 회원을 찾을 수 없습니다.');
-    };
-    document.getElementById('orgTreeRootBtn').onclick = () => { document.getElementById('orgTreeSearchInput').value=''; loadOrgTree(null); };
-    document.getElementById('orgTreeDepth').onchange   = () => loadOrgTree(rootId);
-    document.getElementById('orgHorizontal').onchange  = () => loadOrgTree(rootId);
-}
-
-/*
- * buildIndentNode - 들여쓰기 트리
- *
- * [루트]
- * ├─ [자식1]
- * │   ├─ [손자1]
- * │   └─ [손자2]
- * └─ [자식2]
- *     └─ [손자3]
- *
- * ancestors: 각 depth에서 "아직 형제가 남아있는지" boolean 배열
- *   true  = 해당 depth에서 수직선을 계속 그어야 함
- *   false = 마지막 자식이라 수직선 끊김
- */
-function buildIndentNode(node, depth, ancestors) {
-    const rank     = node.rank || 'G0';
-    const rc       = orgRankColor(rank);
-    const children = node.children || [];
-    const invested = Number(node.totalInvested || 0);
-    const bonus    = Number(node.bonusBalance  || 0);
-    const uid      = (node._uid || node.id || '').slice(0, 14);
-
-    // ── 행 컨테이너 ──
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;margin-bottom:3px;min-height:38px;';
-
-    // ── 왼쪽 들여쓰기 선들 ──
-    // depth 0: 선 없음
-    // depth 1+: ancestors 배열에 따라 수직선 or 공백 + 꺾임선
-    const INDENT = 28; // px per level
-    if (depth > 0) {
-        // ancestors[0..depth-2] → 수직선 or 공백
-        for (let i = 0; i < depth - 1; i++) {
-            const guide = document.createElement('div');
-            guide.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;display:flex;justify-content:center;`;
-            if (ancestors[i]) {
-                // 수직선 계속
-                const vl = document.createElement('div');
-                vl.style.cssText = `width:2px;background:${orgRankColor('G0').line};align-self:stretch;margin-left:${INDENT/2-1}px;`;
-                guide.appendChild(vl);
+    try {
+        let rootNode = null;
+        
+        if (rootId) {
+            // Find specific user
+            const snap = await getDoc(doc(db, 'users', rootId));
+            if (snap.exists()) {
+                rootNode = { id: snap.id, ...snap.data() };
             }
-            row.appendChild(guide);
+        } else {
+            // Find COMPANY (or users with no referredBy/empty referredBy)
+            const q = query(collection(db, 'users'), where('role', '==', 'admin'));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                rootNode = { id: snap.docs[0].id, ...snap.docs[0].data(), name: 'COMPANY ROOT' };
+            } else {
+                // fallback to first active user if no admin found
+                const q2 = query(collection(db, 'users'), limit(1));
+                const snap2 = await getDocs(q2);
+                if (!snap2.empty) rootNode = { id: snap2.docs[0].id, ...snap2.docs[0].data() };
+            }
         }
-        // 마지막 꺾임 (├─ or └─)
-        const corner = document.createElement('div');
-        corner.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
-        const isLast = !ancestors[depth - 1];
-        // 수직선 (위쪽 절반 → 가운데, isLast면 아래쪽 절반 없음)
-        const vPart = document.createElement('div');
-        vPart.style.cssText = `position:absolute;left:${INDENT/2-1}px;top:0;width:2px;background:${rc.line};${isLast ? 'height:50%;' : 'height:100%;'}`;
-        corner.appendChild(vPart);
-        // 가로선 (가운데 → 오른쪽)
-        const hPart = document.createElement('div');
-        hPart.style.cssText = `position:absolute;left:${INDENT/2-1}px;top:50%;height:2px;width:${INDENT/2+2}px;background:${rc.line};transform:translateY(-50%);`;
-        corner.appendChild(hPart);
-        row.appendChild(corner);
+
+        if (!rootNode) {
+            wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">🌐</div><div>조직 트리를 찾을 수 없습니다.</div></div>';
+            return;
+        }
+
+        window.adminCavePath = [{
+            id: rootNode.id,
+            name: rootNode.name || '알 수 없음',
+            rank: rootNode.rank || 'G0',
+            uid: rootNode.uid || rootNode.id
+        }];
+
+        await renderAdminCaveTree();
+        
+        // Update stats
+        document.getElementById('orgTreeStats').textContent = `현재 기준: ${rootNode.name}`;
+
+    } catch (e) {
+        console.error(e);
+        wrap.innerHTML = `<div class="empty-state">오류 발생: ${e.message}</div>`;
     }
+}
 
-    // ── 카드 ──
-    const card = document.createElement('div');
-    card.style.cssText = `
-        display:inline-flex;align-items:center;gap:6px;
-        background:${rc.card};
-        border:1.5px solid ${rc.border};
-        border-left:5px solid ${rc.bg};
-        border-radius:7px;
-        padding:5px 10px 5px 8px;
-        font-size:12px;
-        cursor:pointer;
-        user-select:none;
-        box-shadow:0 1px 4px rgba(0,0,0,0.10);
-        transition:box-shadow 0.12s,transform 0.1s;
-        min-width:0;
-        flex-shrink:0;
+window.renderAdminCaveTree = async function() {
+  const wrap = document.getElementById('orgTreeWrapAdmin');
+  if (!wrap) return;
+  
+  const colorMap = {
+    g0: '#4b5563', g1: '#3b82f6', g2: '#10b981', g3: '#059669', g4: '#d97706',
+    g5: '#ea580c', g6: '#e11d48', g7: '#dc2626', g8: '#9333ea', g9: '#7c3aed',
+    g10: 'linear-gradient(45deg, #fbbf24, #f59e0b, #d97706)'
+  };
+
+  const renderNode = (n, isPathNode, pathIndex) => {
+    const cHex = colorMap[(n.rank||'g0').toLowerCase()] || '#4b5563';
+    const bg = 'rgba(255, 255, 255, 0.95)';
+    const border = `2px solid ${cHex.includes('gradient') ? '#f59e0b' : cHex}`;
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.name}&backgroundColor=transparent`;
+    const shadow = isPathNode ? '0 0 20px rgba(99, 102, 241, 0.3)' : '0 4px 6px rgba(0,0,0,0.05)';
+    const opacity = isPathNode && pathIndex < window.adminCavePath.length - 1 ? '0.6' : '1';
+    const transform = isPathNode && pathIndex < window.adminCavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
+    
+    // For admin, we might want to show details on click (or double click). Let's use single click for navigation, and add a small detail button or rely on double click.
+    // We'll just do navigation on click.
+    
+    return `
+      <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+        <div style="background:${bg}; border:${border}; border-radius:12px; padding:12px 16px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s; min-width:220px;"
+             onclick="handleAdminCaveNodeClick('${n.id}', '${n.name}', '${n.rank}', '${n.uid}', ${isPathNode}, ${pathIndex})">
+           <div style="width:36px; height:36px; border-radius:50%; background:#f1f5f9; overflow:hidden; flex-shrink:0;">
+              <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
+           </div>
+           <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
+             <div style="font-weight:700; font-size:14px; color:#1e293b; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.name}</div>
+             <div style="display:flex; gap:6px; align-items:center;">
+                <div style="background:${cHex}; color:#fff; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:bold;">${n.rank||'G0'}</div>
+                <div style="font-size:10px; color:#64748b; font-family:monospace;">${(n.uid||n.id).slice(0,8)}</div>
+             </div>
+           </div>
+        </div>
+      </div>
     `;
-    const investStr = invested > 0 ? `$${invested.toLocaleString()}` : '$0';
-    const bonusStr  = bonus > 0 ? ` <span style="color:#065f46;font-size:10px;font-weight:700;">🎁$${Math.round(bonus).toLocaleString()}</span>` : '';
-    card.innerHTML = `
-        <span style="background:${rc.bg};color:${rc.text};font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px;letter-spacing:0.3px;flex-shrink:0;">${rank}</span>
-        <span style="font-weight:700;font-size:12px;color:#0f172a;white-space:nowrap;" title="${node.name||''}">${node.name||'(이름없음)'}</span>
-        <span style="font-size:10px;color:#94a3b8;font-family:monospace;white-space:nowrap;">${uid}</span>
-        <span style="font-size:10px;font-weight:700;color:#1e293b;white-space:nowrap;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:0 4px;">💰${investStr}</span>
-        ${bonusStr}
-        ${children.length>0?`<span class="org-toggle" style="font-size:10px;color:${rc.bg};font-weight:700;cursor:pointer;padding:0 5px;border-radius:4px;border:1px solid ${rc.border};background:#fff;flex-shrink:0;white-space:nowrap;"><span class="org-arrow">▼</span>${children.length}명</span>`:''}
-        ${(!children.length&&node.hasMore)?`<span style="font-size:10px;color:#f97316;font-weight:700;">···</span>`:''}
-    `;
-    card.onmouseover = ()=>{ card.style.boxShadow='0 3px 12px rgba(0,0,0,0.18)'; card.style.transform='translateY(-1px)'; };
-    card.onmouseout  = ()=>{ card.style.boxShadow='0 1px 4px rgba(0,0,0,0.10)';  card.style.transform=''; };
-    card.onclick = (e) => { if (!e.target.closest('.org-toggle')) showOrgNodeMenu(e, node); };
-    row.appendChild(card);
+  };
 
-    // ── 전체 블록 (행 + 자식들) ──
-    const block = document.createElement('div');
-    block.appendChild(row);
+  // 1. Render active path
+  let html = `<div style="display:flex; flex-direction:column; align-items:center; width:100%; padding:20px; background:#f8fafc; border-radius:12px; min-height:500px; overflow-y:auto; overflow-x:auto;">`;
+  
+  for (let i = 0; i < window.adminCavePath.length; i++) {
+     html += renderNode(window.adminCavePath[i], true, i);
+     html += `<div style="width:2px; height:30px; background:linear-gradient(to bottom, #6366f1, rgba(99,102,241,0.2)); margin:4px 0;"></div>`;
+  }
 
-    if (children.length === 0) return block;
+  // Loading spinner for children
+  html += `<div id="adminCaveChildrenWrap" style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px; max-width:100%; padding:10px;">
+              <div class="spinner" style="margin:20px;"></div>
+           </div>`;
+  
+  html += `</div>`;
+  wrap.innerHTML = html;
+  const scroller = wrap.querySelector('#adminCaveTreeScroll') || wrap.querySelector('div');
+  if (scroller) window.makeDraggableMap(scroller);
 
-    // ── 자식 블록 ──
-    const childBlock = document.createElement('div');
-    children.forEach((child, idx) => {
-        const isLastChild = idx === children.length - 1;
-        // ancestors 복사 + 현재 depth에 "형제가 더 있는가" 추가
-        const newAncestors = [...ancestors, !isLastChild];
-        childBlock.appendChild(buildIndentNode(child, depth + 1, newAncestors));
-    });
-    block.appendChild(childBlock);
-
-    // ── 접기/펼치기 ──
-    let collapsed = false;
-    const toggleBtn = card.querySelector('.org-toggle');
-    if (toggleBtn) {
-        toggleBtn.onclick = (e) => {
-            e.stopPropagation();
-            collapsed = !collapsed;
-            childBlock.style.display = collapsed ? 'none' : '';
-            const arrow = toggleBtn.querySelector('.org-arrow');
-            if (arrow) arrow.textContent = collapsed ? '▶' : '▼';
-        };
+  // 2. Fetch children for the last node in path
+  const lastNode = window.adminCavePath[window.adminCavePath.length - 1];
+  try {
+    // Check by referredBy = id or uid
+    const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
+    let snap = await getDocs(q1);
+    
+    if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+       const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
+       snap = await getDocs(q2);
     }
+    
+    const children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    return block;
-}
+    const childrenWrap = document.getElementById('adminCaveChildrenWrap');
+    if (!childrenWrap) return;
 
-function buildTreeNode(node) { return buildIndentNode(node, 0, []); }
-function renderOrgNode(node, depth) { return buildIndentNode(node, 0, []).outerHTML; }
+    if (children.length === 0) {
+       childrenWrap.innerHTML = `<div style="color:#94a3b8; font-size:13px; text-align:center; padding:20px;">
+          산하 회원이 없습니다.
+       </div>`;
+    } else {
+       childrenWrap.innerHTML = children.map(c => renderNode(c, false, -1)).join('');
+    }
+  } catch (err) {
+    console.error(err);
+    const childrenWrap = document.getElementById('adminCaveChildrenWrap');
+    if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
+  }
+};
 
-function orgZoom(delta) {
-    orgScale = Math.max(0.2, Math.min(3, orgScale + delta));
-    const inner = document.getElementById('orgTreeInner');
-    if (inner) inner.style.transform = `scale(${orgScale})`;
-    document.getElementById('orgZoomLabel').textContent = Math.round(orgScale * 100) + '%';
-}
+window.handleAdminCaveNodeClick = function(id, name, rank, uid, isPathNode, pathIndex) {
+   if (isPathNode) {
+      if (pathIndex === window.adminCavePath.length - 1) {
+          // Double click essentially -> open detail
+          showMemberDetail(id);
+          return;
+      }
+      window.adminCavePath = window.adminCavePath.slice(0, pathIndex + 1);
+      window.renderAdminCaveTree();
+   } else {
+      window.adminCavePath.push({ id, name, rank, uid });
+      window.renderAdminCaveTree();
+   }
+};
 
-
-function orgZoomReset() {
-    orgScale = 1;
-    const inner = document.getElementById('orgTreeInner');
-    if (inner) inner.style.transform = 'scale(1)';
-    document.getElementById('orgZoomLabel').textContent = '100%';
-}
-
-// ══════════════════════════════════════════════════
-// 조직도 노드 클릭 메뉴 (선택 팝업)
-// ══════════════════════════════════════════════════
-function showOrgNodeMenu(e, node) {
-    e.stopPropagation();
-    // 기존 메뉴 제거
-    const old = document.getElementById('orgNodeMenu');
-    if (old) old.remove();
-
-    const rank  = node.rank || 'G0';
-    const rc    = orgRankColor(rank);
-    const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
-    const name  = node.name || '(이름없음)';
-
-    const menu = document.createElement('div');
-    menu.id = 'orgNodeMenu';
-    menu.style.cssText = `
-        position:fixed;
-        background:#fff;
-        border:2px solid ${rc.border};
-        border-top:4px solid ${rc.bg};
-        border-radius:12px;
-        box-shadow:0 8px 32px rgba(0,0,0,0.22);
-        padding:0;
-        z-index:99999;
-        min-width:230px;
-        overflow:hidden;
-        font-size:13px;
-    `;
-
-    // 헤더
-    menu.innerHTML = `
-        <div style="background:${rc.bg};color:${rc.text};padding:10px 14px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px;">
-            <span style="background:rgba(255,255,255,0.25);border-radius:4px;padding:1px 7px;font-size:11px;">${rank}</span>
-            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
-            <span id="orgMenuClose" style="cursor:pointer;font-size:16px;opacity:0.8;">✕</span>
-        </div>
-        <div style="padding:8px 6px;display:flex;flex-direction:column;gap:4px;">
-            <button id="orgMenuBtnTree" style="
-                display:flex;align-items:center;gap:9px;
-                width:100%;border:none;background:#f8fafc;
-                border:1.5px solid #e2e8f0;border-radius:8px;
-                padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;
-                color:#1e293b;transition:background 0.12s;
-                text-align:left;
-            ">
-                <span style="font-size:18px;">🌐</span>
-                <div>
-                    <div>이 사람 기준으로 트리 보기</div>
-                    <div style="font-size:11px;color:#64748b;font-weight:400;">위 ${depth}단계 · 아래 ${depth}단계 표시</div>
-                </div>
-            </button>
-            <button id="orgMenuBtnInfo" style="
-                display:flex;align-items:center;gap:9px;
-                width:100%;border:none;background:#f8fafc;
-                border:1.5px solid #e2e8f0;border-radius:8px;
-                padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;
-                color:#1e293b;transition:background 0.12s;
-                text-align:left;
-            ">
-                <span style="font-size:18px;">👤</span>
-                <div>
-                    <div>회원 정보 보기</div>
-                    <div style="font-size:11px;color:#64748b;font-weight:400;">상세 정보 및 지갑 내역</div>
-                </div>
-            </button>
-        </div>
-    `;
-
-    // 화면 밖으로 나가지 않게 위치 조정
-    document.body.appendChild(menu);
-    const mx = e.clientX, my = e.clientY;
-    const mw = menu.offsetWidth, mh = menu.offsetHeight;
-    const ww = window.innerWidth, wh = window.innerHeight;
-    menu.style.left = Math.min(mx, ww - mw - 10) + 'px';
-    menu.style.top  = Math.min(my, wh - mh - 10) + 'px';
-
-    // 이벤트
-    menu.querySelector('#orgMenuClose').onclick  = () => menu.remove();
-    menu.querySelector('#orgMenuBtnInfo').onclick = () => { menu.remove(); showCustomerDetail(node.id); };
-    menu.querySelector('#orgMenuBtnTree').onclick = () => { menu.remove(); loadOrgTreeCentered(node.id, node); };
-
-    // 외부 클릭 시 닫기
-    const closeOnOut = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', closeOnOut); } };
-    setTimeout(() => document.addEventListener('mousedown', closeOnOut), 10);
-
-    // 호버 효과
-    ['orgMenuBtnTree','orgMenuBtnInfo'].forEach(id => {
-        const btn = menu.querySelector('#'+id);
-        btn.onmouseover = () => { btn.style.background='#f1f5f9'; btn.style.borderColor=rc.border; };
-        btn.onmouseout  = () => { btn.style.background='#f8fafc'; btn.style.borderColor='#e2e8f0'; };
-    });
-}
-
-// ══════════════════════════════════════════════════
-// 특정 회원 기준 위아래 트리 뷰
-// ══════════════════════════════════════════════════
+// Removed old zoom handlers that are no longer needed
+function orgZoom() {}
+function orgZoomReset() {}
 async function loadOrgTreeCentered(userId, nodeHint) {
     const wrap  = document.getElementById('orgTreeWrapAdmin');
     const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
@@ -13866,7 +13969,11 @@ window.runIdReport = async function() {
     // ── 5. 전체 보너스 이력 (내가 수령) ──
     const bonusSnap = await getDocs(query(collection(db,'bonuses'),where('userId','==',target.id)));
     const bonuses   = bonusSnap.docs.map(d=>({id:d.id,...d.data()}))
-      .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+      .sort((a,b)=> {
+          const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+          const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+          return timeB - timeA;
+      });
 
     // 기준날짜 보너스
     const todayBonuses = bonuses.filter(b=>(b.settlementDate||'').slice(0,10)===targetDateStr);
@@ -13875,12 +13982,20 @@ window.runIdReport = async function() {
     const earnedFromDownSnap = await getDocs(query(collection(db,'bonuses'),where('userId','==',target.id)));
     const earnedFromDown = earnedFromDownSnap.docs.map(d=>({id:d.id,...d.data()}))
       .filter(b => b.fromUserId && b.fromUserId !== target.id)
-      .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+      .sort((a,b)=> {
+          const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+          const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+          return timeB - timeA;
+      });
 
     // 내가 직접 산하에 지급한 보너스 (fromUserId = target.id)
     const paidToDownSnap = await getDocs(query(collection(db,'bonuses'),where('fromUserId','==',target.id)));
     const paidToDown = paidToDownSnap.docs.map(d=>({id:d.id,...d.data()}))
-      .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+      .sort((a,b)=> {
+          const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime()/1000 : 0);
+          const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime()/1000 : 0);
+          return timeB - timeA;
+      });
 
     // ── 7. N일 추이 데이터 ──
     const trendMap = {};
