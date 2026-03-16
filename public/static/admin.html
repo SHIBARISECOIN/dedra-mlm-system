@@ -11781,6 +11781,23 @@ window.renderAdminCaveTree = async function() {
     } else {
        childrenWrap.innerHTML = children.map(c => renderNode(c, false, -1)).join('');
     }
+    
+    setTimeout(() => {
+      const wrap = document.getElementById('orgTreeWrapAdmin');
+      if (!wrap) return;
+      const scroller = wrap.querySelector('div'); 
+      if (!scroller) return;
+
+      const childrenWrap = document.getElementById('adminCaveChildrenWrap');
+      if (childrenWrap) {
+          const wrapRect = childrenWrap.getBoundingClientRect();
+          const scrollerRect = scroller.getBoundingClientRect();
+          const relativeTop = (wrapRect.top - scrollerRect.top) + scroller.scrollTop;
+          
+          const targetScroll = relativeTop - (scroller.clientHeight / 2) + 50;
+          scroller.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+      }
+    }, 150);
   } catch (err) {
     console.error(err);
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');

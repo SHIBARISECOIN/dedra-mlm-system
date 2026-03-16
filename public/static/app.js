@@ -4915,17 +4915,25 @@ window.renderCaveTree = async function() {
   }
   
   // 새로 렌더링된 요소가 적절한 위치에 오도록 스크롤 (화면 약간 위쪽으로 포커스)
+  
   setTimeout(() => {
-    const scroller = treeEl.querySelector('#caveTreeScroll') || treeEl.querySelector('div');
+    const scroller = document.getElementById('orgChartWrap');
+    if (!scroller) return;
+
+    // Focus on the children wrap so the active node and children are visible
     const childrenWrap = document.getElementById('caveChildrenWrap');
-    if (scroller && childrenWrap && window.cavePath.length > 1) {
-        const targetNode = childrenWrap.previousElementSibling;
-        if (targetNode) {
-            const pos = targetNode.offsetTop - (scroller.clientHeight / 2) + 50;
-            scroller.scrollTo({ top: Math.max(0, pos), behavior: 'smooth' });
-        }
+    if (childrenWrap) {
+        const wrapRect = childrenWrap.getBoundingClientRect();
+        const scrollerRect = scroller.getBoundingClientRect();
+        const relativeTop = (wrapRect.top - scrollerRect.top) + scroller.scrollTop;
+        
+        // 포커스를 childrenWrap의 약간 위쪽(활성 노드 위치)에 맞춤
+        const targetScroll = relativeTop - (scroller.clientHeight / 2) + 50;
+        
+        scroller.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
     }
-  }, 100);
+  }, 150);
+
 };
 window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex) {
    if (id === currentUser.uid) {
