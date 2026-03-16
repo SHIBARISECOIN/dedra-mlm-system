@@ -2700,8 +2700,6 @@ async function _fetchAndApplyLivePrice(pair) {
     deedraPrice = data.price;
 
     
-    }
-
     updatePriceTicker(deedraPrice, null, data.source, data.priceChange24h, true);
     // Firestore에 갱신 (타임스탬프 업데이트)
     try {
@@ -8638,8 +8636,6 @@ window.showFullscreenChart = function() {
     if (!fullIframe.src.includes('dexscreener')) {
       fullIframe.src = targetSrc;
     }
-  }
-?embed=1&theme=dark&info=0`;
   }
   if (modal) modal.style.display = 'flex';
 };
