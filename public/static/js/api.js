@@ -213,6 +213,7 @@ export class DedraAPI {
         totalUsers:            users.filter(u => u.role !== 'admin').length,
         activeUsers:           users.filter(u => u.status === 'active' && u.role !== 'admin').length,
         onlineUsers:           users.filter(u => u.lastSeenAt && (Date.now() - u.lastSeenAt < 120000)).length,
+        onlineUserList:        users.filter(u => u.lastSeenAt && (Date.now() - u.lastSeenAt < 120000)).map(u => ({uid:u.uid, name:u.name, email:u.email, rank:u.rank, lastSeenAt:u.lastSeenAt})),
         pendingDeposits:       deposits.filter(t => t.status === 'pending').length,
         pendingWithdrawals:    withdrawals.filter(t => t.status === 'pending').length,
         totalDepositAmount:    deposits.filter(t => t.status === 'approved').reduce((s, t) => s + (t.amount || 0), 0),

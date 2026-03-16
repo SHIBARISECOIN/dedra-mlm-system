@@ -1206,6 +1206,15 @@ canvas{width:100% !important;}
           </div>
           <div id="recentGames"><div class="loading"><div class="spinner"></div></div></div>
         </div>
+        
+        <!-- 실시간 접속 회원 -->
+        <div class="activity-feed" style="grid-column: 1 / -1; max-height:300px; overflow-y:auto;">
+          <div class="activity-feed-header" style="background:rgba(59,130,246,0.1); border-left:4px solid var(--primary); position:sticky; top:0; z-index:5;">
+            <span>🟢 실시간 접속중인 회원</span>
+            <span style="font-size:11px; font-weight:normal; color:var(--gray);">최근 2분 이내 접속자</span>
+          </div>
+          <div id="recentOnlineUsers"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
 
       </div>
     </div>
@@ -5233,6 +5242,38 @@ async function loadDashboard() {
     _setEl('statGameBet',           (d.totalGameBet          || 0).toFixed(0));
     // 투자 통계
     _setEl('statActiveInvestments', d.activeInvestments || 0);
+    
+    // 실시간 접속 회원 목록 렌더링
+    if (d.onlineUserList) {
+        const listEl = document.getElementById('recentOnlineUsers');
+        if (listEl) {
+            if (d.onlineUserList.length === 0) {
+                listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">현재 접속중인 회원이 없습니다.</div>';
+            } else {
+                // Sort by most recently seen
+                const sorted = d.onlineUserList.sort((a,b) => b.lastSeenAt - a.lastSeenAt);
+                let htmlStr = '';
+                sorted.forEach(u => {
+                    const minAgo = Math.floor((Date.now() - u.lastSeenAt) / 60000);
+                    const timeStr = minAgo <= 0 ? '방금 전' : (minAgo + '분 전');
+                    htmlStr += `
+                    <div class="activity-item" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="activity-dot green" style="box-shadow: 0 0 6px var(--success);"></div>
+                            <div class="activity-text">
+                                <strong style="font-size:13px;">${u.name || '이름없음'}</strong> <span style="color:#64748b;font-size:11px;">(${u.email || u.uid})</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; font-size:11px;">
+                            <span style="background:var(--light);padding:2px 6px;border-radius:4px;color:var(--primary);font-weight:bold;">${u.rank || 'G0'}</span>
+                            <span style="color:#94a3b8;min-width:40px;text-align:right;">${timeStr}</span>
+                        </div>
+                    </div>`;
+                });
+                listEl.innerHTML = htmlStr;
+            }
+        }
+    }
     _setEl('statTotalInvestAmount', (d.totalInvestAmount || 0).toFixed(0));
 
     document.getElementById('lastUpdated').textContent = '업데이트: ' + new Date().toLocaleTimeString();
