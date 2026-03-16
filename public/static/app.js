@@ -4892,9 +4892,31 @@ window.renderCaveTree = async function() {
 
   try {
     const { collection, query, where, getDocs, db } = window.FB;
-    const q = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
-    const snap = await getDocs(q);
-    const children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let children = [];
+    
+    // Check if the current user is a "root" like user (no sponsor or test account)
+    if (window.cavePath.length === 1 && (!userData?.referredBy || userData?.referredBy === 'admin' || userData?.referredBy === 'root')) {
+        // Find users who referred this user (which would be children in this context, normally referredBy means parent)
+        // Wait, if it's the root user, their children are users whose referredBy == their id or uid
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
+        let snap = await getDocs(q1);
+        
+        if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+           const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
+           snap = await getDocs(q2);
+        }
+        children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } else {
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
+        let snap = await getDocs(q1);
+        
+        // Also check by uid if it exists and is different from id
+        if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+            const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
+            snap = await getDocs(q2);
+        }
+        children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
 
     const childrenWrap = document.getElementById('caveChildrenWrap');
     if (!childrenWrap) return;
@@ -4909,7 +4931,7 @@ window.renderCaveTree = async function() {
   } catch (err) {
     console.error(err);
     const childrenWrap = document.getElementById('caveChildrenWrap');
-    if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
+    if (childrenWrap) childrenWrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.<br>(${err.message || err.toString()})</div>`;
   }
 };
 
