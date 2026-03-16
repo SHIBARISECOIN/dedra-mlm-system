@@ -30,6 +30,11 @@ function _colName(qoc) {
     || qoc?._path?.segments
     || [];
   if (segs.length > 0) return segs[segs.length - 1] || '';
+  
+  // Also handle if qoc is directly a CollectionReference (v10)
+  if (qoc?.type === 'collection') return qoc.path;
+  if (qoc?.type === 'query') return qoc._query?.path?.segments?.[qoc._query.path.segments.length - 1] || qoc.path || '';
+
   return '';
 }
 

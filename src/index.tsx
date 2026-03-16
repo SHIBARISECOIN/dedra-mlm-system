@@ -747,6 +747,19 @@ async function fsQuery(collection: string, token: string, conditions: any[] = []
   return rows.filter((r: any) => r.document).map((r: any) => firestoreDocToObj(r.document))
 }
 
+
+async function fsCreateWithId(collectionPath: string, docId: string, data: any, adminToken: string) {
+  const obj = objToFirestoreDoc(data)
+  const res = await fetch(`${FIRESTORE_BASE_URL}/${collectionPath}?documentId=${docId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(obj)
+  })
+  const resData = await res.json()
+  if (resData.error) throw new Error(resData.error.message)
+  return resData
+}
+
 async function fsPatch(path: string, fields: any, token: string) {
   const firestoreFields: any = {}
   for (const [k, v] of Object.entries(fields)) {
@@ -1681,6 +1694,51 @@ app.get('/api/cron/process-scheduled', async (c) => {
   try {
     const adminToken = await getAdminToken()
     await processScheduledBroadcasts(adminToken)
+
+    // ─── 자동 스냅샷 생성 (매일) ───
+    try {
+      const dateStr = new Date().toISOString().slice(0,10) // YYYY-MM-DD
+      const snapshotId = `snap_${dateStr}`
+      const snapCheck = await fsGet(`snapshots/${snapshotId}`, adminToken).catch(()=>null)
+      if (!snapCheck) {
+        // 데이터 가져오기
+        const [users, wallets, investments] = await Promise.all([
+          fsQuery('users', adminToken, [], 5000),
+          fsQuery('wallets', adminToken, [], 5000),
+          fsQuery('investments', adminToken, [], 5000)
+        ])
+
+        await fsCreateWithId('snapshots', snapshotId, {
+          createdAt: new Date().toISOString(),
+          createdBy: 'system_cron',
+          userCount: users.length,
+          walletCount: wallets.length,
+          investmentCount: investments.length,
+          status: 'completed',
+          type: 'daily_auto'
+        }, adminToken)
+
+        const chunkArray = (arr: any[], size: number) => {
+          const res = []
+          for(let i=0; i<arr.length; i+=size) res.push(arr.slice(i, i+size))
+          return res
+        }
+
+        const saveChunks = async (colName: string, data: any[]) => {
+          const chunks = chunkArray(data, 100)
+          for (let i=0; i<chunks.length; i++) {
+            await fsCreateWithId(`snapshots/${snapshotId}/${colName}`, `chunk_${i}`, { data: JSON.stringify(chunks[i]) }, adminToken)
+          }
+        }
+
+        await saveChunks('users', users)
+        await saveChunks('wallets', wallets)
+        await saveChunks('investments', investments)
+      }
+    } catch(e) {
+      console.warn('Auto snapshot failed:', e)
+    }
+
     return c.json({ success: true, message: '예약 발송 처리 완료', processedAt: new Date().toISOString() })
   } catch (e: any) {
     return c.json({ success: false, error: e.message }, 500)
@@ -2339,6 +2397,113 @@ async function processScheduledBroadcasts(adminToken: string) {
     }
   } catch (_) {}
 }
+
+
+// ─── 스냅샷(백업/복원) API ──────────────────────────────────────────────────
+app.post('/api/subadmin/snapshot/create', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    const sa = verifySubAdminToken(token)
+    if (!sa) return c.json({ error: '인증 실패' }, 401)
+
+    const adminToken = await getAdminToken()
+    
+    // 1. 데이터 가져오기
+    const [users, wallets, investments] = await Promise.all([
+      fsQuery('users', adminToken, [], 5000),
+      fsQuery('wallets', adminToken, [], 5000),
+      fsQuery('investments', adminToken, [], 5000)
+    ])
+
+    const dateStr = new Date().toISOString().slice(0,10) // YYYY-MM-DD
+    const snapshotId = `snap_${dateStr}`
+    
+    // 2. snapshots 컬렉션에 메타데이터 저장
+    await fsCreateWithId('snapshots', snapshotId, {
+      createdAt: new Date().toISOString(),
+      createdBy: sa.uid,
+      userCount: users.length,
+      walletCount: wallets.length,
+      investmentCount: investments.length,
+      status: 'completed'
+    }, adminToken)
+
+    // 3. 서브컬렉션으로 저장 (Firestore REST API limitations make batch writes hard, doing it sequentially or chunks)
+    // Actually we can just store the JSON string inside the snapshot document if it's < 1MB
+    // Or save it to R2 / D1. We don't have R2 bound by default.
+    // So we'll save them as JSON strings in chunks.
+    const chunkArray = (arr: any[], size: number) => {
+      const res = []
+      for(let i=0; i<arr.length; i+=size) res.push(arr.slice(i, i+size))
+      return res
+    }
+
+    const saveChunks = async (colName: string, data: any[]) => {
+      const chunks = chunkArray(data, 100)
+      for (let i=0; i<chunks.length; i++) {
+        await fsCreateWithId(`snapshots/${snapshotId}/${colName}`, `chunk_${i}`, { data: JSON.stringify(chunks[i]) }, adminToken)
+      }
+    }
+
+    await saveChunks('users', users)
+    await saveChunks('wallets', wallets)
+    await saveChunks('investments', investments)
+
+    return c.json({ success: true, snapshotId })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
+
+app.post('/api/subadmin/snapshot/restore', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    const sa = verifySubAdminToken(token)
+    if (!sa) return c.json({ error: '인증 실패' }, 401)
+
+    const { snapshotId } = await c.req.json()
+    if (!snapshotId) return c.json({ error: 'snapshotId 필요' }, 400)
+
+    const adminToken = await getAdminToken()
+
+    const loadChunks = async (colName: string) => {
+      const chunks = await fsQuery(`snapshots/${snapshotId}/${colName}`, adminToken, [], 100)
+      let all = []
+      for (const ch of chunks) {
+        if (ch.data) all = all.concat(JSON.parse(ch.data))
+      }
+      return all
+    }
+
+    const [users, wallets, investments] = await Promise.all([
+      loadChunks('users'),
+      loadChunks('wallets'),
+      loadChunks('investments')
+    ])
+
+    if (!users.length && !wallets.length) return c.json({ error: '스냅샷 데이터가 없습니다.' }, 404)
+
+    // 복원: 하나씩 덮어쓰기 (Patch)
+    // Users
+    for (const u of users) {
+      if (u.id) await fsPatch(`users/${u.id}`, u, adminToken).catch(()=>null)
+    }
+    // Wallets
+    for (const w of wallets) {
+      if (w.id) await fsPatch(`wallets/${w.id}`, w, adminToken).catch(()=>null)
+    }
+    // Investments
+    for (const inv of investments) {
+      if (inv.id) await fsPatch(`investments/${inv.id}`, inv, adminToken).catch(()=>null)
+    }
+
+    return c.json({ success: true, message: '복원 완료' })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
 
 // ─── 장기 미접속 체크 ─────────────────────────────────────────────────────────
 async function checkInactiveUsers(adminToken: string) {

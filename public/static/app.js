@@ -3732,7 +3732,7 @@ window.connectSolanaWallet = async function() {
 
   } catch (e) {
     if (e.message === 'NO_WALLET') {
-      showToast('❌ 지갑이 감지되지 않습니다.\nPhantom 또는 TokenPocket을 설치해주세요.', 'error');
+      _showNoWalletModal('연결');
     } else if (e.message === 'USER_REJECTED') {
       showToast('연결을 취소했습니다.', 'warning');
     } else if (e.message === 'MOBILE_DEEPLINK') {
@@ -3846,7 +3846,7 @@ window.handleAddDdraToken = async function() {
 
   if (!guide) {
     // 지갑 없음 → 설치 안내 모달
-    _showAddDdraNoWalletModal();
+    _showNoWalletModal('DDRA 추가');
     return;
   }
 
@@ -3892,44 +3892,73 @@ window.handleAddDdraToken = async function() {
 };
 
 // 지갑 미설치 안내 모달
-function _showAddDdraNoWalletModal() {
-  const t = currentLang || 'ko';
+
+// ==== 지갑 설치 안내 모달 ====
+function _showNoWalletModal(purpose = 'DDRA 추가') {
+  // OS 감지
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  let os = 'unknown';
+  if (/android/i.test(ua)) os = 'android';
+  if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) os = 'ios';
+
+  // 링크 설정
+  let phantomLink = 'https://phantom.app/';
+  let tpLink = 'https://www.tokenpocket.pro/';
+  let tpDesc = 'Solana · BSC · EVM 멀티체인 지원';
+  let phantomDesc = 'Solana 전용 · 모바일/PC 지원';
+
+  if (os === 'android') {
+    phantomLink = 'https://play.google.com/store/apps/details?id=app.phantom';
+    phantomDesc = 'Google Play 다운로드';
+    tpLink = 'https://play.google.com/store/apps/details?id=vip.mytokenpocket';
+    tpDesc = 'Google Play 다운로드';
+  } else if (os === 'ios') {
+    phantomLink = 'https://apps.apple.com/app/phantom-solana-wallet/id1598432977';
+    phantomDesc = 'App Store 다운로드';
+    tpLink = 'https://apps.apple.com/app/tokenpocket-crypto-defi-wallet/id1436028697';
+    tpDesc = 'App Store 다운로드';
+  }
+
+  const titleText = purpose === '연결' ? '🔗 지갑 연결 필요' : '🔗 지갑 설치 필요';
+  const descText = purpose === '연결' 
+    ? '입금을 진행하려면 지원하는 지갑이 설치되어 있어야 합니다'
+    : 'DDRA 토큰을 추가하려면 지원하는 지갑이 필요합니다';
+
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:flex-end;justify-content:center;';
   overlay.innerHTML = `
     <div style="background:#1a1a2e;border-radius:24px 24px 0 0;padding:28px 24px 36px;width:100%;max-width:430px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
       <div style="width:40px;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 auto 20px;"></div>
-      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">🔗 지갑 연결 필요</div>
-      <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:22px;">DDRA 토큰을 추가하려면 지원하는 지갑이 필요합니다</div>
+      <div style="font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;">${titleText}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:22px;">${descText}</div>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
-        <a href="https://phantom.app/" target="_blank"
+        <a href="${phantomLink}" target="_blank"
           style="display:flex;align-items:center;gap:14px;background:rgba(171,159,242,.15);border:1px solid rgba(171,159,242,.3);border-radius:14px;padding:14px 16px;text-decoration:none;">
           <span style="font-size:28px;">👻</span>
           <div>
-            <div style="font-size:14px;font-weight:700;color:#ab9ff2;">Phantom</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.5);">Solana 전용 · 모바일/PC 지원</div>
+            <div style="font-size:14px;font-weight:700;color:#ab9ff2;">Phantom Wallet</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);">${phantomDesc}</div>
           </div>
-          <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4);">설치 →</span>
+          <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4);">${os !== 'unknown' ? '다운로드 →' : '설치 →'}</span>
         </a>
-        <a href="https://www.tokenpocket.pro/" target="_blank"
+        <a href="${tpLink}" target="_blank"
           style="display:flex;align-items:center;gap:14px;background:rgba(41,128,254,.15);border:1px solid rgba(41,128,254,.3);border-radius:14px;padding:14px 16px;text-decoration:none;">
           <span style="font-size:28px;">💼</span>
           <div>
-            <div style="font-size:14px;font-weight:700;color:#2980fe;">TokenPocket</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.5);">Solana · BSC · EVM 멀티체인 지원</div>
+            <div style="font-size:14px;font-weight:700;color:#2980fe;">TokenPocket Wallet</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);">${tpDesc}</div>
           </div>
-          <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4);">설치 →</span>
+          <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,.4);">${os !== 'unknown' ? '다운로드 →' : '설치 →'}</span>
         </a>
       </div>
-      <button onclick="this.closest('[style*=\"position:fixed\"]').remove()"
+      <button onclick="this.closest('[style*=\'position:fixed\']').remove()"
         style="width:100%;padding:14px;background:rgba(255,255,255,.08);border:none;border-radius:12px;color:rgba(255,255,255,.7);font-size:14px;font-weight:600;cursor:pointer;">닫기</button>
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
-// 수동 추가 안내 모달 (주소 미설정 or 자동 추가 미지원)
 function _showAddDdraManualModal(result) {
   const reg = window.DDRATokenRegister;
   const solanaMint  = reg?.config?.solanaMint  || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
@@ -5096,7 +5125,55 @@ window.shareReferralLink = function() {
 function _ddraToUsdt(ddra) { return ddra * (deedraPrice || 0.5); }
 function _usdtToDdra(usdt) { return usdt / (deedraPrice || 0.5); }
 
+
+// ==== 🎮 게임 로그 로드 ====
+async function loadMyGameLogs() {
+  const listEl = document.getElementById('gameLogList');
+  if (!listEl || !window.FB) return;
+  const { collection, query, where, getDocs, limit, orderBy } = window.FB;
+  if (!currentUser) return;
+
+  try {
+    const q = query(collection(db, 'gamelogs'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    
+    if (snap.empty) {
+      listEl.innerHTML = '<div class="empty-state"><i class="fas fa-gamepad"></i><span data-i18n="gameStartHint">게임을 시작해보세요!</span></div>';
+      return;
+    }
+
+    const html = snap.docs.map(docSnap => {
+      const d = docSnap.data();
+      const isWin = d.win || d.ddraChange > 0;
+      const amount = Math.abs(d.ddraChange || d.betAmount || 0);
+      const name = d.gameName || d.game || d.gameType || '게임';
+      const timeStr = d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString() : new Date().toLocaleString();
+      
+      return `
+        <div class="tx-item">
+          <div class="tx-icon ${isWin ? 'icon-deposit' : 'icon-withdrawal'}">
+            <i class="fas ${isWin ? 'fa-trophy' : 'fa-times'}"></i>
+          </div>
+          <div class="tx-info">
+            <div class="tx-type">${name} ${isWin ? '승리' : '패배'}</div>
+            <div class="tx-date">${timeStr}</div>
+          </div>
+          <div class="tx-amount ${isWin ? 'amount-pos' : 'amount-neg'}">
+            ${isWin ? '+' : '-'}${amount.toFixed(2)} DDRA
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    listEl.innerHTML = html;
+  } catch (e) {
+    console.warn('Failed to load game logs', e);
+  }
+}
+
 function updateGameUI() {
+  loadMyGameLogs();
+
   const bonus = walletData?.bonusBalance || 0;
   gameBalanceVal = Math.floor(_usdtToDdra(bonus) * 100) / 100; // DDRA
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
