@@ -57,7 +57,7 @@
 
 /* ===== 리셋 & 기본 ===== */
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { height: 100%; height: 100dvh; overflow: hidden; }
+html, body { overscroll-behavior-y: none;  height: 100%; height: 100dvh; overflow: hidden; }
 
 body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -274,7 +274,7 @@ body {
 .page { position: absolute; inset: 0; display: none; background: var(--bg); }
 .page.active { display: block; }
 
-.page-scroll {
+.page-scroll { overscroll-behavior-y: none; 
   height: 100%; overflow-y: auto; overflow-x: hidden;
   padding: 16px 16px 24px;
   -webkit-overflow-scrolling: touch;
