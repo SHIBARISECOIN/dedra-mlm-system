@@ -4747,72 +4747,93 @@ function updateRankUI() {
     const criteria   = rankPromoSettings.criteria;
     const nextRankId = nextRankObj.rank;
     const crit       = criteria[nextRankId];
-    const depth      = rankPromoSettings.networkDepth || 3;
-    const mode       = rankPromoSettings.promotionMode || 'all';
+    const useBalanced= rankPromoSettings.useBalancedVolume === true;
 
     if (crit) {
-      // 현재 보유 값 (walletData/userData에서)
-      const selfInvest     = walletData?.totalDeposit     || 0;
-      const networkMembers = userData?.totalReferrals     || 0;
+      // 보유 데이터 파싱
+      const curSelf     = walletData?.totalDeposit || 0;
+      const curMembers  = userData?.totalReferrals || userData?.referralCount || 0;
+      // 매출 정보 (없으면 0)
+      const curSales    = userData?.networkSales || 0; 
+      const curBalanced = userData?.networkBalancedSales || userData?.balancedVolume || userData?.networkSales || 0;
 
-      // 조건 표시 우선순위: 인원 수 > 투자액 순으로 진행도 표시
-      const hasInvestCond  = (crit.minSelfInvest     || 0) > 0;
-      const hasSalesCond   = (crit.minNetworkSales   || 0) > 0;
-      const hasMemberCond  = (crit.minNetworkMembers || 0) > 0;
-      const hasBalancedCond= (crit.minBalancedVolume || 0) > 0;
-      const useBalanced    = rankPromoSettings.useBalancedVolume === true;
+      // 필요한 조건들
+      const reqSelf     = crit.minSelfInvest || 0;
+      const reqMembers  = crit.minNetworkMembers || 0;
+      const reqSales    = crit.minNetworkSales || 0;
+      const reqBalanced = crit.minBalancedVolume || 0;
+      
+      const condHtml = [];
+      
+      // Helper
+      const makeBar = (label, cur, req, unit) => {
+         const pct = req > 0 ? Math.min(100, (cur / req) * 100) : 100;
+         const diff = req - cur;
+         const diffMsg = diff > 0 ? `<span style="color:#ef4444;">${diff.toLocaleString()} ${unit} 부족</span>` : `<span style="color:#10b981;">✔ 달성 완료</span>`;
+         return `
+          <div style="font-size:12px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="color:var(--text2); font-weight:600;">${label}</span>
+              <span style="color:var(--text);"><strong>${cur.toLocaleString()}</strong> / ${req.toLocaleString()} ${unit}</span>
+            </div>
+            <div class="rank-progress-bar" style="height:6px; background:rgba(150,150,150,0.2); border-radius:3px;">
+              <div class="rank-progress-fill" style="width:${pct}%; background:${pct>=100?'#10b981':'var(--primary)'}; border-radius:3px; transition:width 0.5s;"></div>
+            </div>
+            <div style="text-align:right; font-size:10px; margin-top:3px; font-weight:600;">${diffMsg}</div>
+          </div>
+         `;
+      };
 
-      // 진행도: 가장 의미 있는 조건을 선택
-      let progressPct  = 0;
-      let progressDesc = '';
-      let needed       = '';
-
-      if (hasMemberCond) {
-        const cur = networkMembers;
-        const req = crit.minNetworkMembers;
-        progressPct  = Math.min(100, (cur / req) * 100);
-        needed       = req - cur > 0 ? `산하 ${req - cur}명 더 필요` : '인원 조건 달성!';
-        progressDesc = `산하 ${cur}/${req}명 (${depth}대)`;
-      } else if (hasInvestCond) {
-        const cur = selfInvest;
-        const req = crit.minSelfInvest;
-        progressPct  = Math.min(100, (cur / req) * 100);
-        needed       = req - cur > 0 ? `FREEZE $${(req - cur).toFixed(0)} 더 필요` : 'FREEZE 조건 달성!';
-        progressDesc = `FREEZE $${cur.toFixed(0)}/$${req}`;
+      if (reqSelf > 0) condHtml.push(makeBar('본인 투자금', curSelf, reqSelf, 'USDT'));
+      if (useBalanced && reqBalanced > 0) {
+         condHtml.push(makeBar('균형 매출 <span style="font-size:10px;font-weight:normal;">(최대 라인 제외)</span>', curBalanced, reqBalanced, 'USDT'));
+      } else if (reqSales > 0) {
+         condHtml.push(makeBar('산하 매출 합계', curSales, reqSales, 'USDT'));
+      }
+      if (reqMembers > 0) condHtml.push(makeBar('산하 인원 수', curMembers, reqMembers, '명'));
+      
+      const container = document.getElementById('nextRankContainer');
+      const legacy = document.getElementById('legacyRankInfo');
+      if (container) container.style.display = 'block';
+      if (legacy) legacy.style.display = 'none';
+      
+      const hl = document.getElementById('nextRankHighlight');
+      if(hl) hl.textContent = `${nextRankId} ${rankNamesMap[nextRankId] || ''}`;
+      
+      const conds = document.getElementById('nextRankConditions');
+      if(conds) conds.innerHTML = condHtml.join('');
+      
+      // 혜택
+      let benefits = [];
+      if (nextRankId === 'G1') {
+         benefits = [
+           "승급 달성 즉시 일시불 승급 축하 보너스 지급",
+           "산하 파트너 투자/가입에 따른 추가 수당 (글로벌 룰 적용)",
+           "매일 발생하는 직급 유지 보너스 풀 참여 자격 획득"
+         ];
       } else {
-        progressPct  = 100;
-        progressDesc = '조건 미설정';
-        needed       = '';
+         benefits = [
+           `${nextRankId} 승급 축하 특별 보너스 (USDT) 즉시 지급`,
+           `글로벌 전체 매출 기준 ${nextRankId} 등급 전용 유지 보너스(%) 매일 공유`,
+           "산하 파트너 투자 발생 시 더 높은 단계의 추천 수익률 적용",
+           "플랫폼 내 프리미엄 VVIP 배지 및 글로벌 네트워크 맵 이펙트 적용"
+         ];
       }
-
-      // 다음 직급 표시
-      const modeLabel = mode === 'any' ? '[OR]' : '[AND]';
-      const condParts = [];
-      if (hasInvestCond)  condParts.push(`FREEZE ${crit.minSelfInvest}`);
+      const bEl = document.getElementById('nextRankBenefits');
+      if (bEl) bEl.innerHTML = benefits.map(b => `<li>${b}</li>`).join('');
       
-      if (useBalanced && hasBalancedCond) {
-        condParts.push(`균형매출 ${crit.minBalancedVolume}`);
-      } else if (hasSalesCond) {
-        condParts.push(`매출 ${crit.minNetworkSales}`);
-      }
-      
-      if (hasMemberCond)  condParts.push(`인원 ${crit.minNetworkMembers}명`);
-      const condStr = condParts.length ? condParts.join(' / ') : '조건 없음';
-
-      setEl('rankNextLabel', `${nextRankId} ${modeLabel} ${condStr}`);
-      setEl('rankReferralCount', progressDesc);
-
-      const fill = document.getElementById('rankProgressFill');
-      if (fill) fill.style.width = progressPct.toFixed(1) + '%';
-
-      // 추가 필요 조건 표시
-      const needEl = document.getElementById('rankNeeded');
-      if (needEl) needEl.textContent = needed;
       return;
     }
   }
 
-  // ── 레거시 방식 (추천인 수 기반) ─────────────────────────────
+  // ── 레거시 방식 (만약 설정이 없을 때 fallback) ─────────────
+  const container = document.getElementById('nextRankContainer');
+  const legacy = document.getElementById('legacyRankInfo');
+  if (container) container.style.display = 'none';
+  if (legacy) legacy.style.display = 'block';
+
+
+    // ── 레거시 방식 (추천인 수 기반) ─────────────────────────────
   const refCount = userData.referralCount || userData.totalReferrals || 0;
   setEl('rankReferralCount', refCount);
   if (nextRankObj) {
