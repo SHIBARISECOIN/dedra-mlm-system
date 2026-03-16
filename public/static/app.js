@@ -4725,12 +4725,21 @@ function updateRankUI() {
 
   // Don't overwrite the whole div, just update the image
   const rankImg = document.getElementById('rankCurrentImg');
+  const rankNameEl = document.getElementById('rankCurrentName');
+  const rankNamesMap = {
+    'G0': 'Stone', 'G1': 'Wood', 'G2': 'Bronze', 'G3': 'Silver', 'G4': 'Gold',
+    'G5': 'Platinum', 'G6': 'Emerald', 'G7': 'Sapphire', 'G8': 'Diamond',
+    'G9': 'White Diamond', 'G10': 'Ultimate'
+  };
+  if(rankNameEl) {
+      rankNameEl.textContent = rankNamesMap[rank] || 'Stone';
+  }
   if (rankImg) {
     let r = (rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = `/static/ranks/${r}.png?v=2`;
   } else {
     // fallback if img is missing
     const rc = document.getElementById('rankCurrent');
-    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${((rank || 'G0').trim().toLowerCase().match(/^g([0-9]|10)$/) ? (rank || 'G0').trim().toLowerCase() : 'g0')}.png?v=2" alt="${rank}" style="width:80px;height:auto;object-fit:contain;" />`;
+    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${((rank || 'G0').trim().toLowerCase().match(/^g([0-9]|10)$/) ? (rank || 'G0').trim().toLowerCase() : 'g0')}.png?v=2" alt="${rank}" style="width:100px;height:auto;object-fit:contain;" /><div id="rankCurrentName" style="font-size:32px; font-weight:900; color:var(--primary); text-transform:uppercase; letter-spacing:1px; flex:1;">${rankNamesMap[rank] || 'Stone'}</div>`;
   }
 
   // ── 새 승진 조건 (관리자 설정) 방식 ──────────────────────────
