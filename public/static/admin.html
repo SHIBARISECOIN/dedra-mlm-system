@@ -1077,7 +1077,7 @@ canvas{width:100% !important;}
   <div class="sidebar">
     <div class="sidebar-section">메인</div>
     <div class="menu-item active" data-page="dashboard"><span class="menu-icon">📊</span>대시보드</div>
-    <div class="menu-item" data-page="statistics"><span class="menu-icon">📈</span>통계 차트</div>
+    <!-- <div class="menu-item" data-page="statistics"><span class="menu-icon">📈</span>통계 차트</div> (개편예정) -->
 
     <div class="sidebar-section">회원·조직</div>
     <div class="menu-item" data-page="members"><span class="menu-icon">👥</span>회원 관리</div>
@@ -1087,8 +1087,8 @@ canvas{width:100% !important;}
     <div class="menu-item" data-page="centers"><span class="menu-icon">🏢</span>센터 관리</div>
 
     <div class="sidebar-section">입출금·자산</div>
-    <div class="menu-item" data-page="deposits"><span class="menu-icon">💰</span>입금 관리</div>
-    <div class="menu-item" data-page="withdrawals"><span class="menu-icon">💸</span>출금 관리</div>
+    <div class="menu-item" data-page="deposits" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💰</span>입금 관리</div> <span id="badge-deposits" style="background:var(--orange);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
+    <div class="menu-item" data-page="withdrawals" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💸</span>출금 관리</div> <span id="badge-withdrawals" style="background:var(--red);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="bonus"><span class="menu-icon">🎁</span>보너스 지급</div>
 
     <div class="sidebar-section">상품·운용</div>
@@ -1100,7 +1100,7 @@ canvas{width:100% !important;}
     <div class="menu-item" data-page="notices"><span class="menu-icon">📢</span>공지사항</div>
     <div class="menu-item" data-page="news"><span class="menu-icon">📰</span>뉴스</div>
     <div class="menu-item" data-page="broadcast"><span class="menu-icon">📣</span>푸시 발송</div>
-    <div class="menu-item" data-page="tickets"><span class="menu-icon">💬</span>1:1 문의</div>
+    <div class="menu-item" data-page="tickets" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💬</span>1:1 문의</div> <span id="badge-tickets" style="background:var(--warning);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
 
     <div class="sidebar-section">시스템·로그</div>
     <div class="menu-item" data-page="gamelogs"><span class="menu-icon">🎮</span>게임 로그</div>
@@ -1131,7 +1131,10 @@ canvas{width:100% !important;}
         <div class="stat-card blue">
           <div class="stat-label">전체 회원</div>
           <div class="stat-value" id="statTotalUsers">-</div>
-          <div class="stat-sub">활성 <strong id="statActiveUsers">-</strong>명</div>
+          <div class="stat-sub" style="display:flex; justify-content:space-between; width:100%;">
+      <span>활성 <strong id="statActiveUsers">-</strong>명</span>
+      <span style="color:var(--success); font-weight:bold;">🟢 접속중 <span id="statOnlineUsers">0</span>명</span>
+    </div>
         </div>
         <div class="stat-card orange">
           <div class="stat-label">대기 입금</div>
@@ -1166,22 +1169,10 @@ canvas{width:100% !important;}
 
       </div>
 
-      <!-- 대시보드 차트 -->  
-      <div class="chart-grid" style="margin-bottom:20px;">
-        <div class="chart-card">
-          <div class="chart-title">
-            <span>📊 최근 6개월 입출금 현황</span>
-            <button class="btn btn-gray btn-sm" onclick="loadDashboardCharts()">새로고침</button>
-          </div>
-          <canvas id="dashMonthlyChart" height="200"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title"><span>🏆 직급 분포</span></div>
-          <canvas id="dashRankChart" height="200"></canvas>
-        </div>
-      </div>
+      
+      <!-- 대시보드 현황판 (실시간 업무) -->  
+      <div class="dash-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
 
-      <div class="dash-grid">
         <div class="activity-feed">
           <div class="activity-feed-header">
             <span>🔔 최근 입금 신청</span>
@@ -1196,6 +1187,25 @@ canvas{width:100% !important;}
           </div>
           <div id="recentWithdrawals"><div class="loading"><div class="spinner"></div></div></div>
         </div>
+        
+        <!-- 실시간 1:1 문의 대기열 -->
+        <div class="activity-feed">
+          <div class="activity-feed-header" style="background:rgba(245,158,11,0.1); border-left:4px solid var(--warning);">
+            <span>💬 미답변 1:1 문의</span>
+            <button class="btn btn-primary btn-sm" onclick="navigateTo('tickets')">전체보기</button>
+          </div>
+          <div id="recentTickets"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+
+        <!-- 실시간 게임 현황 -->
+        <div class="activity-feed">
+          <div class="activity-feed-header" style="background:rgba(16,185,129,0.1); border-left:4px solid var(--success);">
+            <span>🎮 최근 게임 현황 <small id="dashGameProfit" style="margin-left:10px;font-weight:bold;"></small></span>
+            <button class="btn btn-primary btn-sm" onclick="navigateTo('gamelogs')">전체보기</button>
+          </div>
+          <div id="recentGames"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+
       </div>
     </div>
 
@@ -5174,7 +5184,9 @@ onAuthStateChanged(auth, async user => {
             api = new DedraAPI(db);
             loadDashboard();
             setupEvents();
-            startAdminNotifPolling(); // 🔔 관리자 알림 폴링 시작
+            startAdminNotifPolling();
+            startGlobalAdminSnapshots();
+             // 🔔 관리자 알림 폴링 시작
             _setupDone = true;
         }
     } catch(e) {
@@ -5189,6 +5201,7 @@ onAuthStateChanged(auth, async user => {
 // ══════════════════════════════════════════════════
 // 대시보드
 // ══════════════════════════════════════════════════
+
 async function loadDashboard() {
     let r;
     // 보조계정: 백엔드 API 사용 (Firestore 직접 접근 불가)
@@ -5203,6 +5216,7 @@ async function loadDashboard() {
     const _setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     _setEl('statTotalUsers',        d.totalUsers);
     _setEl('statActiveUsers',       d.activeUsers);
+    _setEl('statOnlineUsers',       d.onlineUsers || 0);
     _setEl('statPendingDeposits',   d.pendingDeposits);
     _setEl('statPendingWithdrawals',d.pendingWithdrawals);
     _setEl('statTotalDeposits',     (d.totalDepositAmount    || 0).toFixed(0));
@@ -5211,12 +5225,140 @@ async function loadDashboard() {
     // 투자 통계
     _setEl('statActiveInvestments', d.activeInvestments || 0);
     _setEl('statTotalInvestAmount', (d.totalInvestAmount || 0).toFixed(0));
-    _setEl('statTotalStakedAmount', (d.totalStakedAmount || 0).toFixed(0));
-    const now = new Date();
-    document.getElementById('lastUpdated').textContent = `갱신: ${now.toLocaleTimeString('ko-KR')}`;
-    loadRecentActivity();
-    loadDashboardCharts();
+
+    document.getElementById('lastUpdated').textContent = '업데이트: ' + new Date().toLocaleTimeString();
+
+    // 뱃지 업데이트
+    const updateBadge = (id, count) => {
+      const b = document.getElementById(id);
+      if (b) {
+        b.textContent = count;
+        b.style.display = count > 0 ? 'inline-block' : 'none';
+      }
+    };
+    updateBadge('badge-deposits', d.pendingDeposits);
+    updateBadge('badge-withdrawals', d.pendingWithdrawals);
+    
+    // 티켓 뱃지 업데이트: recentTickets는 최대 5개이므로, 만약 더 정확한 값을 원한다면 별도 카운트 쿼리가 필요함 (현재는 배열 길이로 임시 맵핑)
+    const ticketCount = d.recentTickets ? d.recentTickets.length : 0;
+    updateBadge('badge-tickets', ticketCount > 0 ? ticketCount + '+' : 0);
+
+    // 1. 최근 대기 입금
+    const rdEl = document.getElementById('recentDeposits');
+    if (d.recentDeposits && d.recentDeposits.length > 0) {
+        rdEl.innerHTML = d.recentDeposits.map(r => `
+            <div class="activity-item">
+              <div class="activity-icon blue"><i class="fas fa-arrow-down"></i></div>
+              <div class="activity-content">
+                <div class="activity-title" style="display:flex; justify-content:space-between;">
+                  <span>${formatUserLabel(r.userId, r.userEmail)}</span>
+                  <strong style="color:var(--success);">+${fmtAmt(r.amount)} USDT</strong>
+                </div>
+                <div class="activity-time">${fmtDate(r.createdAt)}</div>
+              </div>
+              <button class="btn btn-primary btn-xs" onclick="navigateTo('deposits')">처리</button>
+            </div>`).join('');
+    } else {
+        rdEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">대기중인 입금이 없습니다.</div>';
+    }
+
+    // 2. 최근 대기 출금
+    const rwEl = document.getElementById('recentWithdrawals');
+    if (d.recentWithdrawals && d.recentWithdrawals.length > 0) {
+        rwEl.innerHTML = d.recentWithdrawals.map(r => `
+            <div class="activity-item">
+              <div class="activity-icon orange"><i class="fas fa-arrow-up"></i></div>
+              <div class="activity-content">
+                <div class="activity-title" style="display:flex; justify-content:space-between;">
+                  <span>${formatUserLabel(r.userId, r.userEmail)}</span>
+                  <strong style="color:var(--danger);">-${fmtAmt(r.amount)} DDRA</strong>
+                </div>
+                <div class="activity-time">${fmtDate(r.createdAt)}</div>
+              </div>
+              <button class="btn btn-primary btn-xs" onclick="navigateTo('withdrawals')">처리</button>
+            </div>`).join('');
+    } else {
+        rwEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">대기중인 출금이 없습니다.</div>';
+    }
+
+    if(window._dashSnaps) {
+        window._dashSnaps.forEach(u => u());
+        window._dashSnaps = [];
+    } else {
+        window._dashSnaps = [];
+    }
+
+    // 3 & 4. 실시간 1:1 문의 & 게임 (보조계정이 아닐 때만 onSnapshot)
+    if (!_currentSubAdmin) {
+        
+        
+        // 티켓
+        window._dashSnaps.push(onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'open'), orderBy('createdAt', 'asc'), limit(10)), (snap) => {
+            const rtEl = document.getElementById('recentTickets');
+            if(snap.empty) {
+                rtEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">미답변 문의가 없습니다. 🎉</div>';
+            } else {
+                let html = '';
+                snap.forEach(doc => {
+                    const tk = doc.data();
+                    html += `
+                    <div class="activity-item">
+                      <div class="activity-icon" style="background:rgba(245,158,11,0.2);color:var(--warning);"><i class="fas fa-question-circle"></i></div>
+                      <div class="activity-content">
+                        <div class="activity-title" style="font-weight:600;">${tk.title || tk.subject || '제목없음'}</div>
+                        <div class="activity-time">${formatUserLabel(tk.userId, tk.userEmail)} · ${fmtDate(tk.createdAt)}</div>
+                      </div>
+                      <button class="btn btn-primary btn-xs" style="background:var(--warning);" onclick="navigateTo('tickets')">답변하기</button>
+                    </div>`;
+                });
+                rtEl.innerHTML = html;
+            }
+        }));
+
+        // 게임
+        window._dashSnaps.push(onSnapshot(query(collection(db, 'gamelogs'), orderBy('createdAt', 'desc'), limit(10)), (snap) => {
+            const rgEl = document.getElementById('recentGames');
+            if(snap.empty) {
+                rgEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">최근 진행된 게임이 없습니다.</div>';
+                const dp = document.getElementById('dashGameProfit');
+                if(dp) dp.textContent = '';
+            } else {
+                let html = '';
+                let totalCompanyProfit = 0;
+                snap.forEach(doc => {
+                    const g = doc.data();
+                    const isWin = g.isWin;
+                    const companyProfit = isWin ? -(g.profit||0) : (g.betAmount||0);
+                    totalCompanyProfit += companyProfit;
+                    const icon = g.gameType === 'dice' ? '🎲' : g.gameType === 'mines' ? '💣' : '🎮';
+                    const resultColor = isWin ? 'var(--danger)' : 'var(--success)';
+                    const resultText = isWin ? '유저 승' : '회사 승';
+                    html += `
+                    <div class="activity-item" style="border-left:3px solid ${resultColor}; padding-left:8px;">
+                      <div style="font-size:20px; margin-right:12px;">${icon}</div>
+                      <div class="activity-content" style="flex:1;">
+                        <div class="activity-title" style="display:flex; justify-content:space-between;">
+                          <span style="font-size:12px;color:var(--gray);">${formatUserLabel(g.userId, g.userEmail)}</span>
+                          <strong style="color:${resultColor}; font-size:12px;">${resultText} (${fmtAmt(g.betAmount)} DDRA)</strong>
+                        </div>
+                        <div class="activity-time" style="display:flex; justify-content:space-between; margin-top:2px;">
+                          <span>${fmtDate(g.createdAt)}</span>
+                          <span style="color:var(--gray);">수익: ${isWin ? '+'+fmtAmt(g.profit) : '-'+fmtAmt(g.betAmount)} DDRA</span>
+                        </div>
+                      </div>
+                    </div>`;
+                });
+                rgEl.innerHTML = html;
+                const dp = document.getElementById('dashGameProfit');
+                if(dp) {
+                    dp.textContent = `(최근 10게임 회사수익: ${totalCompanyProfit > 0 ? '+' : ''}${fmtAmt(totalCompanyProfit)} DDRA)`;
+                    dp.style.color = totalCompanyProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+                }
+            }
+        }));
+    }
 }
+
 
 async function loadRecentActivity() {
     // 최근 입금
@@ -13903,6 +14045,120 @@ document.addEventListener('click', (e) => {
 });
 
 /** 30초마다 폴링 */
+
+// ==== 글로벌 대시보드 업데이트 (메뉴 뱃지 등 실시간 현황) ====
+let _dashboardPollTimer = null;
+function startDashboardPolling() {
+    if (_dashboardPollTimer) clearInterval(_dashboardPollTimer);
+    _dashboardPollTimer = setInterval(() => {
+        // 대시보드 페이지가 열려있거나, 혹은 뱃지 갱신을 위해 주기적으로 실행
+        if (currentAdmin || _currentSubAdmin) {
+            loadDashboard(); // loadDashboard 안에 뱃지 업데이트 로직 포함됨
+        }
+    }, 15000); // 15초마다 갱신
+}
+// ==== 끝 ====
+
+
+let _globalSnaps = [];
+function startGlobalAdminSnapshots() {
+    if (_currentSubAdmin) return; // subadmin is difficult with snapshots
+    
+    
+    // 입금 대기
+    // removed old deposit snap
+
+    // 출금 대기
+    
+    // 입금 대기
+    _globalSnaps.push(onSnapshot(query(collection(db, 'transactions'), where('type', '==', 'deposit'), where('status', '==', 'pending'), orderBy('createdAt', 'desc'), limit(10)), (snap) => {
+        const cnt = snap.size;
+        const b = document.getElementById('badge-deposits');
+        if(b) { b.textContent = cnt; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
+        const sd = document.getElementById('statPendingDeposits');
+        if(sd) sd.textContent = cnt;
+
+        const rdEl = document.getElementById('recentDeposits');
+        if (rdEl) {
+            if(snap.empty) {
+                rdEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">대기중인 입금이 없습니다.</div>';
+            } else {
+                let html = '';
+                snap.forEach(doc => {
+                    const r = {id:doc.id, ...doc.data()};
+                    html += `
+                    <div class="activity-item">
+                      <div class="activity-icon blue"><i class="fas fa-arrow-down"></i></div>
+                      <div class="activity-content">
+                        <div class="activity-title" style="display:flex; justify-content:space-between;">
+                          <span>${formatUserLabel(r.userId, r.userEmail)}</span>
+                          <strong style="color:var(--success);">+${fmtAmt(r.amount)} USDT</strong>
+                        </div>
+                        <div class="activity-time">${fmtDate(r.createdAt)}</div>
+                      </div>
+                      <button class="btn btn-primary btn-xs" onclick="navigateTo('deposits')">처리</button>
+                    </div>`;
+                });
+                rdEl.innerHTML = html;
+            }
+        }
+    }));
+
+    // 출금 대기
+    _globalSnaps.push(onSnapshot(query(collection(db, 'transactions'), where('type', '==', 'withdrawal'), where('status', '==', 'pending'), orderBy('createdAt', 'desc'), limit(10)), (snap) => {
+        const cnt = snap.size;
+        const b = document.getElementById('badge-withdrawals');
+        if(b) { b.textContent = cnt; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
+        const sd = document.getElementById('statPendingWithdrawals');
+        if(sd) sd.textContent = cnt;
+
+        const rwEl = document.getElementById('recentWithdrawals');
+        if (rwEl) {
+            if(snap.empty) {
+                rwEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">대기중인 출금이 없습니다.</div>';
+            } else {
+                let html = '';
+                snap.forEach(doc => {
+                    const r = {id:doc.id, ...doc.data()};
+                    html += `
+                    <div class="activity-item">
+                      <div class="activity-icon orange"><i class="fas fa-arrow-up"></i></div>
+                      <div class="activity-content">
+                        <div class="activity-title" style="display:flex; justify-content:space-between;">
+                          <span>${formatUserLabel(r.userId, r.userEmail)}</span>
+                          <strong style="color:var(--danger);">-${fmtAmt(r.amount)} DDRA</strong>
+                        </div>
+                        <div class="activity-time">${fmtDate(r.createdAt)}</div>
+                      </div>
+                      <button class="btn btn-primary btn-xs" onclick="navigateTo('withdrawals')">처리</button>
+                    </div>`;
+                });
+                rwEl.innerHTML = html;
+            }
+        }
+    }));
+
+
+    // 1:1 문의 대기
+    _globalSnaps.push(onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'open')), (snap) => {
+        const cnt = snap.size;
+        const b = document.getElementById('badge-tickets');
+        if(b) { b.textContent = cnt > 0 ? cnt+'+' : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
+    }));
+    
+    // 실시간 접속자 (단순 주기적 업데이트용으로만 사용, 대규모 시 부하 주의 -> 우선 60초 폴링)
+    setInterval(async () => {
+       try {
+           
+           // 2분 이내 접속자
+           const q = query(collection(db, 'users'), where('lastSeenAt', '>', Date.now() - 120000));
+           const snap = await getDocs(q);
+           const so = document.getElementById('statOnlineUsers');
+           if(so) so.textContent = snap.size;
+       } catch(e){}
+    }, 60000);
+}
+
 function startAdminNotifPolling() {
   loadAdminNotifications();
   _adminNotifPollTimer = setInterval(loadAdminNotifications, 30000);

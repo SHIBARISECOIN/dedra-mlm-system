@@ -2434,6 +2434,20 @@ async function initApp() {
     } else {
       userData = userSnap.data();
 
+    
+    // 온라인 상태 업데이트 핑 (1분마다 lastSeenAt 갱신)
+    async function updateOnlineStatus() {
+      if (currentUser) {
+        try {
+          await window.FB.updateDoc(window.FB.doc(db, 'users', currentUser.uid), {
+            lastSeenAt: Date.now()
+          });
+        } catch(e) { }
+      }
+    }
+    updateOnlineStatus();
+    setInterval(updateOnlineStatus, 60000);
+
     // 유저 데이터 실시간 구독 (직급 상승 등 감지)
     if (window._userUnsubscribe) window._userUnsubscribe();
     window._userUnsubscribe = window.FB.onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
@@ -3318,7 +3332,7 @@ function updateHomeUI() {
   const greetEl = document.getElementById('greetingMsg');
   const nameEl = document.getElementById('userNameDisplay');
   const rankImg = document.getElementById('userRankBadgeImg');
-  if (rankImg) rankImg.src = '/static/ranks/' + (userData.rank || 'G0').trim().toLowerCase() + '.png?v=2';
+  if (rankImg) let r = (userData.rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = '/static/ranks/' + r + '.png?v=2';
   if (greetEl) greetEl.textContent = greeting + ' 👋';
   if (nameEl) nameEl.textContent = (userData.name || '회원') + ' (' + (userData.referralCode || '') + ')님';
 
@@ -4707,11 +4721,11 @@ function updateRankUI() {
   // Don't overwrite the whole div, just update the image
   const rankImg = document.getElementById('rankCurrentImg');
   if (rankImg) {
-    rankImg.src = `/static/ranks/${rank.trim().toLowerCase()}.png?v=2`;
+    let r = (rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = `/static/ranks/${r}.png?v=2`;
   } else {
     // fallback if img is missing
     const rc = document.getElementById('rankCurrent');
-    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${rank.trim().toLowerCase()}.png?v=2" alt="${rank}" style="width:80px;height:auto;object-fit:contain;" />`;
+    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${((rank || 'G0').trim().toLowerCase().match(/^g([0-9]|10)$/) ? (rank || 'G0').trim().toLowerCase() : 'g0')}.png?v=2" alt="${rank}" style="width:80px;height:auto;object-fit:contain;" />`;
   }
 
   // ── 새 승진 조건 (관리자 설정) 방식 ──────────────────────────
@@ -8010,38 +8024,17 @@ window.openGalaxyMode = async function() {
 
   // 로딩
   const loading = document.createElement('div');
-  loading.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#a78bfa;font-size:14px;';
+  loading.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#a78bfa;font-size:14px;pointer-events:none;z-index:20;';
   loading.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 우주 탐색 중...';
   overlay.appendChild(loading);
   
   document.body.appendChild(overlay);
 
   try {
-    // 1대, 2대, 3대 데이터 가져오기 (app.js의 기존 fetchChildren 로직과 유사)
+    // 1대 데이터 가져오기
     const gen1Snap = await getDocs(query(collection(db, 'users'), where('referredBy', '==', currentUser.uid)));
     const gen1 = gen1Snap.docs.map(d => ({ id: d.id, ...d.data(), level: 1 }));
     
-    let gen2 = [];
-    if (gen1.length > 0) {
-      const g1Ids = gen1.map(u => u.id);
-      // Firestore 'in' query limit is 30
-      for (let i = 0; i < g1Ids.length; i += 30) {
-        const chunk = g1Ids.slice(i, i + 30);
-        const g2Snap = await getDocs(query(collection(db, 'users'), where('referredBy', 'in', chunk)));
-        gen2.push(...g2Snap.docs.map(d => ({ id: d.id, ...d.data(), level: 2 })));
-      }
-    }
-
-    let gen3 = [];
-    if (gen2.length > 0) {
-      const g2Ids = gen2.map(u => u.id);
-      for (let i = 0; i < Math.min(g2Ids.length, 90); i += 30) { // Limit to 90 to prevent too many queries
-        const chunk = g2Ids.slice(i, i + 30);
-        const g3Snap = await getDocs(query(collection(db, 'users'), where('referredBy', 'in', chunk)));
-        gen3.push(...g3Snap.docs.map(d => ({ id: d.id, ...d.data(), level: 3 })));
-      }
-    }
-
     loading.remove();
 
     // 캔버스 설정
@@ -8055,7 +8048,7 @@ window.openGalaxyMode = async function() {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    // 행성 데이터 구성
+    // 행성 데이터
     const planets = [];
     const colors = {
       'G0': '#94a3b8', 'G1': '#38bdf8', 'G2': '#34d399', 'G3': '#fbbf24',
@@ -8063,28 +8056,41 @@ window.openGalaxyMode = async function() {
       'G8': '#f97316', 'G9': '#a3e635', 'G10': '#eab308'
     };
 
-    const addPlanets = (users, radius, speedBase, sizeBase) => {
+    const addPlanets = (users, parentPlanet, level) => {
+      // parentPlanet이 없으면 중심(ME), 있으면 그 행성 주위를 도는 위성처럼 배치하거나 중심에서 더 멀게 배치
+      const baseRadius = parentPlanet ? parentPlanet.orbitRadius + 40 + Math.random()*20 : Math.min(cx, cy) * 0.35 + (level-1)*40;
+      const baseSpeed = parentPlanet ? parentPlanet.speed * 0.8 : 0.005;
+      const baseSize = Math.max(2, 6 - level);
+
       users.forEach((u, i) => {
+        // 이미 있는 유저면 스킵
+        if (planets.find(p => p.id === u.id)) return;
+        
+        let startAngle = (i / users.length) * Math.PI * 2;
+        if (parentPlanet) {
+          // 부모 행성 근처 각도에서 시작 (줄줄이 사탕 효과)
+          startAngle = parentPlanet.angle - (i + 1) * 0.15; 
+        }
+
         planets.push({
+          id: u.id,
           name: u.name || u.id.slice(0,5),
           rank: u.rank || 'G0',
           color: colors[u.rank || 'G0'] || '#fff',
-          orbitRadius: radius + (Math.random() * 20 - 10), // 궤도 약간의 오차
-          angle: (i / users.length) * Math.PI * 2,
-          speed: speedBase * (Math.random() * 0.5 + 0.5), // 속도 약간 랜덤
-          size: sizeBase + (['G0','G1'].includes(u.rank) ? 0 : 2) // 직급 높으면 좀 더 큼
+          orbitRadius: baseRadius + (Math.random() * 20 - 10),
+          angle: startAngle,
+          speed: baseSpeed * (Math.random() * 0.5 + 0.8),
+          size: baseSize + (['G0','G1'].includes(u.rank) ? 0 : 2),
+          level: level,
+          childrenFetched: false,
+          px: 0, py: 0, scale: 1
         });
       });
     };
 
-    // 1대: 가깝고 빠름
-    addPlanets(gen1, Math.min(cx,cy) * 0.35, 0.005, 6);
-    // 2대: 중간
-    addPlanets(gen2, Math.min(cx,cy) * 0.6, 0.002, 4);
-    // 3대: 멀고 느림
-    addPlanets(gen3, Math.min(cx,cy) * 0.85, 0.001, 3);
+    addPlanets(gen1, null, 1);
 
-    // 배경 별 (Stars)
+    // 배경 별
     const stars = Array(150).fill().map(() => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -8093,14 +8099,11 @@ window.openGalaxyMode = async function() {
     }));
 
     let animationId;
-    let time = 0;
 
     function draw() {
-      // 꼬리 효과를 위해 배경을 반투명하게 칠함
       ctx.fillStyle = 'rgba(5, 5, 16, 0.3)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 별 그리기
       stars.forEach(s => {
         s.alpha += (Math.random() - 0.5) * 0.1;
         if(s.alpha < 0) s.alpha = 0; if(s.alpha > 1) s.alpha = 1;
@@ -8127,34 +8130,29 @@ window.openGalaxyMode = async function() {
       ctx.textBaseline = 'middle';
       ctx.fillText('ME', cx, cy);
 
-      // 행성 그리기
+      const tilt = 0.6; 
       planets.forEach(p => {
         p.angle += p.speed;
-        // 3D 느낌을 위해 y축을 약간 납작하게 (타원 궤도)
-        const tilt = 0.6; 
-        const px = cx + Math.cos(p.angle) * p.orbitRadius;
-        const py = cy + Math.sin(p.angle) * p.orbitRadius * tilt;
+        p.px = cx + Math.cos(p.angle) * p.orbitRadius;
+        p.py = cy + Math.sin(p.angle) * p.orbitRadius * tilt;
 
-        // 뒤로 돌아갈 때(sin < 0)는 작게/어둡게, 앞으로 올 때(sin > 0)는 크게/밝게
         const depth = Math.sin(p.angle);
-        const scale = 1 + (depth * 0.3);
+        p.scale = 1 + (depth * 0.3);
         
         ctx.beginPath();
-        ctx.arc(px, py, p.size * scale, 0, Math.PI * 2);
+        ctx.arc(p.px, p.py, p.size * p.scale, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
         ctx.fill();
         
-        // Glow effect
-        ctx.shadowBlur = 10 * scale;
+        ctx.shadowBlur = 10 * p.scale;
         ctx.shadowColor = p.color;
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // 이름 (앞에 있을 때만 살짝 보임)
-        if (depth > 0) {
+        if (depth > -0.5) {
           ctx.fillStyle = `rgba(255,255,255,${0.4 + depth * 0.6})`;
-          ctx.font = `${10 * scale}px sans-serif`;
-          ctx.fillText(p.name, px, py + 12 * scale);
+          ctx.font = `${10 * p.scale}px sans-serif`;
+          ctx.fillText(p.name, p.px, p.py + 12 * p.scale);
         }
       });
 
@@ -8163,7 +8161,65 @@ window.openGalaxyMode = async function() {
     
     draw();
 
-    // 정리 로직
+    // 터치 및 클릭 이벤트 처리 (안드로이드, PC 모두 지원)
+    let isFetching = false;
+    const handleInteraction = async (clientX, clientY) => {
+      if(isFetching) return;
+      
+      // 클릭한 좌표와 가장 가까운 행성 찾기
+      let clickedPlanet = null;
+      let minDist = 30; // 클릭 허용 반경
+      
+      for(let p of planets) {
+        // z-index 적인 요소(scale)를 고려해 앞으로 나와있는 걸 우선할 수도 있지만 단순 거리계산
+        const dx = p.px - clientX;
+        const dy = p.py - clientY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist < minDist * p.scale) {
+            minDist = dist;
+            clickedPlanet = p;
+        }
+      }
+      
+      if(clickedPlanet && !clickedPlanet.childrenFetched) {
+         isFetching = true;
+         // 로딩 표시
+         const touchMsg = document.createElement('div');
+         touchMsg.style.cssText = `position:absolute;left:${clientX}px;top:${clientY - 30}px;color:#38bdf8;font-size:12px;pointer-events:none;transform:translateX(-50%);text-shadow:0 0 4px #000;`;
+         touchMsg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 연결된 파트너 찾는중...';
+         overlay.appendChild(touchMsg);
+         
+         try {
+             const childSnap = await getDocs(query(collection(db, 'users'), where('referredBy', '==', clickedPlanet.id)));
+             if(!childSnap.empty) {
+                 const children = childSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                 addPlanets(children, clickedPlanet, clickedPlanet.level + 1);
+                 touchMsg.innerHTML = `<i class="fas fa-check"></i> ${children.length}명 발견!`;
+             } else {
+                 touchMsg.innerHTML = '하위 파트너 없음';
+                 touchMsg.style.color = '#94a3b8';
+             }
+             clickedPlanet.childrenFetched = true;
+         } catch(e) {
+             touchMsg.innerHTML = '조회 실패';
+             touchMsg.style.color = '#ef4444';
+         }
+         
+         setTimeout(() => touchMsg.remove(), 2000);
+         isFetching = false;
+      }
+    };
+
+    canvas.addEventListener('click', (e) => {
+        handleInteraction(e.clientX, e.clientY);
+    });
+    
+    canvas.addEventListener('touchstart', (e) => {
+        if(e.touches.length > 0) {
+            handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, {passive: true});
+
     const obs = new MutationObserver(() => {
       if (!document.body.contains(overlay)) {
         cancelAnimationFrame(animationId);
@@ -8174,6 +8230,7 @@ window.openGalaxyMode = async function() {
 
   } catch(e) {
     console.error('Galaxy mode error:', e);
-    loading.innerHTML = '데이터를 불러오지 못했습니다.';
+    loading.innerHTML = '우주 탐색 실패 🚀💥';
+    setTimeout(() => overlay.remove(), 2000);
   }
 };

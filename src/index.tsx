@@ -1088,6 +1088,7 @@ app.get('/api/subadmin/dashboard-stats', async (c) => {
       data: {
         totalUsers:            users.filter((u: any) => u.role !== 'admin').length,
         activeUsers:           users.filter((u: any) => u.status === 'active' && u.role !== 'admin').length,
+        onlineUsers:           users.filter((u: any) => u.lastSeenAt && (Date.now() - u.lastSeenAt < 120000)).length,
         pendingDeposits:       deposits.filter((t: any) => t.status === 'pending').length,
         pendingWithdrawals:    withdrawals.filter((t: any) => t.status === 'pending').length,
         totalDepositAmount:    deposits.filter((t: any) => t.status === 'approved').reduce((s: number, t: any) => s + (t.amount || 0), 0),

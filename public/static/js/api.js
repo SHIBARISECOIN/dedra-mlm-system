@@ -187,11 +187,20 @@ export class DedraAPI {
         getDocs(collection(db, 'investments')).catch(() => ({ docs: [] })),
       ]);
       // gamelogs는 별도로 시도 (실패해도 무시)
+      
+      // gamelogs는 별도로 시도 (실패해도 무시)
       let games = [];
       try {
-        const gameSnap = await getDocs(collection(db, 'gamelogs'));
+        const gameSnap = await getDocs(query(collection(db, 'gamelogs'), orderBy('createdAt', 'desc'), limit(10)));
         games = gameSnap.docs.map(d => d.data());
       } catch(_) {}
+
+      let tickets = [];
+      try {
+        const tSnap = await getDocs(query(collection(db, 'tickets'), where('status', '==', 'open'), orderBy('createdAt', 'asc'), limit(5)));
+        tickets = tSnap.docs.map(d => d.data());
+      } catch(_) {}
+
 
       const users = usersSnap.docs.map(d => d.data());
       const txs   = txSnap.docs.map(d => d.data());
@@ -203,6 +212,7 @@ export class DedraAPI {
       return ok({
         totalUsers:            users.filter(u => u.role !== 'admin').length,
         activeUsers:           users.filter(u => u.status === 'active' && u.role !== 'admin').length,
+        onlineUsers:           users.filter(u => u.lastSeenAt && (Date.now() - u.lastSeenAt < 120000)).length,
         pendingDeposits:       deposits.filter(t => t.status === 'pending').length,
         pendingWithdrawals:    withdrawals.filter(t => t.status === 'pending').length,
         totalDepositAmount:    deposits.filter(t => t.status === 'approved').reduce((s, t) => s + (t.amount || 0), 0),
