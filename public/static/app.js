@@ -118,7 +118,22 @@ const TRANSLATIONS = {
     maturityDate: '만기일',
     emptyNotice: '공지사항이 없습니다',
     loadFail: '불러오기 실패',
-    emptyTx: '거래 내역이 없습니다',
+        emptyTx: '거래 내역이 없습니다',
+    chatTabGroup: '내 그룹',
+    chatTabUpline: '스폰서',
+    chatNoSponsor: '스폰서가 없습니다.',
+    chatFirstMessage: '첫 메시지를 보내보세요!',
+    chatInputPlaceholder: '메시지를 입력하세요...',
+    chatSendFail: '메시지 전송 실패',
+    chatNewMessage: '새 메시지가 도착했습니다.',
+    chatPageTitle: '채팅',
+    fee: '수수료',
+    globalNetwork: '실시간 글로벌 네트워크',
+    newsViewerTitle: '📰 뉴스 보기',
+    tickerJoined: '새로운 회원이 가입했습니다: {city}',
+    tickerDeposited: '{city}에서 {amt} USDT 입금',
+    tickerUpgraded: '{city}에서 직급 승급',
+    tickerFreeze: '{city}에서 {amt} USDT FREEZE',
     emptyBonus: '수익 내역이 없습니다',
     emptyBonusSub: '관리자가 일일 정산을 실행하면 여기에 표시됩니다.',
     emptyProducts: 'FREEZE 플랜이 없습니다',
@@ -368,7 +383,7 @@ const TRANSLATIONS = {
     emptyTx: '거래 내역이 없습니다',
     emptyBonus: '수익 내역이 없습니다',
     emptyBonusSub: '관리자가 일일 정산을 실행하면 여기에 표시됩니다.',
-    emptyNotice: '공지사항을 찾을 수 없습니다.',
+    emptyNotice: '${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}',
     loadFail: '불러오기 실패',
     loading: '불러오는 중...',
     noTitle: '제목 없음',
@@ -459,7 +474,7 @@ const TRANSLATIONS = {
     // 추가 다국어 키
     langChanged: '언어가 변경되었습니다',
     walletAddrNotSet: '주소 미설정 (관리자 문의)',
-    noGameDdra: '게임 가능 DDRA가 없습니다. FREEZE 수익이 발생하면 바로 게임 가능합니다.',
+    noGameDdra: t('noGameDdra'),
     coinFlying: '동전이 날아갑니다...',
     result: '결과',
     diceHit: '적중!',
@@ -507,7 +522,7 @@ const TRANSLATIONS = {
     periodLabel: '기간',
     minLabel: '최소',
     maxLabel: '최대',
-    productHint2: 'FREEZE 시 일 수익',
+    productHint3: 'FREEZE 시 일 수익',
     approx: '≈',
     principalUnfreeze: '원금은 만기 후 언프리즈 가능합니다.',
     ddraEquiv: 'DDRA 환산',
@@ -651,7 +666,22 @@ const TRANSLATIONS = {
     maturityDate: 'Maturity Date',
     emptyNotice: 'No announcements',
     loadFail: 'Failed to load',
-    emptyTx: 'No transaction history',
+        emptyTx: 'No transaction history',
+    chatTabGroup: 'My Group',
+    chatTabUpline: 'Sponsor',
+    chatNoSponsor: 'No sponsor available.',
+    chatFirstMessage: 'Send your first message!',
+    chatInputPlaceholder: 'Type a message...',
+    chatSendFail: 'Failed to send message',
+    chatNewMessage: 'New message arrived.',
+    chatPageTitle: 'Chat',
+    fee: 'Fee',
+    globalNetwork: 'Real-time Global Network',
+    newsViewerTitle: '📰 View News',
+    tickerJoined: 'New user joined in {city}',
+    tickerDeposited: '{amt} USDT Deposited from {city}',
+    tickerUpgraded: 'Rank upgraded in {city}',
+    tickerFreeze: '{amt} USDT FREEZE in {city}',
     emptyBonus: 'No earnings history',
     emptyBonusSub: 'Will be displayed here when admin runs daily settlement.',
     emptyProducts: 'No FREEZE plans available',
@@ -1032,7 +1062,7 @@ const TRANSLATIONS = {
     periodLabel: 'Period',
     minLabel: 'Min',
     maxLabel: 'Max',
-    productHint2: 'FREEZE daily earnings',
+    productHint3: 'FREEZE daily earnings',
     approx: '≈',
     principalUnfreeze: 'Principal can be unfrozen after maturity.',
     ddraEquiv: 'DDRA equivalent',
@@ -1174,7 +1204,22 @@ const TRANSLATIONS = {
     maturityDate: 'Ngày đáo hạn',
     emptyNotice: 'Không có thông báo',
     loadFail: 'Tải thất bại',
-    emptyTx: 'Không có lịch sử giao dịch',
+        emptyTx: 'Không có lịch sử giao dịch',
+    chatTabGroup: 'Nhóm của tôi',
+    chatTabUpline: 'Nhà tài trợ',
+    chatNoSponsor: 'Không có nhà tài trợ.',
+    chatFirstMessage: 'Gửi tin nhắn đầu tiên của bạn!',
+    chatInputPlaceholder: 'Nhập tin nhắn...',
+    chatSendFail: 'Gửi tin nhắn thất bại',
+    chatNewMessage: 'Tin nhắn mới đã đến.',
+    chatPageTitle: 'Trò chuyện',
+    fee: 'Phí',
+    globalNetwork: 'Mạng lưới toàn cầu',
+    newsViewerTitle: '📰 Xem Tin tức',
+    tickerJoined: 'Người dùng mới đã tham gia từ {city}',
+    tickerDeposited: '{amt} USDT đã được nạp từ {city}',
+    tickerUpgraded: 'Thăng cấp hạng từ {city}',
+    tickerFreeze: '{amt} USDT FREEZE từ {city}',
     emptyBonus: 'Không có lịch sử thu nhập',
     emptyBonusSub: 'Sẽ hiển thị ở đây khi admin chạy quyết toán hàng ngày.',
     emptyProducts: 'Không có gói FREEZE',
@@ -1553,7 +1598,7 @@ const TRANSLATIONS = {
     periodLabel: 'Thời hạn',
     minLabel: 'Tối thiểu',
     maxLabel: 'Tối đa',
-    productHint2: 'FREEZE thu nhập hàng ngày',
+    productHint3: 'FREEZE thu nhập hàng ngày',
     approx: '≈',
     principalUnfreeze: 'Vốn có thể rút sau khi đáo hạn.',
     ddraEquiv: 'Quy đổi DDRA',
@@ -1695,7 +1740,22 @@ const TRANSLATIONS = {
     maturityDate: 'วันครบกำหนด',
     emptyNotice: 'ไม่มีประกาศ',
     loadFail: 'โหลดล้มเหลว',
-    emptyTx: 'ไม่มีประวัติการทำธุรกรรม',
+        emptyTx: 'ไม่มีประวัติการทำธุรกรรม',
+    chatTabGroup: 'กลุ่มของฉัน',
+    chatTabUpline: 'ผู้สนับสนุน',
+    chatNoSponsor: 'ไม่มีผู้สนับสนุน',
+    chatFirstMessage: 'ส่งข้อความแรกของคุณ!',
+    chatInputPlaceholder: 'พิมพ์ข้อความ...',
+    chatSendFail: 'ส่งข้อความล้มเหลว',
+    chatNewMessage: 'มีข้อความใหม่',
+    chatPageTitle: 'แชท',
+    fee: 'ค่าธรรมเนียม',
+    globalNetwork: 'เครือข่ายระดับโลกตามเวลาจริง',
+    newsViewerTitle: '📰 ดูข่าว',
+    tickerJoined: 'ผู้ใช้ใหม่เข้าร่วมใน {city}',
+    tickerDeposited: '{amt} USDT ฝากจาก {city}',
+    tickerUpgraded: 'อัปเกรดอันดับใน {city}',
+    tickerFreeze: '{amt} USDT FREEZE ใน {city}',
     emptyBonus: 'ไม่มีประวัติรายได้',
     emptyBonusSub: 'จะแสดงที่นี่เมื่อผู้ดูแลระบบดำเนินการสรุปยอดประจำวัน',
     emptyProducts: 'ไม่มีแผน FREEZE',
@@ -2073,7 +2133,7 @@ const TRANSLATIONS = {
     periodLabel: 'ระยะเวลา',
     minLabel: 'ขั้นต่ำ',
     maxLabel: 'สูงสุด',
-    productHint2: 'FREEZE รายได้รายวัน',
+    productHint3: 'FREEZE รายได้รายวัน',
     approx: '≈',
     principalUnfreeze: 'เงินต้นสามารถถอนได้หลังครบกำหนด',
     ddraEquiv: 'เทียบเท่า DDRA',
@@ -2778,14 +2838,14 @@ function renderHomeEarn(products, myInvestments) {
       <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
         <span style="font-size:14px;flex-shrink:0;">${icon}</span>
         <div style="min-width:0;">
-          <div class="earn-item-name">${p.name === "1개월" ? t("productMonth1") : p.name === "3개월" ? t("productMonth3") : p.name === "6개월" ? t("productMonth6") : p.name === "12개월" ? t("productMonth12") : (p.name || "-")}</div>
-          <div class="earn-item-period">${days}${t("days")}</div>
+          <div class="earn-item-name">${(p.name && p.name.includes('1개월') ? t('productMonth1') : p.name && p.name.includes('3개월') ? t('productMonth3') : p.name && p.name.includes('6개월') ? t('productMonth6') : p.name && p.name.includes('12개월') ? t('productMonth12') : (p.name || '-'))}</div>
+          <div class="earn-item-period">${parseInt(days)}${t("days")}</div>
         </div>
       </div>
       <div style="text-align:right;flex-shrink:0;">
         <div class="earn-item-roi">${roi.toFixed(1)}%</div>
         ${isPurchased && dailyEarn > 0
-          ? `<div class="earn-item-roi-label earn-roi-blink">+$${fmt(dailyEarn)}/일</div>`
+          ? `<div class="earn-item-roi-label earn-roi-blink">+$${fmt(dailyEarn)}${t('perDay')}</div>`
           : `<div class="earn-item-roi-label">${t('dailyRoi')}</div>`
         }
       </div>
@@ -3463,7 +3523,7 @@ async function loadAnnouncements() {
   } catch (err) {
     console.error('[announcements] load error:', err);
     const el = document.getElementById('announcementList');
-    if (el) el.innerHTML = '<div class="empty-state">공지사항이 없습니다</div>';
+    if (el) el.innerHTML = '<div class="empty-state">${t('emptyNotice')}</div>';
   }
 }
 
@@ -3471,7 +3531,7 @@ function renderAnnouncements(items, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!items.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i>공지사항이 없습니다</div>';
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyNotice')}</div>';
     return;
   }
   el.innerHTML = items.map(a => `
@@ -3521,7 +3581,7 @@ window.showAnnouncementDetail = async function(id) {
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
-    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">공지사항을 찾을 수 없습니다.</div>'; return; }
+    if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}</div>'; return; }
     const a = snap.data();
     if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || '제목 없음');
     if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
@@ -3547,7 +3607,7 @@ async function loadRecentTransactions() {
     renderTxList(txs, 'recentTxList');
   } catch (err) {
     const el = document.getElementById('recentTxList');
-    if (el) el.innerHTML = '<div class="empty-state">거래 내역이 없습니다</div>';
+    if (el) el.innerHTML = '<div class="empty-state">' + (t('emptyTx') || '거래 내역이 없습니다') + '</div>';
   }
 }
 
@@ -3555,7 +3615,7 @@ function renderTxList(txs, containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (!txs.length) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i>거래 내역이 없습니다</div>';
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i>' + (t('emptyTx') || '거래 내역이 없습니다') + '</div>';
     return;
   }
   const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
@@ -3655,7 +3715,7 @@ async function loadTxHistory(typeFilter) {
     txs = txs.slice(0, 40); // Limit total shown
 
     if (txs.length === 0) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>내역이 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>' + (t('emptyTx') || '내역이 없습니다') + '</div>';
       return;
     }
 
@@ -3719,7 +3779,7 @@ async function loadTxHistory(typeFilter) {
     
   } catch (err) {
     console.error('loadTxHistory error:', err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>거래 내역이 없습니다</div>';
+    if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>' + (t('emptyTx') || '거래 내역이 없습니다') + '</div>';
   }
 }
 
@@ -4272,8 +4332,8 @@ window.submitWithdraw = async function() {
     }
 
     closeModal('withdrawModal');
-    const feeMsg = feeAmount > 0 ? ` (수수료 ${fmt(feeAmount)} DDRA)` : '';
-    showToast(`출금 신청 완료! ${fmt(netDdra)} DDRA${feeMsg} 지급 예정`, 'success');
+    const feeMsg = feeAmount > 0 ? ` (${t('fee') || '수수료'} ${fmt(feeAmount)} DDRA)` : '';
+    showToast(`${t('toastWithdrawDone2') || '출금 신청 완료!'} ${fmt(netDdra)} DDRA${feeMsg}`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
@@ -4326,7 +4386,7 @@ async function loadProducts() {
       .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
 
     if (!productsCache.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>FREEZE 플랜이 없습니다</div>';
+      if (listEl) listEl.innerHTML = `<div class="empty-state"><i class="fas fa-snowflake"></i>${t('emptyFreezePlan')}</div>`;
       return;
     }
 
@@ -4351,8 +4411,8 @@ async function loadProducts() {
         <div class="product-tier-bar tier-${tier}"></div>
         <div class="product-top">
           <div>
-            <div class="product-name">${p.name || '-'}</div>
-            <span class="product-tag ${tag}">${p.name || '-'}</span>
+            <div class="product-name">${(p.name && p.name.includes('1개월') ? t('productMonth1') : p.name && p.name.includes('3개월') ? t('productMonth3') : p.name && p.name.includes('6개월') ? t('productMonth6') : p.name && p.name.includes('12개월') ? t('productMonth12') : (p.name || '-'))}</div>
+            <span class="product-tag ${tag}">${(p.name && p.name.includes('1개월') ? t('productMonth1') : p.name && p.name.includes('3개월') ? t('productMonth3') : p.name && p.name.includes('6개월') ? t('productMonth6') : p.name && p.name.includes('12개월') ? t('productMonth12') : (p.name || '-'))}</span>
           </div>
           <div class="product-roi-block">
             <div class="product-roi">${roi.toFixed(1)}%</div>
@@ -4404,13 +4464,13 @@ async function loadProducts() {
           </svg>
         </div>
         <div class="product-meta">
-          <div class="product-meta-item">기간: <strong>${days}일</strong></div>
+          <div class="product-meta-item">${t('periodLabel') || '기간'}: <strong>${parseInt(days)}${t('days') || '일'}</strong></div>
           <div class="product-meta-item">${t('minLabel') || '최소'}: <strong>${fmt(p.minAmount)} USDT</strong></div>
           <div class="product-meta-item">${t('maxLabel') || '최대'}: <strong>${fmt(p.maxAmount)} USDT</strong></div>
         </div>
         <div class="product-conversion">
-          ❄️ ${fmt(p.minAmount)} USDT FREEZE 시 일 수익 <strong>~${fmt(dailyEarning)} USDT</strong>
-          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA/일) · 🔒 만기 후 언프리즈 가능
+          ❄️ ${(t('productHint1') || '{min} USDT FREEZE 시 일 수익').replace('{min}', fmt(p.minAmount))} <strong>~${fmt(dailyEarning)} USDT</strong>
+          (≈ ${fmt(dailyEarning / (deedraPrice||0.5))} DDRA${t('perDay') || '/일'}) · 🔒 ${t('productHint2') || '만기 후 언프리즈 가능'}
         </div>
         <button class="invest-btn" onclick="openInvestModal('${p.id}','${p.name || ''}',${roi},${days},${p.minAmount||0},${p.maxAmount||9999})">
           ❄️ FREEZE
@@ -4419,7 +4479,7 @@ async function loadProducts() {
     }).join('');
   } catch (err) {
     console.warn(err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
 }
 
@@ -4547,7 +4607,7 @@ async function loadMyInvestments() {
     setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/일');
 
     if (!invests.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>진행 중인 FREEZE가 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>' + (t('emptyActiveFreeze') || '진행 중인 FREEZE가 없습니다') + '</div>';
       return;
     }
 
@@ -4878,7 +4938,7 @@ async function loadReferralList() {
     setEl('rankReferralCount', refs.length);
 
     if (!refs.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-user-friends"></i>추천인이 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-user-friends"></i>' + (t('emptyRef') || '추천인이 없습니다') + '</div>';
       return;
     }
 
@@ -5291,7 +5351,7 @@ window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
 window.startGame = function(type) {
   if (gameBalanceVal <= 0) {
-    showToast('게임 가능 DDRA가 없습니다. FREEZE 수익이 발생하면 바로 게임 가능합니다.', 'warning');
+    showToast(t('noGameDdra'), 'warning');
     return;
   }
   closeAllGames();
@@ -6397,7 +6457,7 @@ window.showTickets = async function() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (!tickets.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state">문의 내역이 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state">' + (t('emptyTicket') || '문의 내역이 없습니다') + '</div>';
       return;
     }
     if (listEl) listEl.innerHTML = tickets.map(t => `
@@ -6510,7 +6570,7 @@ window.showNotifications = async function() {
       await batch.commit();
     }
     if (!items.length) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-bell-slash"></i><br>알림이 없습니다</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-bell-slash"></i><br>' + (t('emptyNoti') || '알림이 없습니다') + '</div>';
       return;
     }
     const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
@@ -6525,7 +6585,7 @@ window.showNotifications = async function() {
       </div>
     `).join('');
   } catch(e) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">알림을 불러올 수 없습니다</div>';
+    if (listEl) listEl.innerHTML = '<div class="empty-state">' + (t('loadFail') || '알림을 불러올 수 없습니다') + '</div>';
   }
 };
 
@@ -8353,10 +8413,10 @@ window.initGlobalMapAnimation = function() {
         if(ticker) {
             ticker.style.opacity = 0;
             setTimeout(() => {
-                if (action === 'joined') ticker.innerText = `New user joined in ${to.name}`;
-                else if (action === 'deposited') ticker.innerText = `${amt} USDT Deposited from ${from.name}`;
-                else if (action === 'upgraded') ticker.innerText = `Rank upgraded in ${to.name}`;
-                else ticker.innerText = `${amt} USDT FREEZE in ${from.name}`;
+                if (action === 'joined') ticker.innerText = (window.t('tickerJoined') || 'New user joined in {city}').replace('{city}', to.name);
+                else if (action === 'deposited') ticker.innerText = (window.t('tickerDeposited') || '{amt} USDT Deposited from {city}').replace('{amt}', amt).replace('{city}', from.name);
+                else if (action === 'upgraded') ticker.innerText = (window.t('tickerUpgraded') || 'Rank upgraded in {city}').replace('{city}', to.name);
+                else ticker.innerText = (window.t('tickerFreeze') || '{amt} USDT FREEZE in {city}').replace('{amt}', amt).replace('{city}', from.name);
                 ticker.style.opacity = 1;
             }, 500);
         }

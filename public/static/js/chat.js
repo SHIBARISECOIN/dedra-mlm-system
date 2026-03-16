@@ -110,7 +110,7 @@ window.chatManager = {
     const chatBox = document.getElementById('chatMessages');
     
     if (!roomId) {
-      chatBox.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-sec);">스폰서가 없습니다.</div>`;
+      chatBox.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-sec);">${window.t('chatNoSponsor') || '스폰서가 없습니다.'}</div>`;
       return;
     }
 
@@ -128,7 +128,7 @@ window.chatManager = {
       chatBox.innerHTML = '';
       
       if (snapshot.empty) {
-        chatBox.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-sec);">첫 메시지를 보내보세요!</div>`;
+        chatBox.innerHTML = `<div style="text-align:center; padding:40px; color:var(--text-sec);">${window.t('chatFirstMessage') || '첫 메시지를 보내보세요!'}</div>`;
         return;
       }
 
@@ -175,7 +175,7 @@ window.chatManager = {
 
     const roomId = this.getRoomId();
     if (!roomId) {
-      window.showToast('스폰서가 없어 보낼 수 없습니다.', 'warning');
+      window.showToast(window.t('chatNoSponsor') || '스폰서가 없어 보낼 수 없습니다.', 'warning');
       return;
     }
 
@@ -211,7 +211,7 @@ window.chatManager = {
 
     } catch (err) {
       console.error(err);
-      window.showToast('메시지 전송 실패', 'error');
+      window.showToast(window.t('chatSendFail') || '메시지 전송 실패', 'error');
     }
   },
 
@@ -258,7 +258,7 @@ window.startChatNotificationListener = function() {
 
     if (hasNewChat && !window._initialChatLoad) {
         if (window.showToast) {
-            window.showToast('💬 새 메시지가 도착했습니다.', 'info');
+            window.showToast('💬 ' + (window.t('chatNewMessage') || '새 메시지가 도착했습니다.'), 'info');
         }
         // 채팅 페이지가 열려있지 않으면 뱃지로 알려줌 (페이지 이동 강제하지 않음)
     }
@@ -280,7 +280,7 @@ window.startChatNotificationListener = function() {
                 const currentRoomId = window.chatManager ? window.chatManager.getRoomId() : null;
                 // If not currently in this specific chat room, show toast
                 if (change.doc.id !== currentRoomId) {
-                    showToast('💬 새로운 메시지가 도착했습니다.', 'info');
+                    showToast('💬 ' + (window.t('chatNewMessage') || '새로운 메시지가 도착했습니다.'), 'info');
                 }
             }
          }
