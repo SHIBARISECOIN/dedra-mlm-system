@@ -11625,44 +11625,30 @@ async function loadOrgTree(rootId = null) {
     wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>조직 트리 로딩 중...</span></div>';
 
     try {
-        let rootNode = null;
+        let finalRootId = rootId;
         
-        if (rootId) {
-            // Find specific user
-            const snap = await getDoc(doc(db, 'users', rootId));
-            if (snap.exists()) {
-                rootNode = { id: snap.id, ...snap.data() };
-            }
-        } else {
-            // Find COMPANY (or users with no referredBy/empty referredBy)
+        if (!finalRootId) {
+            // Find COMPANY 
             const q = query(collection(db, 'users'), where('role', '==', 'admin'));
             const snap = await getDocs(q);
             if (!snap.empty) {
-                rootNode = { id: snap.docs[0].id, ...snap.docs[0].data(), name: 'COMPANY ROOT' };
+                finalRootId = snap.docs[0].id;
             } else {
-                // fallback to first active user if no admin found
+                // fallback
                 const q2 = query(collection(db, 'users'), limit(1));
                 const snap2 = await getDocs(q2);
-                if (!snap2.empty) rootNode = { id: snap2.docs[0].id, ...snap2.docs[0].data() };
+                if (!snap2.empty) finalRootId = snap2.docs[0].id;
             }
         }
 
-        if (!rootNode) {
+        if (!finalRootId) {
             wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">🌐</div><div>조직 트리를 찾을 수 없습니다.</div></div>';
             return;
         }
 
-        window.adminCavePath = [{
-            id: rootNode.id,
-            name: rootNode.name || '알 수 없음',
-            rank: rootNode.rank || 'G0',
-            uid: rootNode.uid || rootNode.id
-        }];
-
-        await renderAdminCaveTree();
-        
-        // Update stats
-        document.getElementById('orgTreeStats').textContent = `현재 기준: ${rootNode.name}`;
+        // 기본적으로 Centered (펼침 모드) 로 트리 렌더링
+        window.currentOrgRootId = finalRootId;
+        await loadOrgTreeCentered(finalRootId);
 
     } catch (e) {
         console.error(e);
@@ -11811,7 +11797,91 @@ window.handleAdminCaveNodeClick = function(id, name, rank, uid, isPathNode, path
 // Removed old zoom handlers that are no longer needed
 function orgZoom() {}
 function orgZoomReset() {}
+window.currentOrgRootId = null;
+
+function buildIndentNode(n, indentLvl, lineStack) {
+    const container = document.createElement('div');
+    
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;margin-bottom:3px;min-height:34px;';
+    
+    const INDENT = 28;
+    
+    // 선 그리기
+    for (let i = 0; i < indentLvl; i++) {
+        const hasLine = lineStack[i];
+        const isLastIndent = (i === indentLvl - 1);
+        
+        const sp = document.createElement('div');
+        sp.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
+        
+        if (!isLastIndent) {
+            if (hasLine) {
+                const vl = document.createElement('div');
+                vl.style.cssText = `width:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:0;bottom:0;`;
+                sp.appendChild(vl);
+            }
+        } else {
+            // 마지막 인덴트: ㄱ자 꺾임 (코너)
+            const vp = document.createElement('div');
+            vp.style.cssText = `width:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:0;height:50%;`;
+            if (hasLine) {
+                vp.style.height = '100%'; // 아래로 계속 이어져야 함
+            }
+            const hp = document.createElement('div');
+            hp.style.cssText = `height:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:50%;width:${INDENT/2+2}px;transform:translateY(-50%);`;
+            
+            sp.appendChild(vp);
+            sp.appendChild(hp);
+        }
+        row.appendChild(sp);
+    }
+    
+    const rc = orgRankColor(n.rank || 'G0');
+    const invested = Number(n.totalInvested || 0);
+    const bonus = Number(n.bonusBalance || 0);
+    const uid = (n._uid || n.id || '').slice(0, 14);
+    
+    const card = document.createElement('div');
+    card.style.cssText = `
+        display:inline-flex;align-items:center;gap:6px;
+        background:${rc.card};
+        border:1.5px solid ${rc.border};
+        border-left:5px solid ${rc.bg};
+        border-radius:7px;
+        padding:4px 10px 4px 8px;
+        font-size:12px;cursor:pointer;
+        box-shadow:0 1px 4px rgba(0,0,0,0.10);
+        transition:box-shadow 0.12s;
+        opacity:0.95;
+    `;
+    card.innerHTML = `
+        <span style="background:${rc.bg};color:${rc.text};font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px;">${n.rank||'G0'}</span>
+        <span style="font-weight:700;color:#0f172a;white-space:nowrap;">${n.name||'(이름없음)'}</span>
+        <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${uid}</span>
+        <span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:0 4px;">💰${invested>0?invested.toLocaleString():'0'}</span>
+        ${bonus>0 ? `<span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:0 4px;color:#10b981;">🎁${Math.round(bonus).toLocaleString()}</span>` : ''}
+    `;
+    card.onclick = () => loadOrgTreeCentered(n.id);
+    
+    row.appendChild(card);
+    container.appendChild(row);
+    
+    if (n.children && n.children.length > 0) {
+        n.children.forEach((c, idx) => {
+            const isLastChild = idx === n.children.length - 1;
+            const nextLineStack = [...lineStack];
+            nextLineStack[indentLvl - 1] = lineStack[indentLvl - 1]; // 부모의 마지막 선 유지 상태
+            nextLineStack.push(!isLastChild); // 현재 노드의 자식들을 위한 선 유지 여부
+            container.appendChild(buildIndentNode(c, indentLvl + 1, nextLineStack));
+        });
+    }
+    
+    return container;
+}
+
 async function loadOrgTreeCentered(userId, nodeHint) {
+    window.currentOrgRootId = userId;
     const wrap  = document.getElementById('orgTreeWrapAdmin');
     const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
     wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>트리 로딩 중...</span></div>';
@@ -11988,6 +12058,66 @@ async function loadOrgTreeCentered(userId, nodeHint) {
         if (lbl) lbl.textContent = Math.round(orgScale * 100) + '%';
     }, { passive: false });
 }
+
+
+// ==== OrgTree Events ====
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const rootBtn = document.getElementById('orgTreeRootBtn');
+        const searchBtn = document.getElementById('orgTreeSearchBtn');
+        const searchInput = document.getElementById('orgTreeSearchInput');
+        const depthSelect = document.getElementById('orgTreeDepth');
+
+        if(rootBtn) {
+            rootBtn.onclick = async () => {
+                const q = query(collection(db, 'users'), where('role', '==', 'admin'));
+                const snap = await getDocs(q);
+                let rootId = snap.empty ? null : snap.docs[0].id;
+                if(!rootId) {
+                    const q2 = query(collection(db, 'users'), limit(1));
+                    const snap2 = await getDocs(q2);
+                    if(!snap2.empty) rootId = snap2.docs[0].id;
+                }
+                if(rootId) loadOrgTreeCentered(rootId);
+            };
+        }
+
+        if(searchBtn && searchInput) {
+            searchBtn.onclick = async () => {
+                const keyword = searchInput.value.trim();
+                if(!keyword) return alert('검색할 회원 ID나 이름을 입력하세요.');
+                
+                // UID 매칭 검색
+                let q = query(collection(db, 'users'), where('uid', '==', keyword));
+                let snap = await getDocs(q);
+                if(snap.empty) {
+                    // name 매칭 검색
+                    q = query(collection(db, 'users'), where('name', '==', keyword));
+                    snap = await getDocs(q);
+                }
+                if(snap.empty) {
+                    // id 매칭 검색
+                    q = query(collection(db, 'users'), where('id', '==', keyword));
+                    snap = await getDocs(q);
+                }
+
+                if(!snap.empty) {
+                    loadOrgTreeCentered(snap.docs[0].id);
+                } else {
+                    alert('일치하는 회원을 찾을 수 없습니다.');
+                }
+            };
+        }
+
+        if(depthSelect) {
+            depthSelect.onchange = () => {
+                if(window.currentOrgRootId) {
+                    loadOrgTreeCentered(window.currentOrgRootId);
+                }
+            };
+        }
+    }, 1500);
+});
 
 // ══════════════════════════════════════════════════
 // ══════════════════════════════════════════════════
