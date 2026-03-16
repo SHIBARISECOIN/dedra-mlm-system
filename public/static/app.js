@@ -353,7 +353,7 @@ const TRANSLATIONS = {
     toastInitFail: '초기화 실패. 다시 시도해주세요.',
     toastEnterEmail: '이메일과 비밀번호를 입력하세요.',
     toastFillAll: '모든 필드를 입력해주세요.',
-    toastPwMin: '비밀번호는 6자리 이상이어야 합니다.',
+    toastPwMin: '비밀번호는 6자리 이상(영문/숫자 조합 권장)이어야 합니다.',
     toastInvalidRef: '유효하지 않은 추천인 코드입니다.',
     toastRegDone: '회원가입 완료! 환영합니다 🎉',
     toastEmailFirst: '이메일을 먼저 입력하세요.',
@@ -462,7 +462,7 @@ const TRANSLATIONS = {
     registerEnterPhone: '전화번호를 입력해주세요.',
     registerEnterEmail: '이메일을 입력해주세요.',
     registerEnterPw: '비밀번호를 입력해주세요.',
-    registerPwMin: '비밀번호는 6자리 이상이어야 합니다.',
+    registerPwMin: '비밀번호는 6자리 이상(영문/숫자 조합 권장)이어야 합니다.',
     registerSelectCountry: '국가를 선택해주세요.',
     registerRefRequired: '추천인 코드는 필수입니다.',
     registerInvalidRef: '유효하지 않은 추천인 코드입니다.',
@@ -575,7 +575,7 @@ const TRANSLATIONS = {
     authUserNotFound: '등록되지 않은 이메일입니다.',
     authWrongPw: '비밀번호가 올바르지 않습니다.',
     authEmailUsed: '이미 사용 중인 이메일입니다.',
-    authWeakPw: '비밀번호가 너무 약합니다. 6자 이상으로 설정하세요.',
+    authWeakPw: '비밀번호가 약합니다. 6자리 이상 영문/숫자 조합을 권장합니다.',
     authInvalidCred: '이메일 또는 비밀번호가 올바르지 않습니다.',
     authTooMany: '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.',
     authNetworkFail: '네트워크 오류가 발생했습니다.',
@@ -1115,7 +1115,7 @@ const TRANSLATIONS = {
     authUserNotFound: 'Email not registered.',
     authWrongPw: 'Incorrect password.',
     authEmailUsed: 'Email already in use.',
-    authWeakPw: 'Password too weak. Use at least 6 characters.',
+    authWeakPw: 'Password too weak. Please use at least 6 alphanumeric characters.',
     authInvalidCred: 'Invalid email or password.',
     authTooMany: 'Too many attempts. Please try again later.',
     authNetworkFail: 'Network error occurred.',
@@ -1651,7 +1651,7 @@ const TRANSLATIONS = {
     authUserNotFound: 'Email chưa đăng ký.',
     authWrongPw: 'Mật khẩu không đúng.',
     authEmailUsed: 'Email đã được sử dụng.',
-    authWeakPw: 'Mật khẩu quá yếu. Dùng ít nhất 6 ký tự.',
+    authWeakPw: 'Mật khẩu quá yếu. Vui lòng sử dụng ít nhất 6 ký tự gồm chữ và số.',
     authInvalidCred: 'Email hoặc mật khẩu không đúng.',
     authTooMany: 'Quá nhiều lần thử. Vui lòng thử lại sau.',
     authNetworkFail: 'Lỗi mạng.',
@@ -2186,7 +2186,7 @@ const TRANSLATIONS = {
     authUserNotFound: 'ไม่พบอีเมลนี้',
     authWrongPw: 'รหัสผ่านไม่ถูกต้อง',
     authEmailUsed: 'อีเมลนี้ถูกใช้แล้ว',
-    authWeakPw: 'รหัสผ่านอ่อนเกินไป ใช้อย่างน้อย 6 ตัวอักษร',
+    authWeakPw: 'รหัสผ่านอ่อนเกินไป โปรดใช้อย่างน้อย 6 ตัวอักษรที่มีทั้งตัวอักษรและตัวเลข',
     authInvalidCred: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
     authTooMany: 'ลองหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง',
     authNetworkFail: 'เกิดข้อผิดพลาดเครือข่าย',
@@ -6763,7 +6763,7 @@ window.submitForcePw = async function() {
   const confirmPw = document.getElementById('forcePwConfirm').value;
   
   if (!newPw || newPw.length < 6) {
-    showToast('새 비밀번호는 6자리 이상이어야 합니다.', 'warning');
+    showToast('비밀번호는 6자리 이상(영문/숫자 조합 권장)이어야 합니다.', 'warning');
     return;
   }
   if (newPw !== confirmPw) {
