@@ -8777,7 +8777,6 @@ function renderUpbitTicker() {
 
 function renderUpbitTickerItems(container) {
   let html = '';
-  // names logic replaced by i18n t('coin_XXX')
 
   upbitCoins.forEach(code => {
     const d = upbitData[code];
@@ -8790,20 +8789,20 @@ function renderUpbitTickerItems(container) {
 
     const priceFmt = d.price >= 100 ? d.price.toLocaleString('ko-KR') : d.price.toLocaleString('ko-KR', {minimumFractionDigits:2});
     const pctFmt = (d.changeRate * 100).toFixed(2);
+    
+    const symbol = code.split('-')[1];
+    const coinName = t('coin_' + symbol) || symbol;
 
     html += `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <img src="https://static.upbit.com/logos/${code.split('-')[1]}.png" style="width:20px;height:20px;border-radius:50%;background:#fff;" onerror="this.src='/static/icon-192.png'" />
-          <div>
-            <div style="color:#fff;font-weight:600;font-size:14px;">${names[code].ko}</div>
-            <div style="color:#64748b;font-size:11px;">${names[code].en}/KRW</div>
+      <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:10px; padding:10px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <img src="https://static.upbit.com/logos/${symbol}.png" style="width:18px;height:18px;border-radius:50%;background:#fff;" onerror="this.src='/static/icon-192.png'" />
+            <span style="color:#e2e8f0;font-weight:600;font-size:12px;">${coinName}</span>
           </div>
+          <span style="color:${color};font-size:10px;font-weight:600;background:${color}15;padding:2px 4px;border-radius:4px;">${sign}${pctFmt}%</span>
         </div>
-        <div style="text-align:right;">
-          <div style="color:${color};font-weight:700;font-size:15px;">${priceFmt}</div>
-          <div style="color:${color};font-size:12px;">${sign}${pctFmt}%</div>
-        </div>
+        <div style="color:${color};font-weight:700;font-size:13px;text-align:right;letter-spacing:-0.5px;">${priceFmt} <span style="font-size:9px;color:#64748b;font-weight:400;">KRW</span></div>
       </div>
     `;
   });
