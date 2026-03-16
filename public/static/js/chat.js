@@ -238,11 +238,31 @@ window.startChatNotificationListener = function() {
   const myUid = user ? (user.uid || user.id) : null;
   if (!myUid) return;
 
+  window._initialChatLoad = true;
   const { collection, query, where, onSnapshot, doc, getDoc, db } = window.FB;
   const q = query(collection(db, 'chats'), where('participants', 'array-contains', myUid));
 
+  let isChatInitialLoad = true;
   onSnapshot(q, async (snap) => {
     window.unreadChatSenders.clear();
+
+    let hasNewChat = false;
+    for (const change of snap.docChanges()) {
+        if (change.type === 'added' || change.type === 'modified') {
+            const data = change.doc.data();
+            if (data[`unread_${myUid}`]) {
+                hasNewChat = true;
+            }
+        }
+    }
+
+    if (hasNewChat && !window._initialChatLoad) {
+        if (window.showToast) {
+            window.showToast('💬 새 메시지가 도착했습니다.', 'info');
+        }
+        // 채팅 페이지가 열려있지 않으면 뱃지로 알려줌 (페이지 이동 강제하지 않음)
+    }
+    window._initialChatLoad = false;
 
     for (const d of snap.docs) {
       const data = d.data();
@@ -251,6 +271,22 @@ window.startChatNotificationListener = function() {
         if (otherUid) window.unreadChatSenders.add(otherUid);
       }
     }
+
+    if (!isChatInitialLoad) {
+      snap.docChanges().forEach(change => {
+         if (change.type === 'added' || change.type === 'modified') {
+            const data = change.doc.data();
+            if (data[`unread_${myUid}`]) {
+                const currentRoomId = window.chatManager ? window.chatManager.getRoomId() : null;
+                // If not currently in this specific chat room, show toast
+                if (change.doc.id !== currentRoomId) {
+                    showToast('💬 새로운 메시지가 도착했습니다.', 'info');
+                }
+            }
+         }
+      });
+    }
+    isChatInitialLoad = false;
 
     // 네비게이션/버튼에 뱃지 표시 로직
     updateChatBadgeUI();
