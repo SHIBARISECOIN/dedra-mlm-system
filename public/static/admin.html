@@ -11880,16 +11880,41 @@ window.renderAdminCaveTree = async function() {
   // 2. Fetch children for the last node in path
   const lastNode = window.adminCavePath[window.adminCavePath.length - 1];
   try {
-    // Check by referredBy = id or uid
-    const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
-    let snap = await getDocs(q1);
-    
-    if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
-       const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
-       snap = await getDocs(q2);
+    let children = [];
+    if (window.adminCavePath.length === 1 && (lastNode.role === 'admin' || lastNode.name === 'COMPANY ROOT' || lastNode.id === 'admin')) {
+        const queries = [
+            getDocs(query(collection(db, 'users'), where('referredBy', '==', lastNode.id)))
+        ];
+        if (lastNode.uid && lastNode.uid !== lastNode.id) {
+            queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', lastNode.uid))));
+        }
+        queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', null))));
+        queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', ''))));
+        queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', 'root'))));
+        
+        const snaps = await Promise.all(queries);
+        const childMap = new Map();
+        snaps.forEach(snap => {
+            if (snap && snap.docs) {
+                snap.docs.forEach(d => {
+                    const data = d.data();
+                    if (data.role !== 'admin' && !childMap.has(d.id)) {
+                        childMap.set(d.id, { id: d.id, ...data });
+                    }
+                });
+            }
+        });
+        children = Array.from(childMap.values());
+    } else {
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
+        let snap = await getDocs(q1);
+        
+        if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+           const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
+           snap = await getDocs(q2);
+        }
+        children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
-    
-    const children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');
     if (!childrenWrap) return;
