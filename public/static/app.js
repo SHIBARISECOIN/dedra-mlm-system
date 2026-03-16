@@ -8442,3 +8442,91 @@ window.installWebApp = async function() {
     showToast('현재 브라우저에서는 설치를 지원하지 않거나 이미 설치되었습니다.\n브라우저 메뉴에서 "홈 화면에 추가"를 찾아보세요.', 'info');
   }
 };
+
+
+// ============================================================================
+// 안드로이드 / 하드웨어 뒤로가기 버튼 방어 로직 (SPA 내비게이션 제어)
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // 최초 진입 시 빈 상태 푸시 (뒤로가기를 잡기 위한 함정)
+  history.pushState({ appNav: true }, '', location.href);
+
+  window.addEventListener('popstate', (e) => {
+    let actionTaken = false;
+
+    // 1. 갤럭시 모드(전체화면 오버레이)가 떠 있다면 닫기
+    // app.js의 openGalaxyMode에서 생성한 오버레이 (버튼에 this.closest('div').parentElement.remove() 사용됨)
+    // 식별을 위해 z-index:9999 인 div들 탐색
+    const galaxyOverlays = Array.from(document.querySelectorAll('div')).filter(el => 
+        el.style.zIndex === '9999' && el.style.background.includes('050510')
+    );
+    if (galaxyOverlays.length > 0) {
+      galaxyOverlays.forEach(el => el.remove());
+      actionTaken = true;
+    }
+
+    // 2. 모달이 열려있다면 닫기 (id가 Modal로 끝나고, 숨겨져 있지 않은 경우)
+    if (!actionTaken) {
+      const modals = document.querySelectorAll('.modal');
+      for (let m of modals) {
+        const style = window.getComputedStyle(m);
+        if (style.display !== 'none' && !m.classList.contains('hidden')) {
+          if (typeof closeModal === 'function' && m.id) {
+            closeModal(m.id);
+          } else {
+            m.classList.add('hidden');
+            m.style.display = 'none';
+          }
+          actionTaken = true;
+        }
+      }
+    }
+
+    // 3. 게임 화면(V2)이 열려있다면 닫기
+    if (!actionTaken) {
+      const gameArea = document.getElementById('gameAreaV2');
+      if (gameArea && gameArea.style.display !== 'none' && !gameArea.classList.contains('hidden')) {
+        if (typeof closeGame === 'function') closeGame();
+        else gameArea.style.display = 'none';
+        actionTaken = true;
+      }
+    }
+    
+    // 4. 네트워크 탭의 하위 페이지인 그룹 채팅방이 열려있다면 네트워크 페이지로 돌아가기
+    if (!actionTaken) {
+      const chatPage = document.getElementById('chatPage');
+      if (chatPage && chatPage.classList.contains('active')) {
+        if (typeof switchPage === 'function') switchPage('network');
+        actionTaken = true;
+      }
+    }
+
+    // 5. 현재 메인(home) 페이지가 아니라면 메인으로 이동
+    if (!actionTaken && typeof currentPage !== 'undefined' && currentPage !== 'home') {
+      if (typeof switchPage === 'function') switchPage('home');
+      actionTaken = true;
+    }
+
+    if (actionTaken) {
+      // 무언가를 닫거나 뒤로 이동했다면, 앱이 꺼지지 않도록 다시 히스토리 상태를 채워넣음
+      history.pushState({ appNav: true }, '', location.href);
+    } else {
+      // 이미 홈 화면이고, 열린 모달이나 다른 화면도 없을 때 (진짜 종료하려는 상황)
+      if (window._exitWarningFlag) {
+        // 이미 경고를 띄웠으므로 진짜로 종료되도록 놔둠 (history.back() 통과)
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('뒤로 가기 버튼을 한 번 더 누르면 앱이 종료됩니다.', 'info');
+        }
+        window._exitWarningFlag = true;
+        // 한 번은 막아줌
+        history.pushState({ appNav: true }, '', location.href);
+        
+        // 2초 내에 다시 누르지 않으면 플래그 리셋
+        setTimeout(() => { 
+          window._exitWarningFlag = false; 
+        }, 2000);
+      }
+    }
+  });
+});
