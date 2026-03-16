@@ -1137,7 +1137,7 @@ app.post('/api/admin/reset-member-password', async (c) => {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ localId: uid, password: newPassword, returnSecureToken: false })
+        body: JSON.stringify({ localId: uid, password: newPassword, returnSecureToken: true })
       }
     )
     if (!res.ok) {
