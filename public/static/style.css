@@ -4240,7 +4240,7 @@ body {
   margin-bottom: 3px !important;
 }
 .ann-news-half .ann-title {
-  font-size: 11px !important;
+  font-size: 13.5px !important;
   font-weight: 600 !important;
 }
 .ann-news-half .ann-date {
@@ -4299,3 +4299,7 @@ body {
 .ann-news-half .news-feed-title { font-size: 13.5px !important; font-weight: 700 !important; }
 .ann-news-half .ann-compact-item, .ann-news-half .news-feed-item { padding: 8px 12px !important; }
 .ann-news-half .ann-compact-date, .ann-news-half .news-feed-date { font-size: 11px !important; }
+
+/* Ensure all announcement title classes get the same size as news */
+.ann-news-half .ann-title { font-size: 13.5px !important; font-weight: 700 !important; }
+.ann-news-half .announcement-item { padding: 8px 12px !important; }
