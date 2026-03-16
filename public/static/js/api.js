@@ -256,8 +256,8 @@ export class DedraAPI {
       const wSnap = await getDocs(walletQ);
       if (!wSnap.empty) {
         batch.update(wSnap.docs[0].ref, {
-          usdtBalance: increment(tx.amount || 0),
-          totalDeposit: increment(tx.amount || 0),
+          usdtBalance: increment(parseFloat(tx.amount) || 0),
+          totalDeposit: increment(parseFloat(tx.amount) || 0),
         });
       }
       await batch.commit();

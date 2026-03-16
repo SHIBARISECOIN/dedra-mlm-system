@@ -27,7 +27,7 @@ service cloud.firestore {
 
     // users: 본인 또는 관리자/보조계정
     match /users/{userId} {
-      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
+      allow read: if isLoggedIn();
       allow write: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
     }
 
@@ -156,6 +156,16 @@ service cloud.firestore {
     // fcmTokens: 관리자/보조계정만
     match /fcmTokens/{docId} {
       allow read, write: if isAdminOrSubAdmin();
+    }
+
+    // chats: 그룹 및 1:1 채팅방 메타데이터
+    match /chats/{roomId} {
+      allow read, write: if isLoggedIn();
+    }
+    
+    // chats: 그룹 채팅 메시지 (로그인한 모든 유저가 읽기/쓰기 가능)
+    match /chats/{roomId}/messages/{messageId} {
+      allow read, write: if isLoggedIn();
     }
   }
 }
