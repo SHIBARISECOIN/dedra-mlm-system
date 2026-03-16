@@ -3046,6 +3046,12 @@ window.switchPage = function(page) {
   if (navEl) navEl.classList.add('active');
 
   currentPage = page;
+  
+  // 메인(home) 화면에서만 새로고침 버튼 표시
+  const refreshBtn = document.getElementById('floatingRefreshBtn');
+  if (refreshBtn) {
+      refreshBtn.style.display = (page === 'home') ? 'flex' : 'none';
+  }
 
   if (page === 'invest') loadInvestPage();
   else if (page === 'network') loadNetworkPage();
