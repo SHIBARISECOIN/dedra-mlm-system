@@ -4882,15 +4882,22 @@ async function loadReferralList() {
       return;
     }
 
-    if (listEl) listEl.innerHTML = refs.map(r => `
+    if (listEl) listEl.innerHTML = refs.map(r => {
+      const isOnline = r.lastSeenAt && (Date.now() - r.lastSeenAt < 120000);
+      const onlineDot = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:10px; height:10px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; box-shadow: 0 0 4px rgba(16,185,129,0.5);"></div>` : '';
+      return `
       <div class="referral-item">
-        <div class="ref-avatar"><i class="fas fa-user"></i></div>
+        <div class="ref-avatar" style="position: relative;">
+          <i class="fas fa-user"></i>
+          ${onlineDot}
+        </div>
         <div class="ref-info">
           <div class="ref-name">${r.name || '이름 없음'}</div>
           <div class="ref-date">${fmtDate(r.createdAt)}</div>
         </div>
         <div class="ref-rank">${r.rank || 'G0'}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
   } catch (err) {
     if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
@@ -4941,13 +4948,20 @@ window.renderCaveTree = async function() {
     const hasUnread = window.unreadChatPaths && window.unreadChatPaths.has(n.id) && !isMe;
     const badgeHtml = hasUnread ? `<div style="position:absolute; top:-4px; right:-4px; width:14px; height:14px; background:#ef4444; border-radius:50%; border:2px solid var(--surface); animation: pulse 2s infinite; z-index: 5;"></div>` : '';
 
+    // 온라인 상태 표시 뱃지 (최근 2분 이내 활동)
+    const isOnline = n.lastSeenAt && (Date.now() - n.lastSeenAt < 120000);
+    const onlineBadge = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:14px; height:14px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; z-index:5; box-shadow: 0 0 5px rgba(16,185,129,0.5);"></div>` : '';
+
     return `
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
         ${badgeHtml}
         <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
              onclick="showNodeActionModal('${n.id}', '${n.name}', '${n.rank}', ${isPathNode}, ${pathIndex})">
-           <div style="width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden; flex-shrink:0;">
-              <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
+           <div style="position: relative; flex-shrink: 0; width:40px; height:40px;">
+              <div style="width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden;">
+                 <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
+              </div>
+              ${onlineBadge}
            </div>
            <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
              <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.name}</div>
@@ -7381,13 +7395,15 @@ async function _loadNepGenTab(contentEl, gen) {
       const prodInfo  = mainInv
         ? `${mainInv.packageName || mainInv.productName || '-'} · ${mainInv.dailyRoi || mainInv.roiPercent || 0}%/d`
         : '-';
+      const isOnline = m.lastSeenAt && (Date.now() - m.lastSeenAt < 120000);
+      const onlineDot = isOnline ? `<span style="display:inline-block; width:6px; height:6px; background:#10b981; border-radius:50%; margin-left:4px; vertical-align:middle; box-shadow:0 0 4px rgba(16,185,129,0.5);"></span>` : '';
 
       return `
       <div style="display:grid;grid-template-columns:1fr 60px 60px 52px;gap:4px;padding:7px 8px;
         border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;">
         <!-- ID + 상품 -->
         <div style="min-width:0;">
-          <div style="font-size:11px;font-weight:700;color:var(--text,#f1f5f9);font-family:monospace;">${uid}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text,#f1f5f9);font-family:monospace;display:flex;align-items:center;">${uid}${onlineDot}</div>
           <div style="font-size:9px;color:var(--text3,#64748b);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${prodInfo}</div>
         </div>
         <!-- 데일리 수익 -->
