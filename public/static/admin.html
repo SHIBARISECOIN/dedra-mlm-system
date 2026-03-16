@@ -11882,13 +11882,25 @@ window.renderAdminCaveTree = async function() {
   try {
     let children = [];
     if (window.adminCavePath.length === 1 && (lastNode.role === 'admin' || lastNode.name === 'COMPANY ROOT' || lastNode.id === 'admin')) {
-        const snap = await getDocs(collection(db, 'users'));
-        (snap.docs || []).forEach(d => {
-            const data = d.data();
+        let snap;
+        try {
+            snap = await getDocs(collection(db, 'users'));
+        } catch(e) {
+            console.warn('Fallback to query for all users', e);
+            snap = await getDocs(query(collection(db, 'users')));
+        }
+        
+        const docs = snap.docs || (snap.forEach ? [] : snap);
+        if (snap.forEach && !snap.docs) {
+            snap.forEach(d => docs.push(d));
+        }
+        
+        docs.forEach(d => {
+            const data = d.data ? d.data() : d;
             if (data.role !== 'admin') {
                 const ref = data.referredBy;
                 if (!ref || ref === 'admin' || ref === 'root' || ref === lastNode.id || ref === lastNode.uid) {
-                    children.push({ id: d.id, ...data });
+                    children.push({ id: d.id || d.uid, ...data });
                 }
             }
         });
@@ -11896,11 +11908,20 @@ window.renderAdminCaveTree = async function() {
         const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
         let snap = await getDocs(q1);
         
-        if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+        let docs = snap.docs || [];
+        if (snap.forEach && !snap.docs) {
+            snap.forEach(d => docs.push(d));
+        }
+        
+        if (docs.length === 0 && lastNode.uid && lastNode.uid !== lastNode.id) {
            const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
            snap = await getDocs(q2);
+           docs = snap.docs || [];
+           if (snap.forEach && !snap.docs) {
+               snap.forEach(d => docs.push(d));
+           }
         }
-        children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        children = docs.map(d => ({ id: d.id || d.uid, ...(d.data ? d.data() : d) }));
     }
 
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');

@@ -4901,21 +4901,39 @@ window.renderCaveTree = async function() {
         const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
         let snap = await getDocs(q1);
         
-        if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+        let docs = snap.docs || [];
+        if (snap.forEach && !snap.docs) {
+            snap.forEach(d => docs.push(d));
+        }
+        
+        if (docs.length === 0 && lastNode.uid && lastNode.uid !== lastNode.id) {
            const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
            snap = await getDocs(q2);
+           docs = snap.docs || [];
+           if (snap.forEach && !snap.docs) {
+               snap.forEach(d => docs.push(d));
+           }
         }
-        children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        children = docs.map(d => ({ id: d.id || d.uid, ...(d.data ? d.data() : d) }));
     } else {
         const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
         let snap = await getDocs(q1);
         
+        let docs = snap.docs || [];
+        if (snap.forEach && !snap.docs) {
+            snap.forEach(d => docs.push(d));
+        }
+        
         // Also check by uid if it exists and is different from id
-        if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
+        if (docs.length === 0 && lastNode.uid && lastNode.uid !== lastNode.id) {
             const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
             snap = await getDocs(q2);
+            docs = snap.docs || [];
+            if (snap.forEach && !snap.docs) {
+                snap.forEach(d => docs.push(d));
+            }
         }
-        children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        children = docs.map(d => ({ id: d.id || d.uid, ...(d.data ? d.data() : d) }));
     }
 
     const childrenWrap = document.getElementById('caveChildrenWrap');
