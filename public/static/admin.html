@@ -5188,6 +5188,14 @@ onAuthStateChanged(auth, async user => {
             startGlobalAdminSnapshots();
              // 🔔 관리자 알림 폴링 시작
             _setupDone = true;
+            
+            setTimeout(() => {
+                const lastPage = sessionStorage.getItem('adminCurrentPage');
+                if (lastPage && lastPage !== 'dashboard') {
+                    const menuItem = document.querySelector(`.menu-item[data-page="${lastPage}"]`);
+                    if(menuItem) menuItem.click();
+                }
+            }, 100);
         }
     } catch(e) {
         console.error('[Admin] 인증 오류:', e.code, e.message);
@@ -7426,6 +7434,7 @@ window.navigateTo = (page) => {
     const menuItem = document.querySelector(`.menu-item[data-page="${page}"]`);
     if (menuItem) menuItem.classList.add('active');
     const pageEl = document.getElementById(page+'Page');
+    sessionStorage.setItem('adminCurrentPage', page);
     if (pageEl) pageEl.classList.add('active');
 };
 
@@ -7441,6 +7450,7 @@ function setupEvents() {
             document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
             item.classList.add('active');
             const page = item.dataset.page;
+            sessionStorage.setItem('adminCurrentPage', page);
             document.getElementById(page+'Page').classList.add('active');
             if (page==='deposits') { loadCompanyWallets(); loadDeposits('pending'); }
             else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); }

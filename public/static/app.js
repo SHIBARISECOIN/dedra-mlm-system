@@ -2204,7 +2204,7 @@ function applyLang() {
 let currentUser = null;
 let userData = null;
 let walletData = null;
-let currentPage = 'home';
+let currentPage = sessionStorage.getItem('lastPage') || 'home';
 let selectedProduct = null;
 // gameBalanceVal = bonusBalance(USDT) 직접 미러링 - 별도 게임지갑 없음
 let gameBalanceVal = 0;
@@ -2502,6 +2502,8 @@ async function initApp() {
     }).catch(() => {});
 
     console.log('initApp: showing main screen'); showScreen('main');
+    // Restore last visited page
+    if (typeof window.switchPage === 'function') window.switchPage(currentPage);
     // 강제 비밀번호 변경 체크
     if (sessionStorage.getItem('deedra_force_pw') === '1' || userData?.forcePwChange === true) {
       const modal = document.getElementById('forcePwModal');
@@ -3034,6 +3036,7 @@ function showScreen(name) {
 
 // ===== 탭 전환 =====
 window.switchPage = function(page) {
+  sessionStorage.setItem('lastPage', page);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
