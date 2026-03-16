@@ -648,7 +648,7 @@ async function getAdminToken(): Promise<string> {
     aud: SERVICE_ACCOUNT.token_uri,
     iat: now,
     exp: now + 3600,
-    scope: 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/firebase'
+    scope: 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/identitytoolkit'
   }
   const b64url = (obj: any) => btoa(JSON.stringify(obj)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
   const sigInput = `${b64url(header)}.${b64url(payload)}`
@@ -1132,12 +1132,17 @@ app.post('/api/admin/reset-member-password', async (c) => {
     }
     if (!uid || !newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400)
 
+    const adminToken = await getAdminToken()
+
     const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${FIREBASE_API_KEY}`,
+      `https://identitytoolkit.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/accounts:update`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ localId: uid, password: newPassword, returnSecureToken: true })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({ localId: uid, password: newPassword })
       }
     )
     if (!res.ok) {
@@ -1145,7 +1150,6 @@ app.post('/api/admin/reset-member-password', async (c) => {
       return c.json({ error: err?.error?.message || 'UNKNOWN' }, 400)
     }
 
-    const adminToken = await getAdminToken()
     await fsCreate('auditLogs', {
       action: 'reset_member_password',
       targetId: uid,
@@ -1329,10 +1333,13 @@ app.post('/api/admin/bulk-reset-password', async (c) => {
       if (!uid) { failed++; continue }
       try {
         const res = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${FIREBASE_API_KEY}`,
+          `https://identitytoolkit.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/accounts:update`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${adminToken}`
+            },
             body: JSON.stringify({ localId: uid, password: targetPassword })
           }
         )
