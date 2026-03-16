@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'deedra-v17';
+const CACHE_VERSION = 'deedra-v18';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 

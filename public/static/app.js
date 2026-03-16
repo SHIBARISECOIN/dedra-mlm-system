@@ -2780,7 +2780,7 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
       ? `1 DDRA = $${(price||0).toFixed(6)} (${priceChange24h >= 0 ? '▲' : '▼'}${Math.abs(priceChange24h).toFixed(2)}%)`
       : `1 DDRA = $${(price||0).toFixed(6)}`;
     changeEl.textContent = chText;
-    changeEl.style.color = priceChange24h > 0 ? '#10b981' : priceChange24h < 0 ? '#ef4444' : '';
+    changeEl.style.color = priceChange24h > 0 ? '#ef4444' : priceChange24h < 0 ? '#3b82f6' : ''; // Upbit style (Red for UP, Blue for DOWN)
   }
 
   // ─── 모든 환율 적용 UI 즉시 갱신 ───────────────────────────────────────
