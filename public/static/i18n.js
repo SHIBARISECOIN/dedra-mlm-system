@@ -75,7 +75,6 @@ window.I18N = {
     notiTitleMature: '✅ FREEZE 만기 완료',
     notiMsgMature: '[{name}] FREEZE 계약이 만료되었습니다. 원금 {amt} USDT가 지갑에 언프리즈되었습니다.',
     toastMature: '❄️ 만기 FREEZE {n}건의 원금이 언프리즈되었습니다.',
-  \n
     diceHint: '숫자를 선택하여 베팅하세요',
     earnSeeAll: '수익 전체보기',
     freezingNow: '❄️ 진행중',
@@ -424,7 +423,6 @@ window.I18N = {
     notiTitleMature: '✅ FREEZE Matured',
     notiMsgMature: '[{name}] FREEZE contract has matured. Principal {amt} USDT has been unfrozen to your wallet.',
     toastMature: '❄️ {n} matured FREEZE principals have been unfrozen.',
-  \n
     diceHint: 'Select a number to bet',
     earnSeeAll: 'See All Earnings',
     freezingNow: '❄️ Freezing',
@@ -759,7 +757,6 @@ window.I18N = {
     notiTitleMature: '✅ FREEZE Đáo hạn',
     notiMsgMature: '[{name}] Hợp đồng FREEZE đã đáo hạn. Gốc {amt} USDT đã được hoàn lại vào ví.',
     toastMature: '❄️ {n} khoản gốc FREEZE đáo hạn đã được hoàn lại.',
-  \n
     diceHint: 'Chọn một số để cược',
     earnSeeAll: 'Xem tất cả',
     freezingNow: '❄️ Đang đóng băng',
@@ -1094,7 +1091,6 @@ window.I18N = {
     notiTitleMature: '✅ FREEZE ครบกำหนด',
     notiMsgMature: '[{name}] สัญญา FREEZE ครบกำหนดแล้ว เงินต้น {amt} USDT ถูกปลดล็อคเข้ากระเป๋าของคุณ',
     toastMature: '❄️ เงินต้น FREEZE ที่ครบกำหนด {n} รายการถูกปลดล็อคแล้ว',
-  \n
     diceHint: 'เลือกหมายเลขเพื่อเดิมพัน',
     earnSeeAll: 'ดูรายได้ทั้งหมด',
     freezingNow: '❄️ กำลังแช่แข็ง',
