@@ -7435,6 +7435,7 @@ window.navigateTo = (page) => {
     const menuItem = document.querySelector(`.menu-item[data-page="${page}"]`);
     if (menuItem) menuItem.classList.add('active');
     const pageEl = document.getElementById(page+'Page');
+    if (page === 'settings') loadSettings();
     sessionStorage.setItem('adminCurrentPage', page);
     if (pageEl) pageEl.classList.add('active');
 };
@@ -7462,6 +7463,7 @@ function setupEvents() {
             else if (page==='gamelogs') { loadGameLogs(); loadGameOddsAdmin(); }
             else if (page==='auditlog') loadAuditLog();
             else if (page==='tickets') loadTickets();
+            else if (page==='settings') loadSettings();
             else if (page==='statistics') loadStatistics();
             else if (page==='settings') {
                 // 비밀번호 확인 후 설정 진입
