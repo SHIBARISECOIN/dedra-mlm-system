@@ -6792,18 +6792,18 @@ function getPwaI18n() {
   return PWA_I18N[lang] || PWA_I18N['ko'];
 }
 
-let deferredPrompt = null;
+window.window.deferredPrompt = null;
 let pwaInstallShown = false;
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  deferredPrompt = e;
+  window.deferredPrompt = e;
   // 설치 배너: 로그인 후 8초 뒤 (너무 빠르면 거부감)
   setTimeout(showInstallBanner, 8000);
 });
 
 function showInstallBanner() {
-  if (!deferredPrompt) return;
+  if (!window.deferredPrompt) return;
   if (pwaInstallShown) return;
   // 이미 3번 거절했으면 더이상 표시 안 함
   const dismissCount = parseInt(localStorage.getItem('pwa_dismiss_count') || '0');
@@ -6844,11 +6844,11 @@ function showInstallBanner() {
   document.body.appendChild(banner);
 
   document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    if (!window.deferredPrompt) return;
+    window.deferredPrompt.prompt();
+    const { outcome } = await window.deferredPrompt.userChoice;
     if (outcome === 'accepted') showToast(i18n.installed, 'success');
-    deferredPrompt = null;
+    window.deferredPrompt = null;
     banner.remove();
   });
 
@@ -6917,7 +6917,7 @@ function showIosInstallGuide() {
 window.addEventListener('appinstalled', () => {
   const i18n = getPwaI18n();
   showToast(i18n.installed, 'success');
-  deferredPrompt = null;
+  window.deferredPrompt = null;
   const b = document.getElementById('pwaInstallBanner');
   if (b) b.remove();
 });
@@ -8404,4 +8404,41 @@ window.initGlobalMapAnimation = function() {
         requestAnimationFrame(draw);
     }
     draw();
+};
+
+
+window.installWebApp = async function() {
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandaloneMode = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+  if (isInStandaloneMode) {
+    showToast('이미 앱으로 설치되어 실행 중입니다.', 'info');
+    return;
+  }
+
+  if (isIos) {
+    // iOS는 수동 안내 표시
+    showIosInstallGuide();
+    localStorage.removeItem('pwa_ios_dismissed'); // 강제로 다시 띄우기
+    return;
+  }
+
+  if (window.deferredPrompt) {
+    try {
+      window.deferredPrompt.prompt();
+      const { outcome } = await window.deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        showToast('앱 설치가 시작되었습니다.', 'success');
+      } else {
+        showToast('앱 설치가 취소되었습니다.', 'info');
+      }
+      window.deferredPrompt = null;
+    } catch(e) {
+      console.error(e);
+      showToast('설치 중 오류가 발생했습니다.', 'error');
+    }
+  } else {
+    // 이미 설치되었거나 브라우저에서 지원하지 않음
+    showToast('현재 브라우저에서는 설치를 지원하지 않거나 이미 설치되었습니다.\n브라우저 메뉴에서 "홈 화면에 추가"를 찾아보세요.', 'info');
+  }
 };
