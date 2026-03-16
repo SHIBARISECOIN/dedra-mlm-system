@@ -376,7 +376,12 @@
       <!-- ======== NETWORK 페이지 ======== -->
       <div id="networkPage" class="page">
         <div class="page-scroll">
-          <div class="page-title" data-i18n="pageNetwork">🌐 네트워크</div>
+          <div class="page-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <span data-i18n="pageNetwork">🌐 네트워크</span>
+            <button onclick="switchPage('chat')" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <i class="fas fa-comments"></i> <span data-i18n="pageChat">채팅</span>
+            </button>
+          </div>
 
           <!-- 네트워크 통계 -->
           <div class="network-stats">
@@ -968,7 +973,12 @@
       <!-- ======== CHAT 페이지 ======== -->
       <div id="chatPage" class="page">
         <div class="page-scroll" style="padding-bottom:0; display:flex; flex-direction:column; height:calc(100vh - 150px);">
-          <div class="page-title" data-i18n="pageChat" style="margin-bottom: 10px;">💬 채팅</div>
+          <div class="page-title" style="margin-bottom: 10px; display:flex; align-items:center; gap:10px;">
+            <button onclick="switchPage('network')" style="background:none; border:none; color:var(--text); font-size:18px; cursor:pointer; padding:0;">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span data-i18n="pageChat">💬 채팅</span>
+          </div>
           
           <!-- Chat Room Selection (Tabs) -->
           <div style="display:flex; padding-bottom: 10px; border-bottom:1px solid var(--border);">
@@ -1113,9 +1123,9 @@
         <i class="fas fa-sitemap"></i>
         <span>Network</span>
       </button>
-      <button class="nav-item" id="nav-chat" onclick="switchPage('chat')">
-        <i class="fas fa-comments"></i>
-        <span>Chat</span>
+      <button class="nav-item" id="nav-play" onclick="switchPage('play')">
+        <i class="fas fa-gamepad"></i>
+        <span>Play</span>
       </button>
       <button class="nav-item" id="nav-more" onclick="switchPage('more')">
         <i class="fas fa-ellipsis-h"></i>
