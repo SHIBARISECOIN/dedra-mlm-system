@@ -11882,29 +11882,16 @@ window.renderAdminCaveTree = async function() {
   try {
     let children = [];
     if (window.adminCavePath.length === 1 && (lastNode.role === 'admin' || lastNode.name === 'COMPANY ROOT' || lastNode.id === 'admin')) {
-        const queries = [
-            getDocs(query(collection(db, 'users'), where('referredBy', '==', lastNode.id)))
-        ];
-        if (lastNode.uid && lastNode.uid !== lastNode.id) {
-            queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', lastNode.uid))));
-        }
-        queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', null))));
-        queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', ''))));
-        queries.push(getDocs(query(collection(db, 'users'), where('referredBy', '==', 'root'))));
-        
-        const snaps = await Promise.all(queries);
-        const childMap = new Map();
-        snaps.forEach(snap => {
-            if (snap && snap.docs) {
-                snap.docs.forEach(d => {
-                    const data = d.data();
-                    if (data.role !== 'admin' && !childMap.has(d.id)) {
-                        childMap.set(d.id, { id: d.id, ...data });
-                    }
-                });
+        const snap = await getDocs(collection(db, 'users'));
+        snap.forEach(d => {
+            const data = d.data();
+            if (data.role !== 'admin') {
+                const ref = data.referredBy;
+                if (!ref || ref === 'admin' || ref === 'root' || ref === lastNode.id || ref === lastNode.uid) {
+                    children.push({ id: d.id, ...data });
+                }
             }
         });
-        children = Array.from(childMap.values());
     } else {
         const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
         let snap = await getDocs(q1);
