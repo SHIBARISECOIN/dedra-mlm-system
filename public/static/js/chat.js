@@ -292,7 +292,7 @@ window.startChatNotificationListener = function() {
 };
 
 function updateChatBadgeUI() {
-  const btn = document.querySelector('button[onclick*="switchPage(\\'chat\\')"]');
+  const btn = document.querySelector("button[onclick*=\"switchPage('chat')\"]");
   if (!btn) return;
   
   let badge = btn.querySelector('.chat-unread-badge');

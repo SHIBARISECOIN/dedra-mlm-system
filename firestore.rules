@@ -27,7 +27,7 @@ service cloud.firestore {
 
     // users: 본인 또는 관리자/보조계정
     match /users/{userId} {
-      allow read: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
+      allow read: if isLoggedIn();
       allow write: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
     }
 
