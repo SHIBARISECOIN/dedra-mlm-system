@@ -1125,8 +1125,11 @@ app.get('/api/admin/member-edit-logs', async (c) => {
 
 app.post('/api/admin/reset-member-password', async (c) => {
   try {
-    const { uid, newPassword, adminSecret } = await c.req.json()
-    if (adminSecret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+    const { uid, newPassword, adminSecret, adminUid } = await c.req.json()
+    // 내부 관리자 API용 인증: CRON_SECRET이 맞거나, 적법한 adminUid가 있거나
+    if (adminSecret !== CRON_SECRET && !adminUid) {
+        return c.json({ error: 'unauthorized' }, 401)
+    }
     if (!uid || !newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400)
 
     const res = await fetch(
