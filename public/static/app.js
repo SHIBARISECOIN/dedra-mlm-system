@@ -474,7 +474,7 @@ const TRANSLATIONS = {
     // 추가 다국어 키
     langChanged: '언어가 변경되었습니다',
     walletAddrNotSet: '주소 미설정 (관리자 문의)',
-    noGameDdra: t('noGameDdra'),
+    noGameDdra: '게임용 DDRA가 부족합니다.',
     coinFlying: '동전이 날아갑니다...',
     result: '결과',
     diceHit: '적중!',
