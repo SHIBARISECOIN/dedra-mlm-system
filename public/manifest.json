@@ -9,7 +9,10 @@
   "theme_color": "#0a0f1e",
   "orientation": "portrait-primary",
   "lang": "ko",
-  "categories": ["finance", "utilities"],
+  "categories": [
+    "finance",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/static/favicon.ico",
@@ -47,14 +50,25 @@
       "short_name": "입금",
       "description": "USDT 입금",
       "url": "/?action=deposit",
-      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/static/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "출금",
       "short_name": "출금",
       "description": "DDRA 출금 신청",
       "url": "/?action=withdraw",
-      "icons": [{ "src": "/static/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/static/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
-  ]
+  ],
+  "id": "/deedra-app-v2"
 }
