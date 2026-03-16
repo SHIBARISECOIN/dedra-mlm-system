@@ -401,9 +401,9 @@ const SETUP_HTML = () => `<!DOCTYPE html>
     <div class="section-title">👤 생성될 테스트 계정</div>
     <table>
       <tr><th>이메일</th><th>비밀번호</th><th>직급</th><th>USDT</th><th>DEEDRA</th></tr>
-      <tr><td>test1@deedra.com</td><td>Test1234!</td><td>G1</td><td>1,000</td><td>500</td></tr>
-      <tr><td>test2@deedra.com</td><td>Test1234!</td><td>G0</td><td>500</td><td>200</td></tr>
-      <tr><td>test3@deedra.com</td><td>Test1234!</td><td>G2</td><td>5,000</td><td>2,000</td></tr>
+      <tr><td>test1@deedra.com</td><td>000000</td><td>G1</td><td>1,000</td><td>500</td></tr>
+      <tr><td>test2@deedra.com</td><td>000000</td><td>G0</td><td>500</td><td>200</td></tr>
+      <tr><td>test3@deedra.com</td><td>000000</td><td>G2</td><td>5,000</td><td>2,000</td></tr>
     </table>
     <p style="margin:6px 0 0;font-size:11px;color:#9ca3af">출금 PIN: 123456</p>
   </div>
@@ -413,7 +413,7 @@ const SETUP_HTML = () => `<!DOCTYPE html>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
       <input id="adminEmail" type="email" placeholder="관리자 이메일" value="admin@deedra.com"
         style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:200px;"/>
-      <input id="adminPass" type="password" placeholder="비밀번호" value="Admin1234!"
+      <input id="adminPass" type="text" placeholder="비밀번호 (6자리 이상)" value="000000"
         style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:160px;"/>
       <input id="adminName" type="text" placeholder="이름" value="관리자"
         style="padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:13px;flex:1;min-width:120px;"/>
@@ -457,9 +457,9 @@ const PRODUCTS = [
 ];
 
 const TEST_ACCOUNTS = [
-  { email:'test1@deedra.com', password:'Test1234!', name:'테스트1호', rank:'G1', usdt:1000, dedra:500,  bonus:50,  referralCode:'TEST0001' },
-  { email:'test2@deedra.com', password:'Test1234!', name:'테스트2호', rank:'G0', usdt:500,  dedra:200,  bonus:20,  referralCode:'TEST0002' },
-  { email:'test3@deedra.com', password:'Test1234!', name:'테스트3호', rank:'G2', usdt:5000, dedra:2000, bonus:300, referralCode:'TEST0003' },
+  { email:'test1@deedra.com', password:'000000', name:'테스트1호', rank:'G1', usdt:1000, dedra:500,  bonus:50,  referralCode:'TEST0001' },
+  { email:'test2@deedra.com', password:'000000', name:'테스트2호', rank:'G0', usdt:500,  dedra:200,  bonus:20,  referralCode:'TEST0002' },
+  { email:'test3@deedra.com', password:'000000', name:'테스트3호', rank:'G2', usdt:5000, dedra:2000, bonus:300, referralCode:'TEST0003' },
 ];
 
 function log(msg, color='#d1fae5') {
@@ -473,6 +473,7 @@ async function createAdmin() {
   const pass  = document.getElementById('adminPass').value.trim();
   const name  = document.getElementById('adminName').value.trim() || '관리자';
   if (!email || !pass) { log('❌ 이메일과 비밀번호를 입력해주세요.', '#fca5a5'); return; }
+  if (pass.length < 6) { log('❌ 비밀번호는 최소 6자리 이상이어야 합니다.', '#fca5a5'); return; }
   const btn = document.getElementById('btnAdmin');
   btn.disabled = true;
   log('\\n🔐 [관리자 계정 생성 시작]', '#fcd34d');

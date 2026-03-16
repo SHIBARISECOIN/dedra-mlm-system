@@ -5083,7 +5083,7 @@ if (location.search.includes('autotest=1')) {
     setTimeout(async () => {
         console.log('[AdminTest] 자동 로그인 시작');
         document.getElementById('adminLoginEmail').value = 'admin@deedra.com';
-        document.getElementById('adminLoginPass').value = 'Admin1234!';
+        document.getElementById('adminLoginPass').value = '000000';
         await window.adminDoLogin();
         console.log('[AdminTest] adminDoLogin 완료');
     }, 2000);
@@ -13315,7 +13315,7 @@ window.saveAdminPassword = async function() {
   const pw  = document.getElementById('cfg_adminPassword')?.value;
   const pw2 = document.getElementById('cfg_adminPasswordConfirm')?.value;
   const al  = document.getElementById('adminPasswordAlert');
-  if (!pw) { al.style.color='#ef4444'; al.textContent='비밀번호를 입력하세요.'; return; }
+  if (!pw || pw.length < 6) { al.style.color='#ef4444'; al.textContent='비밀번호는 6자리 이상이어야 합니다.'; return; }
   if (pw !== pw2) { al.style.color='#ef4444'; al.textContent='비밀번호가 일치하지 않습니다.'; return; }
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
   const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');

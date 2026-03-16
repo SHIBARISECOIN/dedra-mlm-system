@@ -559,7 +559,7 @@ const TRANSLATIONS = {
     authUserNotFound: '등록되지 않은 이메일입니다.',
     authWrongPw: '비밀번호가 올바르지 않습니다.',
     authEmailUsed: '이미 사용 중인 이메일입니다.',
-    authWeakPw: '비밀번호가 너무 약합니다. 6자 이상으로 설정하세요.',
+    authWeakPw: '비밀번호는 최소 6자리 이상이어야 합니다.',
     authInvalidCred: '이메일 또는 비밀번호가 올바르지 않습니다.',
     authTooMany: '너무 많은 시도가 있었습니다. 잠시 후 다시 시도하세요.',
     authNetworkFail: '네트워크 오류가 발생했습니다.',
@@ -3092,7 +3092,7 @@ window.handleRegister = async function() {
   if (!phone)   { showToast(t('registerEnterPhone'), 'warning'); return; }
   if (!email)   { showToast(t('registerEnterEmail'), 'warning'); return; }
   if (!pw)      { showToast(t('registerEnterPw'), 'warning'); return; }
-  if (pw.length < 6) { showToast(t('registerPwMin'), 'warning'); return; }
+  if (pw.length < 6) { showToast(t('registerPwMin') || '비밀번호는 6자리 이상이어야 합니다.', 'warning'); return; }
   if (!country) { showToast(t('registerSelectCountry'), 'warning'); return; }
   if (!refCode) { showToast(t('registerRefRequired'), 'warning'); return; }
 
