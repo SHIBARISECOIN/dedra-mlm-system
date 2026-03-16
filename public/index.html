@@ -249,6 +249,12 @@
               <div class="split-price" id="deedraPrice">$0.50</div>
               <div class="split-price-sub" id="deedraChange">1 DDRA = $0.5000</div>
               <div class="split-price-updated" id="deedraUpdated"></div>
+              <!-- 소형 차트 (클릭 시 확대) -->
+              <div id="miniChartContainer" onclick="showFullscreenChart()" style="margin-top:12px; height:100px; width:100%; border-radius:8px; overflow:hidden; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05); position:relative; cursor:pointer;">
+                <div style="position:absolute;inset:0;z-index:10;"></div> <!-- 클릭 이벤트 캐치용 오버레이 -->
+                <iframe id="miniChartIframe" src="" width="100%" height="200" style="border:none; pointer-events:none; transform:scale(1); transform-origin:0 0; margin-top:-50px;" scrolling="no"></iframe>
+                <div style="position:absolute;bottom:4px;right:6px;font-size:10px;color:rgba(255,255,255,0.5);z-index:10;"><i class="fas fa-expand"></i> 확대</div>
+              </div>
               <!-- 오늘 수익 (투자 있을 때만 표시) -->
               <div id="todayEarnMini" class="today-earn-mini hidden">
                 <div class="today-earn-mini-label" data-i18n="todayEarnLabel">오늘 수익</div>
@@ -298,15 +304,13 @@
           </div>
 
           
-          <!-- 실시간 글로벌 네트워크 맵 -->
+          <!-- 주요 암호화폐 실시간 시세 (Upbit) -->
           <div class="section-header" style="margin-top:16px;">
-            <span class="section-title"><i class="fas fa-globe-asia"></i> <span data-i18n="globalNetwork">Real-time Global Network</span></span>
+            <span class="section-title" style="color:#fcd34d;"><i class="fas fa-chart-line"></i> <span data-i18n="majorCryptoPrice">주요 암호화폐 시세 (KRW)</span></span>
+            <span style="font-size:10px;color:#64748b;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;">Upbit 실시간</span>
           </div>
-          <div style="position:relative;width:100%;height:180px;background:#0b0f19;border-radius:14px;overflow:hidden;border:1px solid rgba(59,130,246,0.2);margin-bottom:16px;">
-            <canvas id="globalMapCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
-            <div id="globalMapTicker" style="position:absolute;bottom:8px;left:10px;font-size:10px;color:#10b981;background:rgba(16,185,129,0.1);padding:4px 8px;border-radius:6px;transition:opacity 0.5s;">
-              Systems active...
-            </div>
+          <div id="upbitTickerContainer" style="background:#0b0f19;border-radius:14px;border:1px solid rgba(59,130,246,0.2);margin-bottom:16px;padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="color:#94a3b8;font-size:12px;text-align:center;">시세 불러오는 중...</div>
           </div>
 
           <!-- 네트워크 수익 미리보기 -->
@@ -1724,7 +1728,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1773678020458"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=1773678020458"></script>
+<script src="/static/app.js?v=1773679540719"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널
@@ -1828,5 +1832,20 @@
     </div>
   </div>
 </div>
+
+<!-- 전체화면 차트 모달 -->
+<div id="chartModal" style="display:none;position:fixed;inset:0;z-index:999999;background:#0f172a;flex-direction:column;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;background:#1e293b;border-bottom:1px solid rgba(255,255,255,0.05);">
+    <div style="color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;">
+      <img src="/static/icon-192.png" style="width:20px;height:20px;border-radius:50%;" />
+      DEEDRA 실시간 차트
+    </div>
+    <button onclick="closeFullscreenChart()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;"><i class="fas fa-times"></i></button>
+  </div>
+  <div style="flex:1;width:100%;position:relative;">
+    <iframe id="fullChartIframe" src="" width="100%" height="100%" frameborder="0" style="position:absolute;inset:0;"></iframe>
+  </div>
+</div>
+
 </body>
 </html>

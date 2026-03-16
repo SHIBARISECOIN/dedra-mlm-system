@@ -129,6 +129,8 @@ const TRANSLATIONS = {
     chatPageTitle: '채팅',
     fee: '수수료',
     globalNetwork: '실시간 글로벌 네트워크',
+    majorCryptoPrice: 'Major Crypto Live Price',
+    majorCryptoPrice: '주요 암호화폐 실시간 시세',
     newsViewerTitle: '📰 뉴스 보기',
     tickerJoined: '새로운 회원이 가입했습니다: {city}',
     tickerDeposited: '{city}에서 {amt} USDT 입금',
@@ -677,6 +679,8 @@ const TRANSLATIONS = {
     chatPageTitle: 'Chat',
     fee: 'Fee',
     globalNetwork: 'Real-time Global Network',
+    majorCryptoPrice: 'Major Crypto Live Price',
+    majorCryptoPrice: '주요 암호화폐 실시간 시세',
     newsViewerTitle: '📰 View News',
     tickerJoined: 'New user joined in {city}',
     tickerDeposited: '{amt} USDT Deposited from {city}',
@@ -1215,6 +1219,8 @@ const TRANSLATIONS = {
     chatPageTitle: 'Trò chuyện',
     fee: 'Phí',
     globalNetwork: 'Mạng lưới toàn cầu',
+    majorCryptoPrice: 'Major Crypto Live Price',
+    majorCryptoPrice: '주요 암호화폐 실시간 시세',
     newsViewerTitle: '📰 Xem Tin tức',
     tickerJoined: 'Người dùng mới đã tham gia từ {city}',
     tickerDeposited: '{amt} USDT đã được nạp từ {city}',
@@ -1751,6 +1757,8 @@ const TRANSLATIONS = {
     chatPageTitle: 'แชท',
     fee: 'ค่าธรรมเนียม',
     globalNetwork: 'เครือข่ายระดับโลกตามเวลาจริง',
+    majorCryptoPrice: 'Major Crypto Live Price',
+    majorCryptoPrice: '주요 암호화폐 실시간 시세',
     newsViewerTitle: '📰 ดูข่าว',
     tickerJoined: 'ผู้ใช้ใหม่เข้าร่วมใน {city}',
     tickerDeposited: '{amt} USDT ฝากจาก {city}',
@@ -2690,6 +2698,13 @@ async function _fetchAndApplyLivePrice(pair) {
     const data = await res.json();
     if (!data.success || !data.price) return;
     deedraPrice = data.price;
+
+    // Set chart iframes if not set
+    const miniIframe = document.getElementById('miniChartIframe');
+    if (miniIframe && !miniIframe.src.includes(pair)) {
+      miniIframe.src = `https://dexscreener.com/solana/${pair}?embed=1&theme=dark&info=0`;
+    }
+
     updatePriceTicker(deedraPrice, null, data.source, data.priceChange24h, true);
     // Firestore에 갱신 (타임스탬프 업데이트)
     try {
@@ -8611,4 +8626,142 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+});
+
+
+// ===== DEEDRA 차트 확대 =====
+window.showFullscreenChart = function() {
+  const modal = document.getElementById('chartModal');
+  const fullIframe = document.getElementById('fullChartIframe');
+  const pair = _livePrice_pair || 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c';
+  if (fullIframe && !fullIframe.src) {
+    fullIframe.src = `https://dexscreener.com/solana/${pair}?embed=1&theme=dark&info=0`;
+  }
+  if (modal) modal.style.display = 'flex';
+};
+window.closeFullscreenChart = function() {
+  const modal = document.getElementById('chartModal');
+  if (modal) modal.style.display = 'none';
+};
+
+// ===== Upbit 실시간 시세 (WebSocket) =====
+let upbitWs = null;
+const upbitCoins = ['KRW-BTC', 'KRW-ETH', 'KRW-SOL', 'KRW-XRP'];
+const upbitData = {};
+
+function initUpbitTicker() {
+  const container = document.getElementById('upbitTickerContainer');
+  if (!container) return;
+
+  // 초기 렌더링
+  renderUpbitTicker();
+
+  if (upbitWs) return;
+
+  function connectUpbit() {
+    upbitWs = new WebSocket('wss://api.upbit.com/websocket/v1');
+    upbitWs.binaryType = 'arraybuffer';
+
+    upbitWs.onopen = () => {
+      const msg = [
+        { ticket: "deedra-ticker" },
+        { type: "ticker", codes: upbitCoins }
+      ];
+      upbitWs.send(JSON.stringify(msg));
+    };
+
+    upbitWs.onmessage = (evt) => {
+      const enc = new TextDecoder("utf-8");
+      const arr = new Uint8Array(evt.data);
+      const data = JSON.parse(enc.decode(arr));
+      
+      if (data && data.code) {
+        upbitData[data.code] = {
+          price: data.trade_price,
+          changeRate: data.signed_change_rate,
+          changePrice: data.signed_change_price,
+          change: data.change // RISE, EVEN, FALL
+        };
+        renderUpbitTicker();
+      }
+    };
+
+    upbitWs.onclose = () => {
+      upbitWs = null;
+      setTimeout(connectUpbit, 5000);
+    };
+  }
+
+  connectUpbit();
+}
+
+function renderUpbitTicker() {
+  const container = document.getElementById('upbitTickerContainer');
+  if (!container) return;
+
+  if (Object.keys(upbitData).length === 0) {
+    // 최초 REST API로 한 번 불러오기 (WS 대기시간 단축)
+    fetch('https://api.upbit.com/v1/ticker?markets=' + upbitCoins.join(','))
+      .then(r => r.json())
+      .then(data => {
+        data.forEach(d => {
+          upbitData[d.market] = {
+            price: d.trade_price,
+            changeRate: d.signed_change_rate,
+            changePrice: d.signed_change_price,
+            change: d.change
+          };
+        });
+        renderUpbitTickerItems(container);
+      }).catch(()=>{});
+    return;
+  }
+  
+  renderUpbitTickerItems(container);
+}
+
+function renderUpbitTickerItems(container) {
+  let html = '';
+  const names = {
+    'KRW-BTC': { ko: '비트코인', en: 'BTC' },
+    'KRW-ETH': { ko: '이더리움', en: 'ETH' },
+    'KRW-SOL': { ko: '솔라나', en: 'SOL' },
+    'KRW-XRP': { ko: '리플', en: 'XRP' }
+  };
+
+  upbitCoins.forEach(code => {
+    const d = upbitData[code];
+    if (!d) return;
+    
+    let color = '#94a3b8'; // EVEN
+    let sign = '';
+    if (d.change === 'RISE') { color = '#ef4444'; sign = '+'; }
+    else if (d.change === 'FALL') { color = '#3b82f6'; sign = ''; }
+
+    const priceFmt = d.price >= 100 ? d.price.toLocaleString('ko-KR') : d.price.toLocaleString('ko-KR', {minimumFractionDigits:2});
+    const pctFmt = (d.changeRate * 100).toFixed(2);
+
+    html += `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="https://static.upbit.com/logos/${names[code].en}.png" style="width:20px;height:20px;border-radius:50%;background:#fff;" onerror="this.src='/static/icon-192.png'" />
+          <div>
+            <div style="color:#fff;font-weight:600;font-size:14px;">${names[code].ko}</div>
+            <div style="color:#64748b;font-size:11px;">${names[code].en}/KRW</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="color:${color};font-weight:700;font-size:15px;">${priceFmt}</div>
+          <div style="color:${color};font-size:12px;">${sign}${pctFmt}%</div>
+        </div>
+      </div>
+    `;
+  });
+  
+  if (html) container.innerHTML = html;
+}
+
+// initUpbitTicker on page load
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initUpbitTicker, 1000);
 });
