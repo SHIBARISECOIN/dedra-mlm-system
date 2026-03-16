@@ -8646,7 +8646,16 @@ window.closeFullscreenChart = function() {
 
 // ===== Upbit 실시간 시세 (WebSocket) =====
 let upbitWs = null;
-const upbitCoins = ['KRW-BTC', 'KRW-ETH', 'KRW-SOL', 'KRW-XRP'];
+const upbitCoins = [
+  'KRW-BTC',  // 비트코인
+  'KRW-ETH',  // 이더리움
+  'KRW-SOL',  // 솔라나
+  'KRW-XRP',  // 리플
+  'KRW-DOGE', // 도지코인
+  'KRW-SHIB', // 시바이누
+  'KRW-ADA',  // 에이다
+  'KRW-AVAX'  // 아발란체
+];
 const upbitData = {};
 
 function initUpbitTicker() {
@@ -8726,7 +8735,11 @@ function renderUpbitTickerItems(container) {
     'KRW-BTC': { ko: '비트코인', en: 'BTC' },
     'KRW-ETH': { ko: '이더리움', en: 'ETH' },
     'KRW-SOL': { ko: '솔라나', en: 'SOL' },
-    'KRW-XRP': { ko: '리플', en: 'XRP' }
+    'KRW-XRP': { ko: '리플', en: 'XRP' },
+    'KRW-DOGE': { ko: '도지코인', en: 'DOGE' },
+    'KRW-SHIB': { ko: '시바이누', en: 'SHIB' },
+    'KRW-ADA': { ko: '에이다', en: 'ADA' },
+    'KRW-AVAX': { ko: '아발란체', en: 'AVAX' }
   };
 
   upbitCoins.forEach(code => {
