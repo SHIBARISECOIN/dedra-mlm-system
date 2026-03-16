@@ -12037,9 +12037,26 @@ window.handleAdminCaveNodeClick = function(id, name, rank, uid, isPathNode, path
    }
 };
 
-// Removed old zoom handlers that are no longer needed
-function orgZoom() {}
-function orgZoomReset() {}
+// 줌 컨트롤 핸들러
+window.orgZoom = function(delta) {
+    if (typeof orgScale !== 'undefined') {
+        orgScale = Math.min(3, Math.max(0.2, orgScale + delta));
+        const inner = document.getElementById('orgTreeInner');
+        if (inner) inner.style.transform = `scale(${orgScale})`;
+        const lbl = document.getElementById('orgZoomLabel');
+        if (lbl) lbl.textContent = Math.round(orgScale * 100) + '%';
+    }
+};
+
+window.orgZoomReset = function() {
+    if (typeof orgScale !== 'undefined') {
+        orgScale = 1;
+        const inner = document.getElementById('orgTreeInner');
+        if (inner) inner.style.transform = 'scale(1)';
+        const lbl = document.getElementById('orgZoomLabel');
+        if (lbl) lbl.textContent = '100%';
+    }
+};
 async function loadOrgTreeCentered(userId, nodeHint) {
     const wrap  = document.getElementById('orgTreeWrapAdmin');
     const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
