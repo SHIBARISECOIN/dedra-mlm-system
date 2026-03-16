@@ -157,6 +157,11 @@ service cloud.firestore {
     match /fcmTokens/{docId} {
       allow read, write: if isAdminOrSubAdmin();
     }
+
+    // chats: 그룹 채팅 메시지 (로그인한 모든 유저가 읽기/쓰기 가능)
+    match /chats/{roomId}/messages/{messageId} {
+      allow read, write: if isLoggedIn();
+    }
   }
 }
 
