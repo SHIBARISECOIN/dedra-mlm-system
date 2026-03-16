@@ -63,6 +63,17 @@ const SFX = (() => {
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+    
+    upbitRealTime: 'Upbit 실시간',
+    loadingPrice: '시세 불러오는 중...',
+    coin_BTC: '비트코인',
+    coin_ETH: '이더리움',
+    coin_SOL: '솔라나',
+    coin_XRP: '리플',
+    coin_DOGE: '도지코인',
+    coin_SHIB: '시바이누',
+    coin_ADA: '에이다',
+    coin_AVAX: '아발란체',
     noSubMembers: '산하 회원이 없습니다.',
     orgDepthLimitTitle: '조직도 열람 권한 제한',
     orgDepthLimitDesc: '현재 <strong>{rank}</strong> 직급은 <strong>{depth}대</strong>까지만 열람할 수 있습니다.<br>직급을 승급하여 더 깊은 산하 파트너를 확인해 보세요! 🚀',
@@ -614,6 +625,17 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+    
+    upbitRealTime: 'Upbit Live',
+    loadingPrice: 'Loading prices...',
+    coin_BTC: 'Bitcoin',
+    coin_ETH: 'Ethereum',
+    coin_SOL: 'Solana',
+    coin_XRP: 'Ripple',
+    coin_DOGE: 'Dogecoin',
+    coin_SHIB: 'Shiba Inu',
+    coin_ADA: 'Cardano',
+    coin_AVAX: 'Avalanche',
     noSubMembers: 'No downline members.',
     orgDepthLimitTitle: 'Organization Chart Access Restricted',
     orgDepthLimitDesc: 'Your current <strong>{rank}</strong> rank can only view up to <strong>level {depth}</strong>.<br>Upgrade your rank to see deeper into your network! 🚀',
@@ -1154,6 +1176,18 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+    
+    majorCryptoPrice: 'Giá Tiền Điện Tử Chính',
+    upbitRealTime: 'Upbit Trực tiếp',
+    loadingPrice: 'Đang tải giá...',
+    coin_BTC: 'Bitcoin',
+    coin_ETH: 'Ethereum',
+    coin_SOL: 'Solana',
+    coin_XRP: 'Ripple',
+    coin_DOGE: 'Dogecoin',
+    coin_SHIB: 'Shiba Inu',
+    coin_ADA: 'Cardano',
+    coin_AVAX: 'Avalanche',
     noSubMembers: 'Không có thành viên tuyến dưới.',
     orgDepthLimitTitle: 'Hạn chế quyền xem sơ đồ tổ chức',
     orgDepthLimitDesc: 'Cấp bậc <strong>{rank}</strong> hiện tại của bạn chỉ có thể xem tối đa <strong>thế hệ {depth}</strong>.<br>Hãy thăng cấp để xem sâu hơn vào mạng lưới của bạn! 🚀',
@@ -1692,6 +1726,18 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+    
+    majorCryptoPrice: 'ราคาคริปโตหลักแบบเรียลไทม์',
+    upbitRealTime: 'Upbit เรียลไทม์',
+    loadingPrice: 'กำลังโหลดราคา...',
+    coin_BTC: 'บิตคอยน์',
+    coin_ETH: 'อีเธอร์เรียม',
+    coin_SOL: 'โซลานา',
+    coin_XRP: 'ริปเปิล',
+    coin_DOGE: 'โดจคอยน์',
+    coin_SHIB: 'ชิบะอินุ',
+    coin_ADA: 'คาร์ดาโน',
+    coin_AVAX: 'อะวาแลนช์',
     noSubMembers: 'ไม่มีสมาชิกดาวน์ไลน์',
     orgDepthLimitTitle: 'จำกัดสิทธิ์การดูแผนผังองค์กร',
     orgDepthLimitDesc: 'ตำแหน่ง <strong>{rank}</strong> ปัจจุบันของคุณสามารถดูได้ถึง <strong>ระดับ {depth}</strong> เท่านั้น<br>เลื่อนระดับเพื่อดูเครือข่ายที่ลึกขึ้น! 🚀',
@@ -8731,16 +8777,7 @@ function renderUpbitTicker() {
 
 function renderUpbitTickerItems(container) {
   let html = '';
-  const names = {
-    'KRW-BTC': { ko: '비트코인', en: 'BTC' },
-    'KRW-ETH': { ko: '이더리움', en: 'ETH' },
-    'KRW-SOL': { ko: '솔라나', en: 'SOL' },
-    'KRW-XRP': { ko: '리플', en: 'XRP' },
-    'KRW-DOGE': { ko: '도지코인', en: 'DOGE' },
-    'KRW-SHIB': { ko: '시바이누', en: 'SHIB' },
-    'KRW-ADA': { ko: '에이다', en: 'ADA' },
-    'KRW-AVAX': { ko: '아발란체', en: 'AVAX' }
-  };
+  // names logic replaced by i18n t('coin_XXX')
 
   upbitCoins.forEach(code => {
     const d = upbitData[code];
@@ -8757,7 +8794,7 @@ function renderUpbitTickerItems(container) {
     html += `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0;">
         <div style="display:flex; align-items:center; gap:8px;">
-          <img src="https://static.upbit.com/logos/${names[code].en}.png" style="width:20px;height:20px;border-radius:50%;background:#fff;" onerror="this.src='/static/icon-192.png'" />
+          <img src="https://static.upbit.com/logos/${code.split('-')[1]}.png" style="width:20px;height:20px;border-radius:50%;background:#fff;" onerror="this.src='/static/icon-192.png'" />
           <div>
             <div style="color:#fff;font-weight:600;font-size:14px;">${names[code].ko}</div>
             <div style="color:#64748b;font-size:11px;">${names[code].en}/KRW</div>
