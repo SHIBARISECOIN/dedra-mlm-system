@@ -76,6 +76,7 @@ const TRANSLATIONS = {
     netPerfGen1: '1대 조직 실적',
     netPerfGen2: '2대 조직 실적',
     networkDetail: '조직 상세',
+    globalNetworkMap: '🌍 글로벌 라이브 네트워크',
     networkEarnings: '네트워크 수익',
     playWithEarn: '수익으로 즉시 플레이',
     rank_next_label: '다음 직급:',
@@ -582,6 +583,7 @@ const TRANSLATIONS = {
     earnSeeAll: '전체보기 ›',
     freezingNow: 'FREEZE 중',
     withdrawableDdra: '출금 가능 DDRA',
+    globalNetworkMap: '🌍 글로벌 라이브 네트워크',
     networkEarnings: '🌐 네트워크 수익',
     networkDetail: '자세히 보기',
     todayEarn: '당일 수익',
@@ -2420,6 +2422,8 @@ window.onAuthReady = async (user) => {
 };
 
 async function initApp() {
+    setTimeout(() => { try { window.initGlobalMapAnimation(); }catch(e){} }, 1000);
+
   console.log('initApp: started');
   try {
     const { doc, getDoc, db } = window.FB;
@@ -2429,6 +2433,37 @@ async function initApp() {
       await createUserData(currentUser);
     } else {
       userData = userSnap.data();
+
+    // 유저 데이터 실시간 구독 (직급 상승 등 감지)
+    if (window._userUnsubscribe) window._userUnsubscribe();
+    window._userUnsubscribe = window.FB.onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const newData = docSnap.data();
+        const newRank = newData.rank || 'G0';
+        userData = newData;
+        
+        // 직급 상승 감지 (오프라인 상승 시 로그인 후 1회 표시를 위해 localStorage 사용)
+        const rankOrder = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+        const storageKey = 'last_seen_rank_' + currentUser.uid;
+        const lastSeenRank = localStorage.getItem(storageKey) || 'G0';
+        
+        const lastIdx = Math.max(0, rankOrder.indexOf(lastSeenRank));
+        const newIdx = Math.max(0, rankOrder.indexOf(newRank));
+        
+        if (newIdx > lastIdx) {
+          triggerRankUpAnimation(newRank);
+          localStorage.setItem(storageKey, newRank);
+        } else if (newIdx < lastIdx) {
+          // 강등되거나 초기화된 경우 동기화
+          localStorage.setItem(storageKey, newRank);
+        }
+        
+        // UI 갱신 (메인 화면, 헤더 등)
+        updateHomeUI();
+        updateRankUI();
+      }
+    });
+
     }
 
     // 직급 승진 조건 설정 로드 (에러 무시)
@@ -3283,7 +3318,7 @@ function updateHomeUI() {
   const greetEl = document.getElementById('greetingMsg');
   const nameEl = document.getElementById('userNameDisplay');
   const rankImg = document.getElementById('userRankBadgeImg');
-  if (rankImg) rankImg.src = '/static/ranks/' + (userData.rank || 'G0').toLowerCase() + '.png';
+  if (rankImg) rankImg.src = '/static/ranks/' + (userData.rank || 'G0').trim().toLowerCase() + '.png?v=2';
   if (greetEl) greetEl.textContent = greeting + ' 👋';
   if (nameEl) nameEl.textContent = (userData.name || '회원') + ' (' + (userData.referralCode || '') + ')님';
 
@@ -4672,11 +4707,11 @@ function updateRankUI() {
   // Don't overwrite the whole div, just update the image
   const rankImg = document.getElementById('rankCurrentImg');
   if (rankImg) {
-    rankImg.src = `/static/ranks/${rank.toLowerCase()}.png`;
+    rankImg.src = `/static/ranks/${rank.trim().toLowerCase()}.png?v=2`;
   } else {
     // fallback if img is missing
     const rc = document.getElementById('rankCurrent');
-    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${rank.toLowerCase()}.png" alt="${rank}" style="width:80px;height:auto;object-fit:contain;" />`;
+    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${rank.trim().toLowerCase()}.png?v=2" alt="${rank}" style="width:80px;height:auto;object-fit:contain;" />`;
   }
 
   // ── 새 승진 조건 (관리자 설정) 방식 ──────────────────────────
@@ -7787,4 +7822,358 @@ window.makeDraggableMap = function(ele) {
             isDragging = false;
         }
     }, true);
+};
+
+
+// ─── 글로벌 맵 애니메이션 효과 ─────────────────────────────────────────────
+const _mapLocations = [
+  {x: 20, y: 30}, {x: 80, y: 20}, {x: 15, y: 70}, {x: 85, y: 60},
+  {x: 35, y: 25}, {x: 65, y: 35}, {x: 30, y: 80}, {x: 70, y: 75},
+  {x: 10, y: 50}, {x: 90, y: 50}, {x: 40, y: 15}, {x: 60, y: 85}
+];
+const _mapEvents = [
+  {type: 'join', color: '#10b981', msg: '신규 파트너!'},
+  {type: 'invest', color: '#f59e0b', msg: 'FREEZE 시작!'},
+  {type: 'rank', color: '#8b5cf6', msg: '직급 달성!'}
+];
+
+function triggerMapEvent() {
+  const layer = document.getElementById('globalMapLayer');
+  if (!layer || currentPage !== 'network') return;
+
+  // 랜덤 위치 (퍼센트)
+  const loc = _mapLocations[Math.floor(Math.random() * _mapLocations.length)];
+  // 약간의 랜덤성 추가
+  const rx = loc.x + (Math.random() * 10 - 5);
+  const ry = loc.y + (Math.random() * 10 - 5);
+  
+  const ev = _mapEvents[Math.floor(Math.random() * _mapEvents.length)];
+  
+  // 중심점 좌표(%)
+  const cx = 50, cy = 50;
+  
+  // 거리와 각도 계산
+  const dx = cx - rx;
+  const dy = cy - ry;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  
+  // 노드 생성
+  const node = document.createElement('div');
+  node.style.position = 'absolute';
+  node.style.left = rx + '%';
+  node.style.top = ry + '%';
+  node.style.width = '8px';
+  node.style.height = '8px';
+  node.style.borderRadius = '50%';
+  node.style.background = ev.color;
+  node.style.transform = 'translate(-50%, -50%)';
+  node.style.setProperty('--c', ev.color);
+  node.style.animation = 'nodePop 0.5s ease-out forwards';
+  node.style.zIndex = '3';
+  
+  // 레이저 선 생성
+  const laser = document.createElement('div');
+  laser.style.position = 'absolute';
+  laser.style.left = rx + '%';
+  laser.style.top = ry + '%';
+  laser.style.height = '2px';
+  laser.style.background = 'linear-gradient(90deg, ' + ev.color + ' 0%, rgba(255,255,255,0.8) 100%)';
+  laser.style.transformOrigin = 'left center';
+  laser.style.transform = 'rotate(' + angle + 'deg)';
+  laser.style.zIndex = '2';
+  // CSS 변수로 픽셀 단위 길이 대략 계산 (컨테이너 가로 기준)
+  laser.style.setProperty('--dist', 'calc(' + dist + ' * var(--map-w, 3.5px))');
+  laser.style.animation = 'shootLaser 1s ease-out forwards';
+  
+  // 메시지
+  const msg = document.createElement('div');
+  msg.textContent = ev.msg;
+  msg.style.position = 'absolute';
+  msg.style.left = rx + '%';
+  msg.style.top = (ry - 10) + '%';
+  msg.style.color = ev.color;
+  msg.style.fontSize = '10px';
+  msg.style.fontWeight = 'bold';
+  msg.style.whiteSpace = 'nowrap';
+  msg.style.transform = 'translateX(-50%)';
+  msg.style.textShadow = '0 1px 2px rgba(0,0,0,0.8)';
+  msg.style.animation = 'floatUpFade 2s ease-out forwards';
+  msg.style.zIndex = '4';
+
+  layer.appendChild(node);
+  layer.appendChild(laser);
+  layer.appendChild(msg);
+
+  // 컨테이너 폭 저장 (레이저 계산용)
+  const wrap = document.getElementById('globalMapWrap');
+  if (wrap) {
+    laser.style.setProperty('--map-w', (wrap.offsetWidth / 100) + 'px');
+  }
+
+  // 3초 후 제거
+  setTimeout(() => {
+    node.remove();
+    laser.remove();
+    msg.remove();
+  }, 3000);
+}
+
+// 2~5초마다 랜덤으로 이벤트 발생
+setInterval(() => {
+  if (currentUser && currentPage === 'network') {
+    if (Math.random() > 0.3) triggerMapEvent(); // 70% 확률로 발생
+  }
+}, Math.random() * 3000 + 2000);
+
+
+// ─── 직급 승급 축하 애니메이션 (돈 비 + 꽃가루) ───
+window.triggerRankUpAnimation = function(newRank) {
+  // 모달 생성
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;backdrop-filter:blur(5px);';
+  
+  const rankNames = {
+    G1:'Silver', G2:'Gold', G3:'Platinum', G4:'Diamond', G5:'Master',
+    G6:'Grand Master', G7:'Legend', G8:'Mythic', G9:'Elite', G10:'Founder'
+  };
+  const rankName = rankNames[newRank] || newRank;
+  
+  overlay.innerHTML = `
+    <div style="text-align:center;animation:scaleUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;z-index:10000;position:relative;">
+      <div style="font-size:60px;margin-bottom:10px;text-shadow:0 0 20px rgba(255,215,0,0.8);">🏆</div>
+      <div style="font-size:24px;color:#fcd34d;font-weight:800;margin-bottom:8px;text-shadow:0 2px 10px rgba(0,0,0,0.5);">축하합니다!</div>
+      <div style="font-size:36px;color:#fff;font-weight:900;margin-bottom:20px;text-shadow:0 0 15px rgba(255,255,255,0.5);">${newRank} ${rankName}</div>
+      <div style="font-size:14px;color:#cbd5e1;background:rgba(255,255,255,0.1);padding:8px 16px;border-radius:20px;border:1px solid rgba(255,255,255,0.2);">새로운 직급을 달성하셨습니다!</div>
+      
+      <button onclick="this.closest('div').parentElement.remove()" style="margin-top:40px;padding:14px 32px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(245,158,11,0.4);animation:pulse 2s infinite;">확인</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // 애니메이션용 CSS
+  if (!document.getElementById('rankUpStyle')) {
+    const style = document.createElement('style');
+    style.id = 'rankUpStyle';
+    style.innerHTML = `
+      @keyframes scaleUp { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes fallDown { 0% { transform: translateY(-20vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(120vh) rotate(720deg); opacity: 0; } }
+      .coin-drop { position:absolute; font-size:24px; animation: fallDown linear forwards; z-index:9998; text-shadow:0 2px 5px rgba(0,0,0,0.5); }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // 돈 비 (Coin Rain) 이펙트
+  const emojis = ['💰', '💵', '🪙', '✨', '💎', '🎉'];
+  for (let i = 0; i < 80; i++) {
+    setTimeout(() => {
+      if (!document.body.contains(overlay)) return;
+      const coin = document.createElement('div');
+      coin.className = 'coin-drop';
+      coin.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      coin.style.left = (Math.random() * 100) + 'vw';
+      
+      // 크기와 떨어지는 속도 랜덤화
+      const size = (Math.random() * 20 + 15) + 'px';
+      coin.style.fontSize = size;
+      coin.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+      
+      overlay.appendChild(coin);
+      
+      // 끝나면 삭제
+      setTimeout(() => { if (overlay.contains(coin)) coin.remove(); }, 4000);
+    }, i * 50); // 0.05초 간격으로 계속 생성
+  }
+  
+  // 소리 효과 (선택)
+  if (window.soundEngine) window.soundEngine.play('win');
+};
+
+
+// ─── 🌌 조직도 갤럭시 뷰 (3D 우주 모드) ───
+window.openGalaxyMode = async function() {
+  if (!currentUser) return;
+  const { collection, query, where, getDocs, db } = window.FB;
+  
+  // 전체 화면 오버레이
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#050510;z-index:9999;overflow:hidden;display:flex;flex-direction:column;';
+  
+  // 뒤로가기 버튼
+  const header = document.createElement('div');
+  header.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:20px;display:flex;justify-content:space-between;align-items:center;z-index:10;';
+  header.innerHTML = `
+    <div style="color:#fff;font-size:18px;font-weight:800;text-shadow:0 0 10px rgba(139,92,246,0.8);"><i class="fas fa-space-shuttle"></i> GALAXY VIEW</div>
+    <button onclick="this.closest('div').parentElement.remove()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i class="fas fa-times"></i></button>
+  `;
+  overlay.appendChild(header);
+
+  // 로딩
+  const loading = document.createElement('div');
+  loading.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#a78bfa;font-size:14px;';
+  loading.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 우주 탐색 중...';
+  overlay.appendChild(loading);
+  
+  document.body.appendChild(overlay);
+
+  try {
+    // 1대, 2대, 3대 데이터 가져오기 (app.js의 기존 fetchChildren 로직과 유사)
+    const gen1Snap = await getDocs(query(collection(db, 'users'), where('referredBy', '==', currentUser.uid)));
+    const gen1 = gen1Snap.docs.map(d => ({ id: d.id, ...d.data(), level: 1 }));
+    
+    let gen2 = [];
+    if (gen1.length > 0) {
+      const g1Ids = gen1.map(u => u.id);
+      // Firestore 'in' query limit is 30
+      for (let i = 0; i < g1Ids.length; i += 30) {
+        const chunk = g1Ids.slice(i, i + 30);
+        const g2Snap = await getDocs(query(collection(db, 'users'), where('referredBy', 'in', chunk)));
+        gen2.push(...g2Snap.docs.map(d => ({ id: d.id, ...d.data(), level: 2 })));
+      }
+    }
+
+    let gen3 = [];
+    if (gen2.length > 0) {
+      const g2Ids = gen2.map(u => u.id);
+      for (let i = 0; i < Math.min(g2Ids.length, 90); i += 30) { // Limit to 90 to prevent too many queries
+        const chunk = g2Ids.slice(i, i + 30);
+        const g3Snap = await getDocs(query(collection(db, 'users'), where('referredBy', 'in', chunk)));
+        gen3.push(...g3Snap.docs.map(d => ({ id: d.id, ...d.data(), level: 3 })));
+      }
+    }
+
+    loading.remove();
+
+    // 캔버스 설정
+    const canvas = document.createElement('canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.style.display = 'block';
+    overlay.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    // 행성 데이터 구성
+    const planets = [];
+    const colors = {
+      'G0': '#94a3b8', 'G1': '#38bdf8', 'G2': '#34d399', 'G3': '#fbbf24',
+      'G4': '#f472b6', 'G5': '#ef4444', 'G6': '#c084fc', 'G7': '#ec4899',
+      'G8': '#f97316', 'G9': '#a3e635', 'G10': '#eab308'
+    };
+
+    const addPlanets = (users, radius, speedBase, sizeBase) => {
+      users.forEach((u, i) => {
+        planets.push({
+          name: u.name || u.id.slice(0,5),
+          rank: u.rank || 'G0',
+          color: colors[u.rank || 'G0'] || '#fff',
+          orbitRadius: radius + (Math.random() * 20 - 10), // 궤도 약간의 오차
+          angle: (i / users.length) * Math.PI * 2,
+          speed: speedBase * (Math.random() * 0.5 + 0.5), // 속도 약간 랜덤
+          size: sizeBase + (['G0','G1'].includes(u.rank) ? 0 : 2) // 직급 높으면 좀 더 큼
+        });
+      });
+    };
+
+    // 1대: 가깝고 빠름
+    addPlanets(gen1, Math.min(cx,cy) * 0.35, 0.005, 6);
+    // 2대: 중간
+    addPlanets(gen2, Math.min(cx,cy) * 0.6, 0.002, 4);
+    // 3대: 멀고 느림
+    addPlanets(gen3, Math.min(cx,cy) * 0.85, 0.001, 3);
+
+    // 배경 별 (Stars)
+    const stars = Array(150).fill().map(() => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5,
+      alpha: Math.random()
+    }));
+
+    let animationId;
+    let time = 0;
+
+    function draw() {
+      // 꼬리 효과를 위해 배경을 반투명하게 칠함
+      ctx.fillStyle = 'rgba(5, 5, 16, 0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 별 그리기
+      stars.forEach(s => {
+        s.alpha += (Math.random() - 0.5) * 0.1;
+        if(s.alpha < 0) s.alpha = 0; if(s.alpha > 1) s.alpha = 1;
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 태양 (ME)
+      const sunGradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 30);
+      sunGradient.addColorStop(0, '#fff');
+      sunGradient.addColorStop(0.2, '#fef08a');
+      sunGradient.addColorStop(1, 'rgba(234,179,8,0)');
+      
+      ctx.fillStyle = sunGradient;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 40, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ME', cx, cy);
+
+      // 행성 그리기
+      planets.forEach(p => {
+        p.angle += p.speed;
+        // 3D 느낌을 위해 y축을 약간 납작하게 (타원 궤도)
+        const tilt = 0.6; 
+        const px = cx + Math.cos(p.angle) * p.orbitRadius;
+        const py = cy + Math.sin(p.angle) * p.orbitRadius * tilt;
+
+        // 뒤로 돌아갈 때(sin < 0)는 작게/어둡게, 앞으로 올 때(sin > 0)는 크게/밝게
+        const depth = Math.sin(p.angle);
+        const scale = 1 + (depth * 0.3);
+        
+        ctx.beginPath();
+        ctx.arc(px, py, p.size * scale, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        
+        // Glow effect
+        ctx.shadowBlur = 10 * scale;
+        ctx.shadowColor = p.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // 이름 (앞에 있을 때만 살짝 보임)
+        if (depth > 0) {
+          ctx.fillStyle = `rgba(255,255,255,${0.4 + depth * 0.6})`;
+          ctx.font = `${10 * scale}px sans-serif`;
+          ctx.fillText(p.name, px, py + 12 * scale);
+        }
+      });
+
+      animationId = requestAnimationFrame(draw);
+    }
+    
+    draw();
+
+    // 정리 로직
+    const obs = new MutationObserver(() => {
+      if (!document.body.contains(overlay)) {
+        cancelAnimationFrame(animationId);
+        obs.disconnect();
+      }
+    });
+    obs.observe(document.body, { childList: true });
+
+  } catch(e) {
+    console.error('Galaxy mode error:', e);
+    loading.innerHTML = '데이터를 불러오지 못했습니다.';
+  }
 };
