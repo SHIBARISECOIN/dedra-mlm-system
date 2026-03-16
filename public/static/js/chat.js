@@ -5,8 +5,15 @@ window.chatManager = {
   sponsorId: null,
 
   init() {
-    if (!window.currentUser) return;
-    this.sponsorId = window.currentUser.referredBy;
+    // window.currentUser or userData
+    const user = window.currentUser || window.userData;
+    if (!user) return;
+    
+    // userData has referredBy
+    if (window.userData && window.userData.referredBy) {
+      this.sponsorId = window.userData.referredBy;
+    }
+    
     this.loadMessages();
   },
 
@@ -39,17 +46,13 @@ window.chatManager = {
   },
 
   getRoomId() {
+    const user = window.currentUser || window.userData;
+    const uid = user ? (user.uid || user.id) : null;
+    
     if (this.currentRoom === 'group') {
-      // Group Chat Room ID (My UID is the room ID, my direct downlines connect here)
-      // Note: If I am a downline, my group chat is my upline's group chat
-      // To simplify, let's make it so everyone sees the chat room of their immediate sponsor
-      // Or: everyone has their own room where they are the sponsor.
-      // Let's go with: "Group Chat" = Chat room owned by ME (my downlines talk here)
-      // "Sponsor Chat" = Chat room owned by MY SPONSOR (I talk with my sponsor and siblings)
-      
-      return `group_${window.currentUser.uid}`;
+      if (!uid) return null;
+      return `group_${uid}`;
     } else {
-      // Upline chat room ID
       if (!this.sponsorId) return null;
       return `group_${this.sponsorId}`;
     }
@@ -89,7 +92,9 @@ window.chatManager = {
 
       snapshot.forEach(doc => {
         const msg = doc.data();
-        const isMe = msg.senderId === window.currentUser.uid;
+        const user = window.currentUser || window.userData;
+        const uid = user ? (user.uid || user.id) : null;
+        const isMe = msg.senderId === uid;
         
         // Date formatting
         let timeStr = '';
@@ -137,10 +142,15 @@ window.chatManager = {
 
     try {
       const { collection, addDoc, serverTimestamp, db } = window.FB;
+      const user = window.currentUser || window.userData;
+      const uid = user ? (user.uid || user.id) : null;
+      let userName = '사용자';
+      if (window.userData && window.userData.name) userName = window.userData.name;
+      else if (user && user.email) userName = user.email.split('@')[0];
       
       await addDoc(collection(db, 'chats', roomId, 'messages'), {
-        senderId: window.currentUser.uid,
-        senderName: window.currentUser.name || window.currentUser.email.split('@')[0],
+        senderId: uid,
+        senderName: userName,
         text: text,
         createdAt: serverTimestamp()
       });

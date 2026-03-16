@@ -2201,7 +2201,7 @@ function applyLang() {
 }
 
 // ===== 전역 상태 =====
-let currentUser = null;
+window.currentUser = null;
 let userData = null;
 let walletData = null;
 let currentPage = 'home';
@@ -2414,7 +2414,7 @@ function getForexInfoText() {
 // ===== 앱 초기화 =====
 window.onAuthReady = async (user) => {
   if (user) {
-    currentUser = user;
+    window.currentUser = user;
     await initApp();
   } else {
     showScreen('auth');
@@ -2425,10 +2425,10 @@ async function initApp() {
   console.log('initApp: started');
   try {
     const { doc, getDoc, db } = window.FB;
-    const userSnap = await getDoc(doc(db, 'users', currentUser.uid));
+    const userSnap = await getDoc(doc(db, 'users', window.currentUser.uid));
 
     if (!userSnap.exists()) {
-      await createUserData(currentUser);
+      await createUserData(window.currentUser);
     } else {
       userData = userSnap.data();
     }
@@ -2981,7 +2981,7 @@ function showScreen(name) {
 
 // ===== 탭 전환 =====
 window.switchPage = function(page) {
-  if (page === 'chat' && !window.currentUser) {
+  if (page === 'chat' && !window.currentUser && !userData) {
     showToast(t('loginRequired') || '로그인이 필요합니다.', 'warning');
     return;
   }
