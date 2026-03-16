@@ -4907,14 +4907,26 @@ window.renderCaveTree = async function() {
     } else {
        childrenWrap.innerHTML = children.map(c => renderNode(c, false, -1)).join('');
     }
+  
   } catch (err) {
     console.error(err);
     const childrenWrap = document.getElementById('caveChildrenWrap');
     if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
   }
+  
+  // 새로 렌더링된 요소가 적절한 위치에 오도록 스크롤 (화면 약간 위쪽으로 포커스)
+  setTimeout(() => {
+    const scroller = treeEl.querySelector('#caveTreeScroll') || treeEl.querySelector('div');
+    const childrenWrap = document.getElementById('caveChildrenWrap');
+    if (scroller && childrenWrap && window.cavePath.length > 1) {
+        const targetNode = childrenWrap.previousElementSibling;
+        if (targetNode) {
+            const pos = targetNode.offsetTop - (scroller.clientHeight / 2) + 50;
+            scroller.scrollTo({ top: Math.max(0, pos), behavior: 'smooth' });
+        }
+    }
+  }, 100);
 };
-
-
 window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex) {
    if (id === currentUser.uid) {
       // 본인이면 그냥 탐색만 (최상단이면 아무것도 안함)
