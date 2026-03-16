@@ -909,21 +909,7 @@ canvas{width:100% !important;}
 }
 </style>
 
-<style id="orgChartCss">
-.css-tree { display: inline-block; padding: 20px; white-space: nowrap; }
-.css-tree ul { padding-top: 20px; position: relative; transition: all 0.3s; display: flex; justify-content: center; padding-left: 0; margin: 0; }
-.css-tree li { float: left; text-align: center; list-style-type: none; position: relative; padding: 20px 5px 0 5px; transition: all 0.3s; }
-.css-tree li::before, .css-tree li::after { content: ''; position: absolute; top: 0; right: 50%; border-top: 2px solid #94a3b8; width: 50%; height: 20px; }
-.css-tree li::after { right: auto; left: 50%; border-left: 2px solid #94a3b8; }
-.css-tree li:only-child::after, .css-tree li:only-child::before { display: none; }
-.css-tree li:only-child { padding-top: 0; }
-.css-tree li:first-child::before, .css-tree li:last-child::after { border: 0 none; }
-.css-tree li:last-child::before { border-right: 2px solid #94a3b8; border-radius: 0 6px 0 0; }
-.css-tree li:first-child::after { border-radius: 6px 0 0 0; }
-.css-tree ul::before { content: ''; position: absolute; top: 0; left: calc(50% - 1px); border-left: 2px solid #94a3b8; width: 0; height: 20px; }
-.css-tree .node-card { border-radius: 12px; transition: all 0.3s; background: #fff; display: inline-flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; text-decoration: none; text-align: left; }
-.css-tree .node-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important; }
-</style>
+
 </head>
 <body>
 
@@ -2891,12 +2877,7 @@ canvas{width:100% !important;}
         <input type="text" id="orgTreeSearchInput" class="search-input" placeholder="특정 회원 ID·이름 검색">
         <button class="btn btn-primary btn-sm" id="orgTreeSearchBtn">🔍 해당 회원부터 보기</button>
         <button class="btn btn-gray btn-sm" id="orgTreeRootBtn">🌐 전체 트리 보기</button>
-        <select id="orgTreeDepth" class="filter-select">
-          <option value="3">3단계</option>
-          <option value="5" selected>5단계</option>
-          <option value="10">10단계</option>
-          <option value="99">전체</option>
-        </select>
+        
         <span id="orgTreeStats" style="font-size:13px;color:var(--gray);"></span>
       </div>
       <!-- 확대/축소 컨트롤 -->
@@ -2905,9 +2886,7 @@ canvas{width:100% !important;}
         <span id="orgZoomLabel" style="font-size:13px;min-width:44px;text-align:center;">100%</span>
         <button class="btn btn-gray btn-sm" onclick="orgZoom(0.1)">➕</button>
         <button class="btn btn-gray btn-sm" onclick="orgZoomReset()">↩ 초기화</button>
-        <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;">
-          <input type="checkbox" id="orgHorizontal"> 수평 레이아웃
-        </label>
+        
       </div>
       <!-- 직급 범례 -->
       <div id="orgRankLegend" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;">
@@ -11641,30 +11620,44 @@ async function loadOrgTree(rootId = null) {
     wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>조직 트리 로딩 중...</span></div>';
 
     try {
-        let finalRootId = rootId;
+        let rootNode = null;
         
-        if (!finalRootId) {
-            // Find COMPANY 
+        if (rootId) {
+            // Find specific user
+            const snap = await getDoc(doc(db, 'users', rootId));
+            if (snap.exists()) {
+                rootNode = { id: snap.id, ...snap.data() };
+            }
+        } else {
+            // Find COMPANY (or users with no referredBy/empty referredBy)
             const q = query(collection(db, 'users'), where('role', '==', 'admin'));
             const snap = await getDocs(q);
             if (!snap.empty) {
-                finalRootId = snap.docs[0].id;
+                rootNode = { id: snap.docs[0].id, ...snap.docs[0].data(), name: 'COMPANY ROOT' };
             } else {
-                // fallback
+                // fallback to first active user if no admin found
                 const q2 = query(collection(db, 'users'), limit(1));
                 const snap2 = await getDocs(q2);
-                if (!snap2.empty) finalRootId = snap2.docs[0].id;
+                if (!snap2.empty) rootNode = { id: snap2.docs[0].id, ...snap2.docs[0].data() };
             }
         }
 
-        if (!finalRootId) {
+        if (!rootNode) {
             wrap.innerHTML = '<div class="empty-state"><div class="empty-icon">🌐</div><div>조직 트리를 찾을 수 없습니다.</div></div>';
             return;
         }
 
-        // 기본적으로 Centered (펼침 모드) 로 트리 렌더링
-        window.currentOrgRootId = finalRootId;
-        await loadOrgTreeCentered(finalRootId);
+        window.adminCavePath = [{
+            id: rootNode.id,
+            name: rootNode.name || '알 수 없음',
+            rank: rootNode.rank || 'G0',
+            uid: rootNode.uid || rootNode.id
+        }];
+
+        await renderAdminCaveTree();
+        
+        // Update stats
+        document.getElementById('orgTreeStats').textContent = `현재 기준: ${rootNode.name}`;
 
     } catch (e) {
         console.error(e);
@@ -11813,60 +11806,14 @@ window.handleAdminCaveNodeClick = function(id, name, rank, uid, isPathNode, path
 // Removed old zoom handlers that are no longer needed
 function orgZoom() {}
 function orgZoomReset() {}
-window.currentOrgRootId = null;
-
-
-function buildCssTreeNode(n) {
-    const rc = orgRankColor(n.rank || 'G0');
-    const invested = Number(n.totalInvested || 0);
-    const bonus = Number(n.bonusBalance || 0);
-    const uid = (n._uid || n.id || '').slice(0, 10);
-    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.name}&backgroundColor=transparent`;
-    
-    // 카드 모양 (기존 cave tree 스타일과 유사하게)
-    let cardHtml = `
-      <div class="node-card" style="border: 2px solid ${rc.line}; box-shadow: 0 4px 6px rgba(0,0,0,0.05);" onclick="loadOrgTreeCentered('${n.id}')">
-         <div style="width:36px; height:36px; border-radius:50%; background:#f1f5f9; overflow:hidden; flex-shrink:0;">
-            <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
-         </div>
-         <div style="display:flex; flex-direction:column; overflow:hidden;">
-           <div style="font-weight:700; font-size:14px; color:#1e293b; margin-bottom:4px; white-space:nowrap;">${n.name||'(이름없음)'}</div>
-           <div style="display:flex; gap:6px; align-items:center;">
-              <div style="background:${rc.bg}; color:#fff; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:bold;">${n.rank||'G0'}</div>
-              <div style="font-size:10px; color:#64748b; font-family:monospace;">${uid}</div>
-           </div>
-           <div style="display:flex; gap:4px; margin-top:4px;">
-              ${invested>0 ? `<span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:1px 4px;color:#1e293b;">💰${invested.toLocaleString()}</span>` : ''}
-              ${bonus>0 ? `<span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${rc.border};border-radius:3px;padding:1px 4px;color:#10b981;">🎁${Math.round(bonus).toLocaleString()}</span>` : ''}
-           </div>
-         </div>
-      </div>
-    `;
-
-    let html = `<li>${cardHtml}`;
-    
-    if (n.children && n.children.length > 0) {
-        html += `<ul>`;
-        n.children.forEach(c => {
-            html += buildCssTreeNode(c);
-        });
-        html += `</ul>`;
-    }
-    
-    html += `</li>`;
-    return html;
-}
-
-
 async function loadOrgTreeCentered(userId, nodeHint) {
-    window.currentOrgRootId = userId;
     const wrap  = document.getElementById('orgTreeWrapAdmin');
     const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
     wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>트리 로딩 중...</span></div>';
 
     const r = await api.getOrgTreeCentered(userId, depth, depth);
     if (!r.success || !r.data) {
-        wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>데이터를 불러올 수 없습니다.<br><small style="color:red;font-size:11px;">${r.error || r.message || ""}</small></div></div>`;
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div>데이터를 불러올 수 없습니다.</div></div>`;
         return;
     }
 
@@ -11899,47 +11846,131 @@ async function loadOrgTreeCentered(userId, nodeHint) {
     `;
     inner.appendChild(topBar);
 
-    
-    // CSS Tree 렌더링 (수평 레이아웃)
-    const treeContainer = document.createElement('div');
-    treeContainer.className = 'css-tree';
-    
-    let html = '<ul>';
-    
-    // 부모를 위쪽에 차례대로 렌더링 (단일 체인)
-    // 부모 체인을 재귀적으로 감싸는 구조 생성
-    if (parents && parents.length > 0) {
-        // Build nested ul>li for parents
-        let parentHtml = '';
-        let closingTags = '';
-        parents.forEach((p, idx) => {
-            const rc = orgRankColor(p.rank || 'G0');
-            const pInvested = Number(p.totalInvested || 0);
-            const pUid = (p._uid || p.id || '').slice(0, 10);
-            
-            parentHtml += `
-                <ul><li>
-                  <div class="node-card" style="border: 2px solid ${rc.line}; opacity: 0.8; padding: 8px 12px; margin-bottom: 0px;" onclick="loadOrgTreeCentered('${p.id}')">
-                    <div style="font-size:12px; font-weight:700;">${p.name||'(이름없음)'}</div>
-                    <div style="font-size:10px; color:#64748b;">${p.rank||'G0'} | ${pUid}</div>
-                    <div style="font-size:10px; color:#6366f1; margin-top:2px;">▲ 상위 ${parents.length - idx}단계</div>
-                  </div>
-            `;
-            closingTags += '</li></ul>';
-        });
-        
-        // Target node as the child of the last parent
-        parentHtml += `<ul>${buildCssTreeNode(target)}</ul>`;
-        html += parentHtml + closingTags;
-    } else {
-        // No parents, just target and children
-        html += buildCssTreeNode(target);
-    }
-    
-    html += '</ul>';
-    treeContainer.innerHTML = html;
-    inner.appendChild(treeContainer);
+    // ── 부모 체인 (위쪽) ──
+    if (parents.length > 0) {
+        const parentLabel = document.createElement('div');
+        parentLabel.style.cssText = 'font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:4px;padding-left:4px;';
+        parentLabel.textContent = `▲ 상위 ${parents.length}단계`;
+        inner.appendChild(parentLabel);
 
+        parents.forEach((p, idx) => {
+            const pRc  = orgRankColor(p.rank || 'G0');
+            const isTopmost = idx === 0;
+            const invested  = Number(p.totalInvested || 0);
+            const uid       = (p._uid || p.id || '').slice(0, 14);
+
+            const pRow = document.createElement('div');
+            pRow.style.cssText = 'display:flex;align-items:center;margin-bottom:3px;min-height:34px;';
+
+            // 들여쓰기 (부모는 인덱스 순으로 들여쓰기)
+            const INDENT = 28;
+            for (let i = 0; i < idx; i++) {
+                const sp = document.createElement('div');
+                sp.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
+                // 수직선
+                const vl = document.createElement('div');
+                vl.style.cssText = `width:2px;background:${orgRankColor('G0').line};position:absolute;left:${INDENT/2-1}px;top:0;bottom:0;`;
+                sp.appendChild(vl);
+                pRow.appendChild(sp);
+            }
+            if (idx > 0) {
+                const corner = document.createElement('div');
+                corner.style.cssText = `width:${INDENT}px;flex-shrink:0;align-self:stretch;position:relative;`;
+                const vp = document.createElement('div');
+                vp.style.cssText = `width:2px;background:${pRc.line};position:absolute;left:${INDENT/2-1}px;top:0;height:50%;`;
+                const hp = document.createElement('div');
+                hp.style.cssText = `height:2px;background:${pRc.line};position:absolute;left:${INDENT/2-1}px;top:50%;width:${INDENT/2+2}px;transform:translateY(-50%);`;
+                corner.appendChild(vp); corner.appendChild(hp);
+                pRow.appendChild(corner);
+            }
+
+            const pCard = document.createElement('div');
+            pCard.style.cssText = `
+                display:inline-flex;align-items:center;gap:6px;
+                background:${pRc.card};
+                border:1.5px solid ${pRc.border};
+                border-left:5px solid ${pRc.bg};
+                border-radius:7px;
+                padding:4px 10px 4px 8px;
+                font-size:12px;cursor:pointer;
+                box-shadow:0 1px 4px rgba(0,0,0,0.10);
+                transition:box-shadow 0.12s;
+                opacity:0.85;
+            `;
+            pCard.innerHTML = `
+                <span style="background:${pRc.bg};color:${pRc.text};font-size:9px;font-weight:900;padding:1px 5px;border-radius:3px;">${p.rank||'G0'}</span>
+                <span style="font-weight:700;color:#0f172a;white-space:nowrap;">${p.name||'(이름없음)'}</span>
+                <span style="font-size:10px;color:#94a3b8;font-family:monospace;">${uid}</span>
+                <span style="font-size:10px;font-weight:700;background:#fff;border:1px solid ${pRc.border};border-radius:3px;padding:0 4px;">💰${invested>0?invested.toLocaleString():'0'}</span>
+                <span style="font-size:10px;color:#6366f1;font-weight:700;padding:0 4px;border:1px solid #6366f1;border-radius:4px;background:#eef2ff;">📍기준으로</span>
+            `;
+            pCard.onclick = () => loadOrgTreeCentered(p.id, p);
+            pRow.appendChild(pCard);
+            inner.appendChild(pRow);
+        });
+
+        // 부모-대상 연결선
+        const conn = document.createElement('div');
+        conn.style.cssText = `width:2px;height:16px;background:${orgRankColor(target.rank||'G0').line};margin-left:${28*(parents.length-1)+14}px;margin-bottom:3px;`;
+        inner.appendChild(conn);
+    }
+
+    // ── 대상 본인 (강조) ──
+    const targetRc  = orgRankColor(target.rank || 'G0');
+    const tInvested = Number(target.totalInvested || 0);
+    const tBonus    = Number(target.bonusBalance  || 0);
+    const tUid      = (target._uid || target.id || '').slice(0, 14);
+
+    const targetRow = document.createElement('div');
+    targetRow.style.cssText = 'display:flex;align-items:center;margin-bottom:6px;min-height:40px;';
+
+    // 부모가 있으면 들여쓰기
+    const tIndent = parents.length;
+    const INDENT = 28;
+    for (let i = 0; i < tIndent; i++) {
+        const sp = document.createElement('div');
+        sp.style.cssText = `width:${INDENT}px;flex-shrink:0;`;
+        targetRow.appendChild(sp);
+    }
+
+    const targetCard = document.createElement('div');
+    targetCard.style.cssText = `
+        display:inline-flex;align-items:center;gap:6px;
+        background:${targetRc.bg};
+        border:3px solid ${targetRc.border};
+        border-left:7px solid #fff;
+        border-radius:9px;
+        padding:7px 14px 7px 10px;
+        font-size:13px;cursor:pointer;
+        box-shadow:0 4px 16px rgba(0,0,0,0.25);
+    `;
+    targetCard.innerHTML = `
+        <span style="background:#fff;color:${targetRc.bg};font-size:10px;font-weight:900;padding:2px 7px;border-radius:4px;">📍${target.rank||'G0'}</span>
+        <span style="font-weight:800;color:#fff;white-space:nowrap;font-size:14px;">${target.name||'(이름없음)'}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.7);font-family:monospace;">${tUid}</span>
+        <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);border-radius:4px;padding:1px 6px;color:#fff;">💰${tInvested>0?tInvested.toLocaleString():'0'}</span>
+        ${tBonus>0?`<span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.2);border-radius:4px;padding:1px 6px;color:#fff;">🎁${Math.round(tBonus).toLocaleString()}</span>`:''}
+    `;
+    targetCard.onclick = () => showCustomerDetail(target.id);
+    targetRow.appendChild(targetCard);
+    inner.appendChild(targetRow);
+
+    // ── 자식 트리 ──
+    if ((target.children||[]).length > 0) {
+        const childLabel = document.createElement('div');
+        childLabel.style.cssText = 'font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:4px;' +
+            `padding-left:${INDENT * tIndent + 4}px;`;
+        childLabel.textContent = `▼ 하위 ${depth}단계`;
+        inner.appendChild(childLabel);
+
+        const childBlock = document.createElement('div');
+        childBlock.style.paddingLeft = `${INDENT * tIndent}px`;
+        target.children.forEach((child, idx) => {
+            const isLast = idx === target.children.length - 1;
+            childBlock.appendChild(buildIndentNode(child, 1, [!isLast]));
+        });
+        inner.appendChild(childBlock);
+    }
 
     // ── 마우스 휠 확대/축소 ──
     scroller.addEventListener('wheel', (e) => {
@@ -11957,24 +11988,9 @@ async function loadOrgTreeCentered(userId, nodeHint) {
 // ==== OrgTree Events ====
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        const rootBtn = document.getElementById('orgTreeRootBtn');
         const searchBtn = document.getElementById('orgTreeSearchBtn');
         const searchInput = document.getElementById('orgTreeSearchInput');
-        const depthSelect = document.getElementById('orgTreeDepth');
-
-        if(rootBtn) {
-            rootBtn.onclick = async () => {
-                const q = query(collection(db, 'users'), where('role', '==', 'admin'));
-                const snap = await getDocs(q);
-                let rootId = snap.empty ? null : snap.docs[0].id;
-                if(!rootId) {
-                    const q2 = query(collection(db, 'users'), limit(1));
-                    const snap2 = await getDocs(q2);
-                    if(!snap2.empty) rootId = snap2.docs[0].id;
-                }
-                if(rootId) loadOrgTreeCentered(rootId);
-            };
-        }
+        const rootBtn = document.getElementById('orgTreeRootBtn');
 
         if(searchBtn && searchInput) {
             searchBtn.onclick = async () => {
@@ -11985,29 +12001,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 let q = query(collection(db, 'users'), where('uid', '==', keyword));
                 let snap = await getDocs(q);
                 if(snap.empty) {
-                    // name 매칭 검색
                     q = query(collection(db, 'users'), where('name', '==', keyword));
                     snap = await getDocs(q);
                 }
                 if(snap.empty) {
-                    // id 매칭 검색
                     q = query(collection(db, 'users'), where('id', '==', keyword));
                     snap = await getDocs(q);
                 }
 
                 if(!snap.empty) {
-                    loadOrgTreeCentered(snap.docs[0].id);
+                    const u = snap.docs[0].data();
+                    window.adminCavePath = [{
+                        id: snap.docs[0].id,
+                        name: u.name || '알 수 없음',
+                        rank: u.rank || 'G0',
+                        uid: u.uid || snap.docs[0].id
+                    }];
+                    window.renderAdminCaveTree();
+                    document.getElementById('orgTreeStats').textContent = `현재 기준: ${u.name}`;
                 } else {
                     alert('일치하는 회원을 찾을 수 없습니다.');
                 }
             };
         }
 
-        if(depthSelect) {
-            depthSelect.onchange = () => {
-                if(window.currentOrgRootId) {
-                    loadOrgTreeCentered(window.currentOrgRootId);
-                }
+        if(rootBtn) {
+            rootBtn.onclick = () => {
+                if(searchInput) searchInput.value = '';
+                loadOrgTree(null); // 최상위부터 다시 로드
             };
         }
     }, 1500);
