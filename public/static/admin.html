@@ -11883,7 +11883,7 @@ window.renderAdminCaveTree = async function() {
     let children = [];
     if (window.adminCavePath.length === 1 && (lastNode.role === 'admin' || lastNode.name === 'COMPANY ROOT' || lastNode.id === 'admin')) {
         const snap = await getDocs(collection(db, 'users'));
-        snap.forEach(d => {
+        (snap.docs || []).forEach(d => {
             const data = d.data();
             if (data.role !== 'admin') {
                 const ref = data.referredBy;
@@ -11916,7 +11916,7 @@ window.renderAdminCaveTree = async function() {
   } catch (err) {
     console.error(err);
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');
-    if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
+    if (childrenWrap) childrenWrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.<br>(${err.message || err.toString()})</div>`;
   }
 };
 
