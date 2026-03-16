@@ -11732,16 +11732,49 @@ window.renderAdminCaveTree = async function() {
   // 2. Fetch children for the last node in path
   const lastNode = window.adminCavePath[window.adminCavePath.length - 1];
   try {
-    // Check by referredBy = id or uid
-    const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
-    let snap = await getDocs(q1);
-    
-    if (snap.empty && lastNode.uid && lastNode.uid !== lastNode.id) {
-       const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
-       snap = await getDocs(q2);
+    let children = [];
+    if (window.adminCavePath.length === 1 && (lastNode.role === 'admin' || lastNode.name === 'COMPANY ROOT' || lastNode.id === 'admin')) {
+        let snap;
+        try {
+            snap = await getDocs(collection(db, 'users'));
+        } catch(e) {
+            console.warn('Fallback to query for all users', e);
+            snap = await getDocs(query(collection(db, 'users')));
+        }
+        
+        const docs = snap.docs || (snap.forEach ? [] : snap);
+        if (snap.forEach && !snap.docs) {
+            snap.forEach(d => docs.push(d));
+        }
+        
+        docs.forEach(d => {
+            const data = d.data ? d.data() : d;
+            if (data.role !== 'admin') {
+                const ref = data.referredBy;
+                if (!ref || ref === 'admin' || ref === 'root' || ref === lastNode.id || ref === lastNode.uid) {
+                    children.push({ id: d.id || d.uid, ...data });
+                }
+            }
+        });
+    } else {
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', lastNode.id));
+        let snap = await getDocs(q1);
+        
+        let docs = snap.docs || [];
+        if (snap.forEach && !snap.docs) {
+            snap.forEach(d => docs.push(d));
+        }
+        
+        if (docs.length === 0 && lastNode.uid && lastNode.uid !== lastNode.id) {
+            const q2 = query(collection(db, 'users'), where('referredBy', '==', lastNode.uid));
+            snap = await getDocs(q2);
+            docs = snap.docs || [];
+            if (snap.forEach && !snap.docs) {
+                snap.forEach(d => docs.push(d));
+            }
+        }
+        children = docs.map(d => ({ id: d.id || d.uid, ...(d.data ? d.data() : d) }));
     }
-    
-    const children = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');
     if (!childrenWrap) return;
@@ -11756,7 +11789,7 @@ window.renderAdminCaveTree = async function() {
   } catch (err) {
     console.error(err);
     const childrenWrap = document.getElementById('adminCaveChildrenWrap');
-    if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.</div>';
+    if (childrenWrap) childrenWrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다.<br>(${err.message || err.toString()})</div>`;
   }
 };
 
