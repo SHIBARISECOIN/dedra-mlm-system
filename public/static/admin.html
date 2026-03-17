@@ -7705,13 +7705,14 @@ function setupEvents() {
             const newVal = document.getElementById(newId).value.trim();
             const reason = document.getElementById(reasonId).value.trim();
             if (!newVal || isNaN(newVal)) { showWA('error','⚠️ 유효한 숫자를 입력하세요.'); return; }
-            if (!reason)                  { showWA('error','⚠️ 수정 사유를 입력하세요.'); return; }
+            // reason check removed
+            if (!reason) reason = "관리자 직접 수정";
             const oldVal = parseFloat(currentMember[field] || 0);
             const nv     = parseFloat(newVal);
             const diff   = nv - oldVal;
             const diffStr= (diff >= 0 ? '+' : '') + diff.toFixed(2);
             if (!await _adminConfirm(
-                `[${currentMember.name}] ${label}\n현재: $${oldVal.toFixed(2)}  →  새 값: $${nv.toFixed(2)}  (${diffStr})\n\n사유: ${reason}`, '🔧'
+                `[${currentMember.name}] ${label}\n현재: ${oldVal.toFixed(2)}  →  새 값: ${nv.toFixed(2)}  (${diffStr})`, '🔧'
             )) return;
             btn.disabled = true; btn.textContent = '처리 중...';
             const r = await api.adjustWalletBalance(currentAdmin.uid, currentMember.id, field, nv, reason);

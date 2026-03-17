@@ -649,7 +649,7 @@ export class DedraAPI {
 
       await updateDoc(wRef, { [field]: nv, updatedAt: serverTimestamp() });
 
-      // ── 변경 이력 저장 (memberEditLogs 컬렉션) ──
+      // ── 유저 트랜잭션 이력 기록 (유저가 직접 볼 수 있게) ──
       const FIELD_LABELS = {
         bonusBalance:  '출금가능 잔액',
         usdtBalance:   '총 USDT 잔액',
@@ -658,6 +658,37 @@ export class DedraAPI {
         totalInvested: '운용중 금액',
         dedraBalance:  'DDRA 잔액',
       };
+      
+      // bonusBalance 변경이면 bonuses 컬렉션에도 저장 (유저의 수익 내역에 표시됨)
+      if (field === 'bonusBalance') {
+        await addDoc(collection(db, 'bonuses'), {
+          userId,
+          adminId,
+          type: 'manual_bonus',
+          amount: delta, // DDRA rate consideration? usually it shows as usdt if we set amountUsdt
+          amountUsdt: delta,
+          reason: `[${FIELD_LABELS[field] || field} 직접 수정] $ ${oldVal.toFixed(2)} → $ ${nv.toFixed(2)}`,
+          status: 'approved',
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      await addDoc(collection(db, 'transactions'), {
+        userId,
+        type: 'admin_adjust',
+        amount: Math.abs(delta),
+        prevAmount: oldVal,
+        delta: delta,
+        field: field,
+        withdrawable: true,
+        reason: `[${FIELD_LABELS[field] || field} 직접 수정] $ ${oldVal.toFixed(2)} → $ ${nv.toFixed(2)}`,
+        status: 'approved',
+        adminId,
+        createdAt: serverTimestamp(),
+      });
+
+
+      // ── 변경 이력 저장 (memberEditLogs 컬렉션) ──
       await addDoc(collection(db, 'memberEditLogs'), {
         userId,
         adminId,
