@@ -1605,6 +1605,8 @@ app.post('/api/solana/check-deposits', async (c) => {
             const ratesDoc = await fsGet('settings/rates', adminToken)
             const ratesData = ratesDoc?.fields ? firestoreDocToObj(ratesDoc) : {}
             const centerFeePct = Number(ratesData.rate_centerFee ?? 5)
+            const priceDoc = await fsGet('settings/deedraPrice', adminToken)
+            const dedraRate = priceDoc?.fields?.price ? Number(priceDoc.fields.price.doubleValue || priceDoc.fields.price.integerValue || 0.5) : 0.5;
 
             if (centerFeePct > 0) {
               const centerDoc = await fsGet(`centers/${matchedUser.centerId}`, adminToken)
@@ -1624,7 +1626,7 @@ app.post('/api/solana/check-deposits', async (c) => {
                     userId: centerData.managerId,
                     fromUserId: matchedUser.id,
                     type: 'center_fee',
-                    amount: Math.round(feeUsdt / 0.5 * 1e8) / 1e8, // DEDRA rate
+                    amount: Math.round(feeUsdt / dedraRate * 1e8) / 1e8,
                     amountUsdt: feeUsdt,
                     reason: `센터피 ${centerFeePct}% (기준: ${matchedUser.name}, 입금: ${amount} USDT)`,
                     createdAt: new Date().toISOString()
@@ -2115,6 +2117,9 @@ async function runSettle(c: any, overrideDate?: string | null) {
     const settingsData = settings?.fields ? firestoreDocToObj(settings) : {}
     
     // 추가: 4대 보너스 이율 설정 가져오기 (없으면 기본값 적용)
+    const priceDoc = await fsGet('settings/deedraPrice', adminToken)
+    const dedraRate = priceDoc?.fields?.price ? Number(priceDoc.fields.price.doubleValue || priceDoc.fields.price.integerValue || 0.5) : 0.5;
+
     const ratesDoc = await fsGet('settings/rates', adminToken)
     const ratesData = ratesDoc?.fields ? firestoreDocToObj(ratesDoc) : {}
     const config = {
@@ -2181,7 +2186,6 @@ async function runSettle(c: any, overrideDate?: string | null) {
         }, adminToken)
 
         // 데일리 수익 보너스 기록
-        const dedraRate = 0.5
         await fsCreate('bonuses', {
           userId: inv.userId,
           type: 'roi',
@@ -2231,11 +2235,11 @@ async function runSettle(c: any, overrideDate?: string | null) {
         // 2. [추천 매칭] - 1대(10%), 2대(5%)
         const upline1 = sourceUser.referredBy ? userMap.get(sourceUser.referredBy) : null
         if (upline1) {
-          await payMatchingBonus(upline1.id, 'direct_bonus', dailyEarning * 0.10, `1대 추천 매칭 (기준: ${sourceUser.name})`, 1)
+          await payMatchingBonus(upline1.id, 'direct_bonus', dailyEarning * (config.direct1 / 100), `1대 추천 매칭 (기준: ${sourceUser.name})`, 1)
           
           const upline2 = upline1.referredBy ? userMap.get(upline1.referredBy) : null
           if (upline2) {
-            await payMatchingBonus(upline2.id, 'direct_bonus', dailyEarning * 0.05, `2대 추천 매칭 (기준: ${sourceUser.name})`, 2)
+            await payMatchingBonus(upline2.id, 'direct_bonus', dailyEarning * (config.direct2 / 100), `2대 추천 매칭 (기준: ${sourceUser.name})`, 2)
           }
         }
 
@@ -2254,7 +2258,7 @@ async function runSettle(c: any, overrideDate?: string | null) {
           if (currentNode.id === sourceUser.id && previousRank >= parentRank) {
             // 직속 하급자 본인의 데일리 수익에 대해 딱 1%만 지급 (역전/동급 예외)
             if (parentRank > 0) { // 직급이 G1 이상인 경우에만
-              await payMatchingBonus(parent.id, 'rank_equal_or_higher_override_1pct', dailyEarning * 0.01, `동급/상위 직속 예외 1% (기준: ${sourceUser.name})`, rollUpDepth)
+              await payMatchingBonus(parent.id, 'rank_equal_or_higher_override_1pct', dailyEarning * (config.override / 100), `동급/상위 직속 예외 ${config.override}% (기준: ${sourceUser.name})`, rollUpDepth)
             }
             // 더 이상의 깊은 판권 매칭은 이 라인에서 올라가지 않음 (차단)
             currentNode = parent
@@ -2266,8 +2270,8 @@ async function runSettle(c: any, overrideDate?: string | null) {
           if (parentRank > 0 && parentRank > previousRank) {
             const rankGap = parentRank - previousRank
             // 갭 1단계당 1% (rankGap / 100)
-            const gapBonus = dailyEarning * (rankGap / 100)
-            await payMatchingBonus(parent.id, 'rank_bonus', gapBonus, `판권 매칭 ${rankGap}% (기준: ${sourceUser.name})`, rollUpDepth)
+            const gapBonus = dailyEarning * (rankGap * config.rankGap / 100)
+            await payMatchingBonus(parent.id, 'rank_bonus', gapBonus, `판권 매칭 ${rankGap * config.rankGap}% (기준: ${sourceUser.name})`, rollUpDepth)
             
             previousRank = parentRank // 최고 직급 갱신
           }

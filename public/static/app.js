@@ -7878,7 +7878,7 @@ async function loadTodayEarnCard() {
     // 오늘 ROI 수익
     const todayRoi = bonuses
       .filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi'))
-      .reduce((s, b) => s + (b.amount || 0), 0);
+      .reduce((s, b) => s + (b.amountUsdt || b.amount || 0), 0);
 
     // 오늘 보너스 (네트워크 보너스 등)
     const todayBonus = bonuses
@@ -7935,10 +7935,10 @@ async function loadEarnHistoryTab() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     // 요약 계산
-    const todayRoi   = bonuses.filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi')).reduce((s,b) => s+(b.amount||0),0);
-    const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amount||0),0);
-    const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amount||0),0);
-    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee','rank_equal_or_higher_override_1pct','rank_equal_or_higher_override'].includes(b.type)).reduce((s,b) => s+(b.amount||0),0);
+    const todayRoi   = bonuses.filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi')).reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
+    const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
+    const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
+    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee','rank_equal_or_higher_override_1pct','rank_equal_or_higher_override'].includes(b.type)).reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
 
     const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     setEl('earnTab_todayRoi',     '$' + fmt(todayRoi));
@@ -7983,7 +7983,7 @@ function renderEarnList(bonuses, listEl, typeFilter) {
   listEl.innerHTML = filtered.slice(0, 50).map(b => {
     const date = b.settlementDate || (b.createdAt?.seconds ? new Date(b.createdAt.seconds*1000).toLocaleDateString('ko-KR') : '-');
     const label = typeLabel[b.type] || b.type || t('other');
-    const amount = b.amount || 0;
+    const amount = b.amountUsdt || b.amount || 0;
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;
       background:var(--card,#1e293b);border-radius:12px;margin-bottom:6px;
