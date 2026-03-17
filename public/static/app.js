@@ -415,7 +415,7 @@ const TRANSLATIONS = {
     perioDays: '일',
     minAmount: '최소 $',
     bonusRoiIncome: '❄️ FREEZE ROI 수익',
-    bonusDirectBonus: '👥 직접 추천 보너스',
+    bonusDirectBonus: '👥 추천 매칭',
     bonusUnilevelBonus: '🌐 유니레벨 보너스',
     bonusRankBonus: '🏆 직급 보너스',
     bonusDefault: '보너스',
@@ -560,7 +560,7 @@ const TRANSLATIONS = {
     withdrawFee: '수수료',
     toastWithdrawDone2: '출금 신청 완료!',
     bonusRoiIncome2: '💎 ROI 수익',
-    bonusDirectBonus2: '👤 직접 보너스',
+    bonusDirectBonus2: '👤 추천 매칭',
     bonusCenterFee: '🏢 센터피',
     bonusManual: '🎁 수동 지급',
     other: '기타',
@@ -2547,6 +2547,11 @@ async function initApp() {
       await createUserData(currentUser);
     } else {
       userData = userSnap.data();
+      if (document.getElementById('autoCompoundSwitch')) {
+        const isAcChecked = !!userData.autoCompound;
+        document.getElementById('autoCompoundSwitch').checked = isAcChecked;
+        if(typeof updateAutoCompoundUI === 'function') updateAutoCompoundUI(isAcChecked);
+      }
 
     
     // 온라인 상태 업데이트 핑 (1분마다 lastSeenAt 갱신)
@@ -2569,6 +2574,11 @@ async function initApp() {
         const newData = docSnap.data();
         const newRank = newData.rank || 'G0';
         userData = newData;
+        if (document.getElementById('autoCompoundSwitch')) {
+          const isAcChecked = !!userData.autoCompound;
+        document.getElementById('autoCompoundSwitch').checked = isAcChecked;
+        if(typeof updateAutoCompoundUI === 'function') updateAutoCompoundUI(isAcChecked);
+        }
         
         // 직급 상승 감지 (오프라인 상승 시 로그인 후 1회 표시를 위해 localStorage 사용)
         const rankOrder = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
@@ -2636,6 +2646,9 @@ async function initApp() {
     setTimeout(() => _loadNepSummary && _loadNepSummary(), 800);
     // ROI 당일 정산 미실행 시 큐 등록 (백그라운드, UX 무관)
     setTimeout(() => checkAndTriggerDailyROI(), 3000);
+    if (window.chatManager && typeof window.chatManager.init === "function") {
+      window.chatManager.init();
+    }
     // 홈 오늘 수익 카드 로드
     setTimeout(() => loadTodayEarnCard(), 1500);
 
@@ -2799,10 +2812,10 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   // splitDedraUsd: dedraBalance는 게임 전용이므로 표시만 유지
   const dedraUsd = (walletData.dedraBalance || 0) * p;
   setEl('splitDedraUsd',    '≈ $' + fmt(dedraUsd));
-  setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
+  setEl('moreWalletDedraUsd', privacyFmt(fmt(dedraUsd), '≈ $'));
 
   // 게임 잔액: bonusBalance(USDT) ÷ ddraPrice → DDRA 단위
-  gameBalanceVal = Math.floor(withdrawableDdra * 100) / 100;
+  gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
   setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
 
   // 출금 모달 DDRA 환산 업데이트
@@ -2813,6 +2826,7 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
 
 // ===== 홈 EARN 패널 - 상품 미리보기 로드 =====
 async function loadHomeEarn() {
+  setTimeout(initLiveTransactionMarquee, 500);
   const listEl = document.getElementById('homeEarnList');
   if (!listEl) return;
 
@@ -3151,28 +3165,58 @@ function showScreen(name) {
 }
 
 // ===== 탭 전환 =====
+
 window.switchPage = function(page) {
-  sessionStorage.setItem('lastPage', page);
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  try {
+    try { sessionStorage.setItem('lastPage', page); } catch(e) {}
+    
+    // Hide all pages and remove active class from all nav items
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  const pageEl = document.getElementById(page + 'Page');
-  const navEl = document.getElementById('nav-' + page);
-  if (pageEl) pageEl.classList.add('active');
-  if (navEl) navEl.classList.add('active');
+    const pageEl = document.getElementById(page + 'Page');
+    const navEl = document.getElementById('nav-' + page);
+    
+    if (pageEl) {
+      pageEl.classList.add('active');
+    } else {
+      console.warn("No pageEl found for: " + page + "Page");
+    }
+    
+    if (navEl) {
+      navEl.classList.add('active');
+    } else {
+      console.warn("No navEl found for: nav-" + page);
+    }
 
-  currentPage = page;
-  
-  // 메인(home) 화면에서만 새로고침 버튼 표시
-  const refreshBtn = document.getElementById('floatingRefreshBtn');
-  if (refreshBtn) {
-      refreshBtn.style.display = (page === 'home') ? 'flex' : 'none';
+    currentPage = page;
+    
+    // 메인(home) 화면에서만 새로고침 버튼 표시
+    const refreshBtn = document.getElementById('floatingRefreshBtn');
+    if (refreshBtn) {
+        refreshBtn.style.display = (page === 'home') ? 'flex' : 'none';
+    }
+
+    // Execute page specific scripts inside try-catch to prevent blocking
+    setTimeout(() => {
+      try {
+        if (page === 'invest' && typeof loadInvestPage === 'function') loadInvestPage();
+        else if (page === 'network' && typeof loadNetworkPage === 'function') loadNetworkPage();
+        else if (page === 'play' && typeof updateGameUI === 'function') updateGameUI();
+        else if (page === 'more' && typeof loadMorePage === 'function') loadMorePage();
+      } catch (err) {
+        console.error("Error in page load function for " + page + ":", err);
+      }
+    }, 50);
+
+  } catch (err) {
+    console.error("switchPage fatal error:", err);
+    if (typeof showToast === 'function') {
+      showToast("Page switch error: " + err.message, "error");
+    } else {
+      alert("Page switch error: " + err.message);
+    }
   }
-
-  if (page === 'invest') loadInvestPage();
-  else if (page === 'network') loadNetworkPage();
-  else if (page === 'play') updateGameUI();
-  else if (page === 'more') loadMorePage();
 };
 
 // ===== 인증 탭 =====
@@ -3415,12 +3459,12 @@ function updateWalletUI() {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     const bonus = walletData.bonusBalance || 0;
     const bonusDdra = bonus / (deedraPrice || 0.5);
-    setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
+    setEl('moreWalletUsdt', privacyFmt(fmt(walletData.usdtBalance || 0), '', ' USDT'));
     // 수익잔액(bonusBalance)을 DDRA로 표시
-    setEl('moreWalletBonus', fmt(bonusDdra) + ' DDRA');
-    setEl('moreWalletBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
+    setEl('moreWalletBonus', privacyFmt(fmt(bonusDdra), '', ' DDRA'));
+    setEl('moreWalletBonusDdra', privacyFmt(fmt(bonus), '≈ $', ' USDT'));
     // dedraBalance(게임전용)는 내부적으로만 유지
-    setEl('moreWalletDedra', fmt(walletData.dedraBalance || 0) + ' DDRA');
+    setEl('moreWalletDedra', privacyFmt(fmt(walletData.dedraBalance || 0), '', ' DDRA'));
     const dedraUsd = (walletData.dedraBalance || 0) * deedraPrice;
     setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
   }
@@ -3462,6 +3506,18 @@ function updateHomeUI() {
   if (rankImg) { let r = (userData.rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = '/static/ranks/' + r + '.png?v=2'; }
   if (greetEl) greetEl.textContent = greeting + ' 👋';
   if (nameEl) nameEl.textContent = (userData.name || '회원') + ' (' + (userData.referralCode || '') + ')님';
+  
+  // Center Manager UI toggle
+  const centerBadge = document.getElementById('centerManagerBadgeWrap');
+  const centerFeeTab = document.getElementById('txTabCenterFee');
+  if (userData.isCenterManager) {
+    if (centerBadge) centerBadge.style.display = 'flex';
+    if (centerFeeTab) centerFeeTab.style.display = 'inline-block';
+  } else {
+    if (centerBadge) centerBadge.style.display = 'none';
+    if (centerFeeTab) centerFeeTab.style.display = 'none';
+  }
+
 
   const usdt = walletData.usdtBalance || 0;
   const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
@@ -3472,13 +3528,18 @@ function updateHomeUI() {
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
+  const pToggle = document.getElementById('privacyModeToggle');
+  if (pToggle) {
+    if (isPrivacyMode) pToggle.classList.add('on');
+    else pToggle.classList.remove('on');
+  }
   if (document.getElementById('totalAsset')) {
-    window.animateValue(document.getElementById('totalAsset'), 0, total, 1500, (v) => fmt(v) + ' USDT');
+    window.animateValue(document.getElementById('totalAsset'), 0, total, 1500, (v) => privacyFmt(fmt(v), '', ' USDT'));
   } else {
-    setEl('totalAsset', fmt(total) + ' USDT');
+    setEl('totalAsset', privacyFmt(fmt(total), '', ' USDT'));
   }
   // 실시간 환율로 현지 통화 표시 (환율 미로드 시 기본값 사용)
-  setEl('totalAssetKrw', '≈ ' + formatLocalCurrency(total));
+  setEl('totalAssetKrw', privacyFmt('≈ ' + formatLocalCurrency(total)));
   // 환율 정보 표시 (예: "1 USDT ≈ ₩1,380")
   const rateInfoEl = document.getElementById('forexRateInfo');
   const rateValueEl = document.getElementById('forexRateValue');
@@ -3497,12 +3558,13 @@ function updateHomeUI() {
       }
     }
   }
-  setEl('splitUsdt', fmt(usdt) + ' USDT');
+  setEl('splitUsdt', privacyFmt(fmt(usdt), '', ' USDT'));
   // splitBonus: 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ ddraPrice
   // 즉, 달러 기준 수익을 출금 시점의 DDRA 시세로 환산
   const withdrawableDdra = bonus / p;
-  setEl('splitBonus', fmt(withdrawableDdra) + ' DDRA');
-  setEl('splitBonusDdra', '≈ $' + fmt(bonus) + ' USDT');
+  setEl('splitBonus', privacyFmt(fmt(withdrawableDdra), '', ' DDRA'));
+  setEl('splitBonusDdra', privacyFmt(fmt(bonus), '≈ $', ' USDT'));
+  if(window.loadProfitHeatmap) window.loadProfitHeatmap();
 }
 
 // ===== D-Day 카드 =====
@@ -3712,9 +3774,9 @@ function loadMorePage() {
   const dedraUsd = dedra * deedraPrice;
   const bonusDdra = bonus / (deedraPrice || 0.5);
   setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
-  setEl('moreWalletBonus', fmt(bonus) + ' USDT');  // 수익잔액
-  setEl('moreWalletBonusDdra', '≈ ' + fmt(bonusDdra) + ' DDRA');
-  setEl('moreWalletDedra', fmt(dedra) + ' DDRA');
+  setEl('moreWalletBonus', privacyFmt(fmt(bonus), '', ' USDT'));  // 수익잔액
+  setEl('moreWalletBonusDdra', privacyFmt(fmt(bonusDdra), '≈ ', ' DDRA'));
+  setEl('moreWalletDedra', privacyFmt(fmt(dedra), '', ' DDRA'));
   setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
 
   // 다크모드 토글 동기화
@@ -3749,7 +3811,7 @@ async function loadTxHistory(typeFilter) {
     }
 
     // Fetch Bonuses
-    if (['all', 'invest', 'matching'].includes(typeFilter)) {
+    if (['all', 'invest', 'matching', 'centerFee'].includes(typeFilter)) {
       let q = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), limit(50));
       const snap = await getDocs(q);
       let fetchedBonuses = snap.docs.map(d => ({ id: d.id, _collection: 'bonuses', ...d.data() }));
@@ -3760,7 +3822,9 @@ async function loadTxHistory(typeFilter) {
         fetchedBonuses = fetchedBonuses.filter(b => (b.type === 'roi_income' || b.type === 'roi'));
       } else if (typeFilter === 'matching') {
         // Matching bonuses (direct, unilevel, rank)
-        fetchedBonuses = fetchedBonuses.filter(b => (b.type !== 'roi_income' && b.type !== 'roi'));
+        fetchedBonuses = fetchedBonuses.filter(b => (b.type !== 'roi_income' && b.type !== 'roi' && b.type !== 'center_fee'));
+      } else if (typeFilter === 'centerFee') {
+        fetchedBonuses = fetchedBonuses.filter(b => b.type === 'center_fee');
       }
       
       txs = txs.concat(fetchedBonuses);
@@ -3779,8 +3843,9 @@ async function loadTxHistory(typeFilter) {
     const typeLabel = {
       deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
       roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
-      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 판권 매칭',
+      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 직급 보너스',
       rank_equal_or_higher_override_1pct: '🛡️ 예외(1%) 보너스',
+      rank_equal_or_higher_override: '🛡️ 예외 보너스',
       center_fee: '🏢 센터 피'
     };
 
@@ -3840,6 +3905,8 @@ async function loadTxHistory(typeFilter) {
 }
 
 window.switchTxTab = function(type, el) {
+  const info = document.getElementById('matchingInfo');
+  if (info) info.style.display = (type === 'matching') ? 'block' : 'none';
   document.querySelectorAll('.tx-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   loadTxHistory(type);
@@ -4304,7 +4371,7 @@ window.submitWithdraw = async function() {
   // 입력값: DDRA 수량
   const ddrAmt = parseFloat(document.getElementById('withdrawAmount').value);
   const address = document.getElementById('withdrawAddress').value.trim();
-  const pin = document.getElementById('withdrawPin').value;
+  const pin = document.getElementById('withdrawPin').value.trim();
 
   if (!ddrAmt || ddrAmt <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
@@ -5033,7 +5100,8 @@ async function buildOrgTree() {
       id: currentUser.uid,
       name: userData?.name || '나',
       rank: userData?.rank || 'G0',
-      createdAt: userData?.createdAt
+      createdAt: userData?.createdAt,
+      referralCount: userData?.referralCount || userData?.totalReferrals || 0
     }];
   }
 
@@ -5043,6 +5111,12 @@ async function buildOrgTree() {
 window.renderCaveTree = async function() {
   const treeEl = document.getElementById('orgTree');
   if (!treeEl) return;
+  // Reset transform and makeDraggable state when re-rendering tree
+  treeEl.style.transform = 'translate(0px, 0px)';
+  const wrap = document.getElementById('orgChartWrap');
+  
+  
+
   
   const colorMap = {
     g0: '#4b5563', g1: '#3b82f6', g2: '#10b981', g3: '#059669', g4: '#d97706',
@@ -5068,16 +5142,27 @@ window.renderCaveTree = async function() {
     const isOnline = n.lastSeenAt && (Date.now() - n.lastSeenAt < 120000);
     const onlineBadge = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:14px; height:14px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; z-index:5; box-shadow: 0 0 5px rgba(16,185,129,0.5);"></div>` : '';
 
+    let refCount = n.referralCount || n.totalReferrals || 0;
+    if (refCount === 0 && n.children && n.children.length > 0) refCount = n.children.length;
+    else if (refCount === 0 && n.hasMore) refCount = "1+";
+    else if (refCount === 0 && isPathNode && pathIndex < window.cavePath.length - 1) refCount = "1+";
+    
+    let refBadge = '';
+    if (refCount !== 0 && refCount !== '0') {
+        refBadge = `<div style="position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); background:#2563eb; color:#fff; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; border:1px solid #1e1e28; z-index:10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">하위 ${refCount}명</div>`;
+    }
+
     return `
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
         ${badgeHtml}
         <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
-             onclick="showNodeActionModal('${n.id}', '${n.name}', '${n.rank}', ${isPathNode}, ${pathIndex})">
+             onclick="showNodeActionModal('${n.id}', '${(n.name||``).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
            <div style="position: relative; flex-shrink: 0; width:40px; height:40px;">
               <div style="width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden;">
                  <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
               </div>
               ${onlineBadge}
+              ${refBadge}
            </div>
            <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
              <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.name}</div>
@@ -5103,7 +5188,10 @@ window.renderCaveTree = async function() {
            </div>`;
   
   html += `</div>`;
-  treeEl.innerHTML = html; const scroller = treeEl.querySelector('div'); if (scroller) { scroller.style.overflowX = 'auto'; window.makeDraggableMap(scroller); } else { window.makeDraggableMap(treeEl); }
+  treeEl.innerHTML = html;
+  if (wrap) { window.makeDraggableMap(wrap, treeEl); }
+  
+  
 
   // 2. Fetch children for the last node in path
   const lastNode = window.cavePath[window.cavePath.length - 1];
@@ -5222,7 +5310,7 @@ window.renderCaveTree = async function() {
                  html += `<div style="width:2px; height:24px; background:rgba(157,78,221,0.5); margin:0; z-index:0;"></div>`;
                  html += buildNestedHtml(n.children, currentDepth + 1);
              } else if (n.hasMore || (n.children && n.children.length > 0)) {
-                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${n.name}', '${n.rank}', false, -1)">▼ 더보기 (${n.rank||'G0'})</div>`;
+                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${(n.name||``).replace(/'/g, `\\'`)}', '${n.rank}', false, -1, '${n.referralCount || n.totalReferrals || 0}')">▼ 더보기 (${n.rank||'G0'})</div>`;
              }
              
              html += `</div>`;
@@ -5262,11 +5350,11 @@ window.renderCaveTree = async function() {
   }, 150);
 
 };
-window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex) {
+window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex, refCount = 0) {
    if (id === currentUser.uid) {
       // 본인이면 그냥 탐색만 (최상단이면 아무것도 안함)
       if (isPathNode && pathIndex === window.cavePath.length - 1) return;
-      window.handleCaveNodeClick(id, name, rank, isPathNode, pathIndex);
+      window.handleCaveNodeClick(id, name, rank, isPathNode, pathIndex, refCount);
       return;
    }
 
@@ -5278,10 +5366,10 @@ window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex) {
             </div>
             <h3 style="margin-top:0; margin-bottom:16px; color:#fff;">${name} <span style="font-size:12px; font-weight:normal; background:var(--primary); padding:2px 6px; border-radius:8px;">${rank}</span></h3>
             
-            <button onclick="window.doNodeAction('chat', '${id}', '${name}')" style="width:100%; padding:14px; border-radius:10px; border:none; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-weight:bold; margin-bottom:10px; cursor:pointer; font-size:15px; display:flex; justify-content:center; align-items:center; gap:8px;">
+            <button onclick="window.doNodeAction('chat', '${id}', '${(name||``).replace(/'/g, `\\'`)}')" style="width:100%; padding:14px; border-radius:10px; border:none; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; font-weight:bold; margin-bottom:10px; cursor:pointer; font-size:15px; display:flex; justify-content:center; align-items:center; gap:8px;">
                 <i class="fas fa-comment-dots"></i> 1:1 채팅하기
             </button>
-            <button onclick="window.doNodeAction('nav', '${id}', '${name}', '${rank}', ${isPathNode}, ${pathIndex})" style="width:100%; padding:14px; border-radius:10px; border:none; background:rgba(255,255,255,0.1); color:#fff; font-weight:bold; margin-bottom:12px; cursor:pointer; font-size:15px; display:flex; justify-content:center; align-items:center; gap:8px;">
+            <button onclick="window.doNodeAction('nav', '${id}', '${(name||``).replace(/'/g, `\\'`)}', '${rank}', ${isPathNode}, ${pathIndex}, '${refCount}')" style="width:100%; padding:14px; border-radius:10px; border:none; background:rgba(255,255,255,0.1); color:#fff; font-weight:bold; margin-bottom:12px; cursor:pointer; font-size:15px; display:flex; justify-content:center; align-items:center; gap:8px;">
                 <i class="fas fa-sitemap"></i> ${isPathNode ? '이곳으로 이동' : '상세보기 (하위 조직)'}
             </button>
             
@@ -5294,7 +5382,7 @@ window.showNodeActionModal = function(id, name, rank, isPathNode, pathIndex) {
    document.body.insertAdjacentHTML('beforeend', modalHtml);
 };
 
-window.doNodeAction = function(action, id, name, rank, isPathNode, pathIndex) {
+window.doNodeAction = function(action, id, name, rank, isPathNode, pathIndex, refCount = 0) {
    const modal = document.getElementById('nodeActionModal');
    if (modal) modal.remove();
    
@@ -5304,11 +5392,11 @@ window.doNodeAction = function(action, id, name, rank, isPathNode, pathIndex) {
            window.chatManager.openDirectChat(id, name);
        }
    } else if (action === 'nav') {
-       window.handleCaveNodeClick(id, name, rank, isPathNode, pathIndex);
+       window.handleCaveNodeClick(id, name, rank, isPathNode, pathIndex, refCount);
    }
 };
 
-window.handleCaveNodeClick = function(id, name, rank, isPathNode, pathIndex) {
+window.handleCaveNodeClick = function(id, name, rank, isPathNode, pathIndex, refCount = 0) {
    if (isPathNode) {
       // Clicked a node already in the path -> truncate path to this node
       if (pathIndex === window.cavePath.length - 1) return; // Already the tip
@@ -5316,7 +5404,7 @@ window.handleCaveNodeClick = function(id, name, rank, isPathNode, pathIndex) {
       window.renderCaveTree();
    } else {
       // Clicked a child -> add to path
-      window.cavePath.push({ id, name, rank });
+      window.cavePath.push({ id, name, rank, referralCount: refCount });
       window.renderCaveTree();
    }
 };
@@ -5350,7 +5438,7 @@ function _usdtToDdra(usdt) { return usdt / (deedraPrice || 0.5); }
 async function loadMyGameLogs() {
   const listEl = document.getElementById('gameLogList');
   if (!listEl || !window.FB) return;
-  const { collection, query, where, getDocs, limit, orderBy } = window.FB;
+  const { collection, query, where, getDocs, limit, orderBy, db } = window.FB;
   if (!currentUser) return;
 
   try {
@@ -5393,12 +5481,11 @@ async function loadMyGameLogs() {
 
 function updateGameUI() {
   loadMyGameLogs();
-
   const bonus = walletData?.bonusBalance || 0;
-  gameBalanceVal = Math.floor(_usdtToDdra(bonus) * 100) / 100; // DDRA
+  gameBalanceVal = Math.floor((bonus / (deedraPrice || 0.5)) * 100) / 100; // DDRA
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('gameBalance', fmt(gameBalanceVal));
-  setEl('gameBalanceUsd', '≈ $' + fmt(bonus));
+  setEl('gameBalanceUsd', '≈ $' + fmt(gameBalanceVal * (deedraPrice || 0.5)));
 }
 
 // 충전 모달 관련 함수 - 더 이상 사용 안 함 (하위 호환성 유지)
@@ -5406,8 +5493,8 @@ window.chargeGameWallet = function() { /* 충전 시스템 제거됨 */ };
 window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
 window.startGame = function(type) {
-  if (gameBalanceVal <= 0) {
-    showToast(t('noGameDdra'), 'warning');
+  if (gameBalanceVal < 0.1) {
+    showToast('게임을 플레이하려면 최소 0.1 DDRA 이상의 수익 잔액이 필요합니다.', 'warning');
     return;
   }
   closeAllGames();
@@ -5416,9 +5503,18 @@ window.startGame = function(type) {
   if (el) el.classList.remove('hidden');
 
   // 슬라이더 최대값: DDRA 수량 기준
-  const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
-  const slider = document.getElementById(type === 'oddeven' ? 'oeBetSlider' : type === 'dice' ? 'diceBetSlider' : 'slotBetSlider');
-  if (slider) slider.max = maxDdra;
+  const maxDdra = Math.max(0.1, Math.floor(gameBalanceVal * 100) / 100);
+  
+  const typeCode = type === 'oddeven' ? 'oe' : type === 'dice' ? 'dice' : type === 'slot' ? 'slot' : type === 'roulette' ? 'rl' : type === 'baccarat' ? 'bac' : type === 'poker' ? 'pk' : null;
+  const sliderId = typeCode ? typeCode + 'BetSlider' : null;
+  
+  const slider = document.getElementById(sliderId);
+  if (slider) {
+    slider.max = maxDdra;
+    let defaultBet = Math.max(0.1, Math.min(10, maxDdra));
+    slider.value = defaultBet;
+    if (typeof updateBetDisplay === 'function') updateBetDisplay(typeCode, defaultBet);
+  }
 
   // 게임별 초기화
   if (type === 'baccarat') {
@@ -5457,10 +5553,14 @@ window.closeGame = function() {
 };
 
 window.updateBetDisplay = function(type, val) {
-  val = Math.max(1, parseInt(val) || 1);
-  const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
+  val = Math.max(0.1, parseFloat(val) || 0.1);
+  const maxDdra = Math.max(0.1, Math.floor(gameBalanceVal * 100) / 100);
   val = Math.min(val, maxDdra);
+  val = Math.round(val * 100) / 100;
   const usdt = fmt(_ddraToUsdt(val));
+  const inputEl = document.getElementById(type + 'BetInput');
+  if (inputEl && inputEl.value != val) inputEl.value = val;
+  
   if (type === 'oe') {
     oeBetVal = val;
     const el = document.getElementById('oeCurrentBet'); if (el) el.textContent = val;
@@ -5488,13 +5588,27 @@ window.updateBetDisplay = function(type, val) {
   }
 };
 
+
+window.adjustBet = function(type, delta) {
+  let current = 0;
+  if (type === 'oe') current = oeBetVal;
+  else if (type === 'dice') current = diceBetVal;
+  else if (type === 'slot') current = slotBetVal;
+  else if (type === 'rl') current = rlBetVal;
+  else if (type === 'bac') current = bacBetVal;
+  else if (type === 'pk') current = pkBetVal;
+  
+  let newVal = (parseFloat(current) || 0) + delta;
+  updateBetDisplay(type, newVal);
+};
+
 window.setBetAmount = function(type, val) {
   updateBetDisplay(type, val);
 };
 
 window.setBetGameHalf = function(type) {
-  const maxDdra = Math.max(1, Math.floor(gameBalanceVal));
-  setBetAmount(type, Math.max(1, Math.floor(maxDdra / 2)));
+  const maxDdra = Math.max(0.1, Math.floor(gameBalanceVal * 100) / 100);
+  setBetAmount(type, Math.max(0.1, maxDdra / 2));
 };
 
 window.playOddEven = function(choice) {
@@ -5522,8 +5636,7 @@ window.playOddEven = function(choice) {
     const betUsdt = _ddraToUsdt(oeBetVal);
     // DDRA 변화 반영 → bonusBalance(USDT) 동기화
     const ddraChange = win ? oeBetVal : -oeBetVal;
-    const usdtChange = _ddraToUsdt(ddraChange);
-    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
     updateGameUI();
     updateHomeUI();
 
@@ -5591,8 +5704,7 @@ window.playDice = function(chosenNum) {
     const win = userWins;
     const betUsdt = _ddraToUsdt(diceBetVal);
     const ddraChange = win ? diceBetVal * 5 : -diceBetVal;
-    const usdtChange = _ddraToUsdt(ddraChange);
-    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
     updateGameUI();
     updateHomeUI();
 
@@ -5676,8 +5788,7 @@ window.playSpin = function() {
     const earned = win ? slotBetVal * multiplier : 0;
     const betUsdt = _ddraToUsdt(slotBetVal);
     const ddraChange = win ? earned : -slotBetVal;
-    const usdtChange = _ddraToUsdt(ddraChange);
-    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
     updateGameUI();
     updateHomeUI();
 
@@ -5967,8 +6078,7 @@ function showRouletteResult(num) {
   const earnedDdra  = win ? rlBetVal * multiplier : 0;
   const earnedUsdt = win ? _ddraToUsdt(earnedDdra) : 0;
   const ddraChange = win ? earnedDdra : -rlBetVal;
-  const usdtChange = _ddraToUsdt(ddraChange);
-  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
   updateGameUI();
   updateHomeUI();
 
@@ -6024,7 +6134,8 @@ function logGame(gameName, win, bet) {
     const { addDoc, collection, doc, updateDoc, db, serverTimestamp } = window.FB;
     const ddraChange = win ? bet : -bet;
     const usdtChange = _ddraToUsdt(ddraChange);
-    const newBonus = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+    const newBonus = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
+    if (walletData) walletData.bonusBalance = newBonus;
 
     // gamelogs 컬렉션에 기록
     addDoc(collection(db, 'gamelogs'), {
@@ -6212,8 +6323,7 @@ window.playBaccarat = async function(betSide) {
   // 잔액 변경 (원금 반환은 변화 없음)
   const earned = win ? Math.floor(bacBetVal * multiplier) : 0;
   const ddraChange = win ? (earned - (multiplier === 1 ? 0 : bacBetVal)) : -bacBetVal;
-  const usdtChange = _ddraToUsdt(ddraChange);
-  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
   updateGameUI();
   updateHomeUI();
 
@@ -6404,8 +6514,7 @@ window.dealPoker = async function() {
   }
 
   // 잔액 업데이트
-  const usdtChange = _ddraToUsdt(ddraChange);
-  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + usdtChange);
+  if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
   updateGameUI();
   updateHomeUI();
 
@@ -6475,8 +6584,8 @@ window.showWithdrawPinSetup = function() {
 };
 
 window.saveWithdrawPin = async function() {
-  const pin = document.getElementById('newPin').value;
-  const confirm = document.getElementById('confirmPin').value;
+  const pin = document.getElementById('newPin').value.trim();
+  const confirm = document.getElementById('confirmPin').value.trim();
   if (!pin || pin.length !== 6) { showToast('6자리 PIN을 입력하세요.', 'warning'); return; }
   if (pin !== confirm) { showToast('PIN이 일치하지 않습니다.', 'error'); return; }
   if (!/^\d{6}$/.test(pin)) { showToast('숫자 6자리를 입력하세요.', 'warning'); return; }
@@ -6815,8 +6924,8 @@ function getAuthErrorMsg(code) {
 
 // ===== 강제 비밀번호 변경 (초기 000000) =====
 window.submitForcePw = async function() {
-  const newPw = document.getElementById('forcePwNew').value;
-  const confirmPw = document.getElementById('forcePwConfirm').value;
+  const newPw = document.getElementById('forcePwNew').value.trim();
+  const confirmPw = document.getElementById('forcePwConfirm').value.trim();
   
   if (!newPw || newPw.length < 6) {
     showToast('비밀번호는 6자리 이상(영문/숫자 조합 권장)이어야 합니다.', 'warning');
@@ -7829,7 +7938,7 @@ async function loadEarnHistoryTab() {
     const todayRoi   = bonuses.filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi')).reduce((s,b) => s+(b.amount||0),0);
     const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amount||0),0);
     const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amount||0),0);
-    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee'].includes(b.type)).reduce((s,b) => s+(b.amount||0),0);
+    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee','rank_equal_or_higher_override_1pct','rank_equal_or_higher_override'].includes(b.type)).reduce((s,b) => s+(b.amount||0),0);
 
     const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     setEl('earnTab_todayRoi',     '$' + fmt(todayRoi));
@@ -7866,6 +7975,8 @@ function renderEarnList(bonuses, listEl, typeFilter) {
     direct_bonus:    t('bonusDirectBonus2'),
     rank_bonus:      t('bonusRankBonus'),
     center_fee:      t('bonusCenterFee'),
+    rank_equal_or_higher_override_1pct: '예외(1%) 보너스',
+    rank_equal_or_higher_override: '예외 보너스',
     manual_bonus:    t('bonusManual'),
   };
 
@@ -7918,90 +8029,92 @@ window.closeNewsViewer = function() {
   if (iframe) iframe.src = '';
 };
 
-window.makeDraggableMap = function(ele) {
+window.makeDraggableMap = function(ele, innerEle) {
     if (!ele || ele._dragInit) return;
     ele._dragInit = true;
     ele.style.cursor = 'grab';
+    ele.style.overflow = 'hidden';
+    ele.style.touchAction = 'none'; // 브라우저 기본 스크롤 방지
+    
+    const inner = innerEle || ele.firstElementChild;
+    if (!inner) return;
+    
+    inner.style.transition = 'none'; // 드래그 중엔 트랜지션 해제
+    inner.style.willChange = 'transform';
     
     let isDown = false;
-    let startX, startY, scrollLeft, scrollTop;
+    let startX, startY;
+    let initialX = 0, initialY = 0;
     let isDragging = false;
 
-    // Prevent native image dragging
+    const getTransform = () => {
+        const style = window.getComputedStyle(inner);
+        const matrix = new WebKitCSSMatrix(style.transform);
+        return { x: matrix.m41 || 0, y: matrix.m42 || 0 };
+    };
+
+    const setTransform = (x, y) => {
+        inner.style.transform = `translate(${x}px, ${y}px)`;
+    };
+
     ele.addEventListener('dragstart', (e) => e.preventDefault());
 
-    // Mouse Events
-    ele.addEventListener('mousedown', (e) => {
+    const onPointerDown = (e) => {
         isDown = true;
         ele.style.cursor = 'grabbing';
         isDragging = false;
-        startX = e.pageX - ele.offsetLeft;
-        startY = e.pageY - ele.offsetTop;
-        scrollLeft = ele.scrollLeft;
-        scrollTop = ele.scrollTop;
-    });
+        
+        if(e.type === 'touchstart') {
+            startX = e.touches[0].pageX;
+            startY = e.touches[0].pageY;
+        } else {
+            startX = e.pageX;
+            startY = e.pageY;
+        }
+        const curr = getTransform();
+        initialX = curr.x;
+        initialY = curr.y;
+    };
 
-    ele.addEventListener('mouseleave', () => {
-        isDown = false;
-        ele.style.cursor = 'grab';
-    });
-
-    ele.addEventListener('mouseup', () => {
-        isDown = false;
-        ele.style.cursor = 'grab';
-    });
-
-    ele.addEventListener('mousemove', (e) => {
+    const onPointerMove = (e) => {
         if (!isDown) return;
-        e.preventDefault(); // Prevent text selection
-        const x = e.pageX - ele.offsetLeft;
-        const y = e.pageY - ele.offsetTop;
-        const walkX = (x - startX);
-        const walkY = (y - startY);
+        
+        let clientX, clientY;
+        if(e.type === 'touchmove') {
+            clientX = e.touches[0].pageX;
+            clientY = e.touches[0].pageY;
+        } else {
+            e.preventDefault();
+            clientX = e.pageX;
+            clientY = e.pageY;
+        }
+        
+        const walkX = clientX - startX;
+        const walkY = clientY - startY;
         
         if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
             isDragging = true;
+            if (e.cancelable && e.type === 'touchmove') e.preventDefault();
         }
         
-        ele.scrollLeft = scrollLeft - walkX;
-        ele.scrollTop = scrollTop - walkY;
-    });
+        setTransform(initialX + walkX, initialY + walkY);
+    };
 
-    // Touch Events
-    ele.addEventListener('touchstart', (e) => {
-        isDown = true;
-        isDragging = false;
-        startX = e.touches[0].pageX - ele.offsetLeft;
-        startY = e.touches[0].pageY - ele.offsetTop;
-        scrollLeft = ele.scrollLeft;
-        scrollTop = ele.scrollTop;
-    }, { passive: true });
-
-    ele.addEventListener('touchend', () => {
+    const onPointerUp = () => {
         isDown = false;
-    });
+        ele.style.cursor = 'grab';
+    };
 
-    ele.addEventListener('touchcancel', () => {
-        isDown = false;
-    });
+    ele.addEventListener('mousedown', onPointerDown);
+    ele.addEventListener('mouseleave', onPointerUp);
+    ele.addEventListener('mouseup', onPointerUp);
+    ele.addEventListener('mousemove', onPointerMove);
 
-    ele.addEventListener('touchmove', (e) => {
-        if (!isDown) return;
-        const x = e.touches[0].pageX - ele.offsetLeft;
-        const y = e.touches[0].pageY - ele.offsetTop;
-        const walkX = (x - startX);
-        const walkY = (y - startY);
-        
-        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
-            isDragging = true;
-            if (e.cancelable) e.preventDefault(); // Prevent native scroll
-        }
-        
-        ele.scrollLeft = scrollLeft - walkX;
-        ele.scrollTop = scrollTop - walkY;
-    }, { passive: false });
+    ele.addEventListener('touchstart', onPointerDown, { passive: false });
+    ele.addEventListener('touchend', onPointerUp);
+    ele.addEventListener('touchcancel', onPointerUp);
+    ele.addEventListener('touchmove', onPointerMove, { passive: false });
 
-    // Prevent click if we were dragging
     ele.addEventListener('click', function(e) {
         if (isDragging) {
             e.preventDefault();
@@ -8009,6 +8122,15 @@ window.makeDraggableMap = function(ele) {
             isDragging = false;
         }
     }, true);
+    
+    if(inner) {
+        inner.addEventListener('click', function(e) {
+            if (isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
 };
 
 
@@ -8693,15 +8815,26 @@ window.closeFullscreenChart = function() {
 // ===== Upbit 실시간 시세 (WebSocket) =====
 let upbitWs = null;
 const upbitCoins = [
-  'KRW-BTC',  // 비트코인
-  'KRW-ETH',  // 이더리움
-  'KRW-SOL',  // 솔라나
-  'KRW-XRP',  // 리플
-  'KRW-DOGE', // 도지코인
-  'KRW-SHIB', // 시바이누
-  'KRW-ADA',  // 에이다
-  'KRW-AVAX'  // 아발란체
+  'KRW-BTC', 'KRW-ETH', 'KRW-SOL', 'KRW-XRP', 
+  'KRW-DOGE', 'KRW-SHIB', 'KRW-ADA', 'KRW-AVAX',
+  'KRW-LINK', 'KRW-DOT', 'KRW-BCH', 'KRW-TRX',
+  'KRW-ETC', 'KRW-SUI', 'KRW-APT', 'KRW-NEAR',
+  'KRW-STX', 'KRW-SEI', 'KRW-SAND', 'KRW-AAVE',
+  'KRW-HBAR', 'KRW-NEO', 'KRW-THETA', 'KRW-EOS'
 ];
+
+// 코인 한글명 매핑 (번역본에 없을 경우 대비)
+const coinNameMap = {
+  'BTC': '비트코인', 'ETH': '이더리움', 'SOL': '솔라나', 'XRP': '리플',
+  'DOGE': '도지코인', 'SHIB': '시바이누', 'ADA': '에이다', 'AVAX': '아발란체',
+  'LINK': '체인링크', 'DOT': '폴카닷', 'BCH': '비트코인캐시', 'TRX': '트론',
+  'ETC': '이더클래식', 'SUI': '수이', 'APT': '앱토스', 'NEAR': '니어프로토콜',
+  'STX': '스택스', 'SEI': '세이', 'SAND': '샌드박스', 'AAVE': '에이브',
+  'HBAR': '헤데라', 'NEO': '네오', 'THETA': '쎄타토큰', 'EOS': '이오스'
+};
+
+let currentUpbitPage = 0;
+let upbitPageInterval = null;
 const upbitData = {};
 
 function initUpbitTicker() {
@@ -8710,6 +8843,17 @@ function initUpbitTicker() {
 
   // 초기 렌더링
   renderUpbitTicker();
+
+  // 자동 페이지 전환 (5초마다)
+  if (!upbitPageInterval) {
+    upbitPageInterval = setInterval(() => {
+      currentUpbitPage++;
+      if (currentUpbitPage * 8 >= upbitCoins.length) {
+        currentUpbitPage = 0;
+      }
+      renderUpbitTickerItems(document.getElementById('upbitTickerContainer'));
+    }, 5000);
+  }
 
   if (upbitWs) return;
 
@@ -8777,8 +8921,13 @@ function renderUpbitTicker() {
 
 function renderUpbitTickerItems(container) {
   let html = '';
+  
+  // 페이지별로 8개씩 끊어서 표시
+  const itemsPerPage = 8;
+  const startIndex = currentUpbitPage * itemsPerPage;
+  const pageCoins = upbitCoins.slice(startIndex, startIndex + itemsPerPage);
 
-  upbitCoins.forEach(code => {
+  pageCoins.forEach(code => {
     const d = upbitData[code];
     if (!d) return;
     
@@ -8791,7 +8940,7 @@ function renderUpbitTickerItems(container) {
     const pctFmt = (d.changeRate * 100).toFixed(2);
     
     const symbol = code.split('-')[1];
-    const coinName = t('coin_' + symbol) || symbol;
+    const coinName = t('coin_' + symbol) || coinNameMap[symbol] || symbol;
 
     html += `
       <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); border-radius:10px; padding:10px; display:flex; flex-direction:column; justify-content:center;">
@@ -8814,3 +8963,477 @@ function renderUpbitTickerItems(container) {
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(initUpbitTicker, 1000);
 });
+
+
+// ===== 1. 자산 숨기기 (프라이버시 모드) =====
+let isPrivacyMode = localStorage.getItem('deedra_privacy') === '1';
+window.togglePrivacy = function() {
+  isPrivacyMode = !isPrivacyMode;
+  localStorage.setItem('deedra_privacy', isPrivacyMode ? '1' : '0');
+  const toggle = document.getElementById('privacyModeToggle');
+  if (toggle) {
+      if (isPrivacyMode) toggle.classList.add('on');
+      else toggle.classList.remove('on');
+  }
+  if(window.updateHomeUI) window.updateHomeUI();
+  if(typeof loadMorePage === 'function') loadMorePage();
+};
+
+window.privacyFmt = function(val, prefix='', suffix='') {
+  return isPrivacyMode ? '****' : prefix + val + suffix;
+};
+
+// ===== 2. 원클릭 재투자 모달 =====
+window.showReinvestModal = function() {
+  if (!walletData || (walletData.bonusBalance || 0) <= 0) {
+    showToast('재투자할 수익 잔액이 없습니다.', 'error');
+    return;
+  }
+  document.getElementById('reinvestMaxAmount').innerHTML = fmt(walletData.bonusBalance) + ' <span style="font-size:14px;">USDT</span>';
+  document.getElementById('reinvestInputAmount').value = '';
+  document.getElementById('reinvestModal').classList.remove('hidden');
+};
+
+window.setReinvestPercent = function(pct) {
+  if (!walletData || !walletData.bonusBalance) return;
+  const max = walletData.bonusBalance;
+  const amt = max * (pct / 100);
+  document.getElementById('reinvestInputAmount').value = amt.toFixed(2);
+};
+
+window.submitReinvest = async function() {
+  if (!walletData) return;
+  const inputStr = document.getElementById('reinvestInputAmount').value;
+  const amount = parseFloat(inputStr);
+  if (isNaN(amount) || amount <= 0) {
+    showToast('올바른 금액을 입력하세요.', 'error');
+    return;
+  }
+  if (amount > (walletData.bonusBalance || 0)) {
+    showToast('수익 잔액이 부족합니다.', 'error');
+    return;
+  }
+  
+  if (!confirm(`정말 ${fmt(amount)} USDT를 원금으로 전환(재투자) 하시겠습니까?\n재투자된 금액은 출금할 수 없으며 상품 운용에 사용됩니다.`)) return;
+  
+  const btn = document.getElementById('btnSubmitReinvest');
+  btn.disabled = true;
+  btn.textContent = '처리 중...';
+  
+  try {
+    const { doc, runTransaction, serverTimestamp, db, collection } = window.FB;
+    const walletRef = doc(db, 'wallets', currentUser.uid);
+    const newTxRef = doc(collection(db, 'transactions'));
+    
+    await runTransaction(db, async (transaction) => {
+      const wDoc = await transaction.get(walletRef);
+      if (!wDoc.exists()) throw "지갑 없음";
+      const wData = wDoc.data();
+      const curBonus = wData.bonusBalance || 0;
+      const curUsdt = wData.usdtBalance || 0;
+      
+      if (curBonus < amount) throw "수익 잔액 부족";
+      
+      transaction.update(walletRef, {
+        bonusBalance: Math.max(0, curBonus - amount),
+        usdtBalance: curUsdt + amount,
+        updatedAt: serverTimestamp()
+      });
+      
+      transaction.set(newTxRef, {
+        userId: currentUser.uid,
+        userName: userData.name || '',
+        type: 'reinvest',
+        amount: amount,
+        status: 'completed',
+        createdAt: serverTimestamp()
+      });
+    });
+    
+    closeModal('reinvestModal');
+    showToast(`$${fmt(amount)} USDT가 성공적으로 재투자 되었습니다!`, 'success');
+  } catch (e) {
+    console.error('재투자 에러:', e);
+    showToast('처리 중 오류가 발생했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '재투자 승인';
+  }
+};
+
+// ===== 3. 최근 7일 수익 잔디(히트맵) =====
+window.loadProfitHeatmap = async function() {
+  const container = document.getElementById('profitHeatmapGrid');
+  if (!container || !currentUser) return;
+  
+  try {
+    const { collection, query, where, getDocs, db } = window.FB;
+    
+    // 최근 7일 날짜 배열 생성 (오늘 포함)
+    const dates = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dates.push(`${yyyy}-${mm}-${dd}`);
+    }
+
+    const q = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
+    const snap = await getDocs(q);
+    
+    const profitByDate = {};
+    snap.docs.forEach(doc => {
+      const data = doc.data();
+      const dateStr = data.settlementDate || (data.createdAt?.toDate?.()?.toISOString?.()?.slice(0,10)) || '';
+      if (dateStr) {
+        profitByDate[dateStr] = (profitByDate[dateStr] || 0) + (data.amount || 0);
+      }
+    });
+
+    let html = '';
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    
+    dates.forEach((dateStr, index) => {
+      const d = new Date(dateStr);
+      const dayName = dayNames[d.getDay()];
+      const amount = profitByDate[dateStr] || 0;
+      
+      let bg = 'rgba(255,255,255,0.05)';
+      let border = '1px solid rgba(255,255,255,0.05)';
+      if (amount > 0) {
+        if (amount > 100) {
+          bg = '#10b981'; // 진한 초록
+          border = '1px solid #059669';
+        } else if (amount > 10) {
+          bg = 'rgba(16, 185, 129, 0.7)'; // 중간 초록
+          border = '1px solid rgba(16, 185, 129, 0.8)';
+        } else {
+          bg = 'rgba(16, 185, 129, 0.3)'; // 연한 초록
+          border = '1px solid rgba(16, 185, 129, 0.4)';
+        }
+      }
+      
+      const isToday = (index === 6);
+      
+      html += `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:4px; flex:1;" title="${dateStr}: ${amount > 0 ? '$'+amount.toFixed(2) : '수익 없음'}">
+          <div style="width:100%; aspect-ratio:1; max-width:24px; border-radius:4px; background:${bg}; border:${border}; transition:all 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'"></div>
+          <div style="font-size:9px; color:${isToday ? '#f8fafc' : '#64748b'}; font-weight:${isToday ? '700' : '400'};">${isToday ? '오늘' : dayName}</div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+  } catch (err) {
+    console.error('Heatmap load error:', err);
+    container.innerHTML = '<div style="font-size:10px; color:#ef4444; width:100%; text-align:center;">데이터를 불러오지 못했습니다</div>';
+  }
+};
+
+
+// ==========================================
+// DEX Swap (Jupiter Terminal) Logic
+// ==========================================
+window.openDexSwap = function(mode) {
+  const modal = document.getElementById('dexModal');
+  if (modal) modal.classList.remove('hidden');
+  
+  if (!window.Jupiter) {
+    const script = document.createElement('script');
+    script.src = 'https://terminal.jup.ag/main-v3.js';
+    script.onload = () => initJupiter(mode);
+    document.head.appendChild(script);
+  } else {
+    initJupiter(mode);
+  }
+};
+
+function initJupiter(mode) {
+  const ddraMint = 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+  const usdtMint = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+  
+  const inputMint = mode === 'buy' ? usdtMint : ddraMint;
+  const outputMint = mode === 'buy' ? ddraMint : usdtMint;
+
+  const container = document.getElementById('jupiter-terminal');
+  if (!container) return;
+
+  const raydiumUrl = `https://raydium.io/swap/?inputMint=${inputMint}&outputMint=${outputMint}`;
+  const modeText = mode === 'buy' ? 'USDT로 DDRA 매수' : 'DDRA를 USDT로 매도';
+
+  container.innerHTML = `
+    <div style="padding: 40px 20px; text-align: center; color: #fff; background: #0f172a; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 0 0 24px 24px;">
+        
+        <img src="https://raydium.io/favicon.ico" style="width: 54px; height: 54px; border-radius: 50%; margin-bottom: 20px; box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);">
+        
+        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 12px; color: #f8fafc;">Raydium 공식 스왑</h3>
+        
+        <p style="font-size: 14px; color: #94a3b8; margin-bottom: 30px; line-height: 1.6; word-break: keep-all; max-width: 280px;">
+            솔라나 1위 탈중앙화 거래소 <b>Raydium</b>에서<br>
+            가장 빠르고 안전하게 <b>${modeText}</b>를 진행하세요.
+        </p>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px;">
+            <button onclick="window.open('${raydiumUrl}', '_blank')" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 16px; border-radius: 14px; font-weight: bold; font-size: 16px; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);">
+                Raydium 거래소 열기
+                <i class="fas fa-arrow-up-right-from-square" style="font-size: 14px;"></i>
+            </button>
+        </div>
+        
+        <p style="font-size: 13px; color: #64748b; margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <i class="fas fa-circle-check" style="color: #10b981;"></i> 코인 쌍(USDT↔DDRA)이 자동 설정됩니다.
+        </p>
+    </div>
+  `;
+}
+
+
+// ===== Kimchi Premium Simulation =====
+function updateKimchiPremium() {
+  const kimchiValue = document.getElementById('kimchiValue');
+  if (!kimchiValue) return;
+  // 랜덤 프리미엄: 1.80% ~ 2.80% 사이 변동
+  const basePremium = 2.15;
+  const variation = (Math.random() * 1.0) - 0.5; // -0.5 ~ +0.5
+  let premium = basePremium + variation;
+  if (premium < 1.0) premium = 1.25;
+  
+  kimchiValue.innerHTML = `<span style="color:#10b981;">+ ${premium.toFixed(2)}%</span>`;
+}
+setInterval(updateKimchiPremium, 3500);
+setTimeout(updateKimchiPremium, 1000);
+
+
+
+function updateAutoCompoundUI(isChecked) {
+  const card = document.getElementById('autoCompoundCardWrap');
+  const icon = document.getElementById('autoCompoundIcon');
+  const title = document.getElementById('autoCompoundTitleText');
+  
+  if (!card) return;
+  
+  if (isChecked) {
+    card.style.border = '1px solid rgba(16,185,129,0.6)';
+    card.style.background = 'linear-gradient(145deg, rgba(16,185,129,0.1), #0f172a)';
+    card.style.boxShadow = '0 0 15px rgba(16,185,129,0.2)';
+    if(icon) {
+      icon.style.color = '#10b981';
+      icon.style.animation = 'spin 4s linear infinite';
+    }
+    if(title) title.style.color = '#10b981';
+  } else {
+    card.style.border = '1px solid var(--border-color, rgba(148,163,184,0.2))';
+    card.style.background = 'var(--card-bg, linear-gradient(145deg, #1e293b, #0f172a))';
+    card.style.boxShadow = 'var(--card-shadow, 0 8px 20px rgba(0,0,0,0.3))';
+    if(icon) {
+      icon.style.color = '#64748b';
+      icon.style.animation = 'none';
+    }
+    if(title) title.style.color = 'var(--text-color, #fff)';
+  }
+}
+
+// ===== AUTO-COMPOUND =====
+window.toggleAutoCompound = async function(el) {
+  if (!currentUser) return;
+  const isChecked = el.checked;
+  
+  // 켜는 경우 -> 모달 오픈
+  if (isChecked) {
+    el.checked = false; // 일단 원복
+    const cb = document.getElementById('autoCompoundAgreeCheck');
+    if(cb) cb.checked = false;
+    const btn = document.getElementById('btnConfirmAutoCompound');
+    if(btn) {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+    }
+    document.getElementById('autoCompoundModal').classList.remove('hidden');
+    return;
+  }
+  
+  // 끄는 경우 -> 즉시 적용
+  const { doc, updateDoc, db } = window.FB;
+  try {
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      autoCompound: false
+    });
+    showToast('자동 복리가 꺼졌습니다.');
+    updateAutoCompoundUI(false);
+  } catch(e) {
+    console.error('Error toggling auto-compound:', e);
+    showToast('설정 변경에 실패했습니다.', 'error');
+    el.checked = true; // revert
+  }
+};
+
+window.confirmAutoCompound = async function() {
+  if (!currentUser) return;
+  const { doc, updateDoc, db } = window.FB;
+  
+  const btn = document.getElementById('btnConfirmAutoCompound');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '처리 중...';
+  
+  try {
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      autoCompound: true
+    });
+    document.getElementById('autoCompoundSwitch').checked = true;
+    updateAutoCompoundUI(true);
+    closeModal('autoCompoundModal');
+    showToast('✅ 복리의 마법이 시작되었습니다!', 'success');
+  } catch(e) {
+    console.error('Error enabling auto-compound:', e);
+    showToast('활성화에 실패했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+if(!window._boundAutoCompoundCheck) {
+  document.addEventListener('change', function(e) {
+    if(e.target && e.target.id === 'autoCompoundAgreeCheck') {
+      const btn = document.getElementById('btnConfirmAutoCompound');
+      if(btn) {
+        btn.disabled = !e.target.checked;
+        btn.style.opacity = e.target.checked ? '1' : '0.5';
+      }
+    }
+  });
+  window._boundAutoCompoundCheck = true;
+}
+
+
+// ===== LIVE TRANSACTION MARQUEE =====
+let marqueeInterval = null;
+function initLiveTransactionMarquee() {
+  const container = document.getElementById('marqueeContainer');
+  if (!container) return;
+  
+  if (marqueeInterval) clearInterval(marqueeInterval);
+  container.innerHTML = '';
+  
+  // 랜덤 트랜잭션 데이터 생성기
+  const types = [
+    { type: 'invest', label: '🔒 FREEZE 시작', color: '#f59e0b' },
+    { type: 'deposit', label: '⬇️ 입금 완료', color: '#3b82f6' },
+    { type: 'withdraw', label: '⬆️ 출금 승인', color: '#ef4444' },
+    { type: 'reinvest', label: '🔄 재투자', color: '#10b981' },
+    { type: 'rank', label: '🏆 직급 달성', color: '#8b5cf6' }
+  ];
+  
+  const names = ['KIM**', 'LEE**', 'PARK**', 'CHOI**', 'JUNG**', 'KANG**', 'ZHAO**', 'WANG**', 'LI**', 'NGUYEN**', 'TRAN**', 'SMITH**', 'JOHN**', 'CHEN**', 'YANG**', 'WU**', 'HUANG**', 'LIU**', 'ZHANG**', 'LIN**', 'HAN**', 'BAE**', 'SONG**', 'YUN**', 'KO**', 'MOON**', 'OH**', 'LIM**', 'SHIN**', 'HWANG**', 'JOO**', 'YOO**', 'BAEK**', 'NAM**', 'GU**', 'SEO**', 'RYU**', 'KONG**', 'SATO**', 'SUZUKI**', 'TAKAHASHI**', 'TANAKA**', 'WATANABE**', 'ITO**', 'YAMAMOTO**', 'NAKAMURA**', 'KOBAYASHI**', 'KATO**', 'GARCIA**', 'MARTINEZ**', 'RODRIGUEZ**', 'LOPEZ**', 'HERNANDEZ**', 'GONZALEZ**', 'PEREZ**', 'SANCHEZ**', 'RAMIREZ**', 'TORRES**', 'MULLER**', 'SCHMIDT**', 'SCHNEIDER**', 'FISCHER**', 'WEBER**', 'MEYER**', 'WAGNER**', 'BECKER**', 'HOFFMANN**', 'SCHAFER**', 'DAVIS**', 'MILLER**', 'WILSON**', 'MOORE**', 'TAYLOR**', 'ANDERSON**', 'THOMAS**', 'JACKSON**', 'WHITE**', 'HARRIS**', 'MARTIN**', 'THOMPSON**', 'WOOD**', 'LEWIS**', 'SCOTT**', 'ROBERTS**', 'PAYNE**', 'MORGAN**', 'BELL**', 'MURPHY**', 'BAILEY**', 'RIVERA**', 'COOPER**', 'RICHARDSON**', 'COX**', 'HOWARD**', 'WARD**', 'PETERSON**', 'GRAY**', 'JAMES**', 'WATSON**', 'BROOKS**', 'KELLY**', 'SANDERS**', 'PRICE**', 'BENNETT**', 'WOOD**', 'BARNES**', 'ROSS**', 'HENDERSON**', 'COLEMAN**', 'JENKINS**', 'PERRY**', 'POWELL**', 'LONG**', 'PATTERSON**', 'HUGHES**', 'FLORES**', 'WASHINGTON**', 'BUTLER**', 'SIMMONS**', 'FOSTER**', 'GONZALES**', 'BRYANT**', 'ALEXANDER**', 'RUSSELL**', 'GRIFFIN**', 'DIAZ**', 'HAYES**', 'LE**', 'PHAM**', 'HUYNH**', 'HOANG**', 'PHAN**', 'VU**', 'VO**', 'DANG**', 'BUI**', 'DO**', 'HO**', 'NGO**', 'DUONG**', 'LY**'];
+  
+  function createTxItem() {
+    const t = types[Math.floor(Math.random() * types.length)];
+    const n = names[Math.floor(Math.random() * names.length)];
+    
+    let amt;
+    const rand = Math.random();
+    if (rand < 0.5) {
+      amt = Math.floor(Math.random() * 900 + 100); // 100 ~ 1000
+    } else if (rand < 0.8) {
+      amt = Math.floor(Math.random() * 4000 + 1000); // 1000 ~ 5000
+    } else if (rand < 0.95) {
+      amt = Math.floor(Math.random() * 15000 + 5000); // 5000 ~ 20000
+    } else {
+      amt = Math.floor(Math.random() * 80000 + 20000); // 20000 ~ 100000 (대박건)
+    }
+
+    
+    const div = document.createElement('div');
+    div.style.cssText = 'background:var(--bg2, rgba(255,255,255,0.03)); border:1px solid var(--border-color, rgba(148,163,184,0.1)); border-radius:8px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; animation:fadeInUp 0.4s ease forwards; box-shadow:0 2px 5px rgba(0,0,0,0.1);';
+    
+    let amountHtml = '';
+    if (t.type === 'rank') {
+      amountHtml = `<span style="color:${t.color};font-weight:bold;font-size:13px;">G${Math.floor(Math.random()*4)+1} 달성</span>`;
+    } else {
+      amountHtml = `<span style="color:#fff;font-weight:bold;font-size:13px;">${amt.toLocaleString()} USDT</span>`;
+    }
+    
+    div.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="background:${t.color}20; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid ${t.color}40;">
+          <span style="font-size:14px;">${t.label.split(' ')[0]}</span>
+        </div>
+        <div style="display:flex; flex-direction:column;">
+          <span style="color:var(--text-muted, #94a3b8); font-size:10px; margin-bottom:2px;">${new Date().toLocaleTimeString()}</span>
+          <span style="color:var(--text-color, #e2e8f0); font-size:12px; font-weight:600;">${n}</span>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end;">
+          <span style="color:${t.color}; font-size:11px; font-weight:700; margin-bottom:2px;">${t.label.substring(t.label.indexOf(' ')+1)}</span>
+          ${amountHtml}
+        </div>
+      </div>
+    `;
+    return div;
+  }
+  
+  // 초기 4개 생성
+  for(let i=0; i<4; i++) {
+    container.appendChild(createTxItem());
+  }
+  
+  // 주기적으로 새 항목 추가
+  marqueeInterval = setInterval(() => {
+    if (!document.getElementById('marqueeContainer')) {
+      clearInterval(marqueeInterval);
+      return;
+    }
+    
+    const newItem = createTxItem();
+    container.prepend(newItem);
+    
+    if (container.children.length > 5) {
+      container.lastChild.style.animation = 'fadeOutDown 0.4s ease forwards';
+      setTimeout(() => {
+        if (container.lastChild) {
+          container.removeChild(container.lastChild);
+        }
+      }, 400);
+    }
+  }, 3500);
+}
+
+// 스타일 추가
+if (!document.getElementById('marqueeStyles')) {
+  const style = document.createElement('style');
+  style.id = 'marqueeStyles';
+  style.textContent = `
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOutDown {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(10px); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+
+window.openGroupChat = function() {
+  console.log("openGroupChat clicked!");
+  try {
+    switchPage('chat');
+    if (window.chatManager) {
+      if (!window.chatManager.sponsorId && window.userData) {
+         window.chatManager.sponsorId = window.userData.referredBy;
+      }
+      window.chatManager.switchChatRoom('group');
+    } else {
+      console.error("chatManager is not defined");
+    }
+  } catch (e) {
+    console.error("openGroupChat error:", e);
+  }
+};

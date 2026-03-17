@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
-  <link rel="stylesheet" href="/static/style.css?v=1773597792" />
+  <link rel="stylesheet" href="/static/style.css?v=78" />
 
 
 
@@ -49,7 +49,7 @@
 
   <!-- ===== 로딩 화면 ===== -->
   <div id="loadingScreen" class="loading-screen">
-    <img src="/static/logo-banner.png" class="loading-banner" alt="DEEDRA" />
+    <img src="/static/img/main-banner.png" class="loading-banner" alt="DEEDRA" />
     <div class="spinner"></div>
   </div>
 
@@ -57,7 +57,7 @@
   <div id="authScreen" class="screen hidden">
     <div class="auth-container">
       <div class="auth-logo">
-        <img src="/static/logo-banner.png" class="auth-banner-img" alt="DEEDRA" />
+        <img src="/static/img/main-banner.png" class="auth-banner-img" alt="DEEDRA" />
       </div>
       <div class="auth-form-wrap">
         <p class="auth-tagline" data-i18n="authTagline">🔐 안전하고 스마트한 FREEZE 자산 운용</p>
@@ -163,7 +163,7 @@
     <!-- 상단 헤더 -->
     <div class="app-header">
       <div class="header-left">
-        <img src="/static/logo-banner.png" class="header-logo-img" alt="DEEDRA" />
+        <img src="/static/img/main-banner.png" class="header-logo-img" alt="DEEDRA" />
       </div>
       <div class="header-right">
         <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="테마 변경">
@@ -192,8 +192,20 @@
               <div class="greeting-text" id="greetingMsg">안녕하세요 👋</div>
               <div class="greeting-name" id="userNameDisplay">-</div>
             </div>
-            <div style="text-align:right;">
+            
+            <div style="display:flex; align-items:center; gap:8px;">
+              <!-- 직급 이미지 -->
               <img id="userRankBadgeImg" src="/static/ranks/g0.png?v=2" alt="Rank" style="height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
+              
+              <!-- 센터 배지 (센터장인 경우 표시) -->
+              <div id="centerManagerBadgeWrap" style="display:none; align-items:center; gap:6px;">
+                <!-- 센터 아이콘 이미지 -->
+                <img src="https://www.genspark.ai/api/files/s/urJkd4AQ" alt="Center" style="height:42px;width:auto;object-fit:contain;border-radius:10px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
+                <!-- 작아진 공식 센터 문구 -->
+                <div style="background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.2)); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; border: 1px solid rgba(16,185,129,0.3); white-space:nowrap;">
+                  <i class="fas fa-building"></i> 공식 센터
+                </div>
+              </div>
             </div>
           </div>
 
@@ -227,6 +239,7 @@
                 <div class="asset-split-label" style="color:#f59e0b;font-weight:600;" data-i18n="withdrawableDdra">출금 가능 DDRA</div>
                 <div class="asset-split-value" id="splitBonus" style="color:#f59e0b;font-size:18px;font-weight:700;">0.00 DDRA</div>
                 <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:11px;">≈ $0.00 USDT</div>
+                <button onclick="showReinvestModal()" style="margin-top:8px;position:relative;z-index:10;pointer-events:auto;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;width:fit-content;margin-left:auto;margin-right:auto;transition:all 0.2s;"><i class="fas fa-sync-alt"></i> 재투자</button>
               </div>
             </div>
 
@@ -237,6 +250,72 @@
               </button>
               <button class="asset-action-btn withdraw" onclick="showWithdrawModal()">
                 <i class="fas fa-arrow-up"></i> <span data-i18n="btnWithdraw">DDRA 출금</span>
+              </button>
+            </div>
+          </div>
+
+          
+          
+          
+          <!-- AUTO-COMPOUND CARD -->
+          <div class="auto-compound-card" id="autoCompoundCardWrap" style="margin-bottom:16px; background:var(--card-bg, linear-gradient(145deg, #1e293b, #0f172a)); border:1px solid var(--border-color, rgba(148,163,184,0.2)); border-radius:16px; padding:16px; box-shadow:var(--card-shadow, 0 8px 20px rgba(0,0,0,0.3)); position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:center; transition:all 0.3s;">
+            <div style="position:absolute; top:-20px; left:-20px; width:100px; height:100px; background:radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%); border-radius:50%;"></div>
+            <div style="position:relative; z-index:2;">
+              <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--text-color, #fff);">
+                <i class="fas fa-sync-alt" id="autoCompoundIcon" style="color:#64748b; transition:all 0.3s;"></i>
+                <span style="font-weight:800;" id="autoCompoundTitleText">자동 복리 (Auto-Compound)</span>
+              </div>
+              <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:4px;" id="autoCompoundDescText">매일 자정, 데일리 수익금을 FREEZE 원금에 자동 재투자합니다.</div>
+            </div>
+            <div style="position:relative; z-index:2;">
+              <label class="switch" style="position:relative; display:inline-block; width:50px; height:24px;">
+                <input type="checkbox" id="autoCompoundSwitch" onchange="toggleAutoCompound(this)" style="opacity:0; width:0; height:0;">
+                <span class="slider round" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#475569; transition:.4s; border-radius:34px;"></span>
+              </label>
+            </div>
+          </div>
+
+          <style>
+            #autoCompoundSwitch:checked + .slider { background-color: #10b981; }
+            #autoCompoundSwitch:focus + .slider { box-shadow: 0 0 1px #10b981; }
+            #autoCompoundSwitch:checked + .slider:before { transform: translateX(26px); }
+            .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.4s; border-radius:50%; }
+          </style>
+
+          <!-- DEX SWAP CARD -->
+<div class="dex-swap-card" style="margin-bottom:16px; background:var(--card-bg, linear-gradient(145deg, #1e293b, #0f172a)); border:1px solid var(--border-color, rgba(99,102,241,0.3)); border-radius:16px; padding:14px; box-shadow:var(--card-shadow, 0 8px 20px rgba(0,0,0,0.3)); position:relative; overflow:hidden;">
+            <div style="position:absolute; top:-20px; right:-20px; width:100px; height:100px; background:radial-gradient(circle, var(--accent-purple-light, rgba(168,85,247,0.15)) 0%, transparent 70%); border-radius:50%;"></div>
+            
+            <!-- 김치 프리미엄 뱃지 추가 -->
+            <div id="kimchiPremiumBadge" style="position:relative; z-index:2; margin-bottom:12px; background:linear-gradient(90deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border-left:3px solid #10b981; padding:8px 12px; border-radius:4px 8px 8px 4px; display:flex; align-items:center; justify-content:space-between;">
+              <div style="font-size:11px; color:var(--text-color, #f8fafc); font-weight:600; display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-chart-line" style="color:#10b981;"></i> 글로벌 시세 대비 <span style="color:#10b981;">한국 프리미엄</span>
+              </div>
+              <div id="kimchiValue" style="font-size:13px; font-weight:800; color:#10b981;">+ 2.15%</div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; position:relative; z-index:2;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="position:relative;">
+                  <img src="/static/img/ddra-coin.png" onerror="this.src='/static/icon-192.png'" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--bg-color, #0f172a); box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                  <div class="dex-bolt-badge" style="position:absolute; bottom:-2px; right:-2px; background:var(--accent-purple, #a855f7); width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid var(--bg-color, #0f172a);">
+                    <i class="fas fa-bolt" style="color:#fff; font-size:9px;"></i>
+                  </div>
+                </div>
+                <div>
+                  <div style="color:var(--text-color, #fff); font-weight:800; font-size:15px; display:flex; align-items:center; gap:6px;">DDRA 빠른 거래 <span style="background:var(--badge-bg, linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))); color:var(--badge-text, #c084fc); border:1px solid var(--badge-border, rgba(168,85,247,0.3)); padding:2px 6px; border-radius:6px; font-size:9px; font-weight:800;">DEX</span></div>
+                  <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:2px;">수수료 0% · 지갑 연동 즉시 스왑</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; position:relative; z-index:2;">
+              <button onclick="openDexSwap('buy')" class="dex-buy-btn" style="flex:1; background:var(--dex-buy-bg, linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15))); border:1px solid var(--dex-buy-border, rgba(16,185,129,0.4)); color:var(--dex-buy-text, #34d399); border-radius:14px; padding:14px 10px; font-weight:800; font-size:14px; cursor:pointer; transition:all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px; box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);">
+                <i class="fas fa-cart-plus" style="font-size:16px;"></i>
+                <span>매수 (Buy)</span>
+              </button>
+              <button onclick="openDexSwap('sell')" class="dex-sell-btn" style="flex:1; background:var(--dex-sell-bg, linear-gradient(135deg, rgba(244,63,94,0.15), rgba(225,29,72,0.15))); border:1px solid var(--dex-sell-border, rgba(244,63,94,0.4)); color:var(--dex-sell-text, #fb7185); border-radius:14px; padding:14px 10px; font-weight:800; font-size:14px; cursor:pointer; transition:all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px; box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);">
+                <i class="fas fa-hand-holding-usd" style="font-size:16px;"></i>
+                <span>매도 (Sell)</span>
               </button>
             </div>
           </div>
@@ -280,6 +359,17 @@
                 <div class="earn-skeleton"></div>
                 <div class="earn-skeleton"></div>
               </div>
+            </div>
+          </div>
+
+          <!-- 최근 7일 수익 히트맵 -->
+          <div id="profitHeatmapContainer" style="margin: 0 16px 16px 16px; padding: 14px 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <div style="font-size:12px; font-weight:600; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+              <span><i class="fas fa-calendar-check" style="margin-right:6px; color:#10b981;"></i>최근 7일 수익 활동</span>
+              <span style="font-size:10px; opacity:0.6;">(오늘 기준)</span>
+            </div>
+            <div id="profitHeatmapGrid" style="display:flex; justify-content:space-between; gap:4px; align-items:center;">
+              <div style="text-align:center; font-size:10px; color:#64748b;">데이터 로드 중...</div>
             </div>
           </div>
 
@@ -438,42 +528,23 @@
           <!-- 글로벌 네트워크 맵 -->
           <div style="background:var(--card-bg,#fff);border:1px solid var(--border,#e2e8f0);border-radius:16px;padding:16px;margin-bottom:20px;position:relative;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.02);">
             <div style="font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;color:var(--text,#1e293b);">
-              <span data-i18n="globalNetworkMap">🌍 글로벌 라이브 네트워크</span>
-              <span class="live-badge" style="background:#fee2e2;color:#ef4444;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:bold;animation:pulse 2s infinite;">● LIVE</span>
-            </div>
-            
-            <div id="globalMapWrap" style="position:relative;width:100%;height:180px;background:#0f172a;border-radius:12px;overflow:hidden;">
-              <!-- 맵 배경 이미지 (단순화된 세계지도) -->
-              <svg viewBox="0 0 800 400" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.6;fill:#334155;">
-                <path d="M100,100 Q150,50 200,100 T300,150 T400,100 T500,150 T600,100 T700,150 T800,100 L800,400 L0,400 Z" opacity="0.1"/>
-                <circle cx="150" cy="150" r="3" fill="#475569"/>
-                <circle cx="250" cy="120" r="2" fill="#475569"/>
-                <circle cx="400" cy="180" r="4" fill="#475569"/>
-                <circle cx="600" cy="140" r="3" fill="#475569"/>
-                <circle cx="700" cy="200" r="5" fill="#475569"/>
-                <circle cx="500" cy="250" r="2" fill="#475569"/>
-                <!-- 대략적인 대륙 실루엣 (단순 원형들로 표현) -->
-                <g fill="#1e293b">
-                  <path d="M 200 100 C 250 80, 300 120, 280 180 C 260 240, 200 280, 150 220 C 100 160, 150 120, 200 100 Z" /> <!-- 아메리카쪽 -->
-                  <path d="M 500 80 C 600 60, 700 100, 650 180 C 600 260, 500 300, 450 220 C 400 140, 400 100, 500 80 Z" /> <!-- 유라시아쪽 -->
-                </g>
-              </svg>
               
-              <!-- 내 위치 (항상 중앙) -->
-              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;display:flex;flex-direction:column;align-items:center;">
-                <div style="width:16px;height:16px;background:#3b82f6;border-radius:50%;box-shadow:0 0 15px #3b82f6, 0 0 30px #3b82f6;border:2px solid #fff;"></div>
-                <div style="color:#fff;font-size:10px;font-weight:bold;margin-top:4px;text-shadow:0 2px 4px rgba(0,0,0,0.8);">ME</div>
-              </div>
-
-              <!-- 레이저 효과 및 노드들이 들어갈 컨테이너 -->
-              <div id="globalMapLayer" style="position:absolute;inset:0;z-index:1;"></div>
+            <!-- LIVE TRANSACTION MARQUEE -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; margin-top:20px;">
+              <span style="font-weight:700; font-size:15px; color:var(--text-color);">🔥 실시간 글로벌 트랜잭션</span>
+              <span class="live-badge" style="background:rgba(239,68,68,0.15);color:#ef4444;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:bold;animation:pulse 2s infinite;">● LIVE</span>
             </div>
             
-            <div style="display:flex;gap:12px;margin-top:12px;font-size:11px;color:var(--text2,#64748b);justify-content:center;">
-              <div style="display:flex;align-items:center;gap:4px;"><span style="color:#10b981;">●</span> 신규 가입</div>
-              <div style="display:flex;align-items:center;gap:4px;"><span style="color:#f59e0b;">●</span> FREEZE 투자</div>
-              <div style="display:flex;align-items:center;gap:4px;"><span style="color:#8b5cf6;">●</span> 직급 달성</div>
+            <div id="liveTransactionMarqueeWrap" style="position:relative;width:100%;height:160px;background:var(--card-bg, #1e293b);border:1px solid var(--border-color, rgba(148,163,184,0.2));border-radius:12px;overflow:hidden; box-shadow:inset 0 2px 10px rgba(0,0,0,0.2);">
+              <div class="marquee-fade-top" style="position:absolute; top:0; left:0; right:0; height:30px; background:linear-gradient(to bottom, var(--card-bg, #1e293b) 0%, transparent 100%); z-index:2; pointer-events:none;"></div>
+              
+              <div id="marqueeContainer" style="position:absolute; top:0; left:0; right:0; display:flex; flex-direction:column; padding:10px 12px; transition:transform 0.5s ease; gap:8px;">
+                <!-- 트랜잭션 아이템들이 여기에 동적으로 추가됨 -->
+              </div>
+              
+              <div class="marquee-fade-bottom" style="position:absolute; bottom:0; left:0; right:0; height:30px; background:linear-gradient(to top, var(--card-bg, #1e293b) 0%, transparent 100%); z-index:2; pointer-events:none;"></div>
             </div>
+
           </div>
 
           <!-- 네트워크 통계 -->
@@ -549,7 +620,7 @@
           <!-- 조직도 -->
           <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
             <span class="section-title" data-i18n="orgChart">🗂 조직도</span>
-<button onclick="switchPage('chat'); window.chatManager.switchChatRoom('group');" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+<button onclick="window.openGroupChat()" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; position:relative; z-index:50; cursor:pointer; display:flex; align-items:center; gap:6px;">
               <i class="fas fa-comments"></i> <span>그룹 채팅</span>
             </button>
 
@@ -578,6 +649,8 @@
           </div>
 
         </div>
+      </div>
+
       </div>
 
       <!-- ======== PLAY 페이지 ======== -->
@@ -670,7 +743,7 @@
                   <button class="bet-adj-btn" onclick="adjustBet('oe',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('oe',-1)">−1</button>
                   <div class="bet-input-wrap">
-                    <input type="number" class="bet-number-input" id="oeBetInput" value="10" min="1" step="1"
+                    <input type="number" class="bet-number-input" id="oeBetInput" value="10" min="0.1" step="0.1"
                       oninput="updateBetDisplay('oe', this.value)" />
                     <span class="bet-input-unit">DDRA</span>
                   </div>
@@ -733,7 +806,7 @@
                   <button class="bet-adj-btn" onclick="adjustBet('dice',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('dice',-1)">−1</button>
                   <div class="bet-input-wrap">
-                    <input type="number" class="bet-number-input" id="diceBetInput" value="10" min="1" step="1"
+                    <input type="number" class="bet-number-input" id="diceBetInput" value="10" min="0.1" step="0.1"
                       oninput="updateBetDisplay('dice', this.value)" />
                     <span class="bet-input-unit">DDRA</span>
                   </div>
@@ -786,7 +859,7 @@
                   <button class="bet-adj-btn" onclick="adjustBet('slot',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('slot',-1)">−1</button>
                   <div class="bet-input-wrap">
-                    <input type="number" class="bet-number-input" id="slotBetInput" value="10" min="1" step="1"
+                    <input type="number" class="bet-number-input" id="slotBetInput" value="10" min="0.1" step="0.1"
                       oninput="updateBetDisplay('slot', this.value)" />
                     <span class="bet-input-unit">DDRA</span>
                   </div>
@@ -858,7 +931,7 @@
                   <button class="bet-adj-btn" onclick="adjustBet('rl',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('rl',-1)">−1</button>
                   <div class="bet-input-wrap">
-                    <input type="number" class="bet-number-input" id="rlBetInput" value="10" min="1" step="1"
+                    <input type="number" class="bet-number-input" id="rlBetInput" value="10" min="0.1" step="0.1"
                       oninput="updateBetDisplay('rl', this.value)" />
                     <span class="bet-input-unit">DDRA</span>
                   </div>
@@ -942,7 +1015,7 @@
                   <button class="bet-adj-btn" onclick="adjustBet('bac',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('bac',-1)">−1</button>
                   <div class="bet-input-wrap">
-                    <input type="number" class="bet-number-input" id="bacBetInput" value="10" min="1" step="1"
+                    <input type="number" class="bet-number-input" id="bacBetInput" value="10" min="0.1" step="0.1"
                       oninput="updateBetDisplay('bac', this.value)" />
                     <span class="bet-input-unit">DDRA</span>
                   </div>
@@ -1013,7 +1086,7 @@
                   <button class="bet-adj-btn" onclick="adjustBet('pk',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('pk',-1)">−1</button>
                   <div class="bet-input-wrap">
-                    <input type="number" class="bet-number-input" id="pkBetInput" value="10" min="1" step="1"
+                    <input type="number" class="bet-number-input" id="pkBetInput" value="10" min="0.1" step="0.1"
                       oninput="updateBetDisplay('pk', this.value)" />
                     <span class="bet-input-unit">DDRA</span>
                   </div>
@@ -1141,7 +1214,11 @@
               <button class="tx-tab" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
               <button class="tx-tab" onclick="switchTxTab('withdrawal', this)" data-i18n="txWithdraw">출금</button>
               <button class="tx-tab" onclick="switchTxTab('invest', this)" data-i18n="txInvest">FREEZE</button>
-              <button class="tx-tab" onclick="switchTxTab('matching', this)">판권 매칭</button>
+              <button class="tx-tab" onclick="switchTxTab('matching', this)">추천 매칭</button>
+              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('centerFee', this)" style="display: none;">센터 피</button>
+            </div>
+            <div id="matchingInfo" style="display: none; padding: 12px; margin-top: 10px; background: rgba(157, 78, 221, 0.1); border-radius: 8px; border: 1px solid rgba(157, 78, 221, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
+              <i class="fas fa-info-circle text-primary mr-1"></i> <b>추천 매칭:</b> 나의 산하 회원이 FREEZE 데일리 수익을 받을 때, 직추천인(1대 스폰서)에게 10%, 그 위(2대 스폰서)에게 5%가 지급되는 보너스입니다.
             </div>
             <div id="txHistoryList" class="tx-list">
               <div class="skeleton-item"></div>
@@ -1149,21 +1226,34 @@
             </div>
           </div>
 
-          <!-- 프로필 카드 -->
-          <div class="profile-card" style="margin-top:8px;">
-            <div class="profile-avatar">👤</div>
-            <div class="profile-info">
-              <div class="profile-name" id="profileName">-</div>
-              <div class="profile-email" id="profileEmail">-</div>
-              <div class="profile-rank-badge" id="profileRank" style="background:transparent;box-shadow:none;padding:0;">
-                <img id="profileRankImg" src="/static/ranks/g0.png?v=2" alt="Rank" style="width:60px;height:auto;object-fit:contain;" />
+          <!-- 프로필 카드 (한 줄로 완벽히 정렬 & 컬러 포인트 추가) -->
+          <div style="display:flex; align-items:center; gap:10px; background:linear-gradient(135deg, rgba(30,41,59,0.8), rgba(49,46,129,0.6)); border:1px solid rgba(99,102,241,0.4); border-radius:var(--radius-lg); padding:12px 14px; margin-top:8px; margin-bottom:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+            
+            <!-- 컬러 아바타 -->
+            <div style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg, #3b82f6, #8b5cf6); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; box-shadow:0 2px 8px rgba(99,102,241,0.4);">
+              <span style="background:rgba(0,0,0,0.2); width:100%; height:100%; border-radius:50%; display:flex; align-items:center; justify-content:center;">👤</span>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+              <!-- 이름: 밝은 흰색 -->
+              <div id="profileName" style="font-size:15px; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90px; text-shadow:0 1px 2px rgba(0,0,0,0.3);">-</div>
+              <!-- 이메일: 밝은 하늘색 톤 -->
+              <div id="profileEmail" style="font-size:12px; color:#93c5fd; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">-</div>
+              
+              <!-- 랭크 뱃지: 선명한 골드 -->
+              <div id="profileRank" style="background:rgba(255,215,0,0.15); border:1px solid rgba(255,215,0,0.4); color:#ffd700; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:900; display:flex; align-items:center; gap:4px; flex-shrink:0; box-shadow:0 0 10px rgba(255,215,0,0.1);">
+                <img id="profileRankImg" src="/static/ranks/g0.png?v=2" alt="Rank" style="height:14px;width:auto;object-fit:contain;" />
               </div>
+            </div>
+            
+            <!-- 계정 관리: 버튼처럼 보이게 핑크/퍼플 컬러 포인트 -->
+            <div data-i18n="accountMgmt" style="font-size:12px; color:#c084fc; font-weight:800; display:flex; align-items:center; gap:4px; flex-shrink:0; border-left:1px dashed rgba(99,102,241,0.5); padding-left:10px; cursor:pointer;" onclick="showProfileEdit()">
+              <i class="fas fa-user-cog" style="color:#f472b6;"></i> 관리
             </div>
           </div>
 
-          <!-- 계정 관리 -->
-          <div class="menu-section">
-            <div class="menu-section-title" data-i18n="accountMgmt">⚙️ 계정 관리</div>
+          <!-- 계정 관리 메뉴 -->
+          <div class="menu-section" style="margin-top:0;">
             <div class="menu-list">
               <div class="menu-item" onclick="showProfileEdit()">
                 <div class="menu-item-icon icon-blue"><i class="fas fa-user-edit"></i></div>
@@ -1196,6 +1286,11 @@
                 <div class="menu-item-icon icon-gray"><i class="fas fa-moon"></i></div>
                 <span class="menu-item-text" data-i18n="darkMode">다크 모드</span>
                 <button class="menu-item-toggle" id="darkModeToggle" onclick="toggleThemeFromMenu()" ></button>
+              </div>
+              <div class="menu-item">
+                <div class="menu-item-icon icon-gray"><i class="fas fa-eye-slash"></i></div>
+                <span class="menu-item-text" data-i18n="privacyMode">프라이버시 모드</span>
+                <button class="menu-item-toggle" id="privacyModeToggle" onclick="togglePrivacy()"></button>
               </div>
               <div class="menu-item">
                 <div class="menu-item-icon icon-gray"><i class="fas fa-globe"></i></div>
@@ -1606,6 +1701,37 @@
   </div>
 </div>
 
+
+<!-- 수익금 재투자 모달 -->
+<div id="reinvestModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('reinvestModal')"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fas fa-sync-alt"></i> 수익금 재투자 (원금 전환)</div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:var(--text2); margin-bottom:16px;">출금 가능한 수익금을 FREEZE 전용 지갑(원금)으로 전환하여 다시 투자 상품을 운용합니다.</p>
+      <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;">
+        <div style="font-size:12px; color:var(--text2); margin-bottom:8px;">출금 가능 수익금</div>
+        <div id="reinvestMaxAmount" style="font-size:24px; font-weight:700; color:#10b981;">0.00 <span style="font-size:14px;">USDT</span></div>
+      </div>
+      <div class="form-group">
+        <label>재투자할 금액 (USDT)</label>
+        <input type="number" id="reinvestInputAmount" class="form-input" placeholder="최소 1 USDT 이상" />
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(25)">25%</button>
+          <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(50)">50%</button>
+          <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(75)">75%</button>
+          <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(100)">최대</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-full" id="btnSubmitReinvest" onclick="submitReinvest()">재투자 승인</button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('reinvestModal')">취소</button>
+    </div>
+  </div>
+</div>
+
 <!-- 공지사항 모달 -->
 <div id="announcementModal" class="modal hidden">
   <div class="modal-overlay" onclick="closeModal('announcementModal')"></div>
@@ -1735,7 +1861,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1773678020458"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=1773683172670"></script>
+<script src="/static/app.js?v=78"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널
@@ -1851,6 +1977,59 @@
   </div>
   <div style="flex:1;width:100%;position:relative;">
     <iframe id="fullChartIframe" src="" width="100%" height="100%" frameborder="0" style="position:absolute;inset:0;"></iframe>
+  </div>
+</div>
+
+
+<!-- DEX 스왑 모달 -->
+<div id="dexModal" class="modal hidden" style="z-index:99999;">
+  <div class="modal-overlay" onclick="closeModal('dexModal')"></div>
+  <div class="modal-sheet" style="height:85vh; max-height:850px; padding:0; display:flex; flex-direction:column; background:#13111C; border-top:1px solid rgba(168,85,247,0.3);">
+    <div class="modal-handle" style="margin-top:10px;"></div>
+    <div style="padding:10px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
+      <div style="color:#fff; font-weight:800; font-size:16px; display:flex; align-items:center; gap:8px;">
+        <img src="/static/img/ddra-dex-coin.png" style="width:24px; height:24px; border-radius:50%;" />
+        DDRA 스왑 터미널
+      </div>
+      <button onclick="closeModal('dexModal')" style="background:rgba(255,255,255,0.1); border:none; color:#fff; width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
+    </div>
+    <div id="jupiter-terminal" style="flex:1; width:100%; border-radius:0 0 24px 24px; overflow:hidden;"></div>
+  </div>
+</div>
+
+
+<!-- 자동 복리 동의 모달 -->
+<div id="autoCompoundModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('autoCompoundModal')"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fas fa-sync-alt" style="color:#10b981;"></i> 자동 복리 (Auto-Compound) 활성화</div>
+    <div class="modal-body">
+      <div style="background:var(--bg2, rgba(16,185,129,0.1)); border:1px solid rgba(16,185,129,0.3); border-radius:12px; padding:16px; margin-bottom:16px;">
+        <h4 style="color:#10b981; font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+          <i class="fas fa-chart-line"></i> 복리의 마법을 경험하세요!
+        </h4>
+        <p style="font-size:13px; color:var(--text-color, #e2e8f0); line-height:1.5; margin-bottom:8px;">
+          자동 복리를 켜두면 매일 자정에 발생하는 <strong>데일리 수익금이 내 지갑으로 들어오지 않고, 곧바로 진행 중인 FREEZE(투자) 원금에 추가(재투자)</strong>됩니다.
+        </p>
+        <ul style="font-size:12px; color:var(--text-muted, #94a3b8); line-height:1.6; padding-left:16px; list-style-type:disc;">
+          <li>매일 원금이 커지므로 다음 날 발생하는 이자도 점점 더 커집니다. <span style="color:#10b981; font-weight:bold;">(눈덩이 효과)</span></li>
+          <li>수동으로 재투자할 때 발생하는 번거로움과 시간 지연이 없습니다.</li>
+          <li><strong style="color:#ef4444;">주의:</strong> 원금에 합산된 수익금은 기존 상품 만기 시점까지 함께 락업(출금 불가)됩니다.</li>
+        </ul>
+      </div>
+      
+      <label style="display:flex; align-items:flex-start; gap:10px; background:var(--card-bg, #1e293b); padding:14px; border-radius:8px; cursor:pointer; border:1px solid var(--border-color, #334155);">
+        <input type="checkbox" id="autoCompoundAgreeCheck" style="margin-top:2px; transform:scale(1.3);">
+        <span style="font-size:12px; color:var(--text-color, #e2e8f0); font-weight:600; line-height:1.4;">
+          위 내용을 모두 읽고 이해하였으며, 데일리 수익금의 자동 재투자(원금 락업)에 동의합니다.
+        </span>
+      </label>
+    </div>
+    <div class="modal-footer" style="display:flex; gap:10px;">
+      <button class="btn btn-primary" id="btnConfirmAutoCompound" style="flex:1; opacity:0.5; background:#10b981; border:none; color:#fff;" disabled onclick="confirmAutoCompound()">활성화 승인</button>
+      <button class="btn btn-ghost" style="flex:1; background:transparent; border:1px solid #64748b; color:#94a3b8;" onclick="closeModal('autoCompoundModal')">취소</button>
+    </div>
   </div>
 </div>
 
