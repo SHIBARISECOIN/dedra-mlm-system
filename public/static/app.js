@@ -4636,7 +4636,7 @@ async function loadProducts() {
     const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     console.log('[Products] 전체 상품:', allDocs.length, allDocs.map(p=>({name:p.name,isActive:p.isActive,type:p.type})));
     productsCache = allDocs
-      .filter(p => !p.type || p.type === 'investment')
+      .filter(p => (!p.type || p.type === 'investment') && p.isActive !== false)
       .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
 
     if (!productsCache.length) {
@@ -4672,28 +4672,6 @@ async function loadProducts() {
             <div class="product-roi">${roi.toFixed(1)}%</div>
             <div class="product-roi-label">${t('dailyRoi') || '일 수익률'}</div>
           </div>
-        </div>
-        
-        <div class="product-graph" style="height:40px; margin: 8px 0 12px; position:relative; opacity:0.8;">
-          <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible;">
-            <defs>
-              <linearGradient id="gradLine-${p.id}" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stop-color="var(--primary)"/>
-                <stop offset="100%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}"/>
-              </linearGradient>
-              <linearGradient id="gradFill-${p.id}" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}" stop-opacity="0.3"/>
-                <stop offset="100%" stop-color="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path d="M0,28 Q25,25 50,15 T100,2" fill="none" stroke="url(#gradLine-${p.id})" stroke-width="2" vector-effect="non-scaling-stroke"/>
-            <path d="M0,28 Q25,25 50,15 T100,2 L100,30 L0,30 Z" fill="url(#gradFill-${p.id})"/>
-            <!-- Add a pulse dot at the end -->
-            <circle cx="100" cy="2" r="2.5" fill="${tier==='vip'?'#f59e0b':tier==='premium'?'#8b5cf6':tier==='standard'?'#3b82f6':'#10b981'}">
-               <animate attributeName="r" values="2.5; 5; 2.5" dur="2s" repeatCount="indefinite" />
-               <animate attributeName="opacity" values="1; 0.3; 1" dur="2s" repeatCount="indefinite" />
-            </circle>
-          </svg>
         </div>
         
         <div class="product-graph" style="height:40px; margin: 8px 0 12px; position:relative; opacity:0.8;">
@@ -7533,16 +7511,16 @@ async function _loadNepSummary() {
 
   try {
     // ── 전체 사용자 로드 (캐시) ──
-    if (!_nepAllUsers) {
+    if (!_nepAllUsers || !_nepAllUsers.length) {
       try {
         const snap = await getDocs(collection(db, 'users'));
         _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (rulesErr) {
         console.warn('[NEP] users 로드 권한 없음:', rulesErr.message);
-        _nepAllUsers = [];
+        _nepAllUsers = null;
       }
     }
-    const allUsers = _nepAllUsers;
+    const allUsers = _nepAllUsers || [];
 
     // ── 대수별 멤버 분류 (BFS) ──
     const genMap = {}; // uid → generation number
@@ -7696,16 +7674,16 @@ async function _loadNepGenTab(contentEl, gen) {
   const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
-    if (!_nepAllUsers) {
+    if (!_nepAllUsers || !_nepAllUsers.length) {
       try {
         const snap = await getDocs(collection(db, 'users'));
         _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (rulesErr) {
         console.warn('[NEP] users 권한 없음:', rulesErr.message);
-        _nepAllUsers = [];
+        _nepAllUsers = null;
       }
     }
-    const allUsers = _nepAllUsers;
+    const allUsers = _nepAllUsers || [];
 
     // gen1: referredBy == 나 / gen2: referredBy ∈ gen1 ids
     let members = [];
@@ -7871,16 +7849,16 @@ async function _loadNepDeepTab(contentEl) {
   const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
-    if (!_nepAllUsers) {
+    if (!_nepAllUsers || !_nepAllUsers.length) {
       try {
         const snap = await getDocs(collection(db, 'users'));
         _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (rulesErr) {
         console.warn('[NEP] users 권한 없음:', rulesErr.message);
-        _nepAllUsers = [];
+        _nepAllUsers = null;
       }
     }
-    const allUsers = _nepAllUsers;
+    const allUsers = _nepAllUsers || [];
 
     const genMap = {};
     let queue = allUsers.filter(u => u.referredBy === currentUser.uid && u.role !== 'admin');
@@ -8255,13 +8233,17 @@ window.initLiveTransactionMarquee = async function() {
     
     // 모든 유저의 최근 입금/출금/투자/수익 기록 가져오기 (가장 최신 10개)
     // 인덱스 문제 방지를 위해 단순 정렬 (또는 전체 불러와 정렬 후 자름)
-    const q = query(collection(db, 'transactions'), limit(15));
-    const snap = await getDocs(q);
-    
-    let txs = snap.docs.map(d => ({id: d.id, ...d.data()}))
-      .filter(t => t.status === 'approved' || !t.status)
-      .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-      .slice(0, 10);
+    let txs = [];
+    try {
+      const q = query(collection(db, 'transactions'), limit(15));
+      const snap = await getDocs(q);
+      txs = snap.docs.map(d => ({id: d.id, ...d.data()}))
+        .filter(t => t.status === 'approved' || !t.status)
+        .sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        .slice(0, 10);
+    } catch(err) {
+      console.warn('Live tx query denied, using dummy data');
+    }
       
     // 거래내역이 아예 없으면 가짜 데이터라도 생성
     if (txs.length < 5) {
