@@ -82,6 +82,27 @@ app.post('/api/auth/register', async (c) => {
 })
 
 // 추천인 코드 검증 API (비로그인 상태에서 Firestore 조회)
+
+// 아이디 중복 검증 API
+app.get('/api/auth/check-username', async (c) => {
+  const username = c.req.query('username');
+  if (!username) return c.json({ exists: false, error: 'Username required' }, 400);
+  
+  try {
+    const token = await getAdminToken();
+    const q = await fsQuery('users', token, [{
+      fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: username.trim().toLowerCase() } }
+    }], 1);
+    
+    if (q && q.length > 0) {
+      return c.json({ exists: true });
+    }
+    return c.json({ exists: false });
+  } catch (e: any) {
+    return c.json({ exists: false, error: e.message }, 500);
+  }
+})
+
 app.get('/api/auth/check-referral', async (c) => {
   const code = c.req.query('code');
   if (!code) return c.json({ valid: false, error: 'Code required' }, 400);

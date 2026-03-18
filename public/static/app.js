@@ -3317,6 +3317,15 @@ window.handleRegister = async function() {
 
   showScreen('loading');
   try {
+    // 아이디 중복 체크
+    const uRes = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+    const uData = await uRes.json();
+    if (uData.exists) {
+      showScreen('auth');
+      showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.', 'error');
+      return;
+    }
+
     const { createUserWithEmailAndPassword, auth, doc, setDoc, db, serverTimestamp } = window.FB;
     const { user } = await createUserWithEmailAndPassword(auth, email, pw);
     const myCode = generateReferralCode(user.uid);
@@ -7250,6 +7259,55 @@ window.clearRefCode = function() {
   if (clearBtn) clearBtn.style.display = 'none';
   if (input) input.focus();
 };
+
+// 아이디 중복 실시간 검증
+document.addEventListener('DOMContentLoaded', () => {
+  const userInp = document.getElementById('regUsername');
+  if (!userInp) return;
+  
+  // 상태 메시지 표시할 요소 추가
+  let statusEl = document.getElementById('regUserStatus');
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'regUserStatus';
+    statusEl.style.cssText = 'font-size:12px; margin-top:4px; margin-left:4px;';
+    userInp.parentNode.appendChild(statusEl);
+  }
+
+  let uTimer = null;
+  userInp.addEventListener('input', (e) => {
+    let val = e.target.value.trim().toLowerCase();
+    // 아이디는 영문, 숫자만 허용되도록 정제 (선택사항, 일단 소문자 변환만 유지)
+    e.target.value = val;
+    
+    if (!val) { statusEl.textContent = ''; return; }
+    if (val.length < 4) { 
+      statusEl.textContent = '아이디는 4자 이상이어야 합니다.';
+      statusEl.style.color = '#ef4444';
+      return; 
+    }
+    
+    statusEl.textContent = '🔍 중복 확인 중...';
+    statusEl.style.color = '#a5b4fc';
+    
+    clearTimeout(uTimer);
+    uTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        if (data.exists) {
+          statusEl.textContent = '❌ 이미 사용 중인 아이디입니다.';
+          statusEl.style.color = '#ef4444';
+        } else {
+          statusEl.textContent = '✅ 사용 가능한 아이디입니다.';
+          statusEl.style.color = '#10b981';
+        }
+      } catch(err) {
+        statusEl.textContent = '';
+      }
+    }, 600);
+  });
+});
 
 // 추천인 코드 실시간 검증
 document.addEventListener('DOMContentLoaded', () => {
