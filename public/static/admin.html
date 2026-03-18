@@ -14788,14 +14788,7 @@ window.exportIdReportPDF = function() {
     <title>ID 분석 리포트</title>
     <style>body{font-family:-apple-system,sans-serif;padding:24px;color:#111827;font-size:13px;}
     table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #e5e7eb;}</style>
-    </head><body>${content.innerHTML}<script>
-  setTimeout(() => {
-    if (typeof _trc20AutoPollActive !== "undefined" && _trc20AutoPollActive) {
-      window.toggleTrc20AutoPoll(true);
-    }
-  }, 1000);
-</script>
-</body></html>`);
+    </head><body>${content.innerHTML}</body></html>`);
   printWin.document.close();
   setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
 };
