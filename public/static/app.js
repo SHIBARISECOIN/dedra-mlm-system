@@ -417,7 +417,7 @@ const TRANSLATIONS = {
     bonusRoiIncome: '❄️ FREEZE ROI 수익',
     bonusDirectBonus: '👥 추천 매칭',
     bonusUnilevelBonus: '🌐 유니레벨 보너스',
-    bonusRankBonus: '🏆 직급 보너스',
+    bonusRankBonus: '🏆 추천리워드',
     bonusDefault: '보너스',
     bonusSettleDate: '정산일: ',
     bonusLevel: '단계',
@@ -3852,7 +3852,7 @@ async function loadTxHistory(typeFilter) {
     const typeLabel = {
       deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
       roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
-      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 직급 보너스',
+      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 추천리워드',
       rank_equal_or_higher_override_1pct: '🛡️ 예외(1%) 보너스',
       rank_equal_or_higher_override: '🛡️ 예외 보너스',
       center_fee: '🏢 센터 피'
