@@ -3979,7 +3979,7 @@ async function loadTxHistory(typeFilter) {
       } else {
         // Transaction specific
         if (item.type === 'invest') {
-          details = `만기: ${item.durationDays}일 (${item.dailyRate}%/일)`;
+          details = `만기: ${item.durationDays || 360}일 (${item.dailyRate || item.roiPercent || item.dailyRoi || 0.8}%/일) - ${item.status==='active'?'진행중':'종료'}`;
         } else {
           details = item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료됨');
         }
