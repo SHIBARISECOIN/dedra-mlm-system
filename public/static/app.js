@@ -5153,7 +5153,8 @@ window.renderCaveTree = async function() {
     const cHex = colorMap[(n.rank||'g0').toLowerCase()] || '#4b5563';
     const bg = isMe ? 'linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(30, 30, 40, 0.95))' : 'rgba(30, 30, 40, 0.95)';
     const border = isMe ? '2px solid #9d4edd' : `1px solid ${cHex.includes('gradient') ? '#f59e0b' : cHex}`;
-    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.id ? n.id.substring(0, 8).toUpperCase() : '***'}&backgroundColor=transparent`;
+    const displayId = n.username || (n.email ? n.email.split('@')[0] : (n.id ? n.id.substring(0, 8).toUpperCase() : '***'));
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayId}&backgroundColor=transparent`;
     const shadow = isPathNode ? '0 0 25px rgba(157, 78, 221, 0.4)' : '0 5px 15px rgba(0,0,0,0.3)';
     const opacity = isPathNode && pathIndex < window.cavePath.length - 1 ? '0.7' : '1';
     const transform = isPathNode && pathIndex < window.cavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
@@ -5180,7 +5181,7 @@ window.renderCaveTree = async function() {
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
         ${badgeHtml}
         <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
-             onclick="showNodeActionModal('${n.id}', '${(n.name||``).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
+             onclick="showNodeActionModal('${n.id}', '${(displayId).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
            <div style="position: relative; flex-shrink: 0; width:40px; height:40px;">
               <div style="width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden;">
                  <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
@@ -5189,7 +5190,7 @@ window.renderCaveTree = async function() {
               ${refBadge}
            </div>
            <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
-             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.id ? n.id.substring(0, 8).toUpperCase() : '***'}</div>
+             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayId}</div>
              <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2;">${n.rank||'G0'}</div>
            </div>
         </div>
@@ -5334,7 +5335,8 @@ window.renderCaveTree = async function() {
                  html += `<div style="width:2px; height:24px; background:rgba(157,78,221,0.5); margin:0; z-index:0;"></div>`;
                  html += buildNestedHtml(n.children, currentDepth + 1);
              } else if (n.hasMore || (n.children && n.children.length > 0)) {
-                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${(n.name||``).replace(/'/g, `\\'`)}', '${n.rank}', false, -1, '${n.referralCount || n.totalReferrals || 0}')">▼ 더보기 (${n.rank||'G0'})</div>`;
+                 const displayId = n.username || (n.email ? n.email.split('@')[0] : (n.id ? n.id.substring(0, 8).toUpperCase() : '***'));
+                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${(displayId).replace(/'/g, `\\'`)}', '${n.rank}', false, -1, '${n.referralCount || n.totalReferrals || 0}')">▼ 더보기 (${n.rank||'G0'})</div>`;
              }
              
              html += `</div>`;
@@ -7698,7 +7700,7 @@ async function _loadNepGenTab(contentEl, gen) {
       const todayEarn = todayMap[m.id] || 0;
       const totalDep  = totalDepMap[m.id] || 0;
       const rc        = rankColor[m.rank] || '#94a3b8';
-      const uid       = m.id.slice(0, 8).toUpperCase();
+      const uid = m.username || (m.email ? m.email.split('@')[0] : m.id.slice(0, 8).toUpperCase());
       const invList   = investMap[m.id] || [];
       // 상품 요약: 가장 큰 투자 상품명+데일리이율 (없으면 '-')
       const mainInv   = invList.sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
