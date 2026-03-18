@@ -3529,11 +3529,11 @@ function updateHomeUI() {
 
 
   const usdt = walletData.usdtBalance || 0;
+  const lockedUsdt = walletData.totalInvest || 0; // 투자된 원금 합계
   const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
   const p = deedraPrice || 0.5;
-  // 총 자산 = USDT 원금 + ROI 수익 (bonusBalance, USDT 기준)
-  // dedraBalance는 게임 전용 잔액으로 총자산에 포함하지 않음
-  const total = usdt + bonus;
+  // 총 자산 = 투자된 원금 + 잔여 USDT + ROI 수익 (bonusBalance, USDT 기준)
+  const total = lockedUsdt + usdt + bonus;
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
@@ -3567,7 +3567,7 @@ function updateHomeUI() {
       }
     }
   }
-  setEl('splitUsdt', privacyFmt(fmt(usdt), '', ' USDT'));
+  setEl('splitUsdt', privacyFmt(fmt(lockedUsdt), '', ' USDT'));
   // splitBonus: 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ ddraPrice
   // 즉, 달러 기준 수익을 출금 시점의 DDRA 시세로 환산
   const withdrawableDdra = bonus / p;
@@ -4747,7 +4747,7 @@ async function loadMyInvestments() {
 
     invests.forEach(inv => {
       sumItems.count++;
-      sumItems.total += inv.amount || 0;
+      sumItems.total += (inv.amount || inv.amountUsdt || 0);
       sumItems.returns += inv.expectedReturn || 0;
     });
 
@@ -4770,8 +4770,9 @@ async function loadMyInvestments() {
 
       // 일일 ROI 수익 D = 투자금 × roiPercent%
       // roiPercent: % 단위, dailyRoi: % 단위 (0.4 = 0.4%)
+      const amt = inv.amount || inv.amountUsdt || 0;
       const dailyRoiRate = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
-      const dailyD = inv.amount * dailyRoiRate;
+      const dailyD = amt * dailyRoiRate;
 
       return `
 
@@ -4786,7 +4787,7 @@ async function loadMyInvestments() {
           <span class="invest-item-name" style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:6px;">
              ${inv.productName || 'FREEZE'}
           </span>
-          <span class="invest-item-amount" style="font-size:16px; font-weight:800; color:var(--primary-light);">${fmt(inv.amount)}</span>
+          <span class="invest-item-amount" style="font-size:16px; font-weight:800; color:var(--primary-light);">${fmt(amt)}</span>
         </div>
         <div class="invest-item-detail" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
           <span>${t('dailyReturnLabel')} <strong style="color:var(--green)">+${fmt(dailyD)}</strong> (${(dailyRoiRate*100).toFixed(2)}%${t('perDay')})</span>
@@ -9125,10 +9126,29 @@ window.submitReinvest = async function() {
       
       if (curBonus < amount) throw "수익 잔액 부족";
       
+      // Reinvest adds to totalInvest instead of usdtBalance, and creates a new investment
       transaction.update(walletRef, {
         bonusBalance: Math.max(0, curBonus - amount),
-        usdtBalance: curUsdt + amount,
+        totalInvest: (wData.totalInvest || 0) + amount,
         updatedAt: serverTimestamp()
+      });
+      
+      const invRef = doc(collection(db, 'investments'));
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + 360 * 86400000);
+      transaction.set(invRef, {
+        userId: currentUser.uid, 
+        productId: 'reinvest',
+        productName: '재투자 (Reinvest)',
+        amount: amount,
+        amountUsdt: amount,
+        roiPercent: 0.8,
+        durationDays: 360,
+        expectedReturn: amount * 0.008,
+        status: 'active',
+        startDate: serverTimestamp(),
+        endDate: endDate,
+        createdAt: serverTimestamp()
       });
       
       transaction.set(newTxRef, {
@@ -9141,8 +9161,15 @@ window.submitReinvest = async function() {
       });
     });
     
+    if (walletData) {
+      walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) - amount);
+      walletData.totalInvest = (walletData.totalInvest || 0) + amount;
+    }
+    updateWalletUI();
+    if (typeof loadMyInvestments === 'function') loadMyInvestments();
+    
     closeModal('reinvestModal');
-    showToast(`$${fmt(amount)} USDT가 성공적으로 재투자 되었습니다!`, 'success');
+    showToast(`${fmt(amount)} USDT가 성공적으로 재투자 되었습니다!`, 'success');
   } catch (e) {
     console.error('재투자 에러:', e);
     showToast('처리 중 오류가 발생했습니다.', 'error');

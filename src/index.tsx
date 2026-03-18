@@ -2273,12 +2273,33 @@ async function runSettle(c: any, overrideDate?: string | null) {
         // 본인 지갑 업데이트
         const wallet = await fsGet(`wallets/${inv.userId}`, adminToken)
         const wData = wallet?.fields ? firestoreDocToObj(wallet) : {}
+        
+        const user = userMap.get(inv.userId) || {};
+        const isAuto = user.autoCompound === true || user.autoCompound === 'true';
+        
+        let newBonusBalance = (wData.bonusBalance || 0);
+        let newTotalInvest = (wData.totalInvest || 0);
+        let newAmount = principal;
+        let newExpectedReturn = inv.expectedReturn || 0;
+        
+        if (isAuto) {
+          newTotalInvest += dailyEarning;
+          newAmount += dailyEarning;
+          newExpectedReturn = newAmount * (dailyRoiPct / 100);
+        } else {
+          newBonusBalance += dailyEarning;
+        }
+
         await fsPatch(`wallets/${inv.userId}`, {
-          bonusBalance: Math.round(((wData.bonusBalance || 0) + dailyEarning) * 1e8) / 1e8,
+          bonusBalance: Math.round(newBonusBalance * 1e8) / 1e8,
+          totalInvest: Math.round(newTotalInvest * 1e8) / 1e8,
           totalEarnings: Math.round(((wData.totalEarnings || 0) + dailyEarning) * 1e8) / 1e8
         }, adminToken)
 
         await fsPatch(`investments/${inv.id}`, {
+          amount: Math.round(newAmount * 1e8) / 1e8,
+          amountUsdt: Math.round(newAmount * 1e8) / 1e8,
+          expectedReturn: Math.round(newExpectedReturn * 1e8) / 1e8,
           paidRoi: (inv.paidRoi || 0) + dailyEarning,
           lastSettledAt: new Date().toISOString()
         }, adminToken)
