@@ -81,6 +81,74 @@ app.post('/api/auth/register', async (c) => {
   })
 })
 
+// 추천인 코드 검증 API (비로그인 상태에서 Firestore 조회)
+
+// 아이디 중복 검증 API
+app.get('/api/auth/check-username', async (c) => {
+  const username = c.req.query('username');
+  if (!username) return c.json({ exists: false, error: 'Username required' }, 400);
+  
+  try {
+    const token = await getAdminToken();
+    const q = await fsQuery('users', token, [{
+      fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: username.trim().toLowerCase() } }
+    }], 1);
+    
+    if (q && q.length > 0) {
+      return c.json({ exists: true });
+    }
+    return c.json({ exists: false });
+  } catch (e: any) {
+    return c.json({ exists: false, error: e.message }, 500);
+  }
+})
+
+app.get('/api/auth/check-referral', async (c) => {
+  const code = c.req.query('code');
+  if (!code) return c.json({ valid: false, error: 'Code required' }, 400);
+  const cleanCode = code.trim();
+
+  try {
+    const token = await getAdminToken();
+    
+    // 1. 추천인 코드 (대문자)
+    let q = await fsQuery('users', token, [{
+      fieldFilter: { field: { fieldPath: 'referralCode' }, op: 'EQUAL', value: { stringValue: cleanCode.toUpperCase() } }
+    }], 1);
+    
+    // 2. 아이디 (소문자)
+    if (!q || q.length === 0) {
+      q = await fsQuery('users', token, [{
+        fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: cleanCode.toLowerCase() } }
+      }], 1);
+    }
+    
+    // 3. 아이디 (원래 입력값)
+    if (!q || q.length === 0) {
+      q = await fsQuery('users', token, [{
+        fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: cleanCode } }
+      }], 1);
+    }
+
+    if (q && q.length > 0) {
+      const user = q[0];
+      return c.json({
+        valid: true,
+        uid: user.id || user.uid || '',
+        name: user.name || '',
+        username: user.username || '',
+        email: user.email || ''
+      });
+    }
+    
+    return c.json({ valid: false, error: 'Not found' }, 404);
+  } catch (e: any) {
+    return c.json({ valid: false, error: e.message }, 500);
+  }
+})
+
+
+
 // 테스트 계정 생성 페이지
 app.get('/setup', (c) => c.html(SETUP_HTML()))
 
@@ -1145,7 +1213,8 @@ app.post('/api/admin/reset-member-password', async (c) => {
     if (adminSecret !== CRON_SECRET && !adminUid) {
         return c.json({ error: 'unauthorized' }, 401)
     }
-    if (!uid || !newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400)
+    if (!uid) return c.json({ error: '회원 정보(uid)가 누락되었습니다.' }, 400);
+    if (!newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400);
 
     const adminToken = await getAdminToken()
 
@@ -1517,13 +1586,14 @@ app.post('/api/solana/check-deposits', async (c) => {
     const signatures: any[] = rpcData.result || []
 
     let processed = 0
+
     for (const sig of signatures) {
       const txHash = sig.signature
       if (!txHash || sig.err) continue
 
       // 이미 처리된 tx인지 확인
       const existing = await fsQuery('transactions', adminToken)
-      const alreadyProcessed = existing.find((t: any) => t.txHash === txHash && t.status === 'approved')
+      const alreadyProcessed = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'approved')
       if (alreadyProcessed) continue
 
       // tx 상세 조회
@@ -1566,28 +1636,56 @@ app.post('/api/solana/check-deposits', async (c) => {
         }
       }
 
-      if (amount < 1) continue
+            if (amount < 1) continue
 
       // 해당 지갑으로 등록된 회원 찾기
       const users = await fsQuery('users', adminToken)
-      const matchedUser = users.find((u: any) =>
-        u.solanaWallet === fromAddress || u.depositWalletAddress === fromAddress
-      )
+      
+      // 1. Pending 트랜잭션 매칭 시도 (유저가 수동으로 입력한 TXID)
+      const pendingTx = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'pending' && t.type === 'deposit')
+      
+      let matchedUser = null;
+      let targetTxId = `sol_${txHash.slice(0, 20)}`;
+      let isUpdate = false;
+      
+      if (pendingTx) {
+          matchedUser = users.find((u: any) => u.id === pendingTx.userId);
+          targetTxId = pendingTx.id;
+          isUpdate = true;
+      } else {
+          matchedUser = users.find((u: any) =>
+            (u.solanaWallet && u.solanaWallet === fromAddress) || 
+            (u.depositWalletAddress && u.depositWalletAddress === fromAddress)
+          )
+      }
+
+      if (amount > 0 && !matchedUser) {
+              }
 
       if (matchedUser) {
-        const txId = `sol_${txHash.slice(0, 20)}`
-        await fsSet(`transactions/${txId}`, {
-          userId: matchedUser.id,
-          type: 'deposit',
-          amount,
-          amountUsdt: amount,
-          txHash,
-          status: 'approved',
-          source: 'solana_auto',
-          network: 'solana',
-          createdAt: new Date().toISOString(),
-          approvedAt: new Date().toISOString()
-        }, adminToken)
+        if (isUpdate) {
+            await fsPatch(`transactions/${targetTxId}`, {
+              amount,
+              amountUsdt: amount,
+              txHash,
+              status: 'approved',
+              approvedAt: new Date().toISOString()
+            }, adminToken)
+        } else {
+            await fsSet(`transactions/${targetTxId}`, {
+              userId: matchedUser.id,
+              userEmail: matchedUser.email || '',
+              type: 'deposit',
+              amount,
+              amountUsdt: amount,
+              txHash,
+              status: 'approved',
+              source: 'solana_auto',
+              network: 'solana',
+              createdAt: new Date().toISOString(),
+              approvedAt: new Date().toISOString()
+            }, adminToken)
+        }
 
         const wallet = await fsGet(`wallets/${matchedUser.id}`, adminToken)
         const currentBalance = wallet ? fromFirestoreValue(wallet.fields?.usdtBalance || { doubleValue: 0 }) : 0
@@ -1642,7 +1740,7 @@ app.post('/api/solana/check-deposits', async (c) => {
         processed++
       }
     }
-    return c.json({ success: true, processed, total: signatures.length, network: 'solana' })
+    return c.json({ success: true, processed, total: signatures.length, network: 'solana', })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }

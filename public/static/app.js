@@ -417,7 +417,7 @@ const TRANSLATIONS = {
     bonusRoiIncome: '❄️ FREEZE ROI 수익',
     bonusDirectBonus: '👥 추천 매칭',
     bonusUnilevelBonus: '🌐 유니레벨 보너스',
-    bonusRankBonus: '🏆 직급 보너스',
+    bonusRankBonus: '🏆 추천리워드',
     bonusDefault: '보너스',
     bonusSettleDate: '정산일: ',
     bonusLevel: '단계',
@@ -3192,7 +3192,7 @@ window.switchPage = function(page) {
     currentPage = page;
     
     // 메인(home) 화면에서만 새로고침 버튼 표시
-    const refreshBtn = document.getElementById('floatingRefreshBtn');
+    const refreshBtn = document.getElementById('floatingRefreshBtn'); if(refreshBtn)
     if (refreshBtn) {
         refreshBtn.style.display = (page === 'home') ? 'flex' : 'none';
     }
@@ -3301,7 +3301,7 @@ window.handleRegister = async function() {
   const email   = document.getElementById('regEmail').value.trim();
   const pw      = document.getElementById('regPassword').value;
   const country = document.getElementById('regCountry')?.value || '';
-  const refCode = document.getElementById('regReferral').value.trim().toUpperCase();
+  const refCode = document.getElementById('regReferral').value.trim();
 
   if (!name)    { showToast(t('registerEnterName'), 'warning'); return; }
   if (!phone)   { showToast(t('registerEnterPhone'), 'warning'); return; }
@@ -3317,13 +3317,22 @@ window.handleRegister = async function() {
 
   showScreen('loading');
   try {
+    // 아이디 중복 체크
+    const uRes = await fetch(`/api/auth/check-username?username=${encodeURIComponent(username)}`);
+    const uData = await uRes.json();
+    if (uData.exists) {
+      showScreen('auth');
+      showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.', 'error');
+      return;
+    }
+
     const { createUserWithEmailAndPassword, auth, doc, setDoc, db, serverTimestamp } = window.FB;
     const { user } = await createUserWithEmailAndPassword(auth, email, pw);
     const myCode = generateReferralCode(user.uid);
 
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid, username, email, name, role: 'member', rank: 'G0', status: 'active',
-      referralCode: myCode, referredBy: referrer.uid, referredByCode: refCode,
+      referralCode: myCode, referredBy: referrer.uid, referredByCode: referrer.referralCode || refCode,
       createdAt: serverTimestamp(), phone, country, withdrawPin: null,
     });
     await setDoc(doc(db, 'wallets', user.uid), {
@@ -3843,7 +3852,7 @@ async function loadTxHistory(typeFilter) {
     const typeLabel = {
       deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
       roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
-      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 직급 보너스',
+      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 추천리워드',
       rank_equal_or_higher_override_1pct: '🛡️ 예외(1%) 보너스',
       rank_equal_or_higher_override: '🛡️ 예외 보너스',
       center_fee: '🏢 센터 피'
@@ -4289,10 +4298,25 @@ window.showDepositModal = function() {
 async function loadCompanyWallet() {
   try {
     const { doc, getDoc, db } = window.FB;
-    const snap = await getDoc(doc(db, 'settings', 'wallets'));
+    // Check new structure first
+    const snapNew = await getDoc(doc(db, 'settings', 'companyWallets'));
     const addr = document.getElementById('companyWalletAddr');
-    if (snap.exists() && addr) addr.textContent = snap.data().trc20 || '주소 미설정 (관리자 문의)';
-  } catch {
+    if (!addr) return;
+    
+    if (snapNew.exists() && snapNew.data().wallets && snapNew.data().wallets.length > 0) {
+      addr.textContent = snapNew.data().wallets[0].address || '주소 미설정 (관리자 문의)';
+      return;
+    }
+    
+    // Fallback to old structure if not found
+    const snapOld = await getDoc(doc(db, 'settings', 'wallets'));
+    if (snapOld.exists()) {
+      addr.textContent = snapOld.data().trc20 || snapOld.data().solana || '주소 미설정 (관리자 문의)';
+    } else {
+      addr.textContent = '주소 미설정 (관리자 문의)';
+    }
+  } catch(e) {
+    console.error('loadCompanyWallet error:', e);
     const addr = document.getElementById('companyWalletAddr');
     if (addr) addr.textContent = '주소 로드 실패';
   }
@@ -5129,7 +5153,8 @@ window.renderCaveTree = async function() {
     const cHex = colorMap[(n.rank||'g0').toLowerCase()] || '#4b5563';
     const bg = isMe ? 'linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(30, 30, 40, 0.95))' : 'rgba(30, 30, 40, 0.95)';
     const border = isMe ? '2px solid #9d4edd' : `1px solid ${cHex.includes('gradient') ? '#f59e0b' : cHex}`;
-    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.name}&backgroundColor=transparent`;
+    const displayId = n.username || (n.email ? n.email.split('@')[0] : (n.id ? n.id.substring(0, 8).toUpperCase() : '***'));
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayId}&backgroundColor=transparent`;
     const shadow = isPathNode ? '0 0 25px rgba(157, 78, 221, 0.4)' : '0 5px 15px rgba(0,0,0,0.3)';
     const opacity = isPathNode && pathIndex < window.cavePath.length - 1 ? '0.7' : '1';
     const transform = isPathNode && pathIndex < window.cavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
@@ -5156,7 +5181,7 @@ window.renderCaveTree = async function() {
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
         ${badgeHtml}
         <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
-             onclick="showNodeActionModal('${n.id}', '${(n.name||``).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
+             onclick="showNodeActionModal('${n.id}', '${(displayId).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
            <div style="position: relative; flex-shrink: 0; width:40px; height:40px;">
               <div style="width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden;">
                  <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
@@ -5165,7 +5190,7 @@ window.renderCaveTree = async function() {
               ${refBadge}
            </div>
            <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
-             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.name}</div>
+             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayId}</div>
              <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2;">${n.rank||'G0'}</div>
            </div>
         </div>
@@ -5310,7 +5335,8 @@ window.renderCaveTree = async function() {
                  html += `<div style="width:2px; height:24px; background:rgba(157,78,221,0.5); margin:0; z-index:0;"></div>`;
                  html += buildNestedHtml(n.children, currentDepth + 1);
              } else if (n.hasMore || (n.children && n.children.length > 0)) {
-                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${(n.name||``).replace(/'/g, `\\'`)}', '${n.rank}', false, -1, '${n.referralCount || n.totalReferrals || 0}')">▼ 더보기 (${n.rank||'G0'})</div>`;
+                 const displayId = n.username || (n.email ? n.email.split('@')[0] : (n.id ? n.id.substring(0, 8).toUpperCase() : '***'));
+                 html += `<div style="margin-top:12px; font-size:11px; background:rgba(157,78,221,0.2); border:1px solid rgba(157,78,221,0.4); padding:6px 12px; border-radius:12px; color:#e2e8f0; cursor:pointer; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.2); transition:all 0.2s;" onmouseover="this.style.background='rgba(157,78,221,0.4)'" onmouseout="this.style.background='rgba(157,78,221,0.2)'" onclick="showNodeActionModal('${n.id}', '${(displayId).replace(/'/g, `\\'`)}', '${n.rank}', false, -1, '${n.referralCount || n.totalReferrals || 0}')">▼ 더보기 (${n.rank||'G0'})</div>`;
              }
              
              html += `</div>`;
@@ -6852,12 +6878,24 @@ function generateReferralCode(uid) {
 }
 
 async function findUserByReferralCode(code) {
-  const { collection, query, where, getDocs, limit, db } = window.FB;
   try {
-    const q = query(collection(db, 'users'), where('referralCode', '==', code));
-    const snap = await getDocs(q);
-    return snap.empty ? null : snap.docs[0].data();
-  } catch { return null; }
+    if (!code) return null;
+    const cleanCode = code.trim();
+    
+    // 백엔드 API를 통해 검증 (비로그인 상태에서도 조회 가능)
+    const res = await fetch(`/api/auth/check-referral?code=${encodeURIComponent(cleanCode)}`);
+    const data = await res.json();
+    
+    if (res.ok && data.valid) {
+      return {
+        uid: data.uid,
+        name: data.name,
+        username: data.username,
+        email: data.email
+      };
+    }
+    return null;
+  } catch (e) { console.error('findUser API error:', e); return null; }
 }
 
 function fmt(n) {
@@ -7182,7 +7220,7 @@ setTimeout(() => {
   const fill = () => {
     const input = document.getElementById('regReferral');
     if (input) {
-      input.value = ref.toUpperCase();
+      input.value = ref;
       input.dispatchEvent(new Event('input'));
       // X 버튼 표시
       const clearBtn = document.getElementById('refCodeClearBtn');
@@ -7192,7 +7230,7 @@ setTimeout(() => {
       if (registerTab && !registerTab.classList.contains('active')) {
         registerTab.click();
       }
-      showRefCodeHint(ref.toUpperCase());
+      showRefCodeHint(ref);
     }
   };
   if (document.readyState === 'loading') {
@@ -7239,13 +7277,62 @@ window.clearRefCode = function() {
   if (input) input.focus();
 };
 
+// 아이디 중복 실시간 검증
+document.addEventListener('DOMContentLoaded', () => {
+  const userInp = document.getElementById('regUsername');
+  if (!userInp) return;
+  
+  // 상태 메시지 표시할 요소 추가
+  let statusEl = document.getElementById('regUserStatus');
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'regUserStatus';
+    statusEl.style.cssText = 'font-size:12px; margin-top:4px; margin-left:4px;';
+    userInp.parentNode.appendChild(statusEl);
+  }
+
+  let uTimer = null;
+  userInp.addEventListener('input', (e) => {
+    let val = e.target.value.trim().toLowerCase();
+    // 아이디는 영문, 숫자만 허용되도록 정제 (선택사항, 일단 소문자 변환만 유지)
+    e.target.value = val;
+    
+    if (!val) { statusEl.textContent = ''; return; }
+    if (val.length < 4) { 
+      statusEl.textContent = '아이디는 4자 이상이어야 합니다.';
+      statusEl.style.color = '#ef4444';
+      return; 
+    }
+    
+    statusEl.textContent = '🔍 중복 확인 중...';
+    statusEl.style.color = '#a5b4fc';
+    
+    clearTimeout(uTimer);
+    uTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        if (data.exists) {
+          statusEl.textContent = '❌ 이미 사용 중인 아이디입니다.';
+          statusEl.style.color = '#ef4444';
+        } else {
+          statusEl.textContent = '✅ 사용 가능한 아이디입니다.';
+          statusEl.style.color = '#10b981';
+        }
+      } catch(err) {
+        statusEl.textContent = '';
+      }
+    }, 600);
+  });
+});
+
 // 추천인 코드 실시간 검증
 document.addEventListener('DOMContentLoaded', () => {
   const refInput = document.getElementById('regReferral');
   if (!refInput) return;
   let refTimer = null;
   refInput.addEventListener('input', (e) => {
-    const val = e.target.value.trim().toUpperCase();
+    const val = e.target.value.trim();
     e.target.value = val;
     const hintEl = document.getElementById('refCodeHint');
     const statusEl = document.getElementById('refCodeStatus');
@@ -7613,7 +7700,7 @@ async function _loadNepGenTab(contentEl, gen) {
       const todayEarn = todayMap[m.id] || 0;
       const totalDep  = totalDepMap[m.id] || 0;
       const rc        = rankColor[m.rank] || '#94a3b8';
-      const uid       = m.id.slice(0, 8).toUpperCase();
+      const uid = m.username || (m.email ? m.email.split('@')[0] : m.id.slice(0, 8).toUpperCase());
       const invList   = investMap[m.id] || [];
       // 상품 요약: 가장 큰 투자 상품명+데일리이율 (없으면 '-')
       const mainInv   = invList.sort((a, b) => (b.amount || 0) - (a.amount || 0))[0];
