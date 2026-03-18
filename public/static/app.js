@@ -5129,7 +5129,7 @@ window.renderCaveTree = async function() {
     const cHex = colorMap[(n.rank||'g0').toLowerCase()] || '#4b5563';
     const bg = isMe ? 'linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(30, 30, 40, 0.95))' : 'rgba(30, 30, 40, 0.95)';
     const border = isMe ? '2px solid #9d4edd' : `1px solid ${cHex.includes('gradient') ? '#f59e0b' : cHex}`;
-    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.name}&backgroundColor=transparent`;
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.id ? n.id.substring(0, 8).toUpperCase() : '***'}&backgroundColor=transparent`;
     const shadow = isPathNode ? '0 0 25px rgba(157, 78, 221, 0.4)' : '0 5px 15px rgba(0,0,0,0.3)';
     const opacity = isPathNode && pathIndex < window.cavePath.length - 1 ? '0.7' : '1';
     const transform = isPathNode && pathIndex < window.cavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
@@ -5165,7 +5165,7 @@ window.renderCaveTree = async function() {
               ${refBadge}
            </div>
            <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
-             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.name}</div>
+             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.id ? n.id.substring(0, 8).toUpperCase() : '***'}</div>
              <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2;">${n.rank||'G0'}</div>
            </div>
         </div>
