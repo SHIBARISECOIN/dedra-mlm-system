@@ -7703,11 +7703,15 @@ async function _loadNepGenTab(contentEl, gen) {
     for (const chunk of chunks) {
       if (!chunk.length) continue;
       try {
-        const wq = query(collection(db, 'wallets'), where('userId', 'in', chunk));
-        const wSnap = await getDocs(wq);
-        wSnap.docs.forEach(d => {
-          totalDepMap[d.data().userId || d.id] = (d.data().lockedBalance || 0);
-        });
+        const { doc, getDoc } = window.FB;
+        await Promise.all(chunk.map(async uid => {
+          try {
+            const d = await getDoc(doc(db, 'wallets', uid));
+            if (d.exists()) {
+              totalDepMap[uid] = (d.data().lockedBalance || 0);
+            }
+          } catch(e) {}
+        }));
       } catch (err) {}
     }
 
@@ -7739,11 +7743,12 @@ async function _loadNepGenTab(contentEl, gen) {
     for (const chunk of chunks) {
       if (!chunk.length) continue;
       try {
-        const invQ = query(collection(db, 'investments'), where('userId', 'in', chunk), where('status', '==', 'active'));
+        const invQ = query(collection(db, 'investments'), where('userId', 'in', chunk));
         const invSnap = await getDocs(invQ);
         invSnap.docs.forEach(d => {
           const data = d.data();
-          const uid = data.userId;
+          if (data.status !== 'active') return;
+          const uid = data.userId || d.id;
           if (!investMap[uid]) investMap[uid] = [];
           investMap[uid].push(data);
         });
@@ -7882,11 +7887,15 @@ async function _loadNepDeepTab(contentEl) {
     for (const chunk of chunks) {
       if (!chunk.length) continue;
       try {
-        const wQ = query(collection(db, 'wallets'), where('userId', 'in', chunk));
-        const wSnap = await getDocs(wQ);
-        wSnap.docs.forEach(d => {
-          totalSales += (d.data().lockedBalance || 0);
-        });
+        const { doc, getDoc } = window.FB;
+        await Promise.all(chunk.map(async uid => {
+          try {
+            const d = await getDoc(doc(db, 'wallets', uid));
+            if (d.exists()) {
+              totalSales += (d.data().lockedBalance || 0);
+            }
+          } catch(e) {}
+        }));
       } catch(_) {}
     }
 
