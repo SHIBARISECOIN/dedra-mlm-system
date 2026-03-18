@@ -3301,7 +3301,7 @@ window.handleRegister = async function() {
   const email   = document.getElementById('regEmail').value.trim();
   const pw      = document.getElementById('regPassword').value;
   const country = document.getElementById('regCountry')?.value || '';
-  const refCode = document.getElementById('regReferral').value.trim().toUpperCase();
+  const refCode = document.getElementById('regReferral').value.trim();
 
   if (!name)    { showToast(t('registerEnterName'), 'warning'); return; }
   if (!phone)   { showToast(t('registerEnterPhone'), 'warning'); return; }
@@ -7195,7 +7195,7 @@ setTimeout(() => {
   const fill = () => {
     const input = document.getElementById('regReferral');
     if (input) {
-      input.value = ref.toUpperCase();
+      input.value = ref;
       input.dispatchEvent(new Event('input'));
       // X 버튼 표시
       const clearBtn = document.getElementById('refCodeClearBtn');
@@ -7205,7 +7205,7 @@ setTimeout(() => {
       if (registerTab && !registerTab.classList.contains('active')) {
         registerTab.click();
       }
-      showRefCodeHint(ref.toUpperCase());
+      showRefCodeHint(ref);
     }
   };
   if (document.readyState === 'loading') {
@@ -7258,7 +7258,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!refInput) return;
   let refTimer = null;
   refInput.addEventListener('input', (e) => {
-    const val = e.target.value.trim().toUpperCase();
+    const val = e.target.value.trim();
     e.target.value = val;
     const hintEl = document.getElementById('refCodeHint');
     const statusEl = document.getElementById('refCodeStatus');
