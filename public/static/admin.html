@@ -7763,7 +7763,7 @@ function setupEvents() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     adminUid: currentAdmin?.uid || '',
-                    memberId: currentMember.id,
+                    uid: currentMember.id, memberId: currentMember.id,
                     newPassword: newPw,
                     reason: reason || '관리자 임시 변경'
                 })

@@ -1145,7 +1145,8 @@ app.post('/api/admin/reset-member-password', async (c) => {
     if (adminSecret !== CRON_SECRET && !adminUid) {
         return c.json({ error: 'unauthorized' }, 401)
     }
-    if (!uid || !newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400)
+    if (!uid) return c.json({ error: '회원 정보(uid)가 누락되었습니다.' }, 400);
+    if (!newPassword || newPassword.length < 6) return c.json({ error: '비밀번호는 6자 이상이어야 합니다.' }, 400);
 
     const adminToken = await getAdminToken()
 
