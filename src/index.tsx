@@ -1565,13 +1565,14 @@ app.post('/api/solana/check-deposits', async (c) => {
     const signatures: any[] = rpcData.result || []
 
     let processed = 0
+
     for (const sig of signatures) {
       const txHash = sig.signature
       if (!txHash || sig.err) continue
 
       // 이미 처리된 tx인지 확인
       const existing = await fsQuery('transactions', adminToken)
-      const alreadyProcessed = existing.find((t: any) => t.txHash === txHash && t.status === 'approved')
+      const alreadyProcessed = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'approved')
       if (alreadyProcessed) continue
 
       // tx 상세 조회
@@ -1614,28 +1615,56 @@ app.post('/api/solana/check-deposits', async (c) => {
         }
       }
 
-      if (amount < 1) continue
+            if (amount < 1) continue
 
       // 해당 지갑으로 등록된 회원 찾기
       const users = await fsQuery('users', adminToken)
-      const matchedUser = users.find((u: any) =>
-        u.solanaWallet === fromAddress || u.depositWalletAddress === fromAddress
-      )
+      
+      // 1. Pending 트랜잭션 매칭 시도 (유저가 수동으로 입력한 TXID)
+      const pendingTx = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'pending' && t.type === 'deposit')
+      
+      let matchedUser = null;
+      let targetTxId = `sol_${txHash.slice(0, 20)}`;
+      let isUpdate = false;
+      
+      if (pendingTx) {
+          matchedUser = users.find((u: any) => u.id === pendingTx.userId);
+          targetTxId = pendingTx.id;
+          isUpdate = true;
+      } else {
+          matchedUser = users.find((u: any) =>
+            (u.solanaWallet && u.solanaWallet === fromAddress) || 
+            (u.depositWalletAddress && u.depositWalletAddress === fromAddress)
+          )
+      }
+
+      if (amount > 0 && !matchedUser) {
+              }
 
       if (matchedUser) {
-        const txId = `sol_${txHash.slice(0, 20)}`
-        await fsSet(`transactions/${txId}`, {
-          userId: matchedUser.id,
-          type: 'deposit',
-          amount,
-          amountUsdt: amount,
-          txHash,
-          status: 'approved',
-          source: 'solana_auto',
-          network: 'solana',
-          createdAt: new Date().toISOString(),
-          approvedAt: new Date().toISOString()
-        }, adminToken)
+        if (isUpdate) {
+            await fsPatch(`transactions/${targetTxId}`, {
+              amount,
+              amountUsdt: amount,
+              txHash,
+              status: 'approved',
+              approvedAt: new Date().toISOString()
+            }, adminToken)
+        } else {
+            await fsSet(`transactions/${targetTxId}`, {
+              userId: matchedUser.id,
+              userEmail: matchedUser.email || '',
+              type: 'deposit',
+              amount,
+              amountUsdt: amount,
+              txHash,
+              status: 'approved',
+              source: 'solana_auto',
+              network: 'solana',
+              createdAt: new Date().toISOString(),
+              approvedAt: new Date().toISOString()
+            }, adminToken)
+        }
 
         const wallet = await fsGet(`wallets/${matchedUser.id}`, adminToken)
         const currentBalance = wallet ? fromFirestoreValue(wallet.fields?.usdtBalance || { doubleValue: 0 }) : 0
@@ -1690,7 +1719,7 @@ app.post('/api/solana/check-deposits', async (c) => {
         processed++
       }
     }
-    return c.json({ success: true, processed, total: signatures.length, network: 'solana' })
+    return c.json({ success: true, processed, total: signatures.length, network: 'solana', })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
