@@ -40,14 +40,15 @@ service cloud.firestore {
 
     // investments: 본인 또는 관리자/보조계정
     match /investments/{docId} {
-      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdminOrSubAdmin());
+      allow read: if isLoggedIn();
       allow create: if isLoggedIn();
       allow update, delete: if isAdminOrSubAdmin();
     }
 
     // wallets: 본인 또는 관리자/보조계정
     match /wallets/{userId} {
-      allow read, write: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
     }
 
     // gamelogs: 본인 쓰기, 관리자/보조계정 읽기/쓰기
@@ -59,7 +60,7 @@ service cloud.firestore {
 
     // bonuses: 본인 또는 관리자/보조계정
     match /bonuses/{docId} {
-      allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdminOrSubAdmin());
+      allow read: if isLoggedIn();
       allow write: if isAdminOrSubAdmin();
     }
 
