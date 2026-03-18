@@ -1,0 +1,65 @@
+name: DEEDRA CRON Jobs
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+    - cron: '0 * * * *'
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: '실행할 작업'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - settle
+          - broadcast
+          - solana
+
+jobs:
+  daily-settle:
+    name: ROI 일일 정산
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'settle' || github.event.inputs.job == 'all')) ||
+      github.event.schedule == '0 0 * * *'
+    steps:
+      - name: ROI 정산 실행
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -m 55 \
+            -X POST "https://deedra.pages.dev/api/cron/settle" \
+            -H "x-cron-secret: deedra-cron-2026" \
+            -H "Content-Type: application/json")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "HTTP: $HTTP_CODE / $BODY"
+
+  hourly-broadcast:
+    name: 예약 브로드캐스트
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'broadcast' || github.event.inputs.job == 'all')) ||
+      github.event.schedule == '0 * * * *'
+    steps:
+      - name: 브로드캐스트 처리
+        run: |
+          curl -s -m 30 \
+            -X POST "https://deedra.pages.dev/api/cron/process-scheduled" \
+            -H "x-cron-secret: deedra-cron-2026" \
+            -H "Content-Type: application/json"
+
+  solana-check:
+    name: Solana USDT 입금 확인
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'solana' || github.event.inputs.job == 'all')) ||
+      github.event.schedule == '*/5 * * * *'
+    steps:
+      - name: Solana 입금 확인
+        run: |
+          curl -s -m 30 \
+            -X POST "https://deedra.pages.dev/api/solana/check-deposits" \
+            -H "x-cron-secret: deedra-cron-2026" \
+            -H "Content-Type: application/json"
