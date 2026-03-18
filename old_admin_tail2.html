@@ -1,0 +1,50 @@
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    wrap2.innerHTML = `<div style="color:#ef4444;padding:12px;">오류: ${e.message}</div>`;
+  }
+}
+window.loadSubAdminListPage = loadSubAdminListPage;
+
+window.toggleSubAdminPage = async function(id, active) {
+  if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) { showToast('🚫 관리자 전용 기능입니다.','error'); return; }
+  await updateDoc(doc(db,'subAdmins',id), { isActive: active });
+  loadSubAdminListPage();
+  showToast(`✅ 계정 ${active?'활성화':'비활성화'} 완료`,'success');
+};
+window.deleteSubAdminPage = async function(id) {
+  if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) { showToast('🚫 관리자 전용 기능입니다.','error'); return; }
+  if (!await _adminConfirm('이 보조계정을 삭제하시겠습니까?','🗑️')) return;
+  await deleteDoc(doc(db,'subAdmins',id));
+  loadSubAdminListPage();
+  showToast('✅ 보조계정 삭제 완료','success');
+};
+
+// 보조계정 메뉴 권한에서 subadmins 항상 제외
+const _origApplyPerms = window._applySubAdminMenuPerms;
+
+
+</script>
+</div><!-- /adminMain -->
+
+<!-- Admin Confirm Modal -->
+<div id="adminConfirmModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border-radius:18px;padding:28px 24px 20px;width:90%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);text-align:center;">
+    <div id="adminConfirmIcon" style="font-size:38px;margin-bottom:12px;">⚠️</div>
+    <div id="adminConfirmMsg" style="color:#f1f5f9;font-size:15px;font-weight:600;margin-bottom:22px;line-height:1.6;word-break:keep-all;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="adminConfirmCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#94a3b8;font-size:14px;font-weight:600;cursor:pointer;">취소</button>
+      <button id="adminConfirmOk" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">확인</button>
+    </div>
+  </div>
+</div>
+<script>
+  setTimeout(() => {
+    if (typeof _trc20AutoPollActive !== "undefined" && _trc20AutoPollActive) {
+      window.toggleTrc20AutoPoll(true);
+    }
+  }, 1000);
+</script>
+</body>
+</html>
