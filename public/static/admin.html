@@ -11298,7 +11298,7 @@ window.copyCronUrl = function() {
 // TRC20 입금 자동 감지
 // ══════════════════════════════════════════════════
 let _trc20AutoPollInterval = null;
-let _trc20AutoPollActive   = false;
+let _trc20AutoPollActive   = localStorage.getItem('deedra_trc20_autopoll') === 'true';
 
 // Solana USDT 입금 확인 실행
 window.checkTrc20Deposits = async function() {
@@ -11344,21 +11344,32 @@ window.checkTrc20Deposits = async function() {
 };
 
 // Solana 자동 폴링 토글 (5분 간격)
-window.toggleTrc20AutoPoll = function() {
+window.toggleTrc20AutoPoll = function(isInit = false) {
   const btn = document.getElementById('trc20AutoPollBtn');
-  if (_trc20AutoPollActive) {
-    clearInterval(_trc20AutoPollInterval);
+  
+  if (!isInit) {
+      _trc20AutoPollActive = !_trc20AutoPollActive;
+      localStorage.setItem('deedra_trc20_autopoll', _trc20AutoPollActive);
+  }
+
+  if (!_trc20AutoPollActive) {
+    if (_trc20AutoPollInterval) clearInterval(_trc20AutoPollInterval);
     _trc20AutoPollInterval = null;
-    _trc20AutoPollActive   = false;
-    if (btn) btn.textContent = '⏱ 자동감지 OFF';
-    if (btn) btn.style.background = '#4f46e5';
-    showToast('⏹ Solana 자동 감지를 중지했습니다.');
+    if (btn) {
+        btn.textContent = '⏱ 자동감지 OFF';
+        btn.style.background = '#4f46e5';
+    }
+    if (!isInit) showToast('⏹ Solana 자동 감지를 중지했습니다.');
   } else {
-    _trc20AutoPollActive = true;
-    if (btn) btn.textContent = '⏱ 자동감지 ON (5분)';
-    if (btn) btn.style.background = '#ef4444';
-    showToast('▶ Solana 자동 감지 시작 (5분 간격)');
-    window.checkTrc20Deposits();
+    if (btn) {
+        btn.textContent = '⏱ 자동감지 ON (5분)';
+        btn.style.background = '#ef4444';
+    }
+    if (!isInit) showToast('▶ Solana 자동 감지 시작 (5분 간격)');
+    
+    if (_trc20AutoPollInterval) clearInterval(_trc20AutoPollInterval);
+    
+    if (!isInit) window.checkTrc20Deposits();
     _trc20AutoPollInterval = setInterval(() => {
       window.checkTrc20Deposits();
     }, 5 * 60 * 1000);
@@ -14777,7 +14788,14 @@ window.exportIdReportPDF = function() {
     <title>ID 분석 리포트</title>
     <style>body{font-family:-apple-system,sans-serif;padding:24px;color:#111827;font-size:13px;}
     table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #e5e7eb;}</style>
-    </head><body>${content.innerHTML}</body></html>`);
+    </head><body>${content.innerHTML}<script>
+  setTimeout(() => {
+    if (typeof _trc20AutoPollActive !== "undefined" && _trc20AutoPollActive) {
+      window.toggleTrc20AutoPoll(true);
+    }
+  }, 1000);
+</script>
+</body></html>`);
   printWin.document.close();
   setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
 };
@@ -14880,5 +14898,12 @@ const _origApplyPerms = window._applySubAdminMenuPerms;
     </div>
   </div>
 </div>
+<script>
+  setTimeout(() => {
+    if (typeof _trc20AutoPollActive !== "undefined" && _trc20AutoPollActive) {
+      window.toggleTrc20AutoPoll(true);
+    }
+  }, 1000);
+</script>
 </body>
 </html>
