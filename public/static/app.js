@@ -4341,7 +4341,7 @@ window.submitDeposit = async function() {
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     await addDoc(collection(db, 'transactions'), {
-      userId: currentUser.uid, userEmail: currentUser.email,
+      userId: currentUser.uid, userEmail: currentUser.email || null,
       type: 'deposit', amount, currency: 'USDT', txid, memo,
       status: 'pending', createdAt: serverTimestamp(),
     });
@@ -4451,7 +4451,7 @@ window.submitWithdraw = async function() {
 
     const txRef = doc(collection(db, 'transactions'));
     batch.set(txRef, {
-      userId: currentUser.uid, userEmail: currentUser.email,
+      userId: currentUser.uid, userEmail: currentUser.email || null,
       type: 'withdrawal',
       amountDdra: ddrAmt,          // 신청 DDRA 수량
       amountUsdt: amountUsdt,      // USDT 환산
@@ -4472,11 +4472,13 @@ window.submitWithdraw = async function() {
 
     await batch.commit();
 
-    // 로컬 walletData 즉시 반영
-    if (walletData) {
-      walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) - amountUsdt);
-      walletData.totalWithdrawal = (walletData.totalWithdrawal || 0) + amountUsdt;
-    }
+    try {
+      // 로컬 walletData 즉시 반영
+      if (walletData) {
+        walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) - amountUsdt);
+        walletData.totalWithdrawal = (walletData.totalWithdrawal || 0) + amountUsdt;
+      }
+    } catch(e) { console.error('Wallet update error', e); }
 
     closeModal('withdrawModal');
     const feeMsg = feeAmount > 0 ? ` (${t('fee') || '수수료'} ${fmt(feeAmount)} DDRA)` : '';
@@ -4486,7 +4488,8 @@ window.submitWithdraw = async function() {
     document.getElementById('withdrawPin').value = '';
     // 지갑 UI 갱신
     updateWalletUI();
-    loadTransactions();
+    if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(activeTab ? activeTab.dataset.filter : 'all'); }
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
@@ -4908,7 +4911,8 @@ window.submitInvest = async function() {
     loadMyInvestments();
     // 지갑 UI 즉시 갱신
     updateWalletUI();
-    loadTransactions();
+    if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(activeTab ? activeTab.dataset.filter : 'all'); }
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
@@ -6166,7 +6170,7 @@ function logGame(gameName, win, bet) {
     // gamelogs 컬렉션에 기록
     addDoc(collection(db, 'gamelogs'), {
       userId: currentUser.uid,
-      userEmail: currentUser.email,
+      userEmail: currentUser.email || null,
       game: gameName,
       win,
       bet,
@@ -6674,7 +6678,7 @@ window.submitTicket = async function() {
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     await addDoc(collection(db, 'tickets'), {
-      userId: currentUser.uid, userEmail: currentUser.email,
+      userId: currentUser.uid, userEmail: currentUser.email || null,
       title, content, status: 'open', createdAt: serverTimestamp(),
     });
     document.getElementById('ticketTitle').value = '';
