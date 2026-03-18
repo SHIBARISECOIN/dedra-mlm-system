@@ -3323,7 +3323,7 @@ window.handleRegister = async function() {
 
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid, username, email, name, role: 'member', rank: 'G0', status: 'active',
-      referralCode: myCode, referredBy: referrer.uid, referredByCode: refCode,
+      referralCode: myCode, referredBy: referrer.uid, referredByCode: referrer.referralCode || refCode,
       createdAt: serverTimestamp(), phone, country, withdrawPin: null,
     });
     await setDoc(doc(db, 'wallets', user.uid), {
@@ -6854,9 +6854,22 @@ function generateReferralCode(uid) {
 async function findUserByReferralCode(code) {
   const { collection, query, where, getDocs, limit, db } = window.FB;
   try {
-    const q = query(collection(db, 'users'), where('referralCode', '==', code));
-    const snap = await getDocs(q);
-    return snap.empty ? null : snap.docs[0].data();
+    // 1. 추천인 코드로 검색
+    const q1 = query(collection(db, 'users'), where('referralCode', '==', code));
+    const snap1 = await getDocs(q1);
+    if (!snap1.empty) return snap1.docs[0].data();
+    
+    // 2. 아이디(username)로 검색 (username은 소문자로 저장됨)
+    const q2 = query(collection(db, 'users'), where('username', '==', code.toLowerCase()));
+    const snap2 = await getDocs(q2);
+    if (!snap2.empty) return snap2.docs[0].data();
+    
+    // 3. 혹시 모를 대소문자 그대로의 아이디 검색
+    const q3 = query(collection(db, 'users'), where('username', '==', code));
+    const snap3 = await getDocs(q3);
+    if (!snap3.empty) return snap3.docs[0].data();
+    
+    return null;
   } catch { return null; }
 }
 
