@@ -7017,7 +7017,7 @@ function getDaysLaterStr(days) {
 }
 
 function getTxTypeName(type) {
-  const map = { deposit: 'USDT 입금', withdrawal: 'DEEDRA 출금', bonus: '보너스 지급', invest: 'FREEZE 신청', game: '게임', referral: '추천 보너스' };
+  const map = { deposit: 'USDT 입금', withdrawal: 'DEEDRA 출금', bonus: '보너스 지급', invest: 'FREEZE 신청', game: '게임', referral: '추천 보너스', rank_bonus: '판권 매칭', rank_gap_passthru: '예외 보너스', direct_bonus: '추천 매칭', daily_roi: '데일리 수익', center_fee: '센터 피' };
   return map[type] || type;
 }
 
@@ -7510,17 +7510,46 @@ async function _loadNepSummary() {
   const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
-    // ── 전체 사용자 로드 (캐시) ──
-    if (!_nepAllUsers || !_nepAllUsers.length) {
+    let allUsers = _nepAllUsers || [];
+    if (!allUsers.length) {
       try {
         const snap = await getDocs(collection(db, 'users'));
-        _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _nepAllUsers = allUsers;
       } catch (rulesErr) {
-        console.warn('[NEP] users 로드 권한 없음:', rulesErr.message);
-        _nepAllUsers = null;
+        console.warn('[NEP] fallback to manual recursive fetch due to rules error:', rulesErr.message);
+        
+        // Fallback: Recursive query for gen1, gen2, gen3
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', currentUser.uid));
+        const snap1 = await getDocs(q1);
+        const gen1 = snap1.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        let gen2 = [];
+        if (gen1.length > 0) {
+          const gen1Ids = gen1.map(u => u.id);
+          for (let i = 0; i < gen1Ids.length; i += 10) {
+            const chunk = gen1Ids.slice(i, i + 10);
+            const q2 = query(collection(db, 'users'), where('referredBy', 'in', chunk));
+            const snap2 = await getDocs(q2);
+            gen2.push(...snap2.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        }
+        
+        let gen3 = [];
+        if (gen2.length > 0) {
+          const gen2Ids = gen2.map(u => u.id);
+          for (let i = 0; i < gen2Ids.length; i += 10) {
+            const chunk = gen2Ids.slice(i, i + 10);
+            const q3 = query(collection(db, 'users'), where('referredBy', 'in', chunk));
+            const snap3 = await getDocs(q3);
+            gen3.push(...snap3.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        }
+        
+        allUsers = [...gen1, ...gen2, ...gen3];
+        _nepAllUsers = allUsers; // cache it
       }
     }
-    const allUsers = _nepAllUsers || [];
 
     // ── 대수별 멤버 분류 (BFS) ──
     const genMap = {}; // uid → generation number
@@ -7620,26 +7649,37 @@ async function _loadNepTxTab(contentEl) {
   const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
-    // 단일 where만 사용 (복합 인덱스 불필요)
-    const q = query(
-      collection(db, 'transactions'),
-      where('userId', '==', currentUser.uid)
-    );
-    const snap = await getDocs(q);
-    const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    // 단일 where만 사용
+    const qTx = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), limit(30));
+    const qBonus = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), limit(30));
+    
+    const [snapTx, snapBonus] = await Promise.all([getDocs(qTx), getDocs(qBonus)]);
+    
+    let allData = [
+      ...snapTx.docs.map(d => ({ id: d.id, ...d.data() })),
+      ...snapBonus.docs.map(d => ({ id: d.id, ...d.data(), isBonus: true }))
+    ];
+    
+    // 네트워크 수익 관련 항목만 필터링 (선택적)
+    // tx는 출금/입금, bonus는 추천매칭, 판권매칭 등
+    const txs = allData.sort((a, b) => {
+      const aTime = a.createdAt?.seconds || (new Date(a.settlementDate||0).getTime()/1000) || 0;
+      const bTime = b.createdAt?.seconds || (new Date(b.settlementDate||0).getTime()/1000) || 0;
+      return bTime - aTime;
+    });
 
     if (!txs.length) {
       contentEl.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i><br>${t('emptyTx')}</div>`;
       return;
     }
 
-    const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
+    const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮', direct_bonus: '👥', rank_bonus: '🏆', rank_gap_passthru: '🛡️', daily_roi: '☀️' };
     const statusTxt = { pending: t('statusPending'), approved: t('statusApproved'), rejected: t('statusRejected') };
     const statusColor = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
 
     contentEl.innerHTML = txs.map(tx => {
-      const isPlus = ['deposit', 'bonus'].includes(tx.type);
+      if (tx.isBonus) tx.amount = tx.amountUsdt || tx.amount || 0;
+      const isPlus = ['deposit', 'bonus', 'rank_bonus', 'direct_bonus', 'daily_roi', 'center_fee', 'rank_gap_passthru'].includes(tx.type);
       const sc = statusColor[tx.status] || '#94a3b8';
       return `
       <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -7649,7 +7689,7 @@ async function _loadNepTxTab(contentEl) {
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:600;color:var(--text,#f1f5f9);">${getTxTypeName(tx.type)}</div>
-          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">${fmtDate(tx.createdAt)}</div>
+          <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">${tx.settlementDate || fmtDate(tx.createdAt)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div style="font-size:14px;font-weight:700;color:${isPlus ? '#10b981' : '#f87171'};">
@@ -7674,16 +7714,46 @@ async function _loadNepGenTab(contentEl, gen) {
   const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
-    if (!_nepAllUsers || !_nepAllUsers.length) {
+    let allUsers = _nepAllUsers || [];
+    if (!allUsers.length) {
       try {
         const snap = await getDocs(collection(db, 'users'));
-        _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _nepAllUsers = allUsers;
       } catch (rulesErr) {
-        console.warn('[NEP] users 권한 없음:', rulesErr.message);
-        _nepAllUsers = null;
+        console.warn('[NEP] fallback to manual recursive fetch due to rules error:', rulesErr.message);
+        
+        // Fallback: Recursive query for gen1, gen2, gen3
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', currentUser.uid));
+        const snap1 = await getDocs(q1);
+        const gen1 = snap1.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        let gen2 = [];
+        if (gen1.length > 0) {
+          const gen1Ids = gen1.map(u => u.id);
+          for (let i = 0; i < gen1Ids.length; i += 10) {
+            const chunk = gen1Ids.slice(i, i + 10);
+            const q2 = query(collection(db, 'users'), where('referredBy', 'in', chunk));
+            const snap2 = await getDocs(q2);
+            gen2.push(...snap2.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        }
+        
+        let gen3 = [];
+        if (gen2.length > 0) {
+          const gen2Ids = gen2.map(u => u.id);
+          for (let i = 0; i < gen2Ids.length; i += 10) {
+            const chunk = gen2Ids.slice(i, i + 10);
+            const q3 = query(collection(db, 'users'), where('referredBy', 'in', chunk));
+            const snap3 = await getDocs(q3);
+            gen3.push(...snap3.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        }
+        
+        allUsers = [...gen1, ...gen2, ...gen3];
+        _nepAllUsers = allUsers; // cache it
       }
     }
-    const allUsers = _nepAllUsers || [];
 
     // gen1: referredBy == 나 / gen2: referredBy ∈ gen1 ids
     let members = [];
@@ -7849,16 +7919,46 @@ async function _loadNepDeepTab(contentEl) {
   const { collection, query, where, getDocs, limit, db } = window.FB;
 
   try {
-    if (!_nepAllUsers || !_nepAllUsers.length) {
+    let allUsers = _nepAllUsers || [];
+    if (!allUsers.length) {
       try {
         const snap = await getDocs(collection(db, 'users'));
-        _nepAllUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        _nepAllUsers = allUsers;
       } catch (rulesErr) {
-        console.warn('[NEP] users 권한 없음:', rulesErr.message);
-        _nepAllUsers = null;
+        console.warn('[NEP] fallback to manual recursive fetch due to rules error:', rulesErr.message);
+        
+        // Fallback: Recursive query for gen1, gen2, gen3
+        const q1 = query(collection(db, 'users'), where('referredBy', '==', currentUser.uid));
+        const snap1 = await getDocs(q1);
+        const gen1 = snap1.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        let gen2 = [];
+        if (gen1.length > 0) {
+          const gen1Ids = gen1.map(u => u.id);
+          for (let i = 0; i < gen1Ids.length; i += 10) {
+            const chunk = gen1Ids.slice(i, i + 10);
+            const q2 = query(collection(db, 'users'), where('referredBy', 'in', chunk));
+            const snap2 = await getDocs(q2);
+            gen2.push(...snap2.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        }
+        
+        let gen3 = [];
+        if (gen2.length > 0) {
+          const gen2Ids = gen2.map(u => u.id);
+          for (let i = 0; i < gen2Ids.length; i += 10) {
+            const chunk = gen2Ids.slice(i, i + 10);
+            const q3 = query(collection(db, 'users'), where('referredBy', 'in', chunk));
+            const snap3 = await getDocs(q3);
+            gen3.push(...snap3.docs.map(d => ({ id: d.id, ...d.data() })));
+          }
+        }
+        
+        allUsers = [...gen1, ...gen2, ...gen3];
+        _nepAllUsers = allUsers; // cache it
       }
     }
-    const allUsers = _nepAllUsers || [];
 
     const genMap = {};
     let queue = allUsers.filter(u => u.referredBy === currentUser.uid && u.role !== 'admin');
