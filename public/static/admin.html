@@ -1091,6 +1091,7 @@ canvas{width:100% !important;}
     <div class="menu-item" data-page="deposits" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💰</span>입금 관리</div> <span id="badge-deposits" style="background:var(--orange);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="withdrawals" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💸</span>출금 관리</div> <span id="badge-withdrawals" style="background:var(--red);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="bonus"><span class="menu-icon">🎁</span>보너스 지급</div>
+    <div class="menu-item" data-page="manualAdjust"><span class="menu-icon">✍️</span>임의 입금 관리</div>
 
     <div class="sidebar-section">상품·운용</div>
     <div class="menu-item" data-page="products"><span class="menu-icon">🛍️</span>상품 관리</div>
@@ -1673,7 +1674,64 @@ canvas{width:100% !important;}
     <!-- ══════════════════════════════
          공지사항 관리
     ══════════════════════════════ -->
-    <div id="noticesPage" class="page">
+    
+    <!-- ══════════════════════════════
+         임의 입금 관리
+    ══════════════════════════════ -->
+    <div id="manualAdjustPage" class="page">
+      <div class="page-title">임의 입금/차감 관리</div>
+      <div class="page-desc">영업/마케팅 목적으로 회원에게 코인(USDT/보너스/등)을 임의로 지급하거나 회수합니다. 이 내역은 출금 신청 시 경고로 표시됩니다.</div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">✍️ 임의 조정 실행</span></div>
+        <div style="padding:24px;">
+          <div id="maAlert" class="inline-alert"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div class="form-group">
+              <label class="form-label">회원 ID (UID 또는 이메일)</label>
+              <input class="form-input" id="maUserId" placeholder="회원 아이디, 이메일, UID 입력">
+            </div>
+            <div class="form-group">
+              <label class="form-label">조정 대상 지갑</label>
+              <select class="form-input" id="maWalletType">
+                <option value="usdtBalance">USDT 잔액</option>
+                <option value="bonusBalance">보너스 잔액</option>
+                <option value="lockedBalance">투자 (FREEZE) 금액</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div class="form-group">
+              <label class="form-label">조정 금액 (+/-)</label>
+              <div style="display:flex;gap:8px;">
+                <select class="form-input" id="maSign" style="width:80px;font-weight:bold;">
+                  <option value="add" style="color:blue;">+ 지급</option>
+                  <option value="sub" style="color:red;">- 차감</option>
+                </select>
+                <input type="number" class="form-input" id="maAmount" placeholder="0.00" min="0.01" style="flex:1;">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">메모 / 사유</label>
+              <input class="form-input" id="maReason" placeholder="예: 마케팅 특별 지원금">
+            </div>
+          </div>
+          <button class="btn btn-primary" id="maSubmitBtn" onclick="window.submitManualAdjust()">🚀 임의 조정 실행</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📋 처리 내역</span>
+          <button class="btn btn-gray btn-sm" onclick="window.loadManualAdjustLogs()">새로고침</button>
+        </div>
+        <div id="maLogWrap">
+           <div class="empty-state">내역을 불러오는 중...</div>
+        </div>
+      </div>
+    </div>
+
+<div id="noticesPage" class="page">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
         <div>
           <div class="page-title" style="margin-bottom:4px;">📢 공지사항</div>
@@ -5541,7 +5599,10 @@ async function loadDeposits(status = 'pending') {
         wrap.innerHTML = `<div class="table-wrap"><table>
           <thead><tr><th>회원 ID</th><th>금액 (USDT)</th><th>TXID</th><th>신청일</th><th>상태</th><th>작업</th></tr></thead>
           <tbody>${rows.map(r=>`<tr>
-            <td><strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
+            <td>
+                <strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong>
+                ${(window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit) ? '<div style="margin-top:4px;"><span style="background:#ef4444;color:#fff;font-size:10px;padding:2px 5px;border-radius:4px;box-shadow:0 2px 4px rgba(239,68,68,0.3);"><i class="fas fa-exclamation-triangle"></i> 임의입금 이력</span></div>' : ''}
+              </td>
             <td><strong style="color:var(--success)">${r.amount?.toFixed(2)}</strong></td>
             <td title="${r.txid||''}"><code style="font-size:11px;">${(r.txid||'없음').substring(0,16)}${r.txid?.length>16?'...':''}</code></td>
             <td>${fmtDate(r.createdAt)}</td>
@@ -5619,7 +5680,8 @@ async function loadWithdrawals(status = 'pending') {
             if (!dAmt && r.amountUsdt && r.dedraRateAtTime) dAmt = r.amountUsdt * r.dedraRateAtTime;
             const amtDedra = dAmt ? dAmt.toFixed(4) : '-';
             const rateText = r.dedraRateAtTime ? ` (${r.dedraRateAtTime})` : '';
-            return `<tr>
+            const hasMa = (window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit);
+            return `<tr style="${hasMa ? 'background:rgba(239,68,68,0.05);' : ''}">
               <td><strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
               <td><strong style="color:var(--danger)">${amtUsdt}</strong></td>
               <td>${amtDedra !== '-' ? `<strong style="color:#6366f1;">${amtDedra}</strong><span style="font-size:10px;color:#94a3b8;">${rateText}</span>` : '-'}</td>
@@ -7027,18 +7089,22 @@ window.showWithdrawalDetail = async (txId) => {
     } catch(e) {}
 
     // 회원 정보
-    let memberName = currentTx.userId, memberPhone = '';
+    let memberName = currentTx.userId, memberPhone = '', hasMa = false;
     try {
         const userSnap = await getDoc(doc(db,'users',currentTx.userId));
         if (userSnap.exists()) {
             const ud = userSnap.data();
             memberName  = ud.name  || memberName;
             memberPhone = ud.phone || '';
+            hasMa = ud.hasManualDeposit === true;
         }
     } catch(e) {}
 
     const subEl = document.getElementById('wdModalSubtitle');
-    if (subEl) subEl.textContent = memberName + ' • ' + fmtDate(currentTx.createdAt);
+    if (subEl) {
+        subEl.innerHTML = memberName + ' • ' + fmtDate(currentTx.createdAt) + 
+            (hasMa ? ' <span style="background:#ef4444;color:#fff;font-size:10px;padding:2px 4px;border-radius:4px;margin-left:4px;">⚠️ 임의입금 주의</span>' : '');
+    }
 
     const amountUsdt = currentTx.amountUsdt || currentTx.amount || 0;
     const amountDdra = currentTx.amount || 0;
@@ -7166,7 +7232,7 @@ window.showMemberDetail = async (userId) => {
     const rank  = currentMember.rank  || 'G0';
     const status= currentMember.status|| 'active';
 
-    document.getElementById('me_headerName').textContent  = name;
+    document.getElementById('me_headerName').innerHTML = name + (currentMember.hasManualDeposit ? ' <span style="background:#ef4444;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;vertical-align:middle;">⚠️ 임의입금 주의</span>' : '');
     document.getElementById('me_headerEmail').textContent = email;
     document.getElementById('me_headerRank').textContent  = rank;
 
@@ -14837,7 +14903,175 @@ window.exportIdReportPDF = function() {
     <title>ID 분석 리포트</title>
     <style>body{font-family:-apple-system,sans-serif;padding:24px;color:#111827;font-size:13px;}
     table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #e5e7eb;}</style>
-    </head><body>${content.innerHTML}</body></html>`);
+    </head><body>${content.innerHTML}
+<script>
+// ==========================================
+// 임의 입금/차감 관리 (Manual Adjust)
+// ==========================================
+window.submitManualAdjust = async function() {
+    const uidOrEmail = document.getElementById('maUserId').value.trim();
+    const walletType = document.getElementById('maWalletType').value;
+    const sign = document.getElementById('maSign').value;
+    const amountStr = document.getElementById('maAmount').value.trim();
+    const reason = document.getElementById('maReason').value.trim();
+    const alertEl = document.getElementById('maAlert');
+    
+    alertEl.style.display = 'none';
+    const showErr = (msg) => { alertEl.textContent = msg; alertEl.className = 'inline-alert error'; alertEl.style.display = 'block'; };
+    const showSuc = (msg) => { alertEl.textContent = msg; alertEl.className = 'inline-alert success'; alertEl.style.display = 'block'; };
+
+    if (!uidOrEmail) return showErr('회원 ID 또는 이메일을 입력하세요.');
+    if (!amountStr || isNaN(amountStr) || Number(amountStr) <= 0) return showErr('올바른 금액을 입력하세요.');
+    if (!reason) return showErr('메모/사유를 입력하세요.');
+
+    const amount = Number(amountStr);
+    const adjAmt = sign === 'add' ? amount : -amount;
+
+    const btn = document.getElementById('maSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = '처리 중...';
+
+    try {
+        const { collection, query, where, getDocs, doc, getDoc, runTransaction, serverTimestamp } = window.FB;
+        let targetUserId = uidOrEmail;
+        let targetUserEmail = '';
+        
+        // 1. 유저 찾기 (UID 조회 후 없으면 Email 조회)
+        let userSnap = await getDoc(doc(window.db, 'users', uidOrEmail));
+        if (!userSnap.exists()) {
+            const q = query(collection(window.db, 'users'), where('email', '==', uidOrEmail));
+            const qs = await getDocs(q);
+            if (qs.empty) {
+                const q2 = query(collection(window.db, 'users'), where('username', '==', uidOrEmail));
+                const qs2 = await getDocs(q2);
+                if (qs2.empty) throw new Error('해당 회원을 찾을 수 없습니다.');
+                targetUserId = qs2.docs[0].id;
+                targetUserEmail = qs2.docs[0].data().email;
+            } else {
+                targetUserId = qs.docs[0].id;
+                targetUserEmail = qs.docs[0].data().email;
+            }
+        } else {
+            targetUserEmail = userSnap.data().email;
+        }
+
+        // 2. 트랜잭션으로 잔액 업데이트 및 이력 남기기
+        await runTransaction(window.db, async (t) => {
+            const walletRef = doc(window.db, 'wallets', targetUserId);
+            const userRef = doc(window.db, 'users', targetUserId);
+            const txRef = doc(collection(window.db, 'transactions'));
+            
+            const wSnap = await t.get(walletRef);
+            if (!wSnap.exists()) throw new Error('회원 지갑 정보가 없습니다.');
+            
+            const wData = wSnap.data();
+            const currentBal = wData[walletType] || 0;
+            const newBal = currentBal + adjAmt;
+            if (newBal < 0) throw new Error('차감 시 잔액이 0보다 작아질 수 없습니다. 현재 잔액: ' + currentBal);
+
+            // 지갑 업데이트
+            t.update(walletRef, { [walletType]: newBal });
+            
+            // 회원 플래그 업데이트
+            t.update(userRef, { hasManualDeposit: true });
+            
+            // 내역 생성
+            t.set(txRef, {
+                type: 'manual_adjust',
+                userId: targetUserId,
+                userEmail: targetUserEmail,
+                amount: adjAmt,
+                walletType: walletType,
+                reason: reason,
+                createdAt: serverTimestamp(),
+                adminId: (window.currentUser ? window.currentUser.uid : 'admin')
+            });
+        });
+
+        showSuc('임의 조정이 성공적으로 처리되었습니다.');
+        document.getElementById('maAmount').value = '';
+        document.getElementById('maReason').value = '';
+        window.loadManualAdjustLogs();
+        
+    } catch(err) {
+        console.error(err);
+        showErr(err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 임의 조정 실행';
+    }
+};
+
+window.loadManualAdjustLogs = async function() {
+    const wrap = document.getElementById('maLogWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="spinner" style="margin:20px auto;"></div>';
+    
+    try {
+        const { collection, query, where, orderBy, getDocs, limit } = window.FB;
+        const q = query(
+            collection(window.db, 'transactions'),
+            where('type', '==', 'manual_adjust'),
+            limit(50)
+        );
+        const snap = await getDocs(q);
+        
+        let rows = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        rows.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+        
+        if (!rows.length) {
+            wrap.innerHTML = '<div class="empty-state">내역이 없습니다.</div>';
+            return;
+        }
+
+        const walletMap = {
+            'usdtBalance': 'USDT',
+            'bonusBalance': '보너스',
+            'lockedBalance': '투자(FREEZE)'
+        };
+
+        wrap.innerHTML = '<div class="table-wrap"><table>' +
+            '<thead><tr>' +
+            '<th>일시</th>' +
+            '<th>회원</th>' +
+            '<th>지갑</th>' +
+            '<th>조정 금액</th>' +
+            '<th>사유/메모</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows.map(r => {
+                const isAdd = r.amount > 0;
+                const cColor = isAdd ? 'color:#2563eb' : 'color:#ef4444';
+                const sign = isAdd ? '+' : '';
+                return '<tr>' +
+                    '<td>' + window.fmtDate(r.createdAt) + '</td>' +
+                    '<td><strong style="color:#2563eb;">' + window.formatUserLabel(r.userId, r.userEmail) + '</strong></td>' +
+                    '<td>' + (walletMap[r.walletType] || r.walletType) + '</td>' +
+                    '<td><strong style="' + cColor + '">' + sign + r.amount + '</strong></td>' +
+                    '<td>' + (r.reason || '-') + '</td>' +
+                '</tr>';
+            }).join('') + '</tbody></table></div>';
+            
+    } catch(err) {
+        console.error(err);
+        wrap.innerHTML = '<div class="empty-state">불러오기 실패: ' + err.message + '</div>';
+    }
+};
+
+// 메뉴 전환 시 자동 로드
+document.addEventListener('DOMContentLoaded', () => {
+    // wait a bit for FB to initialize
+    setTimeout(() => {
+        const maBtn = document.querySelector('.menu-item[data-page="manualAdjust"]');
+        if (maBtn) {
+            maBtn.addEventListener('click', () => {
+                window.loadManualAdjustLogs();
+            });
+        }
+    }, 1500);
+});
+</script>
+</body>
+</html>`);
   printWin.document.close();
   setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
 };
