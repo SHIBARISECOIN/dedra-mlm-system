@@ -2505,7 +2505,7 @@ async function fetchForexRates() {
       _fxFetchedAt = now;
       return _fxRates;
     }
-  } catch (_) {}
+  } catch(e) { console.error("Error fetching (catch _):", e); }
   // 폴백: 하드코딩 기본값
   return { KRW: 1380, THB: 34, VND: 26000, USD: 1 };
 }
@@ -3195,7 +3195,7 @@ function showScreen(name) {
 
 window.switchPage = function(page) {
   try {
-    try { sessionStorage.setItem('lastPage', page); } catch(e) {}
+    try { sessionStorage.setItem('lastPage', page); } catch(e) { console.error("Error fetching wallet/investment:", e); }
     
     // Hide all pages and remove active class from all nav items
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -3888,29 +3888,59 @@ async function loadTxHistory(typeFilter) {
       const snap = await getDocs(q);
       const fetchedTxs = snap.docs.map(d => ({ id: d.id, _collection: 'transactions', ...d.data() }));
       txs = txs.concat(fetchedTxs);
+      
+      // Also fetch from investments collection for 'invest' or 'all'
+      if (['all', 'invest'].includes(typeFilter)) {
+        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(50));
+        const invSnap = await getDocs(invQ);
+        const fetchedInvs = invSnap.docs.map(d => ({
+          id: d.id,
+          _collection: 'investments',
+          type: 'invest', // mapped type
+          amount: d.data().amount,
+          createdAt: d.data().createdAt || d.data().startDate,
+          ...d.data()
+        }));
+        txs = txs.concat(fetchedInvs);
+      }
     }
 
     // Fetch Bonuses
     if (['all', 'invest', 'matching', 'centerFee', 'rankBonus'].includes(typeFilter)) {
-      let q = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), limit(50));
-      const snap = await getDocs(q);
-      let fetchedBonuses = snap.docs.map(d => ({ id: d.id, _collection: 'bonuses', ...d.data() }));
-      
-      // Filter bonuses based on tab
+      let qList = [];
       if (typeFilter === 'invest') {
-        // Only daily profits (ROI)
-        fetchedBonuses = fetchedBonuses.filter(b => (b.type === 'roi_income' || b.type === 'roi'));
+        qList = [
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'daily_roi'), limit(50))
+        ];
       } else if (typeFilter === 'matching') {
-        // 추천 매칭: 오직 직추천(1대 10%, 2대 5%) 매칭만 표시
-        fetchedBonuses = fetchedBonuses.filter(b => b.type === 'direct_bonus');
+        qList = [
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(50))
+        ];
       } else if (typeFilter === 'rankBonus') {
-        // 판권 매칭: 직급차 수당 관련 항목들만 표시
-        fetchedBonuses = fetchedBonuses.filter(b => b.type === 'rank_bonus' || b.type === 'rank_gap_passthru' || b.type === 'rank_equal_or_higher_override_1pct' || b.type === 'rank_equal_or_higher_override');
+        qList = [
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(50)),
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(20)),
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(20)),
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(20))
+        ];
       } else if (typeFilter === 'centerFee') {
-        fetchedBonuses = fetchedBonuses.filter(b => b.type === 'center_fee');
+        qList = [
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(50))
+        ];
+      } else {
+        qList = [
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'daily_roi'), limit(20)),
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(20)),
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(20)),
+          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(10))
+        ];
       }
-      
-      txs = txs.concat(fetchedBonuses);
+
+      for (const q of qList) {
+        const snap = await getDocs(q);
+        const fetchedBonuses = snap.docs.map(d => ({ id: d.id, _collection: 'bonuses', ...d.data() }));
+        txs = txs.concat(fetchedBonuses);
+      }
     }
 
     // Sort combined list descending
@@ -3925,7 +3955,7 @@ async function loadTxHistory(typeFilter) {
     // Unified render
     const typeLabel = {
       deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
-      roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
+      roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', daily_roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
       unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 판권 매칭',
       rank_equal_or_higher_override_1pct: '🛡️ 예외(1%) 보너스',
       rank_equal_or_higher_override: '🛡️ 예외 보너스',
@@ -7539,10 +7569,10 @@ async function _loadNepSummary() {
 
     // ── 내 보너스 전체 조회 (단일 where) → JS에서 날짜·fromUserId 필터 ──
     let todayGen1 = 0, todayGen2 = 0, todayGen3 = 0;
+    let totalRankBonusEarned = 0;
     try {
       const myBonusQ = query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid));
       const myBonusSnap = await getDocs(myBonusQ);
-      let totalRankBonusEarned = 0;
       myBonusSnap.docs.forEach(d => {
         const data = d.data();
         const t = data.type;
@@ -7703,16 +7733,12 @@ async function _loadNepGenTab(contentEl, gen) {
     for (const chunk of chunks) {
       if (!chunk.length) continue;
       try {
-        const { doc, getDoc } = window.FB;
-        await Promise.all(chunk.map(async uid => {
-          try {
-            const d = await getDoc(doc(db, 'wallets', uid));
-            if (d.exists()) {
-              totalDepMap[uid] = (d.data().lockedBalance || 0);
-            }
-          } catch(e) {}
-        }));
-      } catch (err) {}
+        const wq = query(collection(db, 'wallets'), where('userId', 'in', chunk));
+        const wSnap = await getDocs(wq);
+        wSnap.docs.forEach(d => {
+          totalDepMap[d.data().userId || d.id] = (d.data().lockedBalance || 0);
+        });
+      } catch(e) { console.error("Error fetching (catch err):", e); }
     }
 
     // 당일 내가 받은 보너스 중 fromUserId가 이 멤버인 것
@@ -7887,15 +7913,11 @@ async function _loadNepDeepTab(contentEl) {
     for (const chunk of chunks) {
       if (!chunk.length) continue;
       try {
-        const { doc, getDoc } = window.FB;
-        await Promise.all(chunk.map(async uid => {
-          try {
-            const d = await getDoc(doc(db, 'wallets', uid));
-            if (d.exists()) {
-              totalSales += (d.data().lockedBalance || 0);
-            }
-          } catch(e) {}
-        }));
+        const wQ = query(collection(db, 'wallets'), where('userId', 'in', chunk));
+        const wSnap = await getDocs(wQ);
+        wSnap.docs.forEach(d => {
+          totalSales += (d.data().lockedBalance || 0);
+        });
       } catch(_) {}
     }
 
