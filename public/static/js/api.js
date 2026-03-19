@@ -2239,6 +2239,8 @@ export class DedraAPI {
     if (!userSnap.exists()) return;
     const member = { id: userSnap.id, ...userSnap.data() };
     if (member.role === 'admin') return;
+    // 관리자가 수동으로 직급을 지정한 회원은 자동 승격 심사에서 제외
+    if (member.manualRankSet) return;
 
     const curRank = member.rank || 'G0';
     const curIdx  = RANK_ORDER.indexOf(curRank);
@@ -2307,9 +2309,12 @@ export class DedraAPI {
       // 균형 매출 조건: minBalancedVolume > 0 이면 체크, 0이면 무조건 통과
       const bvRequired = (c.minBalancedVolume || 0) > 0;
 
-      const passes = mode === 'any'
-        ? (meetsInvest || meetsSales || (bvRequired && meetsBV) || meetsMembers)
-        : (meetsInvest && meetsSales && (!bvRequired || meetsBV) && meetsMembers);
+      // ──────────────────────────────────────────────────────────
+      // [요청사항 적용] 직급 승격은 오직 "본인 투자금"과 "균형 매출" 2가지만 봅니다.
+      // 산하 총 매출(meetsSales)이나 하부 인원수(meetsMembers)는 조건에서 무시합니다.
+      // 수동 승격된 유저는 여기서 제외되도록 이 함수 시작부분에 처리됨.
+      // ──────────────────────────────────────────────────────────
+      const passes = meetsInvest && meetsBV;
 
       if (passes) {
         if (i > bestIdx) { bestRank = rankKey; bestIdx = i; }
@@ -2350,6 +2355,39 @@ export class DedraAPI {
    * 승진 조건에 맞는 회원을 찾아 자동 승격
    * @returns {{ upgraded: number, details: Array }}
    */
+  
+  async runRankAllClear(adminId) {
+    try {
+      const db = this.db;
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const members = usersSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(u => u.role !== 'admin');
+
+      let changedCount = 0;
+      // 1. 모든 회원의 직급을 G0으로 강등 (수동 설정자 제외 여부: "관리자가 강제로 주입시킨 거는 제외" -> 수동 설정자는 초기화 안함)
+      const chunks = [];
+      for (let i = 0; i < members.length; i += 500) chunks.push(members.slice(i, i + 500));
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        let hasOps = false;
+        for (const u of chunk) {
+          if (!u.manualRankSet && u.rank !== 'G0') {
+            batch.update(doc(db, 'users', u.id), { rank: 'G0' });
+            hasOps = true;
+            changedCount++;
+          }
+        }
+        if (hasOps) await batch.commit();
+      }
+
+      // 2. 전체 재계산 실행
+      await this.runBatchRankPromotion(adminId);
+
+      return ok(`초기화 후 전체 재심사 완료! (초기화된 일반 회원: ${changedCount}명)`);
+    } catch(e) { return err(e); }
+  }
+
   async runBatchRankPromotion(adminId) {
     try {
       const db = this.db;

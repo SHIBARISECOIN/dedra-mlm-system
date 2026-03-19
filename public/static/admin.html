@@ -1895,6 +1895,7 @@ canvas{width:100% !important;}
       <div class="page-title">직급 모니터</div>
       <div class="page-desc" style="display:flex;justify-content:space-between;align-items:center;">
         <span>전체 회원 직급 현황 및 승격 대상자 확인</span>
+        <button class="btn btn-danger btn-sm" id="runRankAllClearBtn" style="margin-right:8px;">⚠️ 전직원 직급 초기화 및 재심사</button>
         <button class="btn btn-primary btn-sm" id="runAutoUpgradeBtn">⚡ 자동 승격 실행</button>
       </div>
 
@@ -7369,6 +7370,7 @@ window.showMemberDetail = async (userId) => {
     saveBtn.onclick = async () => {
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;"></span> 저장 중...';
+        const rankValue = document.getElementById('rankSelect').value;
         const updates = {
             name:         document.getElementById('me_name').value.trim(),
             phone:        document.getElementById('me_phone').value.trim(),
@@ -7378,8 +7380,12 @@ window.showMemberDetail = async (userId) => {
             referredBy:   document.getElementById('me_referredBy').value.trim(),
             adminMemo:    document.getElementById('me_memo').value.trim(),
             status:       document.getElementById('me_status').value,
-            rank:         document.getElementById('rankSelect').value,
+            rank:         rankValue,
         };
+        // 관리자가 직급을 직접 변경한 경우 자동 승격에서 제외
+        if (currentMember.rank && currentMember.rank !== rankValue) {
+            updates.manualRankSet = true;
+        }
         if (!updates.name) {
             alertEl.className = 'malert error show';
             alertEl.innerHTML = '⚠️ 이름은 필수입니다.';
