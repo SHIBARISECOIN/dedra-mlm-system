@@ -2178,6 +2178,55 @@ app.post('/api/admin/unlock-settlement', async (c) => {
   }
 })
 
+
+app.get('/api/admin/temp-report', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const invs = await fsQuery('investments', adminToken, [], 5000);
+    const bonuses = await fsQuery('bonuses', adminToken, [], 10000);
+    
+    // Filter bonuses for today (type: roi)
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayBonuses = bonuses.filter((b: any) => 
+      b.type === 'roi' && 
+      b.createdAt && 
+      String(b.createdAt).startsWith(todayStr)
+    );
+
+    const userMap: any = {};
+    for (const b of todayBonuses) {
+      if (!userMap[b.userId]) userMap[b.userId] = { totalRoiUsdt: 0, days: [] };
+      userMap[b.userId].totalRoiUsdt += (b.amountUsdt || 0);
+      
+      const reasonMatch = (b.reason || '').match(/(\d+)일치/);
+      if (reasonMatch) userMap[b.userId].days.push(parseInt(reasonMatch[1]));
+    }
+
+    const activeInvs = invs.filter((i: any) => i.status === 'active');
+    for (const inv of activeInvs) {
+      if (!userMap[inv.userId]) continue;
+      userMap[inv.userId].principal = (userMap[inv.userId].principal || 0) + (inv.amountUsdt || inv.amount || 0);
+    }
+
+    const results = Object.keys(userMap).map(uid => {
+      const d = userMap[uid];
+      const principal = d.principal || 0;
+      const ratio = principal > 0 ? (d.totalRoiUsdt / principal) * 100 : 0;
+      return {
+        userId: uid,
+        principal: principal,
+        payout: d.totalRoiUsdt,
+        ratio: ratio.toFixed(2) + '%',
+        daysApplied: d.days.join(',')
+      };
+    }).sort((a, b) => b.payout - a.payout);
+
+    return c.json({ success: true, results, totalPaidToday: todayBonuses.reduce((s:number, b:any)=>s+(b.amountUsdt||0),0) });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
 app.post('/api/admin/run-settlement', async (c) => {
   try {
     const body = await c.req.json().catch(() => ({})) as any
@@ -2418,6 +2467,10 @@ async function runSettle(c: any, overrideDate?: string | null) {
         }
 
         // 3. [판권 매칭 보너스] (Rank Gap Roll-up)
+        // [옵션]: 재원이 되는 하부 데일리 수익 비율 (기본 100%)
+        const matchingBaseRatio = config.matchingBaseRatio !== undefined ? config.matchingBaseRatio : 100
+        const baseAmount = dailyEarning * (matchingBaseRatio / 100)
+
         let currentNode = sourceUser
         let previousRank = getRankLevel(sourceUser.rank || 'G0')
         let rollUpDepth = 1
@@ -2428,26 +2481,24 @@ async function runSettle(c: any, overrideDate?: string | null) {
 
           const parentRank = getRankLevel(parent.rank || 'G0')
 
-          // 예외 조항: 1대 직속 하급자(sourceUser)가 부모와 동급이거나 직급이 높은 경우
+          // 예외 조항: 1대 직속 하급자(sourceUser)가 부모와 동급이거나 직급이 높은 경우 (추월/동급)
           if (currentNode.id === sourceUser.id && previousRank >= parentRank) {
-            // 직속 하급자 본인의 데일리 수익에 대해 딱 1%만 지급 (역전/동급 예외)
-            if (parentRank > 0) { // 직급이 G1 이상인 경우에만
-              await payMatchingBonus(parent.id, 'rank_equal_or_higher_override_1pct', dailyEarning * (config.override / 100), `동급/상위 직속 예외 ${config.override}% (기준: ${sourceUser.name})`, rollUpDepth)
+            // 직속 스폰서에게 설정된 override % (예: 1%)만 지급하고 해당 라인 롤업 완전 단절
+            if (parentRank > 0) { // 스폰서가 직급이 있는 경우에만
+              await payMatchingBonus(parent.id, 'rank_equal_or_higher_override_1pct', baseAmount * (config.override / 100), `동급/상위 직속 예외 ${config.override}% (기준: ${sourceUser.name})`, rollUpDepth)
             }
-            // 더 이상의 깊은 판권 매칭은 이 라인에서 올라가지 않음 (차단)
-            currentNode = parent
-            rollUpDepth++
-            continue
+            // ★ 나를 초월해서 위로 올라가지 않음 (완전 단절)
+            break
           }
 
-          // 일반 롤업 조항: 부모 직급이 현재까지 지급된 최고 직급(previousRank)보다 높을 경우
+          // 일반 롤업 조항: 부모 직급이 현재까지 지급된 최고 직급(previousRank)보다 높을 경우 (차액 계산)
           if (parentRank > 0 && parentRank > previousRank) {
             const rankGap = parentRank - previousRank
-            // 갭 1단계당 1% (rankGap / 100)
-            const gapBonus = dailyEarning * (rankGap * config.rankGap / 100)
+            // 갭 1단계당 config.rankGap% (예: 단계당 10%)
+            const gapBonus = baseAmount * (rankGap * config.rankGap / 100)
             await payMatchingBonus(parent.id, 'rank_bonus', gapBonus, `판권 매칭 ${rankGap * config.rankGap}% (기준: ${sourceUser.name})`, rollUpDepth)
             
-            previousRank = parentRank // 최고 직급 갱신
+            previousRank = parentRank // 지급된 최고 직급 갱신 (차액 보존)
           }
 
           currentNode = parent
