@@ -2828,7 +2828,22 @@ export default {
     console.log("cron triggered:", event.cron);
     
     ctx.waitUntil((async () => {
+      // ----- 자동 입금 체크 (매 분 실행) -----
       try {
+        console.log("Running auto-deposit check...");
+        const solanaRes = await app.request('/api/solana/check-deposits', {
+          method: 'POST',
+          headers: { 'x-cron-secret': CRON_SECRET, 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        }, env);
+        const txt = await solanaRes.text();
+        console.log("Auto-deposit check result:", txt);
+      } catch(e) {
+        console.error("Auto-deposit error:", e);
+      }
+      
+      try {
+
         const adminToken = await getAdminToken();
         const settings = await fsGet('settings/rates', adminToken);
         
