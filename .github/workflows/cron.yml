@@ -20,13 +20,12 @@ on:
 
 jobs:
   daily-settle:
-    name: ROI 일일 정산
+    name: ROI 일일 정산 수동실행
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'settle' || github.event.inputs.job == 'all')) ||
-      github.event.schedule == '0 0 * * *'
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'settle' || github.event.inputs.job == 'all'))
     steps:
-      - name: ROI 정산 실행
+      - name: ROI 정산 강제 실행
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -m 55 \
             -X POST "https://deedra.pages.dev/api/cron/settle" \
@@ -51,7 +50,7 @@ jobs:
             -H "Content-Type: application/json"
 
   solana-check:
-    name: Solana USDT 입금 확인
+    name: Solana 입금 및 5분주기 트리거
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'solana' || github.event.inputs.job == 'all')) ||
@@ -63,3 +62,8 @@ jobs:
             -X POST "https://deedra.pages.dev/api/solana/check-deposits" \
             -H "x-cron-secret: deedra-cron-2026" \
             -H "Content-Type: application/json"
+      - name: 자동정산 시간 체크 및 트리거
+        run: |
+          curl -s -m 55 \
+            -X GET "https://deedra.pages.dev/api/cron/trigger" \
+            -H "x-cron-secret: deedra-cron-2026"
