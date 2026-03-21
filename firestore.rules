@@ -21,6 +21,12 @@ service cloud.firestore {
     }
 
     // 로그인 여부 확인
+
+    function isActiveUser() {
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return user != null && user.data.status == 'active';
+    }
+
     function isLoggedIn() {
       return request.auth != null;
     }
@@ -28,27 +34,48 @@ service cloud.firestore {
     // users: 본인 또는 관리자/보조계정
     match /users/{userId} {
       allow read: if isLoggedIn();
-      allow write: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
+      allow create: if isLoggedIn() && request.auth.uid == userId;
+      allow update: if isLoggedIn() && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'rank', 'status', 'totalInvest', 'totalEarnings'])) ||
+        isAdminOrSubAdmin()
+      );
+      allow delete: if isAdminOrSubAdmin();
     }
 
     // transactions: 본인 또는 관리자/보조계정
     match /transactions/{docId} {
       allow read: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdminOrSubAdmin());
-      allow create: if isLoggedIn();
+      allow create: if isAdminOrSubAdmin() || (isLoggedIn() && isActiveUser() && 
+                    request.resource.data.userId == request.auth.uid &&
+                    (request.resource.data.type != 'withdrawal' || 
+                      (request.resource.data.amount > 0 && 
+                       get(/databases/$(database)/documents/wallets/$(request.auth.uid)).data.bonusBalance >= request.resource.data.amountUsdt)));
       allow update, delete: if isAdminOrSubAdmin();
     }
 
     // investments: 본인 또는 관리자/보조계정
     match /investments/{docId} {
       allow read: if isLoggedIn();
-      allow create: if isLoggedIn();
+      allow create: if isAdminOrSubAdmin() || (isLoggedIn() && 
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.amount > 0 &&
+                    get(/databases/$(database)/documents/wallets/$(request.auth.uid)).data.usdtBalance >= request.resource.data.amount);
       allow update, delete: if isAdminOrSubAdmin();
     }
 
     // wallets: 본인 또는 관리자/보조계정
     match /wallets/{userId} {
       allow read: if isLoggedIn();
-      allow write: if isLoggedIn() && (request.auth.uid == userId || isAdminOrSubAdmin());
+      allow write: if (
+        (!request.resource.data.keys().hasAll(['bonusBalance']) || request.resource.data.bonusBalance >= 0) &&
+        (!request.resource.data.keys().hasAll(['usdtBalance']) || request.resource.data.usdtBalance >= 0) &&
+        (!request.resource.data.keys().hasAll(['dedraBalance']) || request.resource.data.dedraBalance >= 0)
+      ) && (
+        isAdminOrSubAdmin() || (
+          isLoggedIn() && isActiveUser() && 
+          request.auth.uid == userId
+        )
+      );
     }
 
     // gamelogs: 본인 쓰기, 관리자/보조계정 읽기/쓰기
