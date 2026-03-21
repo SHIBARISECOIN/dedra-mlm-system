@@ -4072,23 +4072,44 @@ app.post('/api/translate/announcement', async (c) => {
 
 
 
-// Upbit Ticker Proxy
+// Upbit Ticker Proxy with in-memory caching and fallback
+let tickerCache: any = {};
+let lastTickerFetch = 0;
+
 app.get('/api/upbit-ticker', async (c) => {
   try {
     const markets = c.req.query('markets');
     if (!markets) return c.json([]);
     
+    const now = Date.now();
+    // Use cache if less than 3 seconds old
+    if (now - lastTickerFetch < 3000 && tickerCache[markets]) {
+      return c.json(tickerCache[markets]);
+    }
+    
     const resp = await fetch('https://api.upbit.com/v1/ticker?markets=' + markets, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Cache-Control': 'no-cache'
       }
     });
-    if (!resp.ok) return c.json([]);
+    
+    if (!resp.ok) {
+       // If upbit blocked it or failed, return last known good cache if exists
+       if (tickerCache[markets]) return c.json(tickerCache[markets]);
+       return c.json([]);
+    }
     
     const data = await resp.json();
+    tickerCache[markets] = data;
+    lastTickerFetch = now;
+    
     return c.json(data);
   } catch (err) {
+    // Return cache on error
+    const markets = c.req.query('markets');
+    if (markets && tickerCache[markets]) return c.json(tickerCache[markets]);
     return c.json([]);
   }
 });
