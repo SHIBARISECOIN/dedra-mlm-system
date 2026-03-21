@@ -2243,6 +2243,13 @@ app.post('/api/solana/check-deposits', async (c) => {
         await fireAutoRules('deposit_complete', matchedUser.id, {
           amount: amount.toFixed(2), currency: 'USDT', network: 'Solana', txHash: txHash.slice(0, 20)
         }, adminToken)
+        // Sync Network Sales Immediately
+        try {
+          await fetch(`${c.req.url.split('/api')[0]}/api/admin/sync-sales`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          }).catch(() => {});
+        } catch(e) { console.error('Auto sync error:', e); }
+
         // 4. [센터피] (Center Fee) - 입금액의 5% 지급
         if (matchedUser.centerId) {
           try {

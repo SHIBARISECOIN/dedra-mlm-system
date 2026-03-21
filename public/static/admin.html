@@ -59,7 +59,7 @@ window.makeDraggableMap = function(ele) {
         }, { passive: false });
         
         ele._updateTransform = function() {
-            const currentInner = ele.querySelector('.org-tree-inner-zoom') || ele.firstElementChild;
+            const currentInner = ele.querySelector('.org-tree-inner-zoom') || document.getElementById('orgTreeInner') || ele.firstElementChild;
             const scale = typeof orgScale !== 'undefined' ? orgScale : 1;
             if (currentInner) {
                 currentInner.style.transformOrigin = '0 0';
@@ -12269,10 +12269,21 @@ window.orgZoom = function(delta, mouseX, mouseY, eleObj) {
     const lbl = document.getElementById('orgZoomLabel');
     if (lbl) lbl.textContent = Math.round(orgScale * 100) + '%';
     
+    // Zoom in-place for both drag container and specific elements
     if (wrap._updateTransform) {
-        const inner = wrap.querySelector('.org-tree-inner-zoom') || wrap.firstElementChild;
-        if (inner) inner.style.transition = 'transform 0.1s ease-out';
+        const inner = wrap.querySelector('.org-tree-inner-zoom') || document.getElementById('orgTreeInner') || wrap.firstElementChild;
+        if (inner) {
+            inner.style.transition = 'transform 0.1s ease-out';
+            inner.style.transformOrigin = 'top left';
+        }
         wrap._updateTransform();
+    }
+    
+    // Apply explicitly to the inner element if present
+    const inner = document.getElementById('orgTreeInner');
+    if (inner && !wrap._updateTransform) {
+        inner.style.transition = 'transform 0.1s ease-out';
+        inner.style.transform = `scale(${orgScale})`;
     }
 };
 
@@ -12281,13 +12292,19 @@ window.orgZoomReset = function() {
     const wrap = document.getElementById('orgTreeWrapAdmin');
     if (!wrap) return;
     
-    wrap._translateX = 0;
-    wrap._translateY = 0;
+    if (typeof wrap._translateX !== 'undefined') wrap._translateX = 0;
+    if (typeof wrap._translateY !== 'undefined') wrap._translateY = 0;
     
     if (wrap._updateTransform) {
-        const inner = wrap.querySelector('.org-tree-inner-zoom') || wrap.firstElementChild;
+        const inner = wrap.querySelector('.org-tree-inner-zoom') || document.getElementById('orgTreeInner') || wrap.firstElementChild;
         if (inner) inner.style.transition = 'transform 0.2s ease-out';
         wrap._updateTransform();
+    }
+    
+    const inner = document.getElementById('orgTreeInner');
+    if (inner && !wrap._updateTransform) {
+        inner.style.transition = 'transform 0.2s ease-out';
+        inner.style.transform = `scale(1)`;
     }
     
     const lbl = document.getElementById('orgZoomLabel');
