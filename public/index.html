@@ -302,21 +302,39 @@
               <span id="forexRateValue" style="font-size:13px;font-weight:800;color:#10b981;letter-spacing:0.5px;">-</span>
             </div>
 
-            <!-- 원금 / 잔액 / 수익 3분할 -->
-            <div class="asset-split-row" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+            <!-- 원금 / 잔액 / 수익 2분할 -->
+            <div class="asset-split-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+              
+              <!-- 1번 칸: 원금 & 미투자 합본 -->
+              <div class="asset-split-item" style="display:flex; flex-direction:column; justify-content:center; padding: 14px 12px; text-align:left;">
+                <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px; color:#cbd5e1; font-size:13px; font-weight:600; justify-content:center;">
+                  <i class="fas fa-lock" style="color:#eab308;"></i>
+                  <span>USDT 보유 현황</span>
+                </div>
+
+                <!-- 위: 원금 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:11px; color:#94a3b8;" data-i18n="assetLocked">원금 (잠금)</span>
+                    <span style="font-size:10px; color:#64748b;" data-i18n="freezingNow">FREEZE 중</span>
+                  </div>
+                  <div style="text-align:right;">
+                    <span id="splitUsdt" style="font-size:16px; font-weight:700; color:#fff;">0.00</span>
+                  </div>
+                </div>
+
+                <!-- 아래: 미투자 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:11px; color:#94a3b8;">미투자 잔고</span>
+                    <span style="font-size:10px; color:#64748b;">지갑 보관중</span>
+                  </div>
+                  <div style="text-align:right;">
+                    <span id="splitUsdtBalance" style="font-size:16px; font-weight:700; color:#fff;">0.00</span>
+                  </div>
+                </div>
+              </div>
               <div class="asset-split-item">
-                <div class="asset-split-icon">🔒</div>
-                <div class="asset-split-label" data-i18n="assetLocked">USDT 원금 (잠금)</div>
-                <div class="asset-split-value" id="splitUsdt">0.00 USDT</div>
-                <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;" data-i18n="freezingNow">FREEZE 중</div>
-              </div>
-              <div class="asset-split-item" style="border-left:1px solid rgba(255,255,255,0.08);">
-                <div class="asset-split-icon">💰</div>
-                <div class="asset-split-label">미투자 잔고(USDT)</div>
-                <div class="asset-split-value" id="splitUsdtBalance">0.00 USDT</div>
-                <div class="asset-split-sub" style="color:#94a3b8;font-size:11px;">지갑 보관중</div>
-              </div>
-              <div class="asset-split-item" style="border-left:1px solid rgba(255,255,255,0.08);">
                 <img src="/static/img/ddra-coin.png" alt="DDRA"
                   style="width:30px;height:30px;border-radius:50%;object-fit:cover;
                          box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:4px;" />
@@ -1966,7 +1984,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1773917124"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=2026032104"></script>
+<script src="/static/app.js?v=2026032105"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널

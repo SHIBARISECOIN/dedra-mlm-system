@@ -3632,8 +3632,8 @@ function updateHomeUI() {
   
   // 강제로 즉시 텍스트도 설정 (애니메이션이 안 돌 경우를 대비)
   setEl('totalAsset', privacyFmt(fmt(total), '', ' USDT'));
-  setEl('splitUsdt', privacyFmt(fmt(lockedUsdt), '', ' USDT'));
-  setEl('splitUsdtBalance', privacyFmt(fmt(usdt), '', ' USDT'));
+  setEl('splitUsdt', privacyFmt(fmt(lockedUsdt), '', ''));
+  setEl('splitUsdtBalance', privacyFmt(fmt(usdt), '', ''));
   
   if (document.getElementById('totalAsset')) {
     const el = document.getElementById('totalAsset'); const start = parseFloat(el.getAttribute('data-last')) || 0; el.setAttribute('data-last', total); window.animateValue(el, start, total, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
@@ -3642,18 +3642,18 @@ function updateHomeUI() {
   const splitUsdtEl = document.getElementById('splitUsdt');
   if (splitUsdtEl) {
     if (lockedUsdt === 0 || lockedUsdt === "0.00" || lockedUsdt === "0") {
-      splitUsdtEl.textContent = privacyFmt("0.00", "", " USDT");
+      splitUsdtEl.textContent = privacyFmt("0.00", "", "");
     } else {
-      const start = parseFloat(splitUsdtEl.getAttribute('data-last')) || 0; splitUsdtEl.setAttribute('data-last', lockedUsdt); window.animateValue(splitUsdtEl, start, lockedUsdt, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
+      const start = parseFloat(splitUsdtEl.getAttribute('data-last')) || 0; splitUsdtEl.setAttribute('data-last', lockedUsdt); window.animateValue(splitUsdtEl, start, lockedUsdt, 800, (v) => privacyFmt(fmt(v), '', ''));
     }
   }
   
   const splitUsdtBalanceEl = document.getElementById('splitUsdtBalance');
   if (splitUsdtBalanceEl) {
     if (usdt === 0 || usdt === "0.00" || usdt === "0") {
-      splitUsdtBalanceEl.textContent = privacyFmt("0.00", "", " USDT");
+      splitUsdtBalanceEl.textContent = privacyFmt("0.00", "", "");
     } else {
-      const start = parseFloat(splitUsdtBalanceEl.getAttribute('data-last')) || 0; splitUsdtBalanceEl.setAttribute('data-last', usdt); window.animateValue(splitUsdtBalanceEl, start, usdt, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
+      const start = parseFloat(splitUsdtBalanceEl.getAttribute('data-last')) || 0; splitUsdtBalanceEl.setAttribute('data-last', usdt); window.animateValue(splitUsdtBalanceEl, start, usdt, 800, (v) => privacyFmt(fmt(v), '', ''));
     }
   }
   
