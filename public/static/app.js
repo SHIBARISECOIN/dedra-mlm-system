@@ -9077,7 +9077,7 @@ function startUpbitTicker() {
     {id:'KRW-OP', sym:'OP', name:'Optimism'},
     {id:'KRW-NEAR', sym:'NEAR', name:'NEAR Protocol'},
     {id:'KRW-APT', sym:'APT', name:'Aptos'},
-    {id:'KRW-EOS', sym:'EOS', name:'EOS'},
+    {id:'KRW-AAVE', sym:'AAVE', name:'Aave'},
     {id:'KRW-SHIB', sym:'SHIB', name:'Shiba Inu'},
     {id:'KRW-SAND', sym:'SAND', name:'The Sandbox'},
     {id:'KRW-MANA', sym:'MANA', name:'Decentraland'},
@@ -9092,6 +9092,11 @@ function startUpbitTicker() {
       const ids = coinList.map(c => c.id).join(',');
       const res = await fetch('/api/upbit-ticker?markets=' + ids);
       const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        console.error('Upbit API Error:', data);
+        return;
+      }
       
       data.forEach(ticker => {
         cachedData[ticker.market] = ticker;
