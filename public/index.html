@@ -306,42 +306,44 @@
             <div class="asset-split-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
               
               <!-- 1번 칸: 원금 & 미투자 합본 -->
-              <div class="asset-split-item" style="display:flex; flex-direction:column; justify-content:center; padding: 14px 12px; text-align:left;">
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:12px; color:#cbd5e1; font-size:13px; font-weight:600; justify-content:center;">
-                  <i class="fas fa-lock" style="color:#eab308;"></i>
-                  <span>USDT 보유 현황</span>
+              <div class="asset-split-item" style="padding: 16px 12px; display:flex; flex-direction:column; justify-content:center; gap:12px;">
+                <!-- 타이틀: USDT -->
+                <div style="display:flex; align-items:center; justify-content:center; gap:6px; color:#f8fafc; font-size:16px; font-weight:700;">
+                  <i class="fas fa-wallet" style="color:#eab308;"></i>
+                  <span>USDT</span>
                 </div>
 
-                <!-- 위: 원금 -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                  <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:11px; color:#94a3b8;" data-i18n="assetLocked">원금 (잠금)</span>
-                    <span style="font-size:10px; color:#64748b;" data-i18n="freezingNow">FREEZE 중</span>
-                  </div>
-                  <div style="text-align:right;">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  <!-- 위: 원금 -->
+                  <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                    <span style="font-size:13px; color:#94a3b8; font-weight:500;" data-i18n="assetLocked">원금 (잠금)</span>
                     <span id="splitUsdt" style="font-size:16px; font-weight:700; color:#fff;">0.00</span>
                   </div>
-                </div>
 
-                <!-- 아래: 미투자 -->
-                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
-                  <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:11px; color:#94a3b8;">미투자 잔고</span>
-                    <span style="font-size:10px; color:#64748b;">지갑 보관중</span>
-                  </div>
-                  <div style="text-align:right;">
+                  <div style="height:1px; background:rgba(255,255,255,0.08); width:100%;"></div>
+
+                  <!-- 아래: 미투자 -->
+                  <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                    <span style="font-size:13px; color:#94a3b8; font-weight:500;">미투자</span>
                     <span id="splitUsdtBalance" style="font-size:16px; font-weight:700; color:#fff;">0.00</span>
                   </div>
                 </div>
               </div>
-              <div class="asset-split-item">
-                <img src="/static/img/ddra-coin.png" alt="DDRA"
-                  style="width:30px;height:30px;border-radius:50%;object-fit:cover;
-                         box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:4px;" />
-                <div class="asset-split-label" style="color:#f59e0b;font-weight:600;" data-i18n="withdrawableUsdt">Available USDT</div>
-                <div class="asset-split-value" id="splitBonusUsdt" style="color:#f59e0b;font-size:18px;font-weight:700;">0.00 USDT</div>
-                <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:11px;">≈ 0.00 DDRA</div>
-                <button onclick="showReinvestModal()" style="margin-top:8px;position:relative;z-index:10;pointer-events:auto;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;width:fit-content;margin-left:auto;margin-right:auto;transition:all 0.2s;"><i class="fas fa-sync-alt"></i> 재투자</button>
+              <!-- 2번 칸: 수익(출금가능) -->
+              <div class="asset-split-item" style="padding: 16px 12px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:8px;">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                  <img src="/static/img/ddra-coin.png" alt="DDRA" style="width:28px;height:28px;border-radius:50%;object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.35);" />
+                  <div class="asset-split-label" style="color:#f59e0b;font-weight:700;font-size:13px;" data-i18n="withdrawableUsdt">Available USDT</div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div class="asset-split-value" id="splitBonusUsdt" style="color:#f59e0b;font-size:16px;font-weight:800;">0.00 USDT</div>
+                  <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:12px;margin-top:2px;">≈ 0.00 DDRA</div>
+                </div>
+
+                <button onclick="showReinvestModal()" style="margin-top:4px;position:relative;z-index:10;pointer-events:auto;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 6px rgba(16,185,129,0.15);">
+                  <i class="fas fa-sync-alt"></i> 재투자
+                </button>
               </div>
             </div>
 
