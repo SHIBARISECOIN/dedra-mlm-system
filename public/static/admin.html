@@ -7,96 +7,73 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 window.makeDraggableMap = function(ele) {
-    if (!ele || ele._dragInit) return;
-    ele._dragInit = true;
-    ele.style.cursor = 'grab';
+    if (!ele) return;
     
-    let isDown = false;
-    let startX, startY, scrollLeft, scrollTop;
-    let isDragging = false;
-
-    // Prevent native image dragging
-    ele.addEventListener('dragstart', (e) => e.preventDefault());
-
-    // Mouse Events
-    ele.addEventListener('mousedown', (e) => {
-        isDown = true;
-        ele.style.cursor = 'grabbing';
-        isDragging = false;
-        startX = e.pageX - ele.offsetLeft;
-        startY = e.pageY - ele.offsetTop;
-        scrollLeft = ele.scrollLeft;
-        scrollTop = ele.scrollTop;
-    });
-
-    ele.addEventListener('mouseleave', () => {
-        isDown = false;
+    // Always attach events only once, but allow transform state to persist
+    if (!ele._dragInit) {
+        ele._dragInit = true;
+        
         ele.style.cursor = 'grab';
-    });
-
-    ele.addEventListener('mouseup', () => {
-        isDown = false;
-        ele.style.cursor = 'grab';
-    });
-
-    ele.addEventListener('mousemove', (e) => {
-        if (!isDown) return;
-        e.preventDefault(); // Prevent text selection
-        const x = e.pageX - ele.offsetLeft;
-        const y = e.pageY - ele.offsetTop;
-        const walkX = (x - startX);
-        const walkY = (y - startY);
+        ele.style.overflow = 'hidden';
+        ele.style.position = 'relative';
         
-        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
-            isDragging = true;
-        }
-        
-        ele.scrollLeft = scrollLeft - walkX;
-        ele.scrollTop = scrollTop - walkY;
-    });
+        let isDown = false;
+        let startX, startY;
+        if(typeof ele._translateX === 'undefined') ele._translateX = 0;
+        if(typeof ele._translateY === 'undefined') ele._translateY = 0;
 
-    // Touch Events
-    ele.addEventListener('touchstart', (e) => {
-        isDown = true;
-        isDragging = false;
-        startX = e.touches[0].pageX - ele.offsetLeft;
-        startY = e.touches[0].pageY - ele.offsetTop;
-        scrollLeft = ele.scrollLeft;
-        scrollTop = ele.scrollTop;
-    }, { passive: true });
+        ele.addEventListener('dragstart', (e) => e.preventDefault());
 
-    ele.addEventListener('touchend', () => {
-        isDown = false;
-    });
+        ele.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.org-node-wrap') || e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'select') return;
+            isDown = true;
+            ele.style.cursor = 'grabbing';
+            startX = e.pageX - ele._translateX;
+            startY = e.pageY - ele._translateY;
+        });
 
-    ele.addEventListener('touchcancel', () => {
-        isDown = false;
-    });
+        ele.addEventListener('mouseleave', () => {
+            isDown = false;
+            ele.style.cursor = 'grab';
+        });
 
-    ele.addEventListener('touchmove', (e) => {
-        if (!isDown) return;
-        const x = e.touches[0].pageX - ele.offsetLeft;
-        const y = e.touches[0].pageY - ele.offsetTop;
-        const walkX = (x - startX);
-        const walkY = (y - startY);
-        
-        if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
-            isDragging = true;
-            if (e.cancelable) e.preventDefault(); // Prevent native scroll
-        }
-        
-        ele.scrollLeft = scrollLeft - walkX;
-        ele.scrollTop = scrollTop - walkY;
-    }, { passive: false });
+        ele.addEventListener('mouseup', () => {
+            isDown = false;
+            ele.style.cursor = 'grab';
+        });
 
-    // Prevent click if we were dragging
-    ele.addEventListener('click', function(e) {
-        if (isDragging) {
+        ele.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
             e.preventDefault();
-            e.stopPropagation();
-            isDragging = false;
-        }
-    }, true);
+            const x = e.pageX;
+            const y = e.pageY;
+            ele._translateX = x - startX;
+            ele._translateY = y - startY;
+            ele._updateTransform();
+        });
+        
+        ele.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+            window.orgZoom(zoomDelta, e.pageX, e.pageY, ele);
+        }, { passive: false });
+        
+        ele._updateTransform = function() {
+            const currentInner = ele.querySelector('.org-tree-inner-zoom') || ele.firstElementChild;
+            const scale = typeof orgScale !== 'undefined' ? orgScale : 1;
+            if (currentInner) {
+                currentInner.style.transformOrigin = '0 0';
+                currentInner.style.transition = 'none'; // remove transition for smooth drag
+                currentInner.style.transform = `translate(${ele._translateX}px, ${ele._translateY}px) scale(${scale})`;
+            }
+        };
+    }
+    
+    // Always apply transform on init/re-init so it doesn't jump back
+    if (ele._updateTransform) {
+        // use a tiny timeout to ensure DOM is ready
+        setTimeout(() => ele._updateTransform(), 10);
+    }
 };
 </script>
 <style>
@@ -911,6 +888,8 @@ canvas{width:100% !important;}
 </style>
 
 
+    <script src="https://bundle.run/buffer@6.0.3"></script>
+<script>window.Buffer = window.Buffer || buffer.Buffer;</script>
 </head>
 <body>
 
@@ -1009,10 +988,9 @@ canvas{width:100% !important;}
   </button>
 
   <div class="header-logo">
-    <div class="header-logo-emblem">💎</div>
-    <div class="header-logo-text">
-      <span class="header-logo-brand">Deedra</span>
-      <span class="header-logo-sub">Admin Console</span>
+    <img src="/static/images/ddra-banner.png" style="height: 48px; border-radius: 6px; margin-right: 12px; object-fit: contain;" alt="Logo" />
+    <div class="header-logo-text" style="display: flex; flex-direction: column; justify-content: center;">
+      <span class="header-logo-sub" style="font-size: 14px; letter-spacing: 1px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">ADMIN CONSOLE</span>
     </div>
   </div>
   <div class="header-center">
@@ -1091,11 +1069,12 @@ canvas{width:100% !important;}
     <div class="menu-item" data-page="deposits" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💰</span>입금 관리</div> <span id="badge-deposits" style="background:var(--orange);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="withdrawals" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💸</span>출금 관리</div> <span id="badge-withdrawals" style="background:var(--red);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="bonus"><span class="menu-icon">🎁</span>보너스 지급</div>
+    <div class="menu-item" data-page="settlements"><span class="menu-icon">🧾</span>정산 이력 조회</div>
     <div class="menu-item" data-page="manualAdjust"><span class="menu-icon">✍️</span>임의 입금 관리</div>
 
     <div class="sidebar-section">상품·운용</div>
     <div class="menu-item" data-page="products"><span class="menu-icon">🛍️</span>상품 관리</div>
-    <div class="menu-item" data-page="rates"><span class="menu-icon">📐</span>이율 관리</div>
+    <div class="menu-item" data-page="rates"><span class="menu-icon">📐</span>보너스 이율 설정</div>
     <div class="menu-item" data-page="investments"><span class="menu-icon">💼</span>투자 관리</div>
 
     <div class="sidebar-section">소통·지원</div>
@@ -1224,8 +1203,27 @@ canvas{width:100% !important;}
          입금 관리
     ══════════════════════════════ -->
     <div id="depositsPage" class="page">
-      <div class="page-title">입금 관리</div>
-      <div class="page-desc">회원 입금 신청을 확인하고 승인/거부하세요</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 20px;">
+        <div>
+          <div class="page-title" style="margin-bottom:4px;">입금 관리</div>
+          <div class="page-desc" style="margin-bottom:0;">회원 입금 신청을 확인하고 승인/거부하세요</div>
+        </div>
+        <button onclick="document.getElementById('companyWalletModal').style.display='flex'" class="btn" style="background:#fff;border:1.5px solid #e2e8f0;color:#64748b;font-weight:700;display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;font-size:13px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:all 0.2s;">
+          <span style="font-size:16px;">🏦</span> 지갑 설정
+        </button>
+      </div>
+
+      <!-- ── 입금 신청 목록 ── -->
+      <div class="card">
+        <div class="tabs" id="depositTabs">
+          <div class="tab active" data-status="pending">⏳ 대기중</div>
+          <div class="tab" data-status="approved">✅ 승인됨</div>
+          <div class="tab" data-status="rejected">❌ 거부됨</div>
+        </div>
+        <div id="depositsTableWrap"></div>
+      </div>
+<div style="height: 24px;"></div>
+
 
       <!-- ══════ Solana 입금 자동 감지 패널 ══════ -->
       <div style="background:linear-gradient(135deg,#0f3460,#533483);border-radius:14px;padding:18px 22px;max-width:960px;margin-bottom:20px;box-shadow:0 4px 16px rgba(0,0,0,.15);">
@@ -1341,114 +1339,9 @@ canvas{width:100% !important;}
         </div>
       </div>
 
-      <!-- ── 회사 입금 지갑 주소 설정 카드 ── -->
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-header">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:20px;">🏦</span>
-            <div>
-              <div class="card-title">회사 입금 지갑 주소 설정</div>
-              <div style="font-size:12px;color:var(--gray);margin-top:2px;">
-                회원에게 표시될 Solana 네트워크 USDT 입금 주소를 최대 3개까지 설정합니다
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-gray btn-sm" id="reloadWalletsBtn">↩ 다시 불러오기</button>
-            <button class="btn btn-primary btn-sm" id="saveWalletsBtn">💾 저장</button>
-          </div>
-        </div>
-        <div style="padding:20px 24px;">
-          <div id="walletsAlert" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:16px;"></div>
 
-          <!-- 네트워크 안내 배너 -->
-          <div style="background:linear-gradient(135deg,#667eea15,#764ba215);border:1.5px solid #667eea30;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
-            <div style="width:36px;height:36px;background:linear-gradient(135deg,#9945FF,#14F195);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">◎</div>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:#1f2937;">Solana (SOL) 네트워크 전용</div>
-              <div style="font-size:12px;color:var(--gray);margin-top:2px;">모든 주소는 Solana 네트워크 기반 USDT(SPL) 입금 주소여야 합니다. 잘못된 주소 입력 시 자산 손실이 발생할 수 있습니다.</div>
-            </div>
-          </div>
 
-          <!-- 3개 지갑 주소 입력 그리드 -->
-          <div style="display:grid;gap:16px;">
 
-            <!-- 지갑 1 -->
-            <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                <div style="width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">1</div>
-                <span style="font-size:13px;font-weight:700;color:#374151;">지갑 주소 #1</span>
-                <span style="margin-left:auto;font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:700;">주요 사용</span>
-              </div>
-              <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;">
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">네트워크</label>
-                  <input type="text" id="wallet1_network" class="form-input" value="Solana (SOL)" readonly
-                    style="background:#f1f5ff;color:#6366f1;font-weight:700;cursor:not-allowed;border-color:#c7d2fe;">
-                </div>
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">USDT 지갑 주소</label>
-                  <input type="text" id="wallet1_address" class="form-input" placeholder="Solana USDT 주소를 입력하세요 (예: 5K7J...xRmN)"
-                    style="font-family:monospace;font-size:13px;">
-                </div>
-              </div>
-            </div>
-
-            <!-- 지갑 2 -->
-            <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                <div style="width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">2</div>
-                <span style="font-size:13px;font-weight:700;color:#374151;">지갑 주소 #2</span>
-                <span style="margin-left:auto;font-size:11px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-weight:600;">보조</span>
-              </div>
-              <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;">
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">네트워크</label>
-                  <input type="text" id="wallet2_network" class="form-input" value="Solana (SOL)" readonly
-                    style="background:#f1f5ff;color:#6366f1;font-weight:700;cursor:not-allowed;border-color:#c7d2fe;">
-                </div>
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">USDT 지갑 주소</label>
-                  <input type="text" id="wallet2_address" class="form-input" placeholder="두 번째 Solana USDT 주소 (선택)"
-                    style="font-family:monospace;font-size:13px;">
-                </div>
-              </div>
-            </div>
-
-            <!-- 지갑 3 -->
-            <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                <div style="width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">3</div>
-                <span style="font-size:13px;font-weight:700;color:#374151;">지갑 주소 #3</span>
-                <span style="margin-left:auto;font-size:11px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-weight:600;">보조</span>
-              </div>
-              <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;">
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">네트워크</label>
-                  <input type="text" id="wallet3_network" class="form-input" value="Solana (SOL)" readonly
-                    style="background:#f1f5ff;color:#6366f1;font-weight:700;cursor:not-allowed;border-color:#c7d2fe;">
-                </div>
-                <div>
-                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">USDT 지갑 주소</label>
-                  <input type="text" id="wallet3_address" class="form-input" placeholder="세 번째 Solana USDT 주소 (선택)"
-                    style="font-family:monospace;font-size:13px;">
-                </div>
-              </div>
-            </div>
-
-          </div><!-- /grid -->
-        </div>
-      </div><!-- /card -->
-
-      <!-- ── 입금 신청 목록 ── -->
-      <div class="card">
-        <div class="tabs" id="depositTabs">
-          <div class="tab active" data-status="pending">⏳ 대기중</div>
-          <div class="tab" data-status="approved">✅ 승인됨</div>
-          <div class="tab" data-status="rejected">❌ 거부됨</div>
-        </div>
-        <div id="depositsTableWrap"></div>
-      </div>
     </div>
 
     <!-- ══════════════════════════════
@@ -2955,7 +2848,22 @@ canvas{width:100% !important;}
       <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
         <input type="text" id="orgTreeSearchInput" class="search-input" placeholder="특정 회원 ID·이름 검색">
         <button class="btn btn-primary btn-sm" id="orgTreeSearchBtn">🔍 해당 회원부터 보기</button>
+
+        <select id="orgTreeDepthSelect" class="search-input" style="width:140px; padding:6px 10px;" onchange="if(window.adminCavePath && window.adminCavePath.length>0) window.renderAdminCaveTree();">
+            <option value="3">3대까지 보기</option>
+            <option value="5">5대까지 보기</option>
+            <option value="10">10대까지 보기</option>
+            <option value="20" selected>20대까지 보기(기본)</option>
+            <option value="50">50대까지 보기(전체)</option>
+            <option value="100">100대까지 보기(최대)</option>
+        </select>
+
         <button class="btn btn-gray btn-sm" id="orgTreeRootBtn">🌐 전체 트리 보기</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;margin-left:12px;background:#e2e8f0;padding:4px 8px;border-radius:6px;"><input type="checkbox" id="orgTreeDetailToggle" onchange="toggleOrgTreeDetails()"> 상세 데이터</label>
+        <button class="btn btn-sm" id="orgTreeSyncSalesBtn" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+          <span class="icon">🔄</span> 전체 매출 동기화
+        </button>
+
         
         <span id="orgTreeStats" style="font-size:13px;color:var(--gray);"></span>
       </div>
@@ -3076,7 +2984,26 @@ canvas{width:100% !important;}
     <!-- ══════════════════════════════
          이율 관리
     ══════════════════════════════ -->
-        <div id="ratesPage" class="page">
+        
+    <!-- ══════════════════════════════════════════════
+         정산 이력 관리 페이지
+    ══════════════════════════════════════════════ -->
+    <div id="settlementsPage" class="page">
+      <div class="page-title">🧾 정산 이력 조회</div>
+      <div class="page-desc">매일 자정에 실행되는 일일 정산(ROI 및 보너스)의 상세 이력을 확인합니다.</div>
+      
+      <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-top:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+           <div style="font-size:16px; font-weight:700; color:#1e293b;">📋 최근 정산 이력</div>
+           <button class="btn btn-sm" onclick="loadSettlementHistory()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; font-weight:600;"><span class="icon">🔄</span> 새로고침</button>
+        </div>
+        <div id="settlementHistoryList2" style="display:flex; flex-direction:column; gap:12px; max-height:600px; overflow-y:auto; padding-right:8px;">
+          <!-- JS로 로드 -->
+        </div>
+      </div>
+    </div>
+
+    <div id="ratesPage" class="page">
       <div class="page-title">📐 보너스 이율 설정</div>
       <div class="page-desc">정산 엔진에 적용될 핵심 보너스 비율을 설정합니다. (1일 1회 정산 시 적용)</div>
       
@@ -3117,26 +3044,26 @@ canvas{width:100% !important;}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <span style="font-size:13px;color:#475569;">직급 차이 1단계당</span>
               <div style="display:flex;align-items:center;gap:6px;">
-                <input type="number" id="rate_rankGap" value="1" step="0.1" min="0" style="width:70px;text-align:right;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;">
+                <input type="number" id="rate_rankGap" value="10" step="0.1" min="0" style="width:70px;text-align:right;padding:6px;border:1px solid #cbd5e1;border-radius:6px;font-weight:600;">
                 <span style="font-size:13px;color:#64748b;">%</span>
               </div>
             </div>
-            <div style="font-size:11px;color:#94a3b8;">* 상위로 무한대 탐색하며 차액 지급</div>
+            <div style="font-size:11px;color:#94a3b8;">* 상위 파트너와 나의 직급 차이 1단계당 설정된 %를 곱하여 롤업 지급</div>
           </div>
 
           <!-- 3. 동급/역전 예외 보너스 -->
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px;">
             <div style="font-size:14px;font-weight:700;color:#92400e;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
-              <span>🛡️</span> 동급/상위 예외 보너스
+              <span>🛡️</span> 직급 매칭 보너스
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-size:13px;color:#92400e;">1대 파트너가 동급/상위일 때</span>
+              <span style="font-size:13px;color:#92400e;">롤업 차단(동급 이상) 시 파트너 총수당의</span>
               <div style="display:flex;align-items:center;gap:6px;">
-                <input type="number" id="rate_override" value="1" step="0.1" min="0" style="width:70px;text-align:right;padding:6px;border:1px solid #fcd34d;border-radius:6px;font-weight:600;background:#fff;">
+                <input type="number" id="rate_override" value="10" step="0.1" min="0" style="width:70px;text-align:right;padding:6px;border:1px solid #fcd34d;border-radius:6px;font-weight:600;background:#fff;">
                 <span style="font-size:13px;color:#b45309;">%</span>
               </div>
             </div>
-            <div style="font-size:11px;color:#d97706;">* 롤업이 차단되는 대신 직속 추천인에게 확정 지급 (G1 이상)</div>
+            <div style="font-size:11px;color:#d97706;">* 산하 파트너가 본인과 직급이 같거나 높아 직급 롤업이 발생하지 않을 때 해당 파트너가 받은 총수당(추천+직급)의 % 매칭 지급</div>
           </div>
 
           <!-- 4. 센터 피 -->
@@ -3155,7 +3082,24 @@ canvas{width:100% !important;}
           </div>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #e2e8f0;padding-top:20px;">
+        <!-- 직급 보너스 방식 선택 추가 -->
+        <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
+          <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+            <span>⚙️</span> 직급 보너스 지급 방식
+          </div>
+          <div style="margin-bottom:8px;">
+            <select id="rate_rankGapMode" style="width:100%;padding:10px;border-radius:8px;background:#fff;border:1px solid #cbd5e1;color:#1e293b;font-weight:600;">
+              <option value="gap">차액 롤업 방식 (추천/기본) - 상위 직급자 간 차액만 지급</option>
+              <option value="overlap">중복 지급 방식 - 나보다 높은 직급 만날 때까지 모두 직급차액 지급</option>
+            </select>
+          </div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5;">
+            * <b>차액 롤업</b>: 일반적인 방식으로 과지급(오버페이)을 방지합니다.<br>
+            * <b>중복 지급</b>: 1명의 하위 매출로 인해 상위 여러 명에게 중복 지급될 수 있으니 주의하세요.
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #e2e8f0;padding-top:20px;margin-top:24px;">
           <button class="btn btn-gray" id="reloadNewRatesBtn">↩ 원래대로</button>
           <button class="btn btn-primary" id="saveNewRatesBtn" style="padding:10px 24px;">💾 설정 저장</button>
         </div>
@@ -3187,6 +3131,15 @@ canvas{width:100% !important;}
               <span style="font-size:12px;color:#64748b;">대까지 집계</span>
             </div>
             <div style="font-size:11px;color:#94a3b8;margin-top:4px;">예) 3 → 1대+2대+3대 합산</div>
+          </div>
+          <!-- 자동 승진 여부 -->
+          <div>
+            <label style="display:block;font-size:12px;font-weight:700;color:#4338ca;margin-bottom:6px;">🚀 자동 직급 심사</label>
+            <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#1e293b;margin-top:6px;cursor:pointer;">
+              <input type="checkbox" id="rp_enableAutoPromotion" checked>
+              <span>입금/FREEZE 승인 시 자동 승격 적용</span>
+            </label>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">해제 시 관리자가 '일괄 재계산'을 눌러야만 반영됩니다.</div>
           </div>
           <!-- 조건 충족 방식 -->
           <div>
@@ -3260,6 +3213,11 @@ canvas{width:100% !important;}
             style="background:#f59e0b;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap;">
             🔄 전체 직급 재계산
           </button>
+          <button id="syncSalesBtn" class="btn btn-sm"
+            style="background:#3b82f6;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:8px;">
+            🔄 전체 매출 동기화
+          </button>
+
         </div>
 
         <div id="rankPromoAlert" style="margin-top:10px;"></div>
@@ -3387,77 +3345,6 @@ canvas{width:100% !important;}
         <div id="settlementHistoryWrap" style="display:none;margin-top:18px;">
           <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">📋 최근 정산 이력</div>
           <div id="settlementHistoryList"></div>
-        </div>
-      </div>
-
-      <!-- ══════════════════════════════════════════════
-           직급 달성 보너스 설정 카드
-      ══════════════════════════════════════════════ -->
-      <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <span style="font-size:22px;">🏆</span>
-          <div>
-            <div style="font-size:15px;font-weight:700;color:#1e293b;">직급 달성 보너스 설정
-              <span id="badge_rankAchieveBonus" style="font-size:11px;padding:2px 8px;border-radius:20px;margin-left:8px;font-weight:600;background:#fee2e2;color:#dc2626;">비활성</span>
-            </div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">
-              특정 직급에 도달한 회원에게 USDT를 지급합니다.<br>
-              <strong>주기 0일</strong> = 직급 달성 시 1회만 지급 | <strong>주기 N일</strong> = N일마다 반복 지급
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
-            <input type="checkbox" id="sw_enableRankAchieveBonus" onchange="updateSwitchStyle('sw_enableRankAchieveBonus',this.checked)"
-              style="width:16px;height:16px;accent-color:#6366f1;">
-            직급 달성 보너스 활성화
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;">
-            지급 주기
-            <input type="number" id="rate_rankAchieveCycleDays" min="0" max="365" step="1" value="0"
-              style="width:80px;padding:6px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;text-align:right;">
-            <span style="color:#64748b;">일</span>
-            <span style="font-size:11px;color:#94a3b8;">(0=1회만)</span>
-          </label>
-        </div>
-        <!-- 직급별 보너스 금액 그리드 -->
-        <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;">직급별 지급 금액 (USDT)</div>
-        <div id="rankAchieveBonusGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;"></div>
-        <div style="margin-top:10px;font-size:12px;color:#6b7280;background:#fefce8;padding:10px 14px;border-radius:8px;border-left:3px solid #fde047;">
-          💡 <strong>자동 실행:</strong> 매일 ROI 정산 시 직급 달성 보너스도 함께 처리됩니다.<br>
-          또는 아래 <strong>직급 보너스 수동 실행</strong> 버튼으로 즉시 실행할 수 있습니다.
-        </div>
-        <div style="margin-top:12px;">
-          <button id="runRankAchieveBonusBtn" class="btn btn-sm" style="background:#7c3aed;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;">
-            ▶ 직급 보너스 수동 실행
-          </button>
-          <div id="rankAchieveBonusResult" style="margin-top:10px;font-size:13px;"></div>
-        </div>
-      </div>
-
-      <!-- 마케팅 규칙 설명 패널 -->
-      <div id="ruleExplainPanel" style="display:none;max-width:960px;margin-bottom:20px;background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 12px rgba(79,70,229,.12);border:1.5px solid #c7d2fe;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:22px;">📋</span>
-            <div>
-              <div style="font-size:16px;font-weight:700;color:#1e293b;">현재 마케팅 보너스 규칙 설명</div>
-              <div style="font-size:12px;color:#64748b;margin-top:2px;">현재 저장된 설정값을 기반으로 보너스가 어떻게 지급되는지 설명합니다.</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button id="refreshRuleExplainBtn"
-              style="padding:6px 14px;border-radius:7px;border:1.5px solid #6366f1;background:#ede9fe;color:#4f46e5;font-size:12px;font-weight:700;cursor:pointer;">
-              🔄 새로고침
-            </button>
-            <button onclick="document.getElementById('ruleExplainPanel').style.display='none';"
-              style="padding:6px 12px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:12px;font-weight:700;cursor:pointer;">
-              ✕ 닫기
-            </button>
-          </div>
-        </div>
-        <div id="ruleExplainContent" style="line-height:1.9;color:#1e293b;font-size:13px;">
-          <div style="text-align:center;color:#94a3b8;padding:20px;">불러오는 중...</div>
         </div>
       </div>
 
@@ -3709,6 +3596,19 @@ canvas{width:100% !important;}
               <label class="form-label">출금 수수료율 (%)</label>
               <input type="number" class="form-input" id="cfg_withdrawalFeeRate" placeholder="2" min="0" max="100" step="0.1">
               <div style="font-size:11px;color:var(--gray);margin-top:4px;">예: 2 입력 시 2% 수수료</div>
+            </div>
+            <div class="form-group" style="margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
+              <label class="form-label">출금 가능 시간 (로컬 시간 기준)</label>
+              <div style="display:flex; gap:10px; margin-bottom:8px;">
+                <input type="time" class="form-input" id="cfg_withdrawStartTime" value="09:00">
+                <span style="line-height:40px;">~</span>
+                <input type="time" class="form-input" id="cfg_withdrawEndTime" value="17:00">
+              </div>
+              <div style="display:flex; gap:16px; font-size:14px; margin-bottom:4px;">
+                <label><input type="checkbox" id="cfg_withdrawWeekday" checked> 평일(월~금) 출금 허용</label>
+                <label><input type="checkbox" id="cfg_withdrawWeekend"> 휴일(토,일) 출금 허용</label>
+              </div>
+              <div style="font-size:11px;color:var(--gray);">회원 현지 시간 기준으로 제한됩니다. 설정하지 않으면 24시간 허용(체크박스 해제 시 전체 차단).</div>
             </div>
             <div class="form-group">
               <label class="form-label">점검 모드</label>
@@ -4106,7 +4006,8 @@ canvas{width:100% !important;}
       <button class="btn btn-gray" onclick="closeModal('withdrawalModal')" style="flex:1;min-width:0;">✕ 닫기</button>
       <button id="holdWithdrawalBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;display:none;">⏸ 보류</button>
       <button id="rejectWithdrawalBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">❌ 거부</button>
-      <button id="approveWithdrawalBtn" style="flex:2;min-width:0;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:800;cursor:pointer;">✅ 송금 완료 승인</button>
+      <button id="approveWithdrawalBtn" style="flex:1;min-width:0;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:800;cursor:pointer;">✅ 수동 승인</button>
+<button id="phantomWithdrawalBtn" style="flex:2;min-width:0;background:linear-gradient(135deg,#ab9ff2,#8b5cf6);color:#fff;border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">👻 팬텀 지갑으로 자동 송금</button>
     </div>
   </div>
 </div>
@@ -4875,6 +4776,8 @@ canvas{width:100% !important;}
   </div>
 </div>
 
+<script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
+<script src="/static/js/solana-wallet.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, signInWithCredential, signInWithCustomToken, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
@@ -5387,7 +5290,7 @@ async function loadDashboard() {
               <div class="activity-content">
                 <div class="activity-title" style="display:flex; justify-content:space-between;">
                   <span>${formatUserLabel(r.userId, r.userEmail)}</span>
-                  <strong style="color:var(--danger);">-${fmtAmt(r.amount)} DDRA</strong>
+                  <strong style="color:var(--danger);">-${fmtAmt(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)} USDT</strong>
                 </div>
                 <div class="activity-time">${fmtDate(r.createdAt)}</div>
               </div>
@@ -5511,7 +5414,7 @@ async function loadRecentActivity() {
             <div class="activity-item">
               <div class="activity-dot ${r.status==='pending'?'orange':r.status==='approved'?'green':'red'}"></div>
               <div>
-                <div class="activity-text"><strong>${r.amount?.toFixed(2)} DEEDRA</strong> · <span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></div>
+                <div class="activity-text"><strong>${(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)?.toFixed(2)} USDT</strong> · <span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></div>
                 <div class="activity-time">${formatUserLabel(r.userId, r.userEmail)} · ${fmtDate(r.createdAt)}</div>
               </div>
               ${r.status==='pending'?`<button class="btn btn-primary btn-xs" onclick="navigateTo('withdrawals');showWithdrawalDetail('${r.id}')">처리</button>`:''}
@@ -5528,9 +5431,9 @@ async function loadCompanyWallets() {
     if (!r.success) return;
     const ws = r.data;
     for (let i = 1; i <= 3; i++) {
-        const w = ws[i-1] || { network: 'Solana (SOL)', address: '' };
+        const w = ws[i-1] || { network: 'Solana (SOL)', address: i===1 ? 'DHVXXkhYkwevB5wHqtri2K6yg8GD6jykE4ZaZW3iQqZz' : '' };
         const addrEl = document.getElementById(`wallet${i}_address`);
-        if (addrEl) addrEl.value = w.address || '';
+        if (addrEl) addrEl.value = w.address || (i===1 ? 'DHVXXkhYkwevB5wHqtri2K6yg8GD6jykE4ZaZW3iQqZz' : '');
     }
     // 버튼 이벤트 (최초 1회만 바인딩)
     const saveBtn   = document.getElementById('saveWalletsBtn');
@@ -5668,7 +5571,7 @@ async function loadWithdrawals(status = 'pending') {
           <thead><tr>
             <th>회원 ID</th>
             <th>신청 (USDT)</th>
-            <th>지급 (DDRA)</th>
+            <th>지급 (USDT)</th>
             <th>지갑 주소</th>
             <th>신청일</th>
             <th>상태</th>
@@ -5690,7 +5593,7 @@ async function loadWithdrawals(status = 'pending') {
               <td>${fmtDate(r.createdAt)}</td>
               <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
               <td title="${r.txid||''}"><code style="font-size:11px;">${(r.txid||'-').substring(0,8)}...</code></td>
-              <td><button class="btn btn-primary btn-sm" onclick="showWithdrawalDetail('${r.id}')">상세</button></td>
+              <td style="display:flex; gap:4px;"><button class="btn btn-primary btn-sm" onclick="showWithdrawalDetail('${r.id}')">상세</button><button class="btn btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="analyzeWithdrawal('${r.userId}', '${r.id}')">🔍 심사</button></td>
             </tr>`;
           }).join('')}</tbody>
         </table></div>`;
@@ -7166,6 +7069,7 @@ window.showWithdrawalDetail = async (txId) => {
 
     // 버튼
     document.getElementById('approveWithdrawalBtn').style.display = canAct ? '' : 'none';
+    if (document.getElementById('phantomWithdrawalBtn')) document.getElementById('phantomWithdrawalBtn').style.display = canAct ? 'flex' : 'none';
     document.getElementById('rejectWithdrawalBtn').style.display  = canAct ? '' : 'none';
     const holdWdBtn = document.getElementById('holdWithdrawalBtn');
     if (holdWdBtn) holdWdBtn.style.display = isPending ? '' : 'none';
@@ -7477,7 +7381,7 @@ async function loadMemberTxHistory(userId) {
           <thead><tr><th>유형</th><th>금액</th><th>상태</th><th>TXID</th><th>일시</th></tr></thead>
           <tbody>${rows.map(r=>`<tr>
             <td><span class="badge ${r.type==='deposit'?'badge-approved':'badge-pending'}">${r.type==='deposit'?'입금':'출금'}</span></td>
-            <td><strong>${(r.type==='deposit' ? (r.amount||0) : (r.amountUsdt||r.amount||0)).toFixed(2)} USDT${r.type==='withdrawal' && r.amount ? ` (≈${(r.amount||0).toFixed(4)} DDRA)` : ''}</strong></td>
+            <td><strong>${(r.type==='deposit' ? (r.amount||0) : (r.amountUsdt !== undefined ? r.amountUsdt : (r.amount||0))).toFixed(2)} USDT${r.type==='withdrawal' && r.amount ? ` (≈${(r.amount||0).toFixed(4)} DDRA)` : ''}</strong></td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
             <td><code style="font-size:11px;">${(r.txid||'-').substring(0,14)}</code></td>
             <td style="font-size:12px;">${fmtDate(r.createdAt)}</td>
@@ -7579,6 +7483,7 @@ function setupEvents() {
             else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); }
             else if (page==='members') { allMembers=[]; loadMembers(); }
             else if (page==='bonus') loadBonusLog();
+            else if (page==='settlements') loadSettlementHistory();
             else if (page==='notices') loadNotices();
             else if (page==='news') loadNews();
             else if (page==='gamelogs') { loadGameLogs(); loadGameOddsAdmin(); }
@@ -7718,7 +7623,188 @@ function setupEvents() {
         } catch(e) { showToast('오류: '+e.message, 'error'); }
     });
 
-    // ── 출금 승인 ──
+    // ── 팬텀 지갑으로 자동 송금 ──
+    const phantomBtn = document.getElementById('phantomWithdrawalBtn');
+    if (phantomBtn) {
+        phantomBtn.addEventListener('click', async () => {
+            const dedraAmt = parseFloat((currentTx.amount||0).toFixed(4));
+            const wallet  = currentTx.walletAddress || '';
+            
+            if (!wallet || wallet.length < 20) {
+                showToast('유효한 솔라나 지갑 주소가 아닙니다.', 'error');
+                return;
+            }
+            
+            if (!await _adminConfirm(`👻 팬텀 지갑을 통해 바로 송금하시겠습니까?\n\n송금액: ${dedraAmt} DDRA\n받는주소: ${wallet}`)) return;
+            
+            try {
+                phantomBtn.disabled = true;
+                phantomBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:#fff;"></div> 처리 중...';
+                
+                // 1. Solana Wallet (Phantom) 연결 확인
+                const sw = window.SolanaWallet;
+                if (!sw) throw new Error('솔라나 지갑 모듈이 없습니다.');
+                
+                let provider = null;
+                if (window.phantom?.solana?.isPhantom) provider = window.phantom.solana;
+                else if (window.solana) provider = window.solana;
+                else throw new Error('팬텀 지갑이 설치되어 있지 않습니다. 브라우저 확장프로그램을 확인하세요.');
+                
+                // 지갑 연결 요청
+                await provider.connect();
+                const adminPubkey = provider.publicKey.toString();
+                
+                showToast('트랜잭션 서명을 대기 중입니다...', 'info');
+                
+                // 2. 관리자가 설정한 DDRA 민트 주소 (없으면 디폴트)
+                const solanaMint = (window._settingsCache && window._settingsCache.ddraSolanaMint) || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+                
+                // 3. 트랜잭션 전송 함수 (솔라나 web3가 필요함)
+                // Note: solana-wallet.js의 sendUsdt가 하드코딩된 USDT를 쓰므로, 여기서는 직접 또는 범용 함수를 써야 함.
+                // 관리자 페이지에 solanaWeb3 객체가 로드되어야 합니다.
+                if (!window.solanaWeb3) {
+                    throw new Error('Solana Web3 라이브러리가 로드되지 않았습니다. 새로고침 후 다시 시도하세요.');
+                }
+                
+                // Send custom SPL token via Provider
+                // Solana Web3 and SPL Token from global window
+                const solanaWeb3 = window.solanaWeb3;
+                if (!solanaWeb3) throw new Error('Solana Web3 라이브러리가 로드되지 않았습니다.');
+                
+                const { Connection, PublicKey, Transaction, TransactionInstruction } = solanaWeb3;
+                
+                const connection = new Connection('https://solana-rpc.publicnode.com', 'confirmed');
+                const mintPubkey = new PublicKey(solanaMint);
+                const fromPubkey = new PublicKey(adminPubkey);
+                const toPubkey = new PublicKey(wallet);
+                
+                // Get Associated Token Address
+                const mintInfo = await connection.getAccountInfo(mintPubkey);
+                if (!mintInfo) {
+                    throw new Error('설정된 DDRA 민트 주소가 존재하지 않습니다. 관리자 설정(환경설정)에서 올바른 민트 주소를 입력해주세요.');
+                }
+                const tokenProgramIdStr = mintInfo.owner.toString();
+                if (tokenProgramIdStr !== 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' && tokenProgramIdStr !== 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb') {
+                    throw new Error('올바른 토큰 민트가 아닙니다. 현재 owner: ' + tokenProgramIdStr + '. 관리자 설정에서 주소를 다시 확인해주세요. (입력된 주소: ' + solanaMint + ')');
+                }
+                
+                const TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr);
+                const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+                
+                const getATA = (walletKey, mintKey) => {
+                    return PublicKey.findProgramAddressSync(
+                        [walletKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintKey.toBuffer()],
+                        ASSOCIATED_TOKEN_PROGRAM_ID
+                    )[0];
+                };
+                
+                const fromATA = getATA(fromPubkey, mintPubkey);
+                const toATA = getATA(toPubkey, mintPubkey);
+                
+                const tx = new Transaction();
+                
+                // Check if receiver ATA exists
+                const toAccountInfo = await connection.getAccountInfo(toATA);
+                if (!toAccountInfo) {
+                    // Create ATA Instruction (for SPL and Token-2022)
+                    const data = Buffer.alloc(0);
+                    tx.add(new TransactionInstruction({
+                        keys: [
+                            { pubkey: fromPubkey, isSigner: true, isWritable: true },
+                            { pubkey: toATA, isSigner: false, isWritable: true },
+                            { pubkey: toPubkey, isSigner: false, isWritable: false },
+                            { pubkey: mintPubkey, isSigner: false, isWritable: false },
+                            { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
+                            { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                        ],
+                        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+                        data
+                    }));
+                }
+                
+                // Transfer Instruction (Support both Token and Token-2022)
+                const decimals = (window._settingsCache && window._settingsCache.ddraDecimals) || 6;
+                const amountToSend = Math.floor(dedraAmt * Math.pow(10, decimals));
+                
+                if (tokenProgramIdStr === 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb') {
+                    // Token-2022 requires TransferChecked (Index 12)
+                    const data = Buffer.alloc(10);
+                    data.writeUInt8(12, 0); // TransferChecked instruction index
+                    data.writeBigUInt64LE(BigInt(amountToSend), 1);
+                    data.writeUInt8(decimals, 9); // Decimals
+                    
+                    tx.add(new TransactionInstruction({
+                        keys: [
+                            { pubkey: fromATA, isSigner: false, isWritable: true },
+                            { pubkey: mintPubkey, isSigner: false, isWritable: false }, // Mint is required for TransferChecked
+                            { pubkey: toATA, isSigner: false, isWritable: true },
+                            { pubkey: fromPubkey, isSigner: true, isWritable: false },
+                        ],
+                        programId: TOKEN_PROGRAM_ID,
+                        data
+                    }));
+                } else {
+                    // Standard Token uses normal Transfer (Index 3)
+                    const data = Buffer.alloc(9);
+                    data.writeUInt8(3, 0); // Transfer instruction index
+                    data.writeBigUInt64LE(BigInt(amountToSend), 1);
+                    
+                    tx.add(new TransactionInstruction({
+                        keys: [
+                            { pubkey: fromATA, isSigner: false, isWritable: true },
+                            { pubkey: toATA, isSigner: false, isWritable: true },
+                            { pubkey: fromPubkey, isSigner: true, isWritable: false },
+                        ],
+                        programId: TOKEN_PROGRAM_ID,
+                        data
+                    }));
+                }
+                
+                // Get latest blockhash
+                const latestBlockhash = await connection.getLatestBlockhash();
+                tx.recentBlockhash = latestBlockhash.blockhash;
+                tx.feePayer = fromPubkey;
+                
+                // Sign and send
+                showToast('지갑에서 승인해주세요...', 'info');
+                const signedTx = await provider.signTransaction(tx);
+                const signature = await connection.sendRawTransaction(signedTx.serialize());
+                
+                showToast('트랜잭션 전송 중... (약 10~20초 소요)', 'info');
+                await connection.confirmTransaction({
+                    signature,
+                    blockhash: latestBlockhash.blockhash,
+                    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+                });
+                
+                // Once confirmed on chain, approve in database
+                showToast('✅ 블록체인 전송 성공! 시스템 승인 처리 중...', 'success');
+                const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, signature, 'Phantom 자동 송금 완료');
+                
+                if (r.success) {
+                    showToast(`✅ ${dedraAmt} DDRA 송금 및 승인 완료!`, 'success');
+                    closeModal('withdrawalModal');
+                    loadWithdrawals(currentWithdrawalStatus); 
+                    loadDashboard();
+                    tgNotify('withdrawal', `💸 <b>출금 승인 완료 (Phantom)</b>\n회원: ${currentTx.userId||'-'}\n금액: ${dedraAmt} DDRA\n지갑: ${wallet}\nTXID: ${signature}\n시각: ${new Date().toLocaleString('ko-KR')}`);
+                } else {
+                    showToast('❌ DB 승인 처리 실패 (코인은 전송됨): ' + r.error, 'error');
+                }
+} catch(e) {
+                console.error(e);
+                let msg = e.message || '송금 실패';
+                if (msg.includes('custom program error: 0x1')) {
+                    msg = '관리자 지갑에 송금할 DDRA 토큰 잔액이 부족합니다.';
+                }
+                showToast('❌ ' + msg, 'error');
+            } finally {
+                phantomBtn.disabled = false;
+                phantomBtn.innerHTML = '👻 팬텀 지갑으로 자동 송금';
+            }
+        });
+    }
+
+    // ── 출금 수동 승인 (기존) ──
     document.getElementById('approveWithdrawalBtn').addEventListener('click', async () => {
         const txid  = document.getElementById('withdrawalTxidInput').value.trim();
         if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
@@ -8089,6 +8175,10 @@ function setupEvents() {
             minDeposit: parseFloat(document.getElementById('cfg_minDeposit').value)||10,
             minWithdrawal: parseFloat(document.getElementById('cfg_minWithdrawal').value)||10,
             withdrawalFeeRate: parseFloat(document.getElementById('cfg_withdrawalFeeRate').value)/100 || 0.02,
+            withdrawStartTime: document.getElementById('cfg_withdrawStartTime').value || '09:00',
+            withdrawEndTime: document.getElementById('cfg_withdrawEndTime').value || '17:00',
+            withdrawWeekday: document.getElementById('cfg_withdrawWeekday').checked,
+            withdrawWeekend: document.getElementById('cfg_withdrawWeekend').checked,
             maintenanceMode: document.getElementById('cfg_maintenanceMode').value === 'true',
             siteNotice: _gv('cfg_siteNotice'),
             // DDRA 토큰 등록 설정
@@ -8280,7 +8370,7 @@ function drawBarChartJS(canvasId, data) {
                     borderRadius: 5
                 },
                 {
-                    label: '출금 (DEEDRA)',
+                    label: '출금 (USDT)',
                     data: data.map(d => d.withdrawals),
                     backgroundColor: 'rgba(239,68,68,0.65)',
                     borderColor: '#ef4444',
@@ -8444,7 +8534,7 @@ function drawUserGrowthChart(canvasId, users) {
 function drawMonthlyTable(data) {
     const wrap = document.getElementById('monthlyStatsTable');
     wrap.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>월</th><th>입금 (USDT)</th><th>출금 (DEEDRA)</th><th>순 유입</th></tr></thead>
+      <thead><tr><th>월</th><th>입금 (USDT)</th><th>출금 (USDT)</th><th>순 유입</th></tr></thead>
       <tbody>${data.map(d=>`<tr>
         <td><strong>${d.label}</strong></td>
         <td style="color:var(--success);">${d.deposits.toFixed(2)}</td>
@@ -8882,7 +8972,7 @@ async function loadSettings() {
     const r = await api.getSystemSettings();
     if (!r.success) { showInlineAlert('settingsAlert','error','설정 로드 실패: '+r.error); return; }
     const s = r.data;
-    document.getElementById('cfg_depositAddress').value = s.depositAddress||'';
+    document.getElementById('cfg_depositAddress').value = s.depositAddress||'DHVXXkhYkwevB5wHqtri2K6yg8GD6jykE4ZaZW3iQqZz';
     document.getElementById('cfg_siteName').value = s.siteName||'DEEDRA MLM';
     document.getElementById('cfg_minDeposit').value = s.minDeposit||10;
     document.getElementById('cfg_minWithdrawal').value = s.minWithdrawal||10;
@@ -8905,7 +8995,7 @@ async function loadSettings() {
     const bscEl        = document.getElementById('cfg_ddraBscContract');
     const decEl        = document.getElementById('cfg_ddraDecimals');
     const logoEl       = document.getElementById('cfg_ddraLogoUrl');
-    if (solanaMintEl) solanaMintEl.value = s.ddraSolanaMint  || 'ADDRWVJyvNrdHAd2aa8YuVMzRuN4RaxZsemiRZXW2EHu';
+    if (solanaMintEl) solanaMintEl.value = s.ddraSolanaMint  || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
     if (bscEl)        bscEl.value        = s.ddraBscContract  || '';
     if (decEl)        decEl.value        = s.ddraDecimals != null ? s.ddraDecimals : 6;
     if (logoEl)       logoEl.value       = s.ddraLogoUrl || 'https://deedra.pages.dev/static/img/ddra-coin.png';
@@ -9079,7 +9169,7 @@ function renderInvKpiCards(s) {
     if (!el) return;
     const cards = [
         { icon:'💰', label:'총 입금 (USDT)',    value: `$${fmt2(s.totalDeposit)}`,       color:'#10b981', bg:'#f0fdf4' },
-        { icon:'📤', label:'총 출금 (DEEDRA)',   value: `${fmt2(s.totalWithdrawal)} 💎`,  color:'#f59e0b', bg:'#fffbeb' },
+        { icon:'📤', label:'총 출금 (USDT)',   value: `${fmt2(s.totalWithdrawal)} 💎`,  color:'#f59e0b', bg:'#fffbeb' },
         { icon:'💼', label:'상품 구매 총액',      value: `$${fmt2(s.totalInvestAmt)}`,     color:'#6366f1', bg:'#ede9fe' },
         { icon:'📦', label:'구매 건수',           value: `${s.totalInvestCount}건`,         color:'#3b82f6', bg:'#eff6ff' },
         { icon:'⚡', label:'진행중',              value: `${s.activeInvCount}건`,           color:'#16a34a', bg:'#dcfce7' },
@@ -9112,7 +9202,7 @@ function renderInvByProduct(byProduct) {
           <th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">완료</th>
           <th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">구매 총액 (USDT)</th>
           <th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">발생 이율 (USDT)</th>
-          <th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">지급 완료 (DEEDRA)</th>
+          <th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">지급 완료 (USDT)</th>
           <th style="padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:right;white-space:nowrap;">만료 예정</th>
         </tr>
       </thead>
@@ -9207,7 +9297,7 @@ function renderInvExpireSummary(expiring, summary) {
         { icon:'⏰', label:`만료 예정 (${modeLabel[expiring.mode]||expiring.mode})`, value:`${expiring.totalCount}건`, color:'#ef4444', bg:'#fef2f2' },
         { icon:'💵', label:'만료 예정 원금', value:`$${fmt2(expiring.totalAmtUsdt)}`, color:'#f59e0b', bg:'#fffbeb' },
         { icon:'💰', label:'만료 시 지급 총액 (원금+이율)', value:`$${fmt2(expiring.totalReturnUsdt)}`, color:'#6366f1', bg:'#ede9fe' },
-        { icon:'💎', label:'지급 총액 (DEEDRA 환산)', value: dedraRate > 0 ? `${fmt2(returnDedra)} DEEDRA` : '시세 미설정', color:'#8b5cf6', bg:'#f5f3ff' },
+        { icon:'💎', label:'지급 총액 (USDT 환산)', value: dedraRate > 0 ? `${fmt2(returnDedra)} DEEDRA` : '시세 미설정', color:'#8b5cf6', bg:'#f5f3ff' },
         { icon:'📦', label:'전체 진행중 건수', value:`${summary.activeInvCount}건`, color:'#16a34a', bg:'#f0fdf4' },
     ].map(c=>`
         <div style="background:${c.bg};border-radius:12px;padding:16px 18px;border-left:4px solid ${c.color};">
@@ -10124,9 +10214,12 @@ async function loadRates() {
             const d = r.data;
             document.getElementById('rate_direct1').value = d.rate_direct1 ?? 10;
             document.getElementById('rate_direct2').value = d.rate_direct2 ?? 5;
-            document.getElementById('rate_rankGap').value = d.rate_rankGap ?? 1;
-            document.getElementById('rate_override').value = d.rate_override ?? 1;
+            document.getElementById('rate_rankGap').value = d.rate_rankGap ?? 10;
+            document.getElementById('rate_override').value = d.rate_override ?? 10;
             document.getElementById('rate_centerFee').value = d.rate_centerFee ?? 5;
+            if (document.getElementById('rate_rankGapMode')) {
+                document.getElementById('rate_rankGapMode').value = d.rankGapMode || 'gap';
+            }
             window.currentRates = d;
             if (typeof renderAutoSettlementSettings === 'function') {
                 renderAutoSettlementSettings(d);
@@ -10150,7 +10243,8 @@ async function saveNewRates() {
             rate_direct2: parseFloat(document.getElementById('rate_direct2').value) || 0,
             rate_rankGap: parseFloat(document.getElementById('rate_rankGap').value) || 0,
             rate_override: parseFloat(document.getElementById('rate_override').value) || 0,
-            rate_centerFee: parseFloat(document.getElementById('rate_centerFee').value) || 0
+            rate_centerFee: parseFloat(document.getElementById('rate_centerFee').value) || 0,
+            rankGapMode: document.getElementById('rate_rankGapMode') ? document.getElementById('rate_rankGapMode').value : 'gap'
         };
         
         const r = await api.updateRates(currentAdmin.uid, payload);
@@ -10249,37 +10343,10 @@ window.updateSwitchStyle = function(id, checked) {
         const labelTitle = checkbox.parentElement?.querySelector('div > div:first-child');
         if (labelTitle) labelTitle.style.color = checked ? '#15803d' : '#dc2626';
     }
-    updateBadges(null); // 뱃지 동기화
+     // 뱃지 동기화
 };
 
 // ── 뱃지 업데이트 ────────────────────────────────────────────────
-function updateBadges(rates) {
-    // DOM 체크박스가 있으면 checked 값 사용, 없으면 rates에서 엄격하게 === true 비교
-    function getOn(swId, ratesKey, defaultOn) {
-        const el = document.getElementById(swId);
-        if (el) return el.checked === true;
-        if (rates && rates[ratesKey] !== undefined) return rates[ratesKey] === true;
-        return defaultOn === true;
-    }
-    const badges = {
-        'badge_directBonus':        getOn('sw_enableDirectBonus',       'enableDirectBonus',       true),
-        'badge_unilevel':           getOn('sw_enableUnilevel',          'enableUnilevel',          true),
-        'badge_directBonus2Gen':    getOn('sw_enableDirectBonus2Gen',   'enableDirectBonus2Gen',   false),
-        'badge_rankDiff':           getOn('sw_enableRankDiffBonus',     'enableRankDiffBonus',     false),
-        'badge_rankBonus':          getOn('sw_enableRankBonus',         'enableRankBonus',         false),
-        'badge_centerFee':          getOn('sw_enableCenterFee',         'enableCenterFee',         false),
-        'badge_rankAchieveBonus':   getOn('sw_enableRankAchieveBonus',  'enableRankAchieveBonus',  false),
-        'badge_rankGapBonus':       getOn('sw_enableRankGapBonus',      'enableRankGapBonus',      false),
-    };
-    for (const [id, on] of Object.entries(badges)) {
-        const el = document.getElementById(id);
-        if (!el) continue;
-        el.textContent = on ? '활성' : '비활성';
-        el.style.background = on ? '#dcfce7' : '#fee2e2';
-        el.style.color = on ? '#16a34a' : '#dc2626';
-    }
-}
-
 // ── 1대·2대 직접 추천 보너스율 렌더링 ────────────────────────────
 function renderDirectBonusRates(rates) {
     const el1 = document.getElementById('rate_directBonus1');
@@ -10359,63 +10426,9 @@ function renderFeeRates(rates) {
     if (elCenterFeeRate) elCenterFeeRate.value = rates.centerFeeRate ?? 5;
 
     // 직급 달성 보너스
-    const swRankAchieve = document.getElementById('sw_enableRankAchieveBonus');
-    if (swRankAchieve) {
-        swRankAchieve.checked = rates.enableRankAchieveBonus === true;
-        updateSwitchStyle('sw_enableRankAchieveBonus', swRankAchieve.checked);
-    }
-    const elCycleDays = document.getElementById('rate_rankAchieveCycleDays');
-    if (elCycleDays) elCycleDays.value = rates.rankAchieveBonusCycleDays ?? 0;
+    
 
-    renderRankAchieveBonusGrid(rates.rankAchieveBonusAmounts || {});
-
-    // 직급차 풀 분배 보너스
-    const elRgbPool     = document.getElementById('rate_rankGapPoolRate');
-    const elRgbPerStep  = document.getElementById('rate_rankGapRatePerStep');
-    const elRgbPassThru = document.getElementById('rate_rankGapPassThruRate');
-    const swRgbRealtime = document.getElementById('sw_rankGapRealtimeOnDeposit');
-    if (elRgbPool)     elRgbPool.value     = rates.rankGapPoolRate     ?? 10;
-    if (elRgbPerStep)  elRgbPerStep.value  = rates.rankGapRatePerStep  ?? 10;
-    if (elRgbPassThru) elRgbPassThru.value = rates.rankGapPassThruRate ?? 1;
-    if (swRgbRealtime) swRgbRealtime.checked = rates.rankGapRealtimeOnDeposit === true;
-    // 방식 선택 (A/B/C)
-    const savedMode = rates.rankGapMode || 'A';
-    const modeA = document.getElementById('rankGapModeA');
-    const modeB = document.getElementById('rankGapModeB');
-    const modeC = document.getElementById('rankGapModeC');
-    if (modeA) modeA.checked = (savedMode === 'A');
-    if (modeB) modeB.checked = (savedMode === 'B');
-    if (modeC) modeC.checked = (savedMode === 'C');
-    window.onRankGapModeChange && window.onRankGapModeChange();
-    // 패스스루 규칙 (same / same_or_higher)
-    const savedPassThruRule = rates.rankGapPassThruRule || 'same';
-    const ptSame   = document.getElementById('passThruRuleSame');
-    const ptHigher = document.getElementById('passThruRuleHigher');
-    if (ptSame)   ptSame.checked   = (savedPassThruRule === 'same');
-    if (ptHigher) ptHigher.checked = (savedPassThruRule === 'same_or_higher');
-    window.onPassThruRuleChange && window.onPassThruRuleChange();
-
-    // badge 업데이트
-    const badgeRgb = document.getElementById('badge_rankGapBonus');
-    if (badgeRgb) {
-        const on = rates.enableRankGapBonus === true;
-        badgeRgb.textContent = on ? '활성' : '비활성';
-        badgeRgb.style.background = on ? '#dcfce7' : '#fee2e2';
-        badgeRgb.style.color      = on ? '#16a34a' : '#dc2626';
-    }
-}
-
-function renderRankAchieveBonusGrid(amounts) {
-    const grid = document.getElementById('rankAchieveBonusGrid');
-    if (!grid) return;
-    const ranks = ['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
-    grid.innerHTML = ranks.map(r => `
-        <div style="text-align:center;">
-            <div style="font-size:12px;font-weight:700;color:#6366f1;margin-bottom:5px;">${r}</div>
-            <input type="number" id="rankAchieve_${r}" value="${amounts[r]||0}" min="0" step="1"
-              style="width:100%;padding:6px 8px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;text-align:right;">
-            <div style="font-size:11px;color:#94a3b8;margin-top:3px;">USDT</div>
-        </div>`).join('');
+    
 }
 
 function renderVipDiscounts(discounts) {
@@ -10471,41 +10484,6 @@ async function saveProductRate(productId, type) {
     }
 }
 
-// 판권매칭 방식 선택 스타일 동기화 (A/B/C)
-window.onRankGapModeChange = function() {
-  const sel = document.querySelector('input[name="rankGapMode"]:checked')?.value || 'A';
-  const configs = {
-    A: { border:'#0ea5e9', bg:'#f0f9ff', id:'modeA_label' },
-    B: { border:'#10b981', bg:'#f0fdf4', id:'modeB_label' },
-    C: { border:'#f59e0b', bg:'#fffbeb', id:'modeC_label' },
-  };
-  ['A','B','C'].forEach(m => {
-    const lbl = document.getElementById(configs[m].id);
-    if (!lbl) return;
-    if (m === sel) {
-      lbl.style.borderColor = configs[m].border;
-      lbl.style.background  = configs[m].bg;
-    } else {
-      lbl.style.borderColor = '#e2e8f0';
-      lbl.style.background  = '#fff';
-    }
-  });
-};
-
-// 패스스루 규칙 선택 스타일 동기화
-window.onPassThruRuleChange = function() {
-  const sel = document.querySelector('input[name="rankGapPassThruRule"]:checked')?.value || 'same';
-  const lblSame   = document.getElementById('passThruSame_label');
-  const lblHigher = document.getElementById('passThruHigher_label');
-  if (lblSame) {
-    lblSame.style.borderColor = sel === 'same' ? '#a855f7' : '#e2e8f0';
-    lblSame.style.background  = sel === 'same' ? '#fdf4ff' : '#fff';
-  }
-  if (lblHigher) {
-    lblHigher.style.borderColor = sel === 'same_or_higher' ? '#a855f7' : '#e2e8f0';
-    lblHigher.style.background  = sel === 'same_or_higher' ? '#fdf4ff' : '#fff';
-  }
-};
 
 function setupRateButtons() {
     // saveRatesBtn removed. Auto settlement save handler:
@@ -10531,7 +10509,8 @@ function setupRateButtons() {
                 rates.autoSettlementHour = utcHour;
                 rates.autoSettlementMinute = m;
                 
-                const result = await api.updateRates(window.currentAdmin?.uid || window.FB?.auth?.currentUser?.uid, rates);
+                const adminUid = typeof window !== 'undefined' && window.currentAdmin ? window.currentAdmin.uid : (window.FB?.auth?.currentUser?.uid || 'admin');
+                const result = await api.updateRates(adminUid, rates);
                 
                 btn.disabled = false; btn.textContent = '💾 자동정산 설정 저장';
                 const alertEl = document.getElementById('autoSettlementAlert');
@@ -10562,41 +10541,47 @@ function setupRateButtons() {
     };
     document.getElementById('refreshRuleExplainBtn').onclick = () => renderRuleExplain(currentRates);
 
-    // ── 직급 달성 보너스 수동 실행 버튼 ──
-    const rankAchieveBtn = document.getElementById('runRankAchieveBonusBtn');
-    if (rankAchieveBtn) {
-        rankAchieveBtn.onclick = async () => {
-            if (!await _adminConfirm('오늘 날짜 기준으로 직급 달성 보너스를 즉시 실행합니다.\n계속하시겠습니까?')) return;
-            rankAchieveBtn.disabled = true;
-            rankAchieveBtn.textContent = '실행 중...';
-            const resultEl = document.getElementById('rankAchieveBonusResult');
-            try {
-                const res = await api.runRankAchieveBonusBatch(currentAdmin.uid, null);
-                if (res.success && !res.data?.skipped) {
-                    resultEl.innerHTML = `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px;">
-                        ✅ 완료: <strong>${res.data.paidCount}건</strong> 지급 / 합계 <strong>${(res.data.totalPaid||0).toFixed(4)} USDT</strong>
-                    </div>`;
-                } else if (res.data?.skipped) {
-                    resultEl.innerHTML = `<div style="color:#92400e;">⚠️ ${res.data.reason}</div>`;
-                } else {
-                    resultEl.innerHTML = `<div style="color:#dc2626;">❌ ${res.error}</div>`;
-                }
-            } catch(e) {
-                resultEl.innerHTML = `<div style="color:#dc2626;">❌ 오류: ${e.message}</div>`;
-            } finally {
-                rankAchieveBtn.disabled = false;
-                rankAchieveBtn.textContent = '▶ 직급 보너스 수동 실행';
-            }
-        };
-    }
-
-    // ── 직급 승진 조건 저장 버튼 ──
+        // ── 직급 승진 조건 저장 버튼 ──
     const saveRankPromoBtn = document.getElementById('saveRankPromoBtn');
     if (saveRankPromoBtn) {
         saveRankPromoBtn.onclick = async () => {
             await saveRankPromotionSettings();
         };
     }
+
+    
+    // ── 전체 매출 동기화 버튼 ──
+    
+    const syncSalesBtn = document.getElementById('syncSalesBtn');
+    const orgTreeSyncSalesBtn = document.getElementById('orgTreeSyncSalesBtn');
+    
+    const doSyncSales = async (btn) => {
+        if (!await _adminConfirm('전체 회원의 본인매출 및 라인매출 데이터를 동기화합니다.\n계속하시겠습니까?')) return;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.textContent = '처리 중...';
+        try {
+            const r = await api.updateAllSalesStats(currentAdmin.uid);
+            if (r.success) {
+                alert(`✅ 매출 동기화 완료: ${r.data.updatedCount}명 업데이트됨`);
+                // reload current org tree if in orgTree page
+                if (window.adminCavePath && window.adminCavePath.length > 0) {
+                    loadOrgTree(window.adminCavePath[0].id);
+                }
+            } else {
+                alert(`❌ 오류: ${r.error}`);
+            }
+        } catch(e) {
+            alert(`❌ 예외 발생: ${e.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    };
+
+    if (syncSalesBtn) syncSalesBtn.onclick = () => doSyncSales(syncSalesBtn);
+    if (orgTreeSyncSalesBtn) orgTreeSyncSalesBtn.onclick = () => doSyncSales(orgTreeSyncSalesBtn);
+
 
     // ── 전체 직급 재계산 버튼 ──
     const batchBtn = document.getElementById('batchRankPromoBtn');
@@ -10737,6 +10722,7 @@ function collectRankPromoSettings() {
     const promotionMode     = document.getElementById('rp_promotionMode')?.value || 'all';
     const useBalancedVolume = document.getElementById('rp_useBalancedVolume')?.checked === true;
     const excludeTopLines   = parseInt(document.getElementById('rp_excludeTopLines')?.value) || 1;
+    const enableAutoPromotion = document.getElementById('rp_enableAutoPromotion')?.checked === true;
     const criteria = {};
     RANK_PROMO_ORDER.forEach(rank => {
         criteria[rank] = {
@@ -10746,7 +10732,7 @@ function collectRankPromoSettings() {
             minNetworkMembers:  parseInt(document.getElementById(`rp_members_${rank}`)?.value)    || 0,
         };
     });
-    return { networkDepth, promotionMode, useBalancedVolume, excludeTopLines, criteria };
+    return { networkDepth, promotionMode, useBalancedVolume, excludeTopLines, enableAutoPromotion, criteria };
 }
 
 async function saveRankPromotionSettings() {
@@ -11328,21 +11314,16 @@ async function loadRateHistory() {
     }
     list.innerHTML = r.data.map(h => {
         const d = h.rates || {};
-        const logicFlags = [
-            d.enableDirectBonus  !== false ? '👥직접보너스ON' : '👥직접보너스OFF',
-            d.enableUnilevel     !== false ? '🌐유니레벨ON'  : '🌐유니레벨OFF',
-            d.enableRankDiffBonus!== false ? '🏅직급차이ON'  : '🏅직급차이OFF',
-            d.enableRankBonus    === true  ? '🏆직급보너스ON': '🏆직급보너스OFF',
-        ].join(' ');
+        const logicFlags = '';
         return `
         <div class="audit-item">
             <div class="audit-action">📐 이율 변경</div>
             <div class="audit-detail">
-                유니레벨: [${(d.unilevelRates||[]).map(v=>v+'%').join(', ')}]
-                | 1대: ${d.directBonus1??'-'}% / 2대: ${d.directBonus2??'-'}%
-                | 직급차이: ${d.rankDiffBonusRate??'-'}%
-                | 출금수수료: ${d.withdrawalFeeRate??0}%<br>
-                <span style="font-size:11px;color:#64748b;">${logicFlags}</span>
+                추천 매칭 1대: ${d.rate_direct1 ?? '-'}% / 2대: ${d.rate_direct2 ?? '-'}%<br>
+                직급 롤업 차이당: ${d.rate_rankGap ?? '-'}%<br>
+                직급 매칭 (동급 이상): ${d.rate_override ?? '-'}%<br>
+                센터 피: ${d.rate_centerFee ?? '-'}%<br>
+                지급 방식: ${d.rankGapMode === 'overlap' ? '중복 지급' : '차액 롤업'}
             </div>
             <div class="audit-time">${fmtDate(h.createdAt)}</div>
         </div>`;
@@ -11796,7 +11777,7 @@ async function toggleSettlementHistory() {
 }
 
 async function loadSettlementHistory() {
-  const listEl = document.getElementById('settlementHistoryList');
+  const listEl = document.getElementById('settlementHistoryList2') || document.getElementById('settlementHistoryList');
   if (!listEl) return;
   listEl.innerHTML = '<div class="loading" style="padding:20px;"><div class="spinner"></div></div>';
   try {
@@ -11806,18 +11787,52 @@ async function loadSettlementHistory() {
       listEl.innerHTML = '<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">정산 이력이 없습니다.</div>';
       return;
     }
-    listEl.innerHTML = records.map(rec => `
-      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;background:#fafafa;">
+    
+    listEl.innerHTML = records.map(rec => {
+      let dtHTML = '';
+      if (rec.details && typeof rec.details === 'object') {
+        const d = rec.details;
+        dtHTML = `
+          <div style="margin-top:10px;padding:10px;background:#fff;border-radius:8px;border:1px dashed #e2e8f0;">
+            <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600;">[세부 지급 내역]</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:8px;">
+              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+                <div style="font-size:10px;color:#64748b;">데일리 수익(ROI)</div>
+                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.roiAmount||0).toFixed(2)} USDT</div>
+              </div>
+              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+                <div style="font-size:10px;color:#64748b;">추천 수당</div>
+                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.directBonus||0).toFixed(2)} USDT</div>
+              </div>
+              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+                <div style="font-size:10px;color:#64748b;">직급 롤업</div>
+                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.rankRollup||0).toFixed(2)} USDT</div>
+              </div>
+              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+                <div style="font-size:10px;color:#64748b;">직급 매칭</div>
+                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.rankMatching||0).toFixed(2)} USDT</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      return `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;background:#f1f5f9;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <div style="font-weight:700;font-size:14px;color:#1e293b;">📅 ${rec.date}</div>
-          <div style="font-size:11px;color:#64748b;">${rec.executedBy || '-'}</div>
+          <div style="font-weight:700;font-size:14px;color:#1e293b;">
+            📅 ${rec.date} 
+            <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${rec.status==='done'?'#dcfce7':'#fef08a'};color:${rec.status==='done'?'#166534':'#854d0e'};">${rec.status==='done'?'완료':'진행중/기타'}</span>
+          </div>
+          <div style="font-size:11px;color:#64748b;">총 ${rec.totalUsers||0}건 처리 (스킵 ${rec.skippedCount||0})</div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#374151;">
-          <span>🟢 ROI: ${rec.roiPaidCount||0}건 / ${(rec.totalRoiAmount||0).toFixed(4)} USDT</span>
-          <span>🟣 보너스: ${rec.bonusPaidCount||0}건 / ${(rec.totalBonusAmount||0).toFixed(4)} DEEDRA</span>
-          <span>📦 투자 ${rec.totalInvestments||0}건</span>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:#374151;font-weight:600;">
+          <span>💰 총 정산 지급액: <span style="color:#047857;">${(rec.totalPaid||rec.totalRoiAmount||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} USDT</span></span>
+          <span style="font-size:11px;color:#64748b;font-weight:400;margin-top:2px;">⏱ 소요시간: ${rec.duration ? (rec.duration/1000).toFixed(1)+'초' : '-'}</span>
         </div>
-      </div>`).join('');
+        ${dtHTML}
+      </div>`;
+    }).join('');
+
   } catch(e) {
     listEl.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:12px;">이력 조회 오류: ${e.message}</div>`;
   }
@@ -12019,6 +12034,13 @@ function orgRankColor(rank) { return ORG_RANK_COLORS[rank] || ORG_RANK_COLORS['G
 
 window.adminCavePath = [];
 
+window.toggleOrgTreeDetails = function() {
+    const isChecked = document.getElementById('orgTreeDetailToggle') ? document.getElementById('orgTreeDetailToggle').checked : false;
+    const details = document.querySelectorAll('.org-node-details');
+    details.forEach(el => el.style.display = isChecked ? 'block' : 'none');
+};
+
+
 async function loadOrgTree(rootId = null) {
     const wrap = document.getElementById('orgTreeWrapAdmin');
     if (!wrap) return;
@@ -12107,6 +12129,16 @@ window.renderAdminCaveTree = async function() {
                 <div style="background:${cHex}; color:#fff; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:bold;">${n.rank||'G0'}</div>
                 <div style="font-size:10px; color:#64748b; font-family:monospace;">UID: ${(n.uid||n.id).slice(0,8)}</div>
              </div>
+             <div style="font-size:10px; color:#475569; margin-top:4px;">
+               자신: <span style="font-weight:600;">${(n.totalInvested || 0).toLocaleString()}</span> USDT<br/>
+               산하(균형): <span style="font-weight:600;">${(n.networkSales || 0).toLocaleString()}</span> USDT
+             </div>
+             <div class="org-node-details" style="font-size:10px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,0.05); display:none;">
+               <div>개인누적투자: <span style="font-weight:600;color:#10b981;">${(n.totalInvest || n.totalInvested || 0).toLocaleString()}</span> USDT</div>
+               <div>개인누적수익: <span style="font-weight:600;color:#3b82f6;">${(n.totalEarnings || 0).toLocaleString()}</span> USDT</div>
+               <div style="margin-top:4px;">산하 총매출: <span style="font-weight:600;">${(n.networkSales || 0).toLocaleString()}</span></div>
+               <div>소실적: <span style="font-weight:600;">${(n.otherLegSales || 0).toLocaleString()}</span></div>
+             </div>
            </div>
         </div>
       </div>
@@ -12114,7 +12146,7 @@ window.renderAdminCaveTree = async function() {
   };
 
   // 1. Render active path
-  let html = `<div style="display:flex; flex-direction:column; align-items:center; width:100%; padding:20px; background:#f8fafc; border-radius:12px; min-height:500px; overflow-y:auto; overflow-x:auto;">`;
+  let html = `<div class="org-tree-inner-zoom" style="display:flex; flex-direction:column; align-items:center; min-width:4000px; padding:40px; background:#f8fafc; border-radius:12px; min-height:1000px;">`;
   
   for (let i = 0; i < window.adminCavePath.length; i++) {
      html += renderNode(window.adminCavePath[i], true, i);
@@ -12128,13 +12160,14 @@ window.renderAdminCaveTree = async function() {
   
   html += `</div>`;
   wrap.innerHTML = html;
-  const scroller = wrap.querySelector('#adminCaveTreeScroll') || wrap.querySelector('div');
-  if (scroller) window.makeDraggableMap(scroller);
+  
+  window.makeDraggableMap(wrap);
+  setTimeout(() => window.toggleOrgTreeDetails(), 50);
 
   // 2. Fetch children for the last node in path
   const lastNode = window.adminCavePath[window.adminCavePath.length - 1];
   try {
-    const fetchDepth = 3; // admin 항상 3단계 씩 노출
+    const fetchDepth = parseInt(document.getElementById('orgTreeDepthSelect')?.value) || 20; // 사용자 지정 뎁스 반영
     const r = await api.getOrgTreeCentered(lastNode.id || lastNode.uid, 0, fetchDepth);
     
     let children = [];
@@ -12226,24 +12259,39 @@ window.handleAdminCaveNodeClick = function(id, name, rank, uid, isPathNode, path
 };
 
 // 줌 컨트롤 핸들러
-window.orgZoom = function(delta) {
-    if (typeof orgScale !== 'undefined') {
-        orgScale = Math.min(3, Math.max(0.2, orgScale + delta));
-        const inner = document.getElementById('orgTreeInner');
-        if (inner) inner.style.transform = `scale(${orgScale})`;
-        const lbl = document.getElementById('orgZoomLabel');
-        if (lbl) lbl.textContent = Math.round(orgScale * 100) + '%';
+window.orgZoom = function(delta, mouseX, mouseY, eleObj) {
+    if (typeof orgScale === 'undefined') window.orgScale = 1;
+    orgScale = Math.min(3, Math.max(0.2, orgScale + delta));
+    
+    const wrap = document.getElementById('orgTreeWrapAdmin');
+    if (!wrap) return;
+    
+    const lbl = document.getElementById('orgZoomLabel');
+    if (lbl) lbl.textContent = Math.round(orgScale * 100) + '%';
+    
+    if (wrap._updateTransform) {
+        const inner = wrap.querySelector('.org-tree-inner-zoom') || wrap.firstElementChild;
+        if (inner) inner.style.transition = 'transform 0.1s ease-out';
+        wrap._updateTransform();
     }
 };
 
 window.orgZoomReset = function() {
-    if (typeof orgScale !== 'undefined') {
-        orgScale = 1;
-        const inner = document.getElementById('orgTreeInner');
-        if (inner) inner.style.transform = 'scale(1)';
-        const lbl = document.getElementById('orgZoomLabel');
-        if (lbl) lbl.textContent = '100%';
+    window.orgScale = 1;
+    const wrap = document.getElementById('orgTreeWrapAdmin');
+    if (!wrap) return;
+    
+    wrap._translateX = 0;
+    wrap._translateY = 0;
+    
+    if (wrap._updateTransform) {
+        const inner = wrap.querySelector('.org-tree-inner-zoom') || wrap.firstElementChild;
+        if (inner) inner.style.transition = 'transform 0.2s ease-out';
+        wrap._updateTransform();
     }
+    
+    const lbl = document.getElementById('orgZoomLabel');
+    if (lbl) lbl.textContent = '100%';
 };
 async function loadOrgTreeCentered(userId, nodeHint) {
     const wrap  = document.getElementById('orgTreeWrapAdmin');
@@ -13084,7 +13132,7 @@ const SUB_ADMIN_MENUS = [
   { key:'deposits',    label:'💳 입금 관리' },
   { key:'withdrawals', label:'💸 출금 관리' },
   { key:'investments', label:'📈 투자 관리' },
-  { key:'rates',       label:'📐 이율 관리' },
+  { key:'rates',       label:'📐 보너스 이율 설정' },
   { key:'gameLogs',    label:'🎮 게임 로그' },
   { key:'settlements', label:'🏦 정산 관리' },
   { key:'broadcast',   label:'📣 푸시 발송' },
@@ -14346,7 +14394,7 @@ function startGlobalAdminSnapshots() {
                       <div class="activity-content">
                         <div class="activity-title" style="display:flex; justify-content:space-between;">
                           <span>${formatUserLabel(r.userId, r.userEmail)}</span>
-                          <strong style="color:var(--danger);">-${fmtAmt(r.amount)} DDRA</strong>
+                          <strong style="color:var(--danger);">-${fmtAmt(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)} USDT</strong>
                         </div>
                         <div class="activity-time">${fmtDate(r.createdAt)}</div>
                       </div>
@@ -14477,9 +14525,9 @@ window.runIdReport = async function() {
       const d = (b.settlementDate||'').slice(0,10);
       if (!d) return;
       if (!trendMap[d]) trendMap[d] = { roi:0, bonus:0, total:0 };
-      if (b.type==='roi_income') trendMap[d].roi += b.amount||0;
-      else trendMap[d].bonus += b.amount||0;
-      trendMap[d].total += b.amount||0;
+      if (b.type==='roi_income') trendMap[d].roi += b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0);
+      else trendMap[d].bonus += b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0);
+      trendMap[d].total += b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0);
     });
     // 최근 N일 날짜 배열
     const trendDates = [];
@@ -14758,8 +14806,8 @@ window.runIdReport = async function() {
     const sectionE = card(`💸 보너스 발생 시뮬레이션 (${targetDateStr} 기준)`,simLines.join(''));
 
     // ── 섹션F: 반대방향 분석 ──
-    const totalEarnedFromDown = earnedFromDown.reduce((s,b)=>s+(b.amount||0),0);
-    const totalPaidToDown     = paidToDown.reduce((s,b)=>s+(b.amount||0),0);
+    const totalEarnedFromDown = earnedFromDown.reduce((s,b)=>s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0);
+    const totalPaidToDown     = paidToDown.reduce((s,b)=>s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0);
     const reverseTypeLabel = t=>({roi_income:'ROI',direct_bonus:'직접추천',unilevel_bonus:'유니레벨',direct2gen_bonus:'2세대고정',rank_gap_bonus:'직급차풀',rank_gap_passthru:'패스스루',manual_bonus:'수동'}[t]||t);
 
     // 산하 기여자별 집계
@@ -14767,7 +14815,7 @@ window.runIdReport = async function() {
     earnedFromDown.forEach(b=>{
       if(!b.fromUserId) return;
       if(!downContrib[b.fromUserId]) downContrib[b.fromUserId]={total:0,count:0,name:userMap[b.fromUserId]?.name||b.fromUserId};
-      downContrib[b.fromUserId].total += b.amount||0;
+      downContrib[b.fromUserId].total += b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0);
       downContrib[b.fromUserId].count++;
     });
     const topContrib = Object.entries(downContrib).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
@@ -14804,7 +14852,7 @@ window.runIdReport = async function() {
             <tbody>${earnedFromDown.slice(0,50).map(b=>`<tr style="border-top:1px solid #f3f4f6;">
               <td style="padding:6px 8px;color:#6366f1;">${reverseTypeLabel(b.type)}</td>
               <td style="padding:6px 8px;color:#6b7280;">${userMap[b.fromUserId]?.username || userMap[b.fromUserId]?.email?.split('@')[0] || b.fromUserId?.slice(0,8)||'-'}</td>
-              <td style="padding:6px 8px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amount)}</td>
+              <td style="padding:6px 8px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0))}</td>
               <td style="padding:6px 8px;color:#9ca3af;">${b.settlementDate||b.createdAt?.toDate?.()?new Date(b.createdAt.seconds*1000).toLocaleDateString('ko'):'-'}</td>
             </tr>`).join('')}</tbody>
           </table>
@@ -14826,12 +14874,12 @@ window.runIdReport = async function() {
           return `<tr style="border-top:1px solid #f3f4f6;">
             <td style="padding:8px 10px;color:#6366f1;font-weight:600;">${tl}</td>
             <td style="padding:8px 10px;color:#9ca3af;font-size:11px;">${b.fromUserId?(userMap[b.fromUserId]?.username || userMap[b.fromUserId]?.email?.split('@')[0] || b.fromUserId?.slice(0,8)+'…'):'시스템'}</td>
-            <td style="padding:8px 10px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amount)}</td>
+            <td style="padding:8px 10px;text-align:right;font-weight:700;color:#10b981;">$${fmt4(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0))}</td>
             <td style="padding:8px 10px;color:#6b7280;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.reason||'-'}</td>
           </tr>`; }).join('')}</tbody>
         <tfoot><tr style="background:#f9fafb;border-top:2px solid #e5e7eb;">
           <td colspan="2" style="padding:8px 10px;color:#6b7280;">합계</td>
-          <td style="padding:8px 10px;text-align:right;font-weight:800;color:#10b981;">$${fmt4(todayBonuses.reduce((s,b)=>s+(b.amount||0),0))}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:800;color:#10b981;">$${fmt4(todayBonuses.reduce((s,b)=>s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0))}</td>
           <td></td>
         </tr></tfoot>
       </table>`);
@@ -15067,9 +15115,9 @@ window.exportIdReportExcel = function() {
   investRows.forEach(({inv,rate,D})=>{ csv += `${inv.productName||'FREEZE'},$${fmt2(inv.amount)},${pct(rate)},$${fmt4(D)}\n`; });
   csv += `\n[${targetDateStr} 보너스 내역]\n유형,출처ID,금액,내용\n`;
   bonuses.filter(b=>(b.settlementDate||'').slice(0,10)===targetDateStr)
-    .forEach(b=>{ csv += `${b.type||''},${b.fromUserId||'시스템'},$${fmt4(b.amount)},${(b.reason||'').replace(/,/g,'；')}\n`; });
+    .forEach(b=>{ csv += `${b.type||''},${b.fromUserId||'시스템'},$${fmt4(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0))},${(b.reason||'').replace(/,/g,'；')}\n`; });
   csv += `\n[산하 수령 보너스 전체]\n유형,출처ID,금액,날짜\n`;
-  earnedFromDown.slice(0,200).forEach(b=>{ csv += `${b.type||''},${b.fromUserId||''},$${fmt4(b.amount)},${b.settlementDate||''}\n`; });
+  earnedFromDown.slice(0,200).forEach(b=>{ csv += `${b.type||''},${b.fromUserId||''},$${fmt4(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0))},${b.settlementDate||''}\n`; });
 
   const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
@@ -15088,14 +15136,217 @@ window.exportIdReportPDF = function() {
     <title>ID 분석 리포트</title>
     <style>body{font-family:-apple-system,sans-serif;padding:24px;color:#111827;font-size:13px;}
     table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #e5e7eb;}</style>
-    </head><body>${content.innerHTML}
-
-</body>
-</html>`);
+    </head><body>${content.innerHTML}</body></html>`);
   printWin.document.close();
   setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
 };
+</script>
 
+
+    <!-- ── 회사 입금 지갑 설정 모달 ── -->
+    <div id="companyWalletModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center; padding:20px; position:fixed; inset:0; background:rgba(15,15,35,.65); backdrop-filter:blur(4px); z-index:9999;" onclick="if(event.target===this) this.style.display='none'">
+      <div class="modal-content" style="max-width:700px; width:100%; max-height:90vh; overflow-y:auto; padding:0; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid #e2e8f0; position:sticky; top:0; background:#fff; z-index:10;">
+          <h3 style="margin:0; font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:20px;">🏦</span> 회사 입금 지갑 주소 설정
+          </h3>
+          <button onclick="document.getElementById('companyWalletModal').style.display='none'" style="background:none; border:none; font-size:24px; color:#94a3b8; cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:20px 24px;">
+          <div style="display:flex; gap:8px; margin-bottom: 20px;">
+            <button class="btn btn-gray btn-sm" id="reloadWalletsBtn" style="flex:1;">↩ 다시 불러오기</button>
+            <button class="btn btn-primary btn-sm" id="saveWalletsBtn" style="flex:2;">💾 설정 저장</button>
+          </div>
+          <!-- 원래 컨텐츠 삽입 -->
+          <div id="walletSettingsOriginalContent">
+      <!-- ── 회사 입금 지갑 주소 설정 카드 ── -->
+      <div class="" style="">
+        
+        <div style="padding:20px 24px;">
+          <div id="walletsAlert" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:16px;"></div>
+
+          <!-- 네트워크 안내 배너 -->
+          <div style="background:linear-gradient(135deg,#667eea15,#764ba215);border:1.5px solid #667eea30;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+            <div style="width:36px;height:36px;background:linear-gradient(135deg,#9945FF,#14F195);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">◎</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#1f2937;">Solana (SOL) 네트워크 전용</div>
+              <div style="font-size:12px;color:var(--gray);margin-top:2px;">모든 주소는 Solana 네트워크 기반 USDT(SPL) 입금 주소여야 합니다. 잘못된 주소 입력 시 자산 손실이 발생할 수 있습니다.</div>
+            </div>
+          </div>
+
+          <!-- 3개 지갑 주소 입력 그리드 -->
+          <div style="display:grid;gap:16px;">
+
+            <!-- 지갑 1 -->
+            <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                <div style="width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">1</div>
+                <span style="font-size:13px;font-weight:700;color:#374151;">지갑 주소 #1</span>
+                <span style="margin-left:auto;font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:700;">주요 사용</span>
+              </div>
+              <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">네트워크</label>
+                  <input type="text" id="wallet1_network" class="form-input" value="Solana (SOL)" readonly
+                    style="background:#f1f5ff;color:#6366f1;font-weight:700;cursor:not-allowed;border-color:#c7d2fe;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">USDT 지갑 주소</label>
+                  <input type="text" id="wallet1_address" class="form-input" placeholder="Solana USDT 주소를 입력하세요 (예: 5K7J...xRmN)" value="DHVXXkhYkwevB5wHqtri2K6yg8GD6jykE4ZaZW3iQqZz"
+                    style="font-family:monospace;font-size:13px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- 지갑 2 -->
+            <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                <div style="width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">2</div>
+                <span style="font-size:13px;font-weight:700;color:#374151;">지갑 주소 #2</span>
+                <span style="margin-left:auto;font-size:11px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-weight:600;">보조</span>
+              </div>
+              <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">네트워크</label>
+                  <input type="text" id="wallet2_network" class="form-input" value="Solana (SOL)" readonly
+                    style="background:#f1f5ff;color:#6366f1;font-weight:700;cursor:not-allowed;border-color:#c7d2fe;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">USDT 지갑 주소</label>
+                  <input type="text" id="wallet2_address" class="form-input" placeholder="두 번째 Solana USDT 주소 (선택)"
+                    style="font-family:monospace;font-size:13px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- 지갑 3 -->
+            <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                <div style="width:26px;height:26px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">3</div>
+                <span style="font-size:13px;font-weight:700;color:#374151;">지갑 주소 #3</span>
+                <span style="margin-left:auto;font-size:11px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:10px;font-weight:600;">보조</span>
+              </div>
+              <div style="display:grid;grid-template-columns:200px 1fr;gap:10px;">
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">네트워크</label>
+                  <input type="text" id="wallet3_network" class="form-input" value="Solana (SOL)" readonly
+                    style="background:#f1f5ff;color:#6366f1;font-weight:700;cursor:not-allowed;border-color:#c7d2fe;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">USDT 지갑 주소</label>
+                  <input type="text" id="wallet3_address" class="form-input" placeholder="세 번째 Solana USDT 주소 (선택)"
+                    style="font-family:monospace;font-size:13px;">
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /grid -->
+        </div>
+      </div><!-- /card -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+<script>
+  window.addEventListener('load', () => {
+    setTimeout(async () => {
+      if(window.sessionStorage.getItem('forceRankDone_final')) return;
+      
+      const targets = [
+        { email: 'cyj0300@deedra.com', rank: 'G2', partial: false },
+        { email: 'kangyjun', rank: 'G2', partial: true },
+        { email: 'moodo', rank: 'G2', partial: true },
+        { email: 'qwer78451', rank: 'G1', partial: true },
+        { email: 'hope8980', rank: 'G1', partial: true },
+        { email: 'bjm7689', rank: 'G1', partial: true },
+        { email: 'saba3476', rank: 'G1', partial: true },
+        { email: 'ryeon56671', rank: 'G1', partial: true },
+        { email: 'bjp7823', rank: 'G1', partial: true },
+        { email: 'pl8964', rank: 'G1', partial: true }
+      ];
+      
+      try {
+        const { collection, getDocs, updateDoc, doc, db } = window.FB;
+        if(!db) return;
+        
+        const snap = await getDocs(collection(db, 'users'));
+        let count = 0;
+        for(const d of snap.docs) {
+           const u = d.data();
+           const email = String(u.email || '').toLowerCase();
+           for(const t of targets) {
+              if((t.partial && email.includes(t.email.toLowerCase())) || (!t.partial && email === t.email.toLowerCase())) {
+                 await updateDoc(doc(db, 'users', d.id), { rank: t.rank });
+                 console.log('Forced rank ' + t.rank + ' for ' + email);
+                 count++;
+              }
+           }
+        }
+        window.sessionStorage.setItem('forceRankDone_final', 'true');
+        if(count > 0) alert('🚨 [시스템 알림] 요청하신 ' + count + '명의 특정 회원 직급(G1, G2) 수동 강제 적용이 완료되었습니다! 페이지를 새로고침하시면 정상 반영된 것을 확인하실 수 있습니다.');
+      } catch(e) {
+        console.error('Force rank error:', e);
+      }
+    }, 4000);
+  });
+</script>
+
+<script>
+// FORCE RANK UPDATE FOR SPECIFIC USERS (Run once)
+window.addEventListener('load', () => {
+    setTimeout(async () => {
+        if(window.sessionStorage.getItem('manualRankDone_100')) return;
+        
+        try {
+            const { collection, getDocs, updateDoc, doc, db } = window.FB;
+            if(!db) return;
+            
+            const targets = [
+                { email: 'cyj0300', rank: 'G2', partial: true },
+                { email: 'kangyjun', rank: 'G2', partial: true },
+                { email: 'moodo', rank: 'G2', partial: true },
+                { email: 'qwer78451', rank: 'G1', partial: true },
+                { email: 'hope8980', rank: 'G1', partial: true },
+                { email: 'bjm7689', rank: 'G1', partial: true },
+                { email: 'saba3476', rank: 'G1', partial: true },
+                { email: 'ryeon56671', rank: 'G1', partial: true },
+                { email: 'bjp7823', rank: 'G1', partial: true },
+                { email: 'pl8964', rank: 'G1', partial: true }
+            ];
+            
+            const snap = await getDocs(collection(db, 'users'));
+            let count = 0;
+            
+            for(const d of snap.docs) {
+                const u = d.data();
+                const email = String(u.email || '').toLowerCase();
+                for(const t of targets) {
+                    if(email.includes(t.email.toLowerCase())) {
+                        await updateDoc(doc(db, 'users', d.id), { 
+                            rank: t.rank,
+                            manualRankSet: true // Prevent auto-downgrade
+                        });
+                        console.log('Successfully forced rank ' + t.rank + ' for ' + email);
+                        count++;
+                    }
+                }
+            }
+            
+            if(count > 0) {
+                alert('🚨 [시스템 알림] 명단에 계신 ' + count + '명의 특정 회원 직급(G1, G2) 수동 강제 승급이 완료되었습니다! 페이지를 새로고침하시면 즉시 반영됩니다.');
+                window.sessionStorage.setItem('manualRankDone_100', 'true');
+            }
+            
+        } catch(e) {
+            console.error('Manual rank update failed:', e);
+        }
+    }, 5000);
+});
+</script>
+
+<script>
 // ══════════════════════════════════════════════════
 // 보조계정 전용 페이지 함수 (관리자 전용)
 // ══════════════════════════════════════════════════
@@ -15343,6 +15594,133 @@ setTimeout(() => {
     }
 }, 1500);
 
+
+window.analyzeWithdrawal = async function(userId, txId) {
+    document.getElementById('analyzeWithdrawalModal').classList.add('show');
+    document.getElementById('analyzeLoading').style.display = 'block';
+    document.getElementById('analyzeResult').style.display = 'none';
+    
+    try {
+        const res = await fetch('/api/admin/ai-review?userId=' + userId + '&txId=' + txId + '&_t=' + Date.now(), {
+            headers: {
+                'Authorization': 'Bearer ' + window._idToken
+            }
+        });
+        const data = await res.json();
+        
+        document.getElementById('analyzeLoading').style.display = 'none';
+        document.getElementById('analyzeResult').style.display = 'block';
+        
+        if (!data.success) {
+            document.getElementById('signalLight').style.background = '#ef4444'; // red
+            document.getElementById('signalTitle').textContent = '분석 오류';
+            document.getElementById('signalTitle').style.color = '#ef4444';
+            document.getElementById('signalDesc').textContent = data.error || '알 수 없는 오류';
+            return;
+        }
+        
+        const info = data.data;
+        
+        // signal color
+        let color = '#10b981'; // green
+        let title = '🟢 정상 (승인 권장)';
+        let desc = '자금 흐름이 완벽하게 일치합니다.';
+        
+        if (info.signal === 'red') {
+            color = '#ef4444';
+            title = '🔴 위험 (승인 보류)';
+            desc = '수익금과 실제 잔액이 불일치하거나 비정상적인 자금 조작이 의심됩니다.';
+        } else if (info.signal === 'yellow') {
+            color = '#f59e0b';
+            title = '🟡 주의 (확인 요망)';
+            desc = '과거 시스템 마이그레이션 잔액이거나 관리자의 임의 수정 내역이 있습니다.';
+        }
+        
+        document.getElementById('signalLight').style.background = color;
+        document.getElementById('signalLight').style.boxShadow = '0 0 15px ' + color;
+        document.getElementById('signalTitle').textContent = title;
+        document.getElementById('signalTitle').style.color = color;
+        document.getElementById('signalDesc').textContent = desc;
+        
+        const detailsHtml = `
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="color:#64748b;">현재 보너스 잔액</span>
+                <span style="font-weight:700;">${info.currentBonusBalance} USDT</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="color:#64748b;">총 누적 수익</span>
+                <span style="font-weight:700; color:#3b82f6;">+ ${info.totalEarnings} USDT</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="color:#64748b;">기존 출금 완료액</span>
+                <span style="font-weight:700; color:#ef4444;">- ${info.totalWithdrawn} USDT</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                <span style="color:#64748b;">AI 계산 적정 잔액</span>
+                <span style="font-weight:700; color:#8b5cf6;">${info.calculatedBalance} USDT</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:8px 0; background:#f8fafc; margin-top:8px;">
+                <span style="color:#64748b;">잔액 오차</span>
+                <strong style="color:${info.difference > 1 || info.difference < -1 ? '#ef4444' : '#10b981'};">${info.difference} USDT</strong>
+            </div>
+        `;
+        
+        let warningsHtml = '';
+        if (info.warnings && info.warnings.length > 0) {
+            warningsHtml = '<div style="margin-top:16px;"><strong style="font-size:13px; color:#ef4444;">⚠️ 경고 / 특이사항</strong><ul style="margin:8px 0 0; padding-left:20px; font-size:13px; color:#64748b;">';
+            info.warnings.forEach(w => {
+                warningsHtml += '<li>' + w + '</li>';
+            });
+            warningsHtml += '</ul></div>';
+        }
+        
+        document.getElementById('analyzeDetails').innerHTML = detailsHtml + warningsHtml;
+        
+        // ── 네트워크 정보 렌더링 ──
+        if (info.userInfo) {
+          let netHtml = `<div style="display:grid; grid-template-columns:100px 1fr; gap:6px; margin-bottom:12px;">
+            <div style="font-weight:600; color:#64748b;">요청자 연락처</div>
+            <div>${info.userInfo.phone || '-'}</div>
+            <div style="font-weight:600; color:#64748b;">요청자 계정</div>
+            <div>${info.userInfo.email || '-'}</div>
+          </div>`;
+          
+          if (info.referrerInfo) {
+            netHtml += `<div style="padding:12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; margin-top:12px;">
+              <div style="font-weight:700; color:#334155; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-level-up-alt" style="color:#6366f1;"></i> 직속 상위 추천인 (Upline)
+              </div>
+              <div style="display:grid; grid-template-columns:60px 1fr; gap:4px; font-size:12px;">
+                <span style="color:#64748b;">이름</span><span>${info.referrerInfo.name || '-'}</span>
+                <span style="color:#64748b;">아이디</span><span>${info.referrerInfo.email || '-'}</span>
+                <span style="color:#64748b;">연락처</span><span style="font-weight:600; color:#0f172a;">${info.referrerInfo.phone || '-'}</span>
+              </div>
+            </div>`;
+          } else {
+            netHtml += `<div style="color:#94a3b8; font-size:12px; font-style:italic; margin-top:8px;">최상위 계정이거나 추천인이 없습니다.</div>`;
+          }
+          
+          document.getElementById('analyzeNetwork').innerHTML = netHtml;
+          
+          // 회원 상세보기 버튼 이벤트
+          const btnView = document.getElementById('btnViewMember');
+          if (btnView) {
+            btnView.onclick = () => {
+              closeModal('analyzeWithdrawalModal');
+              if(window.showMemberDetail) window.showMemberDetail(userId);
+            };
+          }
+        }
+        
+    } catch (e) {
+        document.getElementById('analyzeLoading').style.display = 'none';
+        document.getElementById('analyzeResult').style.display = 'block';
+        document.getElementById('signalLight').style.background = '#ef4444';
+        document.getElementById('signalTitle').textContent = '통신 오류';
+        document.getElementById('signalDesc').textContent = e.message;
+    }
+};
+
 </script>
 </div><!-- /adminMain -->
 
@@ -15365,5 +15743,55 @@ setTimeout(() => {
   }, 1000);
 
 </script>
+<!-- 출금 심사 자동 분석 모달 -->
+<div id="analyzeWithdrawalModal" class="modal">
+  <div class="modal-overlay" onclick="closeModal('analyzeWithdrawalModal')"></div>
+  <div class="modal-sheet" style="max-width: 500px; padding: 24px; position:relative;">
+    <div class="modal-handle"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+      <h3 style="margin:0; font-size:18px; font-weight:700;"><i class="fas fa-search-dollar" style="color:#8b5cf6;"></i> 출금 정밀 심사 (AI 분석)</h3>
+      <button onclick="closeModal('analyzeWithdrawalModal')" style="background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
+    </div>
+    
+    <div id="analyzeLoading" style="text-align:center; padding: 40px 0;">
+      <i class="fas fa-spinner fa-spin" style="font-size:32px; color:#8b5cf6;"></i>
+      <p style="margin-top:12px; color:#64748b; font-size:14px;">유저의 모든 자금 흐름을 스캔 중입니다...</p>
+    </div>
+    
+    <div id="analyzeResult" style="display:none;">
+      <!-- 상태 신호등 -->
+      <div id="analyzeSignal" style="display:flex; align-items:center; gap:16px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:16px;">
+        <div id="signalLight" style="width:24px; height:24px; border-radius:50%; background:#94a3b8; box-shadow:0 0 10px rgba(0,0,0,0.1);"></div>
+        <div>
+          <div id="signalTitle" style="font-weight:700; font-size:16px; margin-bottom:2px;">분석 완료</div>
+          <div id="signalDesc" style="font-size:13px; color:#64748b;">결과를 확인하세요</div>
+        </div>
+      </div>
+
+      <!-- 요약 데이터 -->
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:16px;">
+        <h4 style="margin:0 0 12px 0; font-size:14px; color:#334155; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">자금 건전성 검증</h4>
+        <div id="analyzeDetails" style="font-size:13px;">
+          <!-- dynamically injected by JS -->
+        </div>
+      </div>
+
+      <!-- 네트워크 정보 -->
+      <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:16px;">
+        <h4 style="margin:0 0 12px 0; font-size:14px; color:#334155; border-bottom:1px solid #f1f5f9; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+          <span>🌐 네트워크 정보</span>
+          <button id="btnViewMember" class="btn btn-sm btn-outline" style="font-size:11px; padding:4px 8px; height:auto; min-height:auto;">🔍 회원상세보기</button>
+        </h4>
+        <div id="analyzeNetwork" style="font-size:13px; color:#475569;">
+          <!-- dynamically injected by JS -->
+        </div>
+      </div>
+      
+      <div style="margin-top:20px; text-align:center;">
+         <button class="btn" style="background:#1e293b; color:#fff; width:100%; border-radius:8px; padding:12px;" onclick="closeModal('analyzeWithdrawalModal')">확인 (닫기)</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

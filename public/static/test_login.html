@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="module" src="/static/firebase.js"></script>
+</head>
+<body>
+<script>
+  setTimeout(async () => {
+    try {
+      console.log("Trying login...");
+      const result = await window.FB.signInWithEmailAndPassword(window.FB.auth, 'btc001@deedra.com', 'password123');
+      console.log("Success:", !!result);
+      console.log("Proxy?", window.FB._useRestAPI);
+    } catch(e) {
+      console.log("Error:", e.message, e.code);
+    }
+  }, 2000);
+</script>
+</body>
+</html>

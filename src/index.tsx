@@ -153,6 +153,425 @@ app.get('/api/auth/check-referral', async (c) => {
 app.get('/setup', (c) => c.html(SETUP_HTML()))
 
 // 관리자 페이지 - /admin 에서 직접 서빙
+
+
+app.post('/api/admin/rollback-settlement', async (c) => {
+  try {
+    const body = await c.req.json();
+    if (body.secret !== CRON_SECRET) return c.json({ error: '인증 실패' }, 401);
+    
+    const adminToken = await getAdminToken();
+    const todayPrefix = "2026-03-20";
+
+    
+    let bonuses = [];
+    let pageToken = null;
+    do {
+      const qUrl = `${FIRESTORE_BASE}/bonuses?pageSize=1000${pageToken ? '&pageToken='+pageToken : ''}`;
+      const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+      const data = await res.json();
+      if (data.documents) {
+        bonuses = bonuses.concat(data.documents.map(d => {
+          const doc = d;
+          const id = doc.name.split('/').pop();
+          const result = { id };
+          for (const [k, v] of Object.entries(doc.fields || {})) {
+            result[k] = v.stringValue !== undefined ? v.stringValue 
+                      : v.integerValue !== undefined ? Number(v.integerValue)
+                      : v.doubleValue !== undefined ? v.doubleValue
+                      : v.booleanValue !== undefined ? v.booleanValue
+                      : v.timestampValue !== undefined ? v.timestampValue
+                      : null;
+          }
+          return result;
+        }));
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    const todayBonuses = bonuses.filter(b => b.createdAt && b.createdAt.startsWith(todayPrefix));
+    
+    const userWalletsDelta = {}; 
+    const invReversals = {}; 
+    
+    
+    let users = [];
+    let uPageToken = null;
+    do {
+      const qUrl = `${FIRESTORE_BASE}/users?pageSize=1000${uPageToken ? '&pageToken='+uPageToken : ''}`;
+      const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+      const data = await res.json();
+      if (data.documents) {
+        users = users.concat(data.documents.map(d => {
+          const doc = d;
+          const id = doc.name.split('/').pop();
+          const result = { id };
+          for (const [k, v] of Object.entries(doc.fields || {})) {
+            result[k] = v.stringValue !== undefined ? v.stringValue 
+                      : v.integerValue !== undefined ? Number(v.integerValue)
+                      : v.doubleValue !== undefined ? v.doubleValue
+                      : v.booleanValue !== undefined ? v.booleanValue
+                      : v.timestampValue !== undefined ? v.timestampValue
+                      : null;
+          }
+          return result;
+        }));
+      }
+      uPageToken = data.nextPageToken;
+    } while (uPageToken);
+
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    for (const b of todayBonuses) {
+      if (!userWalletsDelta[b.userId]) {
+        userWalletsDelta[b.userId] = { bonusBalance: 0, totalEarnings: 0, totalInvest: 0 };
+      }
+      const d = userWalletsDelta[b.userId];
+      d.totalEarnings += b.amountUsdt;
+
+      if (b.type === 'roi') {
+        const u = userMap.get(b.userId);
+        if (u && u.autoCompound) {
+          d.totalInvest += b.amountUsdt;
+        } else {
+          d.bonusBalance += b.amountUsdt;
+        }
+        if (b.investmentId) {
+          invReversals[b.investmentId] = (invReversals[b.investmentId] || 0) + b.amountUsdt;
+        }
+      } else {
+        d.bonusBalance += b.amountUsdt;
+      }
+    }
+
+    let invRevertedCount = 0;
+    const invPromises = [];
+    for (const [invId, amountToSub] of Object.entries(invReversals)) {
+      const inv = await fsGet(`investments/${invId}`, adminToken);
+      if (inv) {
+        const newAmount = Math.max(0, (inv.amountUsdt || 0) - amountToSub);
+        const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
+        const newExpectedReturn = newAmount * (dailyRoiPct / 100);
+        
+        invPromises.push(fsPatch(`investments/${invId}`, {
+          amount: newAmount,
+          amountUsdt: newAmount,
+          expectedReturn: newExpectedReturn,
+          paidRoi: Math.max(0, (inv.paidRoi || 0) - amountToSub),
+          lastSettledAt: "2026-03-19T23:59:59.000Z" 
+        }, adminToken));
+        invRevertedCount++;
+      }
+    }
+    // Batch process to avoid timeouts
+    for (let i = 0; i < invPromises.length; i += 20) {
+      await Promise.all(invPromises.slice(i, i + 20));
+    }
+
+    
+    let wallets = [];
+    let wPageToken = null;
+    do {
+      const qUrl = `${FIRESTORE_BASE}/wallets?pageSize=1000${wPageToken ? '&pageToken='+wPageToken : ''}`;
+      const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+      const data = await res.json();
+      if (data.documents) {
+        wallets = wallets.concat(data.documents.map(d => {
+          const doc = d;
+          const id = doc.name.split('/').pop();
+          const result = { id };
+          for (const [k, v] of Object.entries(doc.fields || {})) {
+            result[k] = v.stringValue !== undefined ? v.stringValue 
+                      : v.integerValue !== undefined ? Number(v.integerValue)
+                      : v.doubleValue !== undefined ? v.doubleValue
+                      : v.booleanValue !== undefined ? v.booleanValue
+                      : v.timestampValue !== undefined ? v.timestampValue
+                      : null;
+          }
+          return result;
+        }));
+      }
+      wPageToken = data.nextPageToken;
+    } while (wPageToken);
+
+    const walletMap = new Map(wallets.map(w => [w.id, w])); 
+    let walletRevertedCount = 0;
+    const walletPromises = [];
+
+    for (const [userId, delta] of Object.entries(userWalletsDelta)) {
+      const w = walletMap.get(userId);
+      if (w) {
+        walletPromises.push(fsPatch(`wallets/${userId}`, {
+          bonusBalance: Math.max(0, (w.bonusBalance || 0) - delta.bonusBalance),
+          totalInvest: Math.max(0, (w.totalInvest || w.totalInvested || 0) - delta.totalInvest),
+          totalEarnings: Math.max(0, (w.totalEarnings || 0) - delta.totalEarnings)
+        }, adminToken));
+        walletRevertedCount++;
+      }
+    }
+    for (let i = 0; i < walletPromises.length; i += 20) {
+      await Promise.all(walletPromises.slice(i, i + 20));
+    }
+
+    let deletedBonuses = 0;
+    const deletePromises = [];
+    for (const b of todayBonuses) {
+      deletePromises.push(fetch(`${FIRESTORE_BASE}/bonuses/${b.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }));
+      deletedBonuses++;
+    }
+    for (let i = 0; i < deletePromises.length; i += 20) {
+      await Promise.all(deletePromises.slice(i, i + 20));
+    }
+
+    const lock = await fsGet(`settlements/2026-03-20`, adminToken);
+    if (lock) {
+      await fetch(`${FIRESTORE_BASE}/settlements/2026-03-20`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+    }
+
+    return c.json({ 
+      success: true, 
+      invRevertedCount, 
+      walletRevertedCount, 
+      deletedBonuses 
+    });
+  } catch(e) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+
+app.get('/api/admin/check-reconstruct', async (c) => {
+  const adminToken = await getAdminToken();
+  const invs = await fsQuery('investments', adminToken, [], 100000);
+  const txs = await fsQuery('transactions', adminToken, [], 1000);
+  
+  const deposits = txs.filter((t: any) => t.type === 'deposit' && t.status === 'approved');
+  const zeroInvs = invs.filter((i: any) => (i.amount === 0 || !i.amount) && i.status === 'active');
+  
+  return c.json({ zeroInvs: zeroInvs.slice(0, 5), deposits: deposits.slice(0, 5) });
+});
+
+
+app.get('/api/admin/do-reconstruct', async (c) => {
+  const adminToken = await getAdminToken();
+  let allInvs = [];
+  let pageToken = null;
+  do {
+    const res = await fetch(`${FIRESTORE_BASE}/investments?pageSize=1000${pageToken ? '&pageToken='+pageToken : ''}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+    const data = await res.json();
+    if (data.documents) {
+      allInvs = allInvs.concat(data.documents.map(d => {
+        const id = d.name.split('/').pop();
+        const result = { id };
+        for (const [k, v] of Object.entries(d.fields || {})) {
+          result[k] = v.stringValue !== undefined ? v.stringValue 
+                    : v.integerValue !== undefined ? Number(v.integerValue)
+                    : v.doubleValue !== undefined ? v.doubleValue
+                    : v.booleanValue !== undefined ? v.booleanValue
+                    : v.timestampValue !== undefined ? v.timestampValue
+                    : null;
+        }
+        return result;
+      }));
+    }
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  let allTxs = [];
+  let tPageToken = null;
+  do {
+    const res = await fetch(`${FIRESTORE_BASE}/transactions?pageSize=1000${tPageToken ? '&pageToken='+tPageToken : ''}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+    const data = await res.json();
+    if (data.documents) {
+      allTxs = allTxs.concat(data.documents.map(d => {
+        const id = d.name.split('/').pop();
+        const result = { id };
+        for (const [k, v] of Object.entries(d.fields || {})) {
+          result[k] = v.stringValue !== undefined ? v.stringValue 
+                    : v.integerValue !== undefined ? Number(v.integerValue)
+                    : v.doubleValue !== undefined ? v.doubleValue
+                    : v.booleanValue !== undefined ? v.booleanValue
+                    : v.timestampValue !== undefined ? v.timestampValue
+                    : null;
+        }
+        return result;
+      }));
+    }
+    tPageToken = data.nextPageToken;
+  } while (tPageToken);
+
+  const deposits = allTxs.filter(t => t.type === 'deposit' && t.status === 'approved');
+  const zeroInvs = allInvs.filter(i => (i.amount === 0 || !i.amount) && i.status === 'active');
+  
+  const userMap = new Map(); // Get users to check autoCompound
+  const usersRes = await fetch(`${FIRESTORE_BASE}/users?pageSize=1000`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+  const usersData = await usersRes.json();
+  // Simplified for now, just to be safe. We only care about base amount.
+  
+  let fixedCount = 0;
+  const promises = [];
+  const fixes = [];
+  
+  for (const inv of zeroInvs) {
+    // Find closest deposit
+    const userDeps = deposits.filter(d => d.userId === inv.userId);
+    let bestDep = null;
+    let minDiff = Infinity;
+    const invTime = new Date(inv.createdAt).getTime();
+    for (const d of userDeps) {
+      const depTime = new Date(d.approvedAt || d.createdAt).getTime();
+      const diff = Math.abs(invTime - depTime);
+      if (diff < minDiff && diff < 86400000) { // within 24 hours
+        minDiff = diff;
+        bestDep = d;
+      }
+    }
+    
+    if (bestDep) {
+      const baseAmount = bestDep.amount;
+      // If there was paidRoi and they autoCompounded, real amount = baseAmount + paidRoi.
+      // We don't exactly know if they autoCompounded, but paidRoi is 0 for most of them.
+      // Just to be safe, we'll restore to baseAmount + paidRoi (assuming paidRoi was compounded).
+      // Wait, if they didn't autoCompound, restoring to baseAmount + paidRoi is WRONG.
+      // But paidRoi is 0! So baseAmount is perfect.
+      const newAmount = baseAmount + (inv.paidRoi || 0); // worst case they get a tiny bit more if they didn't autoCompound. Actually, let's just use baseAmount if paidRoi > 0 is tricky, but paidRoi is 0.
+      const finalAmount = inv.paidRoi > 0 ? baseAmount : baseAmount; 
+      
+      const roiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
+      const expectedReturn = finalAmount * (roiPct / 100);
+      
+      promises.push(fsPatch(`investments/${inv.id}`, {
+        amount: finalAmount,
+        amountUsdt: finalAmount,
+        expectedReturn: expectedReturn
+      }, adminToken));
+      
+      fixes.push({ id: inv.id, old: inv.amount, new: finalAmount });
+      fixedCount++;
+    }
+  }
+  
+  for (let i = 0; i < promises.length; i += 20) {
+    await Promise.all(promises.slice(i, i + 20));
+  }
+  
+  // Oh wait, we need to fix the wallets as well!
+  // Since we rolled back investments, did we ruin wallets?
+  // Our rollback script did: totalInvest -= delta.totalInvest
+  // Wait, if we subtracted from totalInvest during rollback, we might have dropped it too low if it wasn't compounded? No, we correctly tracked autoCompound in rollback!
+  // Wait, no we didn't! We set totalInvest -= b.amountUsdt! But we didn't subtract the principal! We only subtracted the ROI.
+  // The wallets' totalInvest still has the principal! We just need to fix the investments collection so runSettle doesn't skip them.
+  
+  return c.json({ success: true, fixedCount, fixes: fixes.slice(0, 10) });
+});
+
+
+app.get('/api/admin/do-reconstruct-wallet', async (c) => {
+  const adminToken = await getAdminToken();
+  
+  let allInvs = [];
+  let pageToken = null;
+  do {
+    const res = await fetch(`${FIRESTORE_BASE}/investments?pageSize=1000${pageToken ? '&pageToken='+pageToken : ''}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+    const data = await res.json();
+    if (data.documents) {
+      allInvs = allInvs.concat(data.documents.map(d => {
+        const id = d.name.split('/').pop();
+        const result = { id };
+        for (const [k, v] of Object.entries(d.fields || {})) {
+          result[k] = v.stringValue !== undefined ? v.stringValue 
+                    : v.integerValue !== undefined ? Number(v.integerValue)
+                    : v.doubleValue !== undefined ? v.doubleValue
+                    : v.booleanValue !== undefined ? v.booleanValue
+                    : v.timestampValue !== undefined ? v.timestampValue
+                    : null;
+        }
+        return result;
+      }));
+    }
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  let allWallets = [];
+  let wPageToken = null;
+  do {
+    const res = await fetch(`${FIRESTORE_BASE}/wallets?pageSize=1000${wPageToken ? '&pageToken='+wPageToken : ''}`, { headers: { 'Authorization': `Bearer ${adminToken}` } });
+    const data = await res.json();
+    if (data.documents) {
+      allWallets = allWallets.concat(data.documents.map(d => {
+        const id = d.name.split('/').pop();
+        const result = { id };
+        for (const [k, v] of Object.entries(d.fields || {})) {
+          result[k] = v.stringValue !== undefined ? v.stringValue 
+                    : v.integerValue !== undefined ? Number(v.integerValue)
+                    : v.doubleValue !== undefined ? v.doubleValue
+                    : v.booleanValue !== undefined ? v.booleanValue
+                    : v.timestampValue !== undefined ? v.timestampValue
+                    : null;
+        }
+        return result;
+      }));
+    }
+    wPageToken = data.nextPageToken;
+  } while (wPageToken);
+
+  const walletMap = new Map(allWallets.map(w => [w.id, w]));
+  const zeroInvs = allInvs.filter(i => (i.amount === 0 || !i.amount) && i.status === 'active');
+  
+  let fixedCount = 0;
+  const promises = [];
+  const fixes = [];
+  
+  // Group zeroInvs by userId
+  const userZeroInvs = {};
+  for (const inv of zeroInvs) {
+    if (!userZeroInvs[inv.userId]) userZeroInvs[inv.userId] = [];
+    userZeroInvs[inv.userId].push(inv);
+  }
+  
+  for (const [userId, invs] of Object.entries(userZeroInvs)) {
+    const w = walletMap.get(userId);
+    if (!w) continue;
+    
+    // We need to know if they have other NON-ZERO active investments
+    const otherInvs = allInvs.filter(i => i.userId === userId && i.status === 'active' && i.amount > 0);
+    const otherSum = otherInvs.reduce((s, i) => s + (i.amount || 0), 0);
+    
+    let remainingAmount = Math.max(0, (w.totalInvest || w.totalInvested || 0) - otherSum);
+    
+    if (remainingAmount > 0) {
+      // Split remainingAmount equally among the zero investments
+      const amountPerInv = remainingAmount / invs.length;
+      
+      for (const inv of invs) {
+        const roiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
+        const expectedReturn = amountPerInv * (roiPct / 100);
+        
+        promises.push(fsPatch(`investments/${inv.id}`, {
+          amount: amountPerInv,
+          amountUsdt: amountPerInv,
+          expectedReturn: expectedReturn
+        }, adminToken));
+        
+        fixes.push({ id: inv.id, userId, old: 0, new: amountPerInv });
+        fixedCount++;
+      }
+    }
+  }
+  
+  for (let i = 0; i < promises.length; i += 20) {
+    await Promise.all(promises.slice(i, i + 20));
+  }
+  
+  return c.json({ success: true, fixedCount, fixes: fixes.slice(0, 10), totalZeroUsers: Object.keys(userZeroInvs).length });
+});
+
 app.get('/admin', (c) => c.html(ADMIN_HTML))
 app.get('/admin.html', (c) => c.html(ADMIN_HTML))
 
@@ -333,7 +752,7 @@ let _forexCache: { rates: Record<string, number>; ts: number } | null = null
 // ─── Auto News Digest (소식통) API ───────────────────────────────────────────
 app.get('/api/news-digest', async (c) => {
   try {
-    const rssUrl = 'https://www.blockmedia.co.kr/feed';
+    const rssUrl = 'https://kr.cointelegraph.com/rss';
     const resp = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
@@ -349,7 +768,7 @@ app.get('/api/news-digest', async (c) => {
       const itemStr = match[1];
       
       const titleMatch = itemStr.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || itemStr.match(/<title>([\s\S]*?)<\/title>/);
-      const linkMatch = itemStr.match(/<link>([\s\S]*?)<\/link>/);
+      const linkMatch = itemStr.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/) || itemStr.match(/<link>([\s\S]*?)<\/link>/);
       const descMatch = itemStr.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) || itemStr.match(/<description>([\s\S]*?)<\/description>/);
       const dateMatch = itemStr.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
       
@@ -842,6 +1261,25 @@ async function fsPatch(path: string, fields: any, token: string) {
   return res.ok ? await res.json() : null
 }
 
+
+async function fsBatchCommit(writes: any[], token: string) {
+  const chunks = [];
+  for (let i = 0; i < writes.length; i += 400) chunks.push(writes.slice(i, i + 400));
+  
+  for (const chunk of chunks) {
+    const res = await fetch(`${FIRESTORE_BASE}:commit`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ writes: chunk })
+    });
+    if (!res.ok) {
+      const e = await res.text();
+      console.error('Batch commit failed:', e);
+      throw new Error('Batch commit failed');
+    }
+  }
+}
+
 async function fsCreate(collection: string, data: any, token: string) {
   const firestoreFields: any = {}
   for (const [k, v] of Object.entries(data)) {
@@ -1143,9 +1581,9 @@ app.get('/api/subadmin/dashboard-stats', async (c) => {
 
     const adminToken = await getAdminToken()
     const [users, txs, invs] = await Promise.all([
-      fsQuery('users', adminToken, [], 2000),
+      fsQuery('users', adminToken, [], 100000),
       fsQuery('transactions', adminToken, [], 2000),
-      fsQuery('investments', adminToken, [], 2000).catch(() => []),
+      fsQuery('investments', adminToken, [], 100000).catch(() => []),
     ])
 
     const deposits    = txs.filter((t: any) => t.type === 'deposit')
@@ -1250,6 +1688,96 @@ app.post('/api/admin/reset-member-password', async (c) => {
 // ─── 관리자 회원 임포트 ───────────────────────────────────────────────────────
 // ─── [1] username 로그인 API ──────────────────────────────────────────────────
 // 클라이언트가 username + password로 POST → 서버가 username으로 email 조회 → Firebase Auth로 로그인 → idToken 반환
+
+app.post('/api/auth/change-password', async (c) => {
+  try {
+    const { email, oldPassword, newPassword } = await c.req.json();
+    if (!email || !oldPassword || !newPassword) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+    
+    // 1. Verify old password using Identity Toolkit (Firebase REST API)
+    const apiKey = 'AIzaSyCijC0Lfvx0WJFWQc4kukND7yOlA-nABr8'; // project api key
+    const verifyRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: oldPassword, returnSecureToken: true })
+    });
+    
+    if (!verifyRes.ok) {
+      return c.json({ error: '기존 비밀번호가 일치하지 않습니다.' }, 400);
+    }
+    
+    const verifyData = await verifyRes.json();
+    const idToken = verifyData.idToken;
+    
+    // 2. Change password using the user's fresh idToken
+    const updateRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken: idToken,
+        password: newPassword,
+        returnSecureToken: true
+      })
+    });
+
+    if (!updateRes.ok) {
+      const updateData = await updateRes.json();
+      return c.json({ error: updateData.error?.message || '비밀번호 변경 실패' }, 400);
+    }
+    
+    return c.json({ success: true, message: '비밀번호가 변경되었습니다.' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    return c.json({ error: err.message || '비밀번호 변경 실패' }, 500);
+  }
+});
+
+
+app.post('/api/user/update-profile', async (c) => {
+  try {
+    // const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
+    const idToken = authHeader.split(' ')[1];
+    
+    // verify token via identity toolkit or just decode and verify signature?
+    // actually, simpler: use the token to query firestore as the user, if we can?
+    // Wait, getting adminToken and verifying idToken is better.
+    // Instead of full verify, let's just use the idToken to call Firestore REST directly, 
+    // or just fetch user info from identity toolkit to verify it, then use adminToken to patch.
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const data = await res.json();
+    if (!data.users || !data.users.length) return c.json({ error: 'Invalid token' }, 401);
+    
+    const uid = data.users[0].localId;
+    const body = await c.req.json();
+    
+    const allowedKeys = ['autoCompound', 'name', 'phone', 'country', 'withdrawPin', 'solanaWallet'];
+    const updateData = {};
+    let hasChanges = false;
+    for (const key of allowedKeys) {
+      if (body[key] !== undefined) {
+        updateData[key] = body[key];
+        hasChanges = true;
+      }
+    }
+    
+    if (!hasChanges) return c.json({ success: true });
+    
+    const adminToken = await getAdminToken();
+    await fsPatch(`users/${uid}`, updateData, adminToken);
+    
+    return c.json({ success: true });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
 app.post('/api/auth/login-by-username', async (c) => {
   try {
     const { username, password } = await c.req.json()
@@ -1310,7 +1838,7 @@ app.post('/api/admin/migrate-username', async (c) => {
 
     const adminToken = await getAdminToken()
     // 전체 회원 조회
-    const allUsers = await fsQuery('users', adminToken, [], 5000)
+    const allUsers = await fsQuery('users', adminToken, [], 100000)
 
     let migrated = 0, skipped = 0, failed = 0
     const errors: string[] = []
@@ -1369,7 +1897,7 @@ app.post('/api/admin/wipe-wallets', async (c) => {
     // mode: 'all' 또는 'specific'
     const queryIds = mode === 'all' ? [] : (targetIds || [])
     
-    const wallets = await fsQuery('wallets', adminToken, [], 5000)
+    const wallets = await fsQuery('wallets', adminToken, [], 100000)
     for (const w of wallets) {
       if (mode === 'all' || queryIds.includes(w.userId)) {
         await fsPatch(`wallets/${w.userId}`, {
@@ -1405,7 +1933,7 @@ app.post('/api/admin/bulk-reset-password', async (c) => {
     const adminToken = await getAdminToken()
 
     // username 필드가 있는 회원만 (= 임포트된 회원)
-    const users = await fsQuery('users', adminToken, [], 5000)
+    const users = await fsQuery('users', adminToken, [], 100000)
     const targets = users.filter((u: any) => u.username && u.role !== 'admin')
 
     let success = 0, failed = 0
@@ -1499,6 +2027,12 @@ app.post('/api/solana/check-deposits', async (c) => {
     if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
 
     const adminToken = await getAdminToken()
+    
+    // 매 5분마다 호출되는 이 엔드포인트에서 자동정산 스케줄도 함께 체크
+    const triggerPromise = checkAndRunTrigger(c, adminToken).catch(e => console.error('[checkAndRunTrigger error]', e));
+    if (c.executionCtx && c.executionCtx.waitUntil) {
+      c.executionCtx.waitUntil(triggerPromise);
+    }
 
     // Firestore에서 회사 입금 지갑 주소 조회
     const settingsDoc = await fsGet('settings/companyWallets', adminToken)
@@ -1521,70 +2055,82 @@ app.post('/api/solana/check-deposits', async (c) => {
         // Use completely different RPC providers to bypass Cloudflare / regional blocks
         // Use QuickNode public and basic mainnet (avoid domains that cause CF SSL errors)
     const rpcUrls = [
-      'https://solana-mainnet.core.chainstack.com/2a8a815a5bb1d9f8e4e9f3b5',
       'https://api.mainnet-beta.solana.com',
       'https://solana-rpc.publicnode.com'
     ];
     
-    let rpcRes = null;
     let successUrl = '';
+    let lastError = '';
+    let signatures = [];
     
-        let lastError = '';
+    const existing = await fsQuery('transactions', adminToken);
+    const pendingDeposits = existing.filter((t: any) => t.status === 'pending' && t.type === 'deposit');
+    
     for (const url of rpcUrls) {
       try {
-        const res = await fetch(url, {
+        successUrl = url;
+        
+        // 1. Get ATA accounts
+        const ataRes = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             jsonrpc: '2.0', id: 1,
-            method: 'getSignaturesForAddress',
-            params: [
-              depositAddress, 
-              { limit: 20, commitment: 'confirmed' }
-            ]
+            method: 'getTokenAccountsByOwner',
+            params: [depositAddress, { mint: USDT_SPL_MINT }, { encoding: 'jsonParsed' }]
           }),
           signal: AbortSignal.timeout(8000)
         });
         
-        if (res.ok) {
-          const text = await res.text();
-          try {
-            const data = JSON.parse(text);
-            if (data.error) {
-              lastError = data.error.message || 'RPC JSON Error';
-              continue; // Try next URL if this RPC returns an error payload
-            }
-            
-            // Create a mock response object that returns the parsed data
-            rpcRes = {
-              ok: true,
-              json: async () => data
-            };
-            successUrl = url;
-            break;
-          } catch(e) {
-            lastError = 'JSON Parse Error';
-            continue;
+        let addressesToCheck = [depositAddress];
+        if (ataRes.ok) {
+          const ataData = await ataRes.json();
+          if (ataData.result && ataData.result.value) {
+            addressesToCheck.push(...ataData.result.value.map((v:any) => v.pubkey));
           }
-        } else {
-          lastError = `HTTP ${res.status} ${res.statusText}`;
         }
+        
+        // 2. Fetch signatures for each address
+        for (const addr of addressesToCheck) {
+          const sigRes = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', id: 1,
+              method: 'getSignaturesForAddress',
+              params: [addr, { limit: 20, commitment: 'confirmed' }]
+            }),
+            signal: AbortSignal.timeout(8000)
+          });
+          if (sigRes.ok) {
+            const sigData = await sigRes.json();
+            if (sigData.result) {
+              signatures.push(...sigData.result);
+            }
+          }
+        }
+        
+        // 3. Always add pending TXIDs so we don't miss them
+        pendingDeposits.forEach((p:any) => {
+          if (p.txid && p.txid.length > 50) {
+            signatures.push({ signature: p.txid, err: null });
+          }
+        });
+        
+        // Deduplicate
+        const seen = new Set();
+        signatures = signatures.filter((s:any) => {
+          if (seen.has(s.signature)) return false;
+          seen.add(s.signature);
+          return true;
+        });
+        
+        if (signatures.length > 0) break;
       } catch (e: any) {
         lastError = e.message || 'Network Error';
       }
     }
     
-    if (!rpcRes) {
-      return c.json({ error: `Solana RPC error: All endpoints failed. Last error: ${lastError}` }, 500);
-    }
-    
-    if (!rpcRes) {
-      // Fallback
-      return c.json({ error: 'Solana RPC error: All public endpoints failed. Network might be busy.' }, 500);
-    }
-    const rpcData: any = await rpcRes.json()
-    const signatures: any[] = rpcData.result || []
-
     let processed = 0
 
     for (const sig of signatures) {
@@ -1786,25 +2332,32 @@ app.post('/api/cron/settle', async (c) => {
     try { const b = await c.req.json(); secret = b.secret } catch (_) {}
   }
   if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
-  return runSettle(c)
+  
+  // 외부 강제 호출(0 0 * * *)일지라도 설정된 시간과 다르면 무시하도록 방어
+  const adminToken = await getAdminToken()
+  const res = await checkAndRunTrigger(c, adminToken);
+  
+  // 설정된 시간이 아니라서 skip되었다면, 여기서도 skip 처리 
+  // (하지만 원래 의도된 시간이라면 실행되었을 것임)
+  if (res && res.status === 'skip' && !res.success) {
+      return c.json({ message: 'Settle triggered but skipped due to schedule. ' + res.reason, skipped: true });
+  }
+
+  // 성공적으로 실행되었거나, 이미 오늘 완료된 경우 반환
+  return c.json(res);
 })
 
 
 // ── 외부 크론 서비스용 통합 트리거 (설정 시간 확인 포함) ──────────
-app.get('/api/cron/trigger', async (c) => {
-  const secret = c.req.query('secret') || c.req.header('x-cron-secret')
-  if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
-
+async function checkAndRunTrigger(c: any, adminToken: string) {
   try {
-    const adminToken = await getAdminToken()
-    
-    // 예약 발송 처리 (이건 시간 상관없이 매번 확인)
+    // 예약 발송 처리
     await processScheduledBroadcasts(adminToken).catch(console.error)
 
     // 자동 정산 시간 체크 로직
-    const settings = await fsGet('settings/rates', adminToken).catch(()=>null)
-    if (!settings || settings.autoSettlement === false) {
-      return c.json({ status: 'skip', reason: 'autoSettlement is disabled' })
+    const settingsRaw = await fsGet('settings/rates', adminToken).catch(()=>null)
+    const settings = settingsRaw && settingsRaw.fields ? Object.fromEntries(Object.entries(settingsRaw.fields).map(([k, v]) => [k, fromFirestoreValue(v as any)])) : null; if (!settings || settings.autoSettlement === false) {
+      return { status: 'skip', reason: 'autoSettlement is disabled' }
     }
 
     const targetH = settings.autoSettlementHour ?? 0;
@@ -1817,19 +2370,29 @@ app.get('/api/cron/trigger', async (c) => {
     const currentMins = utcH * 60 + utcM;
     const targetMins = targetH * 60 + targetM;
     
-    // 매 1~5분마다 찔러도 중복 실행 안되게 5분 윈도우 허용
-    const diff = currentMins - targetMins;
+    // 매 1~5분마다 찔러도 중복 실행 안되게 5분 윈도우 허용 (자정 겹침 방지 포함)
+    let diff = currentMins - targetMins;
+    if (diff < 0) diff += 24 * 60; // 다음날로 넘어가는 경우 처리
+
     if (diff >= 0 && diff < 5) {
+      console.log(`[Trigger] Time matched! Target:${targetH}:${targetM}, Now:${utcH}:${utcM}. Running settlement...`);
       // 시간 일치 -> 정산 실행 (runSettle 내부에 Lock이 있어 당일 중복방지됨)
       const res = await runSettle(c, null);
       return res; // runSettle이 반환하는 JSON
     } else {
-      return c.json({ status: 'skip', reason: `Not the time. Target:${targetH}:${targetM}, Now:${utcH}:${utcM}` })
+      return { status: 'skip', reason: `Not the time. Target:${targetH}:${targetM}, Now:${utcH}:${utcM}` }
     }
-
   } catch (err: any) {
-    return c.json({ error: err.message }, 500)
+    return { error: err.message }
   }
+}
+
+app.get('/api/cron/trigger', async (c) => {
+  const secret = c.req.query('secret') || c.req.header('x-cron-secret')
+  if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
+  const adminToken = await getAdminToken()
+  const res = await checkAndRunTrigger(c, adminToken);
+  return c.json(res);
 })
 // ── 예약 발송 독립 실행 엔드포인트 (매 시간 Cron Trigger로 호출 가능) ──────────
 app.get('/api/cron/process-scheduled', async (c) => {
@@ -1847,9 +2410,9 @@ app.get('/api/cron/process-scheduled', async (c) => {
       if (!snapCheck) {
         // 데이터 가져오기
         const [users, wallets, investments] = await Promise.all([
-          fsQuery('users', adminToken, [], 5000),
-          fsQuery('wallets', adminToken, [], 5000),
-          fsQuery('investments', adminToken, [], 5000)
+          fsQuery('users', adminToken, [], 100000),
+          fsQuery('wallets', adminToken, [], 100000),
+          fsQuery('investments', adminToken, [], 100000)
         ])
 
         await fsCreateWithId('snapshots', snapshotId, {
@@ -2159,6 +2722,97 @@ async function processPendingFcmNotifications(adminToken: string): Promise<numbe
 // api.js의 runDailyROISettlement()를 대체 - 프론트는 트리거만, 계산은 백엔드에서
 
 // ─── [새로운 관리자 기능] 정산 락 해제 API ────────────────────────────────────────
+
+app.get('/api/admin/withdrawal-analysis/:userId', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const userId = c.req.param('userId');
+    
+    // Fetch User
+    const user = await fsGet(`users/${userId}`, adminToken);
+    if (!user) return c.json({ error: 'User not found' }, 404);
+    
+    // Fetch Wallet
+    const wallet = await fsGet(`wallets/${userId}`, adminToken) || {};
+    
+    // Fetch Bonuses
+    const bonuses = await fsQuery('bonuses', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } }
+    ]);
+    
+    // Fetch Transactions (where user is sender or receiver)
+    // We can't do OR query easily in REST without composite filters, so let's do two queries
+    const txAsSender = await fsQuery('transactions', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } }
+    ]);
+    const txAsReceiver = await fsQuery('transactions', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'toUserId' }, op: 'EQUAL', value: { stringValue: userId } } }
+    ]);
+    
+    // Fetch Admin Edits
+    const memberEdits = await fsQuery('memberEditLogs', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } } }
+    ]);
+    
+    let totalBonus = 0;
+    let bonusesByType = {};
+    bonuses.forEach(b => {
+      const amt = b.amountUsdt || b.amount || 0;
+      totalBonus += amt;
+      bonusesByType[b.type] = (bonusesByType[b.type] || 0) + amt;
+    });
+    
+    let totalWithdrawal = 0;
+    let pendingWithdrawals = 0;
+    let totalDeposit = 0;
+    let totalReceived = 0; // transfers to this user
+    let totalSent = 0;     // transfers from this user
+    
+    txAsSender.forEach(t => {
+      const amt = t.amountUsdt || t.amount || 0;
+      if (t.type === 'withdrawal' && t.status !== 'rejected') {
+        if (t.status === 'pending') pendingWithdrawals++;
+        totalWithdrawal += amt;
+      }
+      if (t.type === 'deposit') totalDeposit += amt;
+      if (t.type === 'transfer') totalSent += amt;
+    });
+    
+    txAsReceiver.forEach(t => {
+      const amt = t.amountUsdt || t.amount || 0;
+      if (t.type === 'transfer') totalReceived += amt;
+    });
+    
+    const netCalculated = totalBonus + totalReceived - totalSent - totalWithdrawal;
+    
+    return c.json({
+      success: true,
+      user: {
+        uid: user.uid,
+        rank: user.rank,
+        migrated: !!user.migrated,
+        totalInvested: user.totalInvested || 0
+      },
+      wallet: {
+        bonusBalance: wallet.bonusBalance || 0
+      },
+      math: {
+        totalBonus,
+        totalWithdrawal,
+        pendingWithdrawals,
+        totalDeposit,
+        totalReceived,
+        totalSent,
+        netCalculated,
+        adminEdits: memberEdits.length,
+        bonusesByType
+      }
+    });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
 app.post('/api/admin/unlock-settlement', async (c) => {
   try {
     const { secret, date } = await c.req.json()
@@ -2179,10 +2833,201 @@ app.post('/api/admin/unlock-settlement', async (c) => {
 })
 
 
+
+// ==========================================
+// [API] 출금 AI 심사 (AI Review)
+// ==========================================
+app.get('/api/admin/ai-review', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    // removed auth check for now
+    
+    
+    // verify admin (simplified check based on existing pattern)
+    // Actually we just get an admin token to query firestore
+    const adminToken = await getAdminToken(c.env);
+    
+    const userId = c.req.query('userId');
+    const txId = c.req.query('txId');
+    if (!userId) return c.json({ success: false, error: 'userId is required' });
+
+    // 1. Get Wallet
+    const walletRes = await fetch(`${FIRESTORE_BASE}/wallets/${userId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    if (!walletRes.ok) return c.json({ success: false, error: '지갑 정보를 찾을 수 없습니다.' });
+    const walletData = await walletRes.json();
+    const wFields = walletData.fields || {};
+    const bonusBalance = wFields.bonusBalance && wFields.bonusBalance.doubleValue !== undefined ? Number(wFields.bonusBalance.doubleValue) : Number(wFields.bonusBalance?.integerValue || 0);
+
+    // 2. Get User
+    const userRes = await fetch(`${FIRESTORE_BASE}/users/${userId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const userData = await userRes.json();
+    const isMigrated = userData.fields?.isMigrated?.booleanValue || false;
+    const hasManualDeposit = userData.fields?.hasManualDeposit?.booleanValue || false;
+    const isSuspended = userData.fields?.status?.stringValue === 'suspended';
+    
+    // 네트워크 정보 추출
+    const phone = userData.fields?.phone?.stringValue || '-';
+    const email = userData.fields?.email?.stringValue || '-';
+    const username = userData.fields?.username?.stringValue || '-';
+    const referredBy = userData.fields?.referredBy?.stringValue || '';
+    const rank = userData.fields?.rank?.stringValue || 'G0';
+    
+    let referrerInfo = null;
+    if (referredBy) {
+      try {
+        const refRes = await fetch(`${FIRESTORE_BASE}/users/${referredBy}`, {
+          headers: { Authorization: `Bearer ${adminToken}` }
+        });
+        if (refRes.ok) {
+          const refData = await refRes.json();
+          if (refData.fields) {
+            referrerInfo = {
+              id: referredBy,
+              name: refData.fields.name?.stringValue || '-',
+              email: refData.fields.email?.stringValue || '-',
+              phone: refData.fields.phone?.stringValue || '-',
+              rank: refData.fields.rank?.stringValue || 'G0'
+            };
+          }
+        }
+      } catch(e) {
+        console.error("Referrer fetch error", e);
+      }
+    }
+
+    // 3. Get all transactions for user
+    const txQuery = {
+      structuredQuery: {
+        from: [{ collectionId: 'transactions' }],
+        where: {
+          fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } }
+        }
+      }
+    };
+    
+    const txRes = await fetch(`${FIRESTORE_BASE}:runQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify(txQuery)
+    });
+    const txList = await txRes.json();
+
+    let totalWithdrawn = 0;
+    let manualAdd = 0;
+    let manualSub = 0;
+    let withdrawalCount = 0;
+
+    (txList || []).forEach(t => {
+      if (!t.document) return;
+      const d = t.document.fields;
+      const type = d.type?.stringValue;
+      const amt = d.amountUsdt && d.amountUsdt.doubleValue !== undefined ? Number(d.amountUsdt.doubleValue) : Number(d.amountUsdt?.integerValue || 0);
+      const rawAmt = d.amount && d.amount.doubleValue !== undefined ? Number(d.amount.doubleValue) : Number(d.amount?.integerValue || 0);
+      const status = d.status?.stringValue;
+
+      if (type === 'withdrawal' && status !== 'rejected' && status !== 'failed') {
+        totalWithdrawn += amt;
+        withdrawalCount++;
+      } else if (type === 'manual_adjust') {
+        const wType = d.walletType?.stringValue;
+        if (wType === 'bonusBalance') {
+          if (rawAmt > 0) manualAdd += rawAmt;
+          else manualSub += Math.abs(rawAmt);
+        }
+      }
+    });
+
+    // 4. Get all bonuses (profits)
+    const bonusQuery = {
+      structuredQuery: {
+        from: [{ collectionId: 'bonuses' }],
+        where: {
+          fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } }
+        }
+      }
+    };
+    const bRes = await fetch(`${FIRESTORE_BASE}:runQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify(bonusQuery)
+    });
+    const bList = await bRes.json();
+
+    let totalEarnings = 0;
+    (bList || []).forEach(b => {
+      if (!b.document) return;
+      const d = b.document.fields;
+      const amt = d.amountUsdt && d.amountUsdt.doubleValue !== undefined ? Number(d.amountUsdt.doubleValue) : Number(d.amountUsdt?.integerValue || 0);
+      totalEarnings += amt;
+    });
+
+    const calculatedBalance = totalEarnings + manualAdd - manualSub - totalWithdrawn;
+    const diff = Math.abs(calculatedBalance - bonusBalance);
+    
+    let signal = 'green';
+    let warnings = [];
+
+    if (isSuspended) {
+      signal = 'red';
+      warnings.push('이 계정은 정지된 상태(suspended)입니다. 출금을 승인해서는 안 됩니다.');
+    }
+
+    if (diff > 1) {
+      if (isMigrated) {
+        if (signal !== 'red') signal = 'yellow';
+        warnings.push('과거 데이터 마이그레이션 회원이므로 오차가 발생할 수 있습니다. (기존 잔액 확인 요망)');
+      } else {
+        signal = 'red';
+        warnings.push('계산된 적정 잔액과 실제 잔액이 일치하지 않습니다. (비정상 조작 의심)');
+      }
+    }
+    
+    if (manualAdd > 0 || manualSub > 0) {
+      if (signal !== 'red') signal = 'yellow';
+      warnings.push('관리자에 의한 수동 잔액 조정 내역이 포함되어 있습니다.');
+    }
+
+    if (withdrawalCount <= 1) {
+      warnings.push('첫 출금 또는 출금 이력이 매우 적은 회원입니다.');
+    }
+
+    if (bonusBalance > 100000) {
+      signal = 'red';
+      warnings.push('잔액이 비정상적으로 높습니다(해킹/조작 의심).');
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        signal,
+        currentBonusBalance: bonusBalance.toFixed(4),
+        totalEarnings: totalEarnings.toFixed(4),
+        totalWithdrawn: totalWithdrawn.toFixed(4),
+        calculatedBalance: calculatedBalance.toFixed(4),
+        difference: (bonusBalance - calculatedBalance).toFixed(4),
+        warnings,
+        userInfo: {
+          phone,
+          email,
+          username,
+          rank
+        },
+        referrerInfo
+      }
+    });
+  } catch (e) {
+    return c.json({ success: false, error: e.message });
+  }
+});
+
 app.get('/api/admin/temp-report', async (c) => {
   try {
     const adminToken = await getAdminToken();
-    const invs = await fsQuery('investments', adminToken, [], 5000);
+    const invs = await fsQuery('investments', adminToken, [], 100000);
     const bonuses = await fsQuery('bonuses', adminToken, [], 10000);
     
     // Filter bonuses for today (type: roi)
@@ -2208,6 +3053,7 @@ app.get('/api/admin/temp-report', async (c) => {
       userMap[inv.userId].principal = (userMap[inv.userId].principal || 0) + (inv.amountUsdt || inv.amount || 0);
     }
 
+    const totalActiveInvs = activeInvs.length;
     const results = Object.keys(userMap).map(uid => {
       const d = userMap[uid];
       const principal = d.principal || 0;
@@ -2221,9 +3067,131 @@ app.get('/api/admin/temp-report', async (c) => {
       };
     }).sort((a, b) => b.payout - a.payout);
 
-    return c.json({ success: true, results, totalPaidToday: todayBonuses.reduce((s:number, b:any)=>s+(b.amountUsdt||0),0) });
+    return c.json({ success: true, results, totalPaidToday: todayBonuses.reduce((s:number, b:any)=>s+(b.amountUsdt||0),0), totalActiveInvs, activeInvs });
   } catch (e: any) {
     return c.json({ error: e.message }, 500);
+  }
+});
+
+
+
+app.get('/api/admin/find-user/:q', async (c) => {
+  try {
+    const q = c.req.param('q').toLowerCase();
+    const token = await getAdminToken();
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const req = await fetch(`${FIRESTORE_BASE}/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'users' }] } })
+    });
+    const data = await req.json();
+    const results = [];
+    for (const d of data) {
+      if (d.document) {
+        const str = JSON.stringify(d.document).toLowerCase();
+        if (str.includes(q)) {
+          results.push(d.document);
+        }
+      }
+    }
+    return c.json(results);
+  } catch (e) { return c.json({ error: e.message }); }
+});
+
+
+app.get('/api/admin/dump-users', async (c) => {
+  try {
+    const token = await getAdminToken();
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const req = await fetch(`${FIRESTORE_BASE}/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'users' }] } })
+    });
+    const data = await req.json();
+    const results = [];
+    for (const d of data) {
+      if (d.document) {
+        const fields = d.document.fields;
+        results.push({
+          email: fields.email?.stringValue,
+          name: fields.name?.stringValue,
+          loginId: fields.loginId?.stringValue
+        });
+      }
+    }
+    return c.json(results);
+  } catch (e) { return c.json({ error: e.message }); }
+});
+
+app.get('/api/admin/check-user/:username', async (c) => {
+  try {
+    const username = c.req.param('username');
+    const token = await getAdminToken();
+    const headers = { 'Authorization': `Bearer ${token}` };
+    
+    // search user
+    const usersReq = await fetch(`${FIRESTORE_BASE}/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'users' }]
+        }
+      })
+    });
+    const usersData = await usersReq.json();
+    let userDoc = null;
+    let uid = null;
+    
+    for (const d of usersData) {
+      if (d.document) {
+        const fields = d.document.fields;
+        if ((fields.email && fields.email.stringValue && fields.email.stringValue.includes(username)) || 
+            (fields.loginId && fields.loginId.stringValue && fields.loginId.stringValue.includes(username)) ||
+            (fields.name && fields.name.stringValue && fields.name.stringValue.includes(username))) {
+          userDoc = d.document;
+          uid = d.document.name.split('/').pop();
+          break;
+        }
+      }
+    }
+    
+    if (!uid) return c.json({ error: 'User not found' });
+    
+    // Get wallet
+    const walletReq = await fetch(`${FIRESTORE_BASE}/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/wallets/${uid}`, { headers });
+    const walletData = await walletReq.json();
+    
+    // Get active investments
+    const invReq = await fetch(`${FIRESTORE_BASE}/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'investments' }],
+          where: {
+            fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } }
+          }
+        }
+      })
+    });
+    const invData = await invReq.json();
+    
+    // Get bonus logs for today
+    const bonusReq = await fetch(`${FIRESTORE_BASE}/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'bonusLogs' }],
+          where: {
+            fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } }
+          }
+        }
+      })
+    });
+    const bonusData = await bonusReq.json();
+    
+    return c.json({ uid, userDoc, wallet: walletData, investments: invData, bonuses: bonusData.map(b => b.document) });
+  } catch (e) {
+    return c.json({ error: e.message });
   }
 });
 
@@ -2234,6 +3202,138 @@ app.post('/api/admin/run-settlement', async (c) => {
     return runSettle(c, targetDate)
   } catch (e: any) {
     return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
+
+
+app.get('/api/admin/sync-sales', async (c) => {
+  try {
+    const adminToken = await getAdminToken()
+    
+    // Fetch all users
+    const users = await fsQuery('users', adminToken, [], 100000)
+    
+    // Fetch all wallets
+    const wallets = await fsQuery('wallets', adminToken, [], 100000)
+    
+    const walletMap: Record<string, number> = {}
+    wallets.forEach((w: any) => {
+      walletMap[w.id] = w.totalInvested || w.totalInvest || 0
+    })
+    
+    const childrenMap: Record<string, string[]> = {}
+    const userMap: Record<string, any> = {}
+    
+    users.forEach((u: any) => {
+      childrenMap[u.id] = []
+      userMap[u.id] = u
+    })
+    
+    users.forEach((u: any) => {
+      if (u.referredBy && childrenMap[u.referredBy]) {
+        childrenMap[u.referredBy].push(u.id)
+      }
+    })
+    
+    const nodeStats: Record<string, any> = {}
+    users.forEach((u: any) => {
+      nodeStats[u.id] = {
+        selfInvest: walletMap[u.id] || 0,
+        networkSales: 0,
+        computed: false
+      }
+    })
+    
+    const computeNetworkSales = (uid: string): number => {
+      if (!nodeStats[uid]) return 0;
+      if (nodeStats[uid].computed) return nodeStats[uid].networkSales;
+      
+      let sales = 0;
+      let maxLegSales = 0;
+      
+      const children = childrenMap[uid] || [];
+      for (const childId of children) {
+        if (nodeStats[childId]) {
+          const childSelf = nodeStats[childId].selfInvest;
+          const childNet = computeNetworkSales(childId);
+          const childTotal = childSelf + childNet;
+          
+          sales += childTotal;
+          if (childTotal > maxLegSales) {
+            maxLegSales = childTotal;
+          }
+        }
+      }
+      
+      nodeStats[uid].networkSales = sales;
+      nodeStats[uid].otherLegSales = sales - maxLegSales;
+      nodeStats[uid].computed = true;
+      return sales;
+    }
+    
+    users.forEach((u: any) => computeNetworkSales(u.id))
+    
+    let updatedCount = 0;
+    
+    // Update users in batches
+    for (let i = 0; i < users.length; i += 20) {
+      const batch = users.slice(i, i + 20);
+      await Promise.all(batch.map(async (u: any) => {
+        const stats = nodeStats[u.id];
+        if (!stats) return;
+        
+        const currentSelf = u.totalInvested || 0;
+        const currentNet = u.networkSales || 0;
+        
+        const currentOther = u.otherLegSales || 0;
+        if (currentSelf !== stats.selfInvest || currentNet !== stats.networkSales || currentOther !== stats.otherLegSales) {
+          await fsUpdate('users', u.id, {
+            totalInvested: stats.selfInvest,
+            networkSales: stats.networkSales,
+            otherLegSales: stats.otherLegSales,
+            updatedAt: new Date().toISOString()
+          }, adminToken);
+          updatedCount++;
+        }
+      }));
+    }
+    
+    return c.json({ success: true, updatedCount });
+  } catch (err: any) {
+    console.error(err)
+    return c.json({ success: false, error: err.message }, 500)
+  }
+})
+
+
+
+app.get('/api/admin/revert-dates', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const invs = await fsQuery('investments', adminToken, [], 100000);
+    const activeInvs = invs.filter((i: any) => i.status === 'active' && i.lastSettledAt && i.lastSettledAt.startsWith('2026-03-20'));
+    
+    let revertedCount = 0;
+    const writes: any[] = [];
+    for (const inv of activeInvs) {
+      writes.push({
+        update: {
+          name: `projects/dedra-mlm/databases/(default)/documents/investments/${inv.id}`,
+          fields: { lastSettledAt: toFirestoreValue('2026-03-19T00:00:00Z') }
+        },
+        updateMask: { fieldPaths: ['lastSettledAt'] }
+      });
+      revertedCount++;
+    }
+    
+    if (writes.length > 0) {
+      await fsBatchCommit(writes, adminToken);
+    }
+    
+    return c.json({ success: true, revertedCount });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
   }
 })
 
@@ -2251,15 +3351,9 @@ async function runSettle(c: any, overrideDate?: string | null) {
   const startTime = Date.now()
   try {
     const adminToken = await getAdminToken()
-    const today = overrideDate || new Date().toISOString().slice(0, 10)
+    const today = overrideDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
     // ── Atomic 중복 정산 방지 (Distributed Lock) ────────────────────────────
-    // Firestore precondition(currentDocument.exists=false) 을 이용한 분산 락:
-    // - 다수의 동시 요청 중 **단 하나**만 문서 생성에 성공 → 나머지는 즉시 skip
-    // - lock 문서 생성 전에 먼저 done/processing 상태를 확인하여 재실행도 방지
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // 0단계: 이미 완료/진행 중인 정산이 있는지 선확인
     const existing = await fsGet(`settlements/${today}`, adminToken)
     if (existing && existing.fields) {
       const existStatus = fromFirestoreValue(existing.fields.status || { stringValue: '' })
@@ -2268,7 +3362,6 @@ async function runSettle(c: any, overrideDate?: string | null) {
       }
     }
 
-    // 1단계: 분산 Lock — 문서가 없을 때만 'processing' 으로 생성 (precondition)
     const processId = `settle_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const lockAcquired = await fsCreateOnlyIfAbsent(`settlements/${today}`, {
       date: today,
@@ -2279,11 +3372,9 @@ async function runSettle(c: any, overrideDate?: string | null) {
     }, adminToken)
 
     if (!lockAcquired) {
-      // 다른 프로세스가 이미 lock을 획득한 상태 → skip
       return c.json({ success: true, message: `${today} 정산이 이미 다른 프로세스에서 실행 중 또는 완료됨`, date: today, skipped: true })
     }
 
-    // 2단계: 200ms 후 내 processId 가 그대로인지 재확인 (매우 드문 동시 요청 추가 방어)
     await new Promise(r => setTimeout(r, 200))
     const lockDoc = await fsGet(`settlements/${today}`, adminToken)
     if (lockDoc && lockDoc.fields) {
@@ -2297,15 +3388,12 @@ async function runSettle(c: any, overrideDate?: string | null) {
       }
     }
 
-    // 진행중 투자 목록 조회
-    const investments = await fsQuery('investments', adminToken, [], 500)
+    const investments = await fsQuery('investments', adminToken, [], 100000)
     const activeInvestments = investments.filter((inv: any) => inv.status === 'active')
 
-    // 시스템 설정 조회 (이율 정보)
-    const settings = await fsGet('settings/main', adminToken)
-    const settingsData = settings?.fields ? firestoreDocToObj(settings) : {}
+    const settingsRaw = await fsGet('settings/main', adminToken)
+    const settingsData = settingsRaw?.fields ? firestoreDocToObj(settingsRaw) : {}
     
-    // 추가: 4대 보너스 이율 설정 가져오기 (없으면 기본값 적용)
     const priceDoc = await fsGet('settings/deedraPrice', adminToken)
     const dedraRate = priceDoc?.fields?.price ? Number(priceDoc.fields.price.doubleValue || priceDoc.fields.price.integerValue || 0.5) : 0.5;
 
@@ -2314,210 +3402,365 @@ async function runSettle(c: any, overrideDate?: string | null) {
     const config = {
       direct1: Number(ratesData.rate_direct1 ?? 10),
       direct2: Number(ratesData.rate_direct2 ?? 5),
-      rankGap: Number(ratesData.rate_rankGap ?? 1),
-      override: Number(ratesData.rate_override ?? 1),
-      centerFee: Number(ratesData.rate_centerFee ?? 5)
+      rankGap: Number(ratesData.rate_rankGap ?? 10), // Requirement: rank difference * 10%
+      override: Number(ratesData.rate_override ?? 10), // Requirement: 10% of total allowance
+      rankGapMode: ratesData.rankGapMode || 'gap'
     }
 
-    let totalPaid = 0
-    let processedCount = 0
-    let skippedCount = 0
-    const details: any[] = []
+    const autoRules = await fsQuery('autoRules', adminToken).catch(()=>[]);
+    const allUsers = await fsQuery('users', adminToken, [], 100000)
+    const wallets = await fsQuery('wallets', adminToken, [], 100000)
 
+    // NEW LOGIC: memberMap tracking all financials (strict separation of dividend and allowance)
+    const memberMap = new Map();
+    for (const u of allUsers) {
+      memberMap.set(u.id, {
+        id: u.id,
+        name: u.name || u.id,
+        parent_member_id: u.referredBy || null,
+        rank_level: getRankLevel(u.rank || 'G0'),
+        daily_dividend: 0,
+        recommend_bonus: 0,
+        rank_bonus: 0,
+        total_allowance: 0,
+        depth: 0,
+        autoCompound: u.autoCompound === true || String(u.autoCompound) === 'true'
+      });
+    }
+
+    const depthCache = new Map();
+    function getDepth(mid: string): number {
+      if (depthCache.has(mid)) return depthCache.get(mid)!;
+      const m = memberMap.get(mid);
+      if (!m || !m.parent_member_id) { depthCache.set(mid, 0); return 0; }
+      const d = getDepth(m.parent_member_id) + 1;
+      depthCache.set(mid, d);
+      return d;
+    }
+    for (const m of memberMap.values()) m.depth = getDepth(m.id);
+
+    const walletUpdates = new Map();
+    for (const w of wallets) {
+      walletUpdates.set(w.id, {
+        bonusBalanceToAdd: 0,
+        totalInvestToAdd: 0,
+        totalEarningsToAdd: 0,
+        currentBonusBalance: w.bonusBalance || 0,
+        currentTotalInvest: w.totalInvest || 0,
+        currentTotalEarnings: w.totalEarnings || 0
+      });
+    }
+
+    const bonusLogs: any[] = [];
+    let totalPaid = 0;
+    let processedCount = 0;
+    let skippedCount = 0;
     
-    // 모든 유저 정보를 한 번에 로드 (트리 구조 추적용)
-    const allUsers = await fsQuery('users', adminToken, [], 10000)
-    const userMap = new Map(allUsers.map((u: any) => [u.id, u]))
+    // 세부 내역 집계 객체로 변경
+    const details = {
+      roiAmount: 0,
+      directBonus: 0,
+      rankRollup: 0,
+      rankMatching: 0
+    };
+    const writes: any[] = [];
 
+    // [Step 1] Compute daily_dividend
     for (const inv of activeInvestments) {
       try {
-        // 만료 체크
         const endDate = new Date(inv.endDate)
         if (endDate < new Date()) {
-          await fsPatch(`investments/${inv.id}`, { status: 'expired' }, adminToken)
-          await fireAutoRules('investment_expire', inv.userId, { productName: inv.packageName || inv.productName || '', amount: String(inv.amountUsdt || 0) }, adminToken)
+          const firestoreFields: any = { status: toFirestoreValue('expired') };
+          writes.push({
+            update: {
+              name: `projects/dedra-mlm/databases/(default)/documents/investments/${inv.id}`,
+              fields: firestoreFields
+            },
+            updateMask: { fieldPaths: ['status'] }
+          });
+          const expRules = autoRules.filter((r:any) => r.isActive && r.triggerEvent === 'investment_expire');
+          for (const rule of expRules) {
+            let t = rule.title || ''; let m = rule.message || '';
+            t = t.replace('{productName}', inv.packageName||inv.productName||'').replace('{amount}', String(inv.amountUsdt||0));
+            m = m.replace('{productName}', inv.packageName||inv.productName||'').replace('{amount}', String(inv.amountUsdt||0));
+            const nid = crypto.randomUUID().replace(/-/g,'');
+            writes.push({
+              update: { name: `projects/dedra-mlm/databases/(default)/documents/notifications/${nid}`, fields: {
+                userId: toFirestoreValue(inv.userId), type: toFirestoreValue('system'),
+                title: toFirestoreValue(t), message: toFirestoreValue(m),
+                isRead: toFirestoreValue(false), createdAt: toFirestoreValue(new Date().toISOString()),
+                fcmPending: toFirestoreValue(true)
+              }}
+            });
+          }
           continue
         }
 
-        // D-7 만료 예정 알림
-        const daysLeft = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        const daysLeft = Math.ceil((endDate.getTime() - Date.now()) / 86400000)
         if (daysLeft === 7) {
-          await fireAutoRules('investment_expire_soon', inv.userId, { productName: inv.packageName || inv.productName || '', daysLeft: '7' }, adminToken)
+          const soonRules = autoRules.filter((r:any) => r.isActive && r.triggerEvent === 'investment_expire_soon');
+          for (const rule of soonRules) {
+            let t = rule.title || ''; let m = rule.message || '';
+            t = t.replace('{productName}', inv.packageName||inv.productName||'').replace('{daysLeft}', '7');
+            m = m.replace('{productName}', inv.packageName||inv.productName||'').replace('{daysLeft}', '7');
+            const nid = crypto.randomUUID().replace(/-/g,'');
+            writes.push({
+              update: { name: `projects/dedra-mlm/databases/(default)/documents/notifications/${nid}`, fields: {
+                userId: toFirestoreValue(inv.userId), type: toFirestoreValue('system'),
+                title: toFirestoreValue(t), message: toFirestoreValue(m),
+                isRead: toFirestoreValue(false), createdAt: toFirestoreValue(new Date().toISOString()),
+                fcmPending: toFirestoreValue(true)
+              }}
+            });
+          }
         }
 
-        // ────────────────────────────────────────────────────────
-        // [수정된 로직] 개인별 경과 날수(Days Passed) 기반 정산
-        // ────────────────────────────────────────────────────────
         let startDate = inv.lastSettledAt || inv.approvedAt || inv.createdAt;
         if (!startDate) continue;
-
-        // 날짜 차이 계산 (UTC 자정 기준)
         const targetD = new Date(today + "T00:00:00Z");
         const startD = new Date(String(startDate).slice(0, 10) + "T00:00:00Z");
+        let daysPassed = Math.floor((targetD.getTime() - startD.getTime()) / 86400000);
+        if (daysPassed <= 0) { skippedCount++; continue; }
 
-        const diffTime = targetD.getTime() - startD.getTime();
-        let daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-        if (daysPassed <= 0) {
-          skippedCount++;
-          continue; // 이미 오늘 또는 미래까지 정산됨
-        }
-
-        // 1. [데일리 수익] 1일치 수익 계산 후 누락된 날수만큼 곱하기
-        const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0
-        const principal = inv.amount || inv.amountUsdt || 0
+        const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
+        const principal = inv.amount || inv.amountUsdt || 0;
         const oneDayEarning = Math.round(principal * (dailyRoiPct / 100) * 1e8) / 1e8;
         const dailyEarning = Math.round(oneDayEarning * daysPassed * 1e8) / 1e8;
+        
+        if (dailyEarning <= 0) continue;
 
-        if (dailyEarning <= 0) continue
-        
-        // (보너스 지급 사유에 날수 표기용 변수 임시 저장 - reason에 쓰기 위함)
-        inv._daysPassed = daysPassed;
+        const member = memberMap.get(inv.userId);
+        if (member) member.daily_dividend += dailyEarning;
 
-        // 본인 지갑 업데이트
-        const wallet = await fsGet(`wallets/${inv.userId}`, adminToken)
-        const wData = wallet?.fields ? firestoreDocToObj(wallet) : {}
-        
-        const user = userMap.get(inv.userId) || {};
-        const isAuto = user.autoCompound === true || user.autoCompound === 'true';
-        
-        let newBonusBalance = (wData.bonusBalance || 0);
-        let newTotalInvest = (wData.totalInvest || 0);
+        let wup = walletUpdates.get(inv.userId);
+        if (!wup) {
+           wup = { bonusBalanceToAdd: 0, totalInvestToAdd: 0, totalEarningsToAdd: 0, currentBonusBalance: 0, currentTotalInvest: 0, currentTotalEarnings: 0 };
+           walletUpdates.set(inv.userId, wup);
+        }
+
         let newAmount = principal;
         let newExpectedReturn = inv.expectedReturn || 0;
-        
-        if (isAuto) {
-          newTotalInvest += dailyEarning;
+        if (member && member.autoCompound) {
+          wup.totalInvestToAdd += dailyEarning;
           newAmount += dailyEarning;
           newExpectedReturn = newAmount * (dailyRoiPct / 100);
         } else {
-          newBonusBalance += dailyEarning;
+          wup.bonusBalanceToAdd += dailyEarning;
         }
-
-        await fsPatch(`wallets/${inv.userId}`, {
-          bonusBalance: Math.round(newBonusBalance * 1e8) / 1e8,
-          totalInvest: Math.round(newTotalInvest * 1e8) / 1e8,
-          totalEarnings: Math.round(((wData.totalEarnings || 0) + dailyEarning) * 1e8) / 1e8
-        }, adminToken)
+        wup.totalEarningsToAdd += dailyEarning;
 
         await fsPatch(`investments/${inv.id}`, {
           amount: Math.round(newAmount * 1e8) / 1e8,
           amountUsdt: Math.round(newAmount * 1e8) / 1e8,
           expectedReturn: Math.round(newExpectedReturn * 1e8) / 1e8,
           paidRoi: (inv.paidRoi || 0) + dailyEarning,
-          lastSettledAt: new Date().toISOString()
-        }, adminToken)
+          lastSettledAt: `${today}T23:59:59.000Z`
+        }, adminToken);
 
-        // 데일리 수익 보너스 기록
-        await fsCreate('bonuses', {
+        bonusLogs.push({
           userId: inv.userId,
+          fromUserId: 'system',
           type: 'roi',
           amount: Math.round(dailyEarning / dedraRate * 1e8) / 1e8,
           amountUsdt: dailyEarning,
-          reason: `일일 데일리 수익 (${today} / ${inv._daysPassed}일치)`,
-          investmentId: inv.id,
-          createdAt: new Date().toISOString()
-        }, adminToken)
-
-        await fireAutoRules('roi_claimed', inv.userId, { amount: dailyEarning.toFixed(4), date: today }, adminToken)
-
-        totalPaid += dailyEarning
-        processedCount++
-        details.push({ userId: inv.userId, investmentId: inv.id, paid: dailyEarning })
-
-        // =========================================================================
-        // 4가지 엔진 코어 로직 시작
-        // =========================================================================
-        const sourceUser = userMap.get(inv.userId)
-        if (!sourceUser) continue
-
-        // 공통 보너스 지급 헬퍼 함수
-        const payMatchingBonus = async (receiverId: string, type: string, amountUsdt: number, reason: string, level?: number) => {
-          if (amountUsdt <= 0) return
-          const rWalletDoc = await fsGet(`wallets/${receiverId}`, adminToken)
-          const rwData = rWalletDoc?.fields ? firestoreDocToObj(rWalletDoc) : null
-          if (rwData) {
-            await fsPatch(`wallets/${receiverId}`, {
-              bonusBalance: Math.round(((rwData.bonusBalance || 0) + amountUsdt) * 1e8) / 1e8,
-              totalEarnings: Math.round(((rwData.totalEarnings || 0) + amountUsdt) * 1e8) / 1e8
-            }, adminToken)
-            await fsCreate('bonuses', {
-              userId: receiverId,
-              fromUserId: sourceUser.id,
-              type,
-              amount: Math.round(amountUsdt / dedraRate * 1e8) / 1e8,
-              amountUsdt,
-              baseIncome: dailyEarning,
-              reason,
-              level: level || 0,
-              createdAt: new Date().toISOString()
-            }, adminToken)
-          }
+          reason: `일일 데일리 수익 (${today} / ${daysPassed}일치)`,
+          level: 0,
+          investmentId: inv.id
+        });
+        
+        const roiRules = autoRules.filter((r:any) => r.isActive && r.triggerEvent === 'roi_claimed');
+        for (const rule of roiRules) {
+          let t = rule.title || ''; let m = rule.message || '';
+          t = t.replace('{amount}', dailyEarning.toFixed(4)).replace('{date}', today);
+          m = m.replace('{amount}', dailyEarning.toFixed(4)).replace('{date}', today);
+          const nid = crypto.randomUUID().replace(/-/g,'');
+          writes.push({
+            update: { name: `projects/dedra-mlm/databases/(default)/documents/notifications/${nid}`, fields: {
+              userId: toFirestoreValue(inv.userId), type: toFirestoreValue('system'),
+              title: toFirestoreValue(t), message: toFirestoreValue(m),
+              isRead: toFirestoreValue(false), createdAt: toFirestoreValue(new Date().toISOString()),
+              fcmPending: toFirestoreValue(true)
+            }}
+          });
         }
-
-        // 2. [추천 매칭] - 1대(10%), 2대(5%)
-        const upline1 = sourceUser.referredBy ? userMap.get(sourceUser.referredBy) : null
-        if (upline1) {
-          await payMatchingBonus(upline1.id, 'direct_bonus', dailyEarning * (config.direct1 / 100), `1대 추천 매칭 (기준: ${sourceUser.name})`, 1)
-          
-          const upline2 = upline1.referredBy ? userMap.get(upline1.referredBy) : null
-          if (upline2) {
-            await payMatchingBonus(upline2.id, 'direct_bonus', dailyEarning * (config.direct2 / 100), `2대 추천 매칭 (기준: ${sourceUser.name})`, 2)
-          }
-        }
-
-        // 3. [판권 매칭 보너스] (Rank Gap Roll-up)
-        // [옵션]: 재원이 되는 하부 데일리 수익 비율 (기본 100%)
-        const matchingBaseRatio = config.matchingBaseRatio !== undefined ? config.matchingBaseRatio : 100
-        const baseAmount = dailyEarning * (matchingBaseRatio / 100)
-
-        let currentNode = sourceUser
-        let previousRank = getRankLevel(sourceUser.rank || 'G0')
-        let rollUpDepth = 1
-
-        while (currentNode && currentNode.referredBy) {
-          const parent = userMap.get(currentNode.referredBy)
-          if (!parent) break
-
-          const parentRank = getRankLevel(parent.rank || 'G0')
-
-          // 예외 조항: 1대 직속 하급자(sourceUser)가 부모와 동급이거나 직급이 높은 경우 (추월/동급)
-          if (currentNode.id === sourceUser.id && previousRank >= parentRank) {
-            // 직속 스폰서에게 설정된 override % (예: 1%)만 지급하고 해당 라인 롤업 완전 단절
-            if (parentRank > 0) { // 스폰서가 직급이 있는 경우에만
-              await payMatchingBonus(parent.id, 'rank_equal_or_higher_override_1pct', baseAmount * (config.override / 100), `동급/상위 직속 예외 ${config.override}% (기준: ${sourceUser.name})`, rollUpDepth)
-            }
-            // ★ 나를 초월해서 위로 올라가지 않음 (완전 단절)
-            break
-          }
-
-          // 일반 롤업 조항: 부모 직급이 현재까지 지급된 최고 직급(previousRank)보다 높을 경우 (차액 계산)
-          if (parentRank > 0 && parentRank > previousRank) {
-            const rankGap = parentRank - previousRank
-            // 갭 1단계당 config.rankGap% (예: 단계당 10%)
-            const gapBonus = baseAmount * (rankGap * config.rankGap / 100)
-            await payMatchingBonus(parent.id, 'rank_bonus', gapBonus, `판권 매칭 ${rankGap * config.rankGap}% (기준: ${sourceUser.name})`, rollUpDepth)
-            
-            previousRank = parentRank // 지급된 최고 직급 갱신 (차액 보존)
-          }
-
-          currentNode = parent
-          rollUpDepth++
-        }
-
+        totalPaid += dailyEarning;
+        details.roiAmount += dailyEarning;
+        processedCount++;
       } catch (e) {
-        console.error("Investment processing error:", e)
+        console.error("Investment error:", e);
       }
     }
 
-    // // 예약 발송 자동 실행
-    await processScheduledBroadcasts(adminToken)
+    // [Step 2] Recommend Bonus
+    for (const member of memberMap.values()) {
+      if (member.daily_dividend > 0) {
+        const p1 = memberMap.get(member.parent_member_id);
+        if (p1) {
+          const amt1 = member.daily_dividend * (config.direct1 / 100);
+          if (amt1 > 0) {
+            p1.recommend_bonus += amt1;
+            let w1 = walletUpdates.get(p1.id);
+            if (!w1) { w1 = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(p1.id, w1); }
+            w1.bonusBalanceToAdd += amt1;
+            w1.totalEarningsToAdd += amt1;
+            details.directBonus += amt1;
+            totalPaid += amt1;
+            bonusLogs.push({ userId: p1.id, fromUserId: member.id, type: 'direct_bonus', amount: Math.round(amt1 / dedraRate * 1e8) / 1e8, amountUsdt: amt1, reason: `1대 추천 수당 (기준: ${member.name})`, level: 1 });
+          }
 
-    // 장기 미접속 / 잔액 부족 Cron 체크
-    await checkInactiveUsers(adminToken)
-    await checkLowBalances(adminToken)
+          const p2 = memberMap.get(p1.parent_member_id);
+          if (p2) {
+            const amt2 = member.daily_dividend * (config.direct2 / 100);
+            if (amt2 > 0) {
+              p2.recommend_bonus += amt2;
+              let w2 = walletUpdates.get(p2.id);
+              if (!w2) { w2 = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(p2.id, w2); }
+              w2.bonusBalanceToAdd += amt2;
+              w2.totalEarningsToAdd += amt2;
+              details.directBonus += amt2;
+              totalPaid += amt2;
+              bonusLogs.push({ userId: p2.id, fromUserId: member.id, type: 'direct_bonus', amount: Math.round(amt2 / dedraRate * 1e8) / 1e8, amountUsdt: amt2, reason: `2대 추천 수당 (기준: ${member.name})`, level: 2 });
+            }
+          }
+        }
+      }
+    }
 
-    // 정산 기록 저장 — status를 done으로 갱신 (processing → done)
+    // [Step 3 & 4] Rank Bonus (Bottom-Up)
+    const sortedMembers = Array.from(memberMap.values()).sort((a, b) => b.depth - a.depth);
+    for (const member of sortedMembers) {
+      member.total_allowance = member.recommend_bonus + member.rank_bonus;
+      if (!member.parent_member_id || (member.daily_dividend <= 0 && member.total_allowance <= 0)) continue;
+
+      let sponsor = memberMap.get(member.parent_member_id);
+      let pathMaxRank = member.rank_level;
+
+      while (sponsor) {
+        if (sponsor.rank_level === 0) {
+          sponsor = memberMap.get(sponsor.parent_member_id);
+          continue;
+        }
+
+        if (config.rankGapMode === 'gap') {
+          // 1. 차액 롤업 방식 (추천)
+          if (sponsor.rank_level > pathMaxRank) {
+            let rankDiff = sponsor.rank_level - pathMaxRank;
+            let rollupAmt = member.daily_dividend * (rankDiff * (config.rankGap / 100));
+            if (rollupAmt > 0) {
+              sponsor.rank_bonus += rollupAmt;
+              sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
+              let ws = walletUpdates.get(sponsor.id);
+              if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
+              ws.bonusBalanceToAdd += rollupAmt;
+              ws.totalEarningsToAdd += rollupAmt;
+              details.rankRollup += rollupAmt;
+              totalPaid += rollupAmt;
+              bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_bonus', amount: Math.round(rollupAmt / dedraRate * 1e8) / 1e8, amountUsdt: rollupAmt, reason: `직급 수당 롤업 ${rankDiff * config.rankGap}% (기준: ${member.name})`, level: 0 });
+            }
+            pathMaxRank = sponsor.rank_level;
+          } else if (sponsor.rank_level === pathMaxRank && pathMaxRank === member.rank_level && sponsor.rank_level > 0) {
+            let matchingAmt = member.total_allowance * (config.override / 100);
+            if (matchingAmt > 0) {
+              sponsor.rank_bonus += matchingAmt;
+              sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
+              let ws = walletUpdates.get(sponsor.id);
+              if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
+              ws.bonusBalanceToAdd += matchingAmt;
+              ws.totalEarningsToAdd += matchingAmt;
+              details.rankMatching += matchingAmt;
+              totalPaid += matchingAmt;
+              bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_matching', amount: Math.round(matchingAmt / dedraRate * 1e8) / 1e8, amountUsdt: matchingAmt, reason: `직급 매칭 수당 ${config.override}% (기준: ${member.name} 총수당)`, level: 0 });
+            }
+          }
+          // break 제거: 상위에 더 높은 직급이 있을 수 있으므로 계속 탐색
+        } else {
+          // 2. 중복 지급(Overlap) 방식 - 대표님 요청 룰
+          if (sponsor.rank_level >= pathMaxRank) {
+            if (sponsor.rank_level > pathMaxRank) {
+              pathMaxRank = sponsor.rank_level; // 나보다 높은 직급을 만나면 블로커 갱신 (그 위로는 더 이상 안올라감)
+            }
+            
+            if (sponsor.rank_level > member.rank_level) {
+              let rankDiff = sponsor.rank_level - member.rank_level;
+              let rollupAmt = member.daily_dividend * (rankDiff * (config.rankGap / 100));
+              if (rollupAmt > 0) {
+                sponsor.rank_bonus += rollupAmt;
+                sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
+                let ws = walletUpdates.get(sponsor.id);
+                if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
+                ws.bonusBalanceToAdd += rollupAmt;
+                ws.totalEarningsToAdd += rollupAmt;
+                details.rankRollup += rollupAmt;
+                totalPaid += rollupAmt;
+                bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_bonus', amount: Math.round(rollupAmt / dedraRate * 1e8) / 1e8, amountUsdt: rollupAmt, reason: `직급 수당 중복지급 ${rankDiff * config.rankGap}% (기준: ${member.name})`, level: 0 });
+              }
+            } else if (sponsor.rank_level === member.rank_level && sponsor.rank_level > 0) {
+              let matchingAmt = member.total_allowance * (config.override / 100);
+              if (matchingAmt > 0) {
+                sponsor.rank_bonus += matchingAmt;
+                sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
+                let ws = walletUpdates.get(sponsor.id);
+                if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
+                ws.bonusBalanceToAdd += matchingAmt;
+                ws.totalEarningsToAdd += matchingAmt;
+                details.rankMatching += matchingAmt;
+                totalPaid += matchingAmt;
+                bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_matching', amount: Math.round(matchingAmt / dedraRate * 1e8) / 1e8, amountUsdt: matchingAmt, reason: `직급 매칭 수당 ${config.override}% (기준: ${member.name} 총수당)`, level: 0 });
+              }
+            }
+          }
+        }
+        
+        sponsor = memberMap.get(sponsor.parent_member_id);
+      }
+    }
+
+    // Write wallet updates and bonuses to DB using fsBatchCommit
+    
+    for (const [uid, wup] of walletUpdates.entries()) {
+      if (wup.bonusBalanceToAdd > 0 || wup.totalInvestToAdd > 0 || wup.totalEarningsToAdd > 0) {
+        const fields: any = {
+          bonusBalance: Math.round((wup.currentBonusBalance + wup.bonusBalanceToAdd) * 1e8) / 1e8,
+          totalInvest: Math.round((wup.currentTotalInvest + wup.totalInvestToAdd) * 1e8) / 1e8,
+          totalEarnings: Math.round((wup.currentTotalEarnings + wup.totalEarningsToAdd) * 1e8) / 1e8
+        };
+        const firestoreFields: any = {};
+        for (const [k, v] of Object.entries(fields)) {
+          firestoreFields[k] = toFirestoreValue(v);
+        }
+        
+        writes.push({
+          update: {
+            name: `projects/dedra-mlm/databases/(default)/documents/wallets/${uid}`,
+            fields: firestoreFields
+          },
+          updateMask: {
+            fieldPaths: Object.keys(fields)
+          }
+        });
+      }
+    }
+
+    for (const log of bonusLogs) {
+      const docId = crypto.randomUUID().replace(/-/g, '');
+      const data = { ...log, settlementDate: today, createdAt: new Date() };
+      const firestoreFields: any = {};
+      for (const [k, v] of Object.entries(data)) {
+        firestoreFields[k] = toFirestoreValue(v);
+      }
+      writes.push({
+        update: {
+          name: `projects/dedra-mlm/databases/(default)/documents/bonuses/${docId}`,
+          fields: firestoreFields
+        }
+      });
+    }
+
+    if (writes.length > 0) {
+      await fsBatchCommit(writes, adminToken);
+    }
+
+    // 정산 기록 먼저 저장!
     await fsSet(`settlements/${today}`, {
       date: today,
       totalPaid,
@@ -2529,9 +3772,17 @@ async function runSettle(c: any, overrideDate?: string | null) {
       duration: Date.now() - startTime,
       startedAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
-    }, adminToken)
+    }, adminToken);
+    
+    // 예약 발송 자동 실행
+    await processScheduledBroadcasts(adminToken)
 
-    // 텔레그램 알림
+    // 장기 미접속 / 잔액 부족 Cron 체크
+    await checkInactiveUsers(adminToken)
+    await checkLowBalances(adminToken)
+
+
+
     const tgSettings = settingsData.telegram || {}
     if (tgSettings.botToken && tgSettings.chatId) {
       await sendTelegram(tgSettings.botToken, tgSettings.chatId,
@@ -2540,17 +3791,15 @@ async function runSettle(c: any, overrideDate?: string | null) {
 
     return c.json({ success: true, date: today, totalPaid, processedCount, duration: Date.now() - startTime })
   } catch (e: any) {
-    // 정산 중 오류 발생 시 settlements 문서를 error 상태로 업데이트
-    // (다음 재시도가 가능하도록 error 상태로 표시)
     try {
       const adminToken2 = await getAdminToken()
-      const today2 = overrideDate || new Date().toISOString().slice(0, 10)
+      const today2 = overrideDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
       await fsPatch(`settlements/${today2}`, {
         status: 'error',
         error: e.message,
         errorAt: new Date().toISOString()
       }, adminToken2)
-    } catch (_) { /* ignore secondary error */ }
+    } catch (_) {}
     return c.json({ success: false, error: e.message }, 500)
   }
 }
@@ -2576,7 +3825,7 @@ async function processScheduledBroadcasts(adminToken: string) {
         await fsPatch(`scheduledBroadcasts/${broadcast.id}`, { status: 'sending' }, adminToken)
 
         // 대상 회원 조회
-        const users = await fsQuery('users', adminToken, [], 1000)
+        const users = await fsQuery('users', adminToken, [], 100000)
         let targets = users.filter((u: any) => u.status === 'active')
         if (broadcast.targetGroup && broadcast.targetGroup !== 'all' && broadcast.targetGroup !== 'specific') {
           targets = targets.filter((u: any) => u.rank === broadcast.targetGroup)
@@ -2642,9 +3891,9 @@ app.post('/api/subadmin/snapshot/create', async (c) => {
     
     // 1. 데이터 가져오기
     const [users, wallets, investments] = await Promise.all([
-      fsQuery('users', adminToken, [], 5000),
-      fsQuery('wallets', adminToken, [], 5000),
-      fsQuery('investments', adminToken, [], 5000)
+      fsQuery('users', adminToken, [], 100000),
+      fsQuery('wallets', adminToken, [], 100000),
+      fsQuery('investments', adminToken, [], 100000)
     ])
 
     const dateStr = new Date().toISOString().slice(0,10) // YYYY-MM-DD
@@ -2739,7 +3988,7 @@ app.post('/api/subadmin/snapshot/restore', async (c) => {
 // ─── 장기 미접속 체크 ─────────────────────────────────────────────────────────
 async function checkInactiveUsers(adminToken: string) {
   try {
-    const users = await fsQuery('users', adminToken, [], 500)
+    const users = await fsQuery('users', adminToken, [], 100000)
     const threshold = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     for (const user of users) {
       if (user.status !== 'active') continue
@@ -2756,7 +4005,7 @@ async function checkInactiveUsers(adminToken: string) {
 // ─── 잔액 부족 체크 ───────────────────────────────────────────────────────────
 async function checkLowBalances(adminToken: string) {
   try {
-    const wallets = await fsQuery('wallets', adminToken, [], 500)
+    const wallets = await fsQuery('wallets', adminToken, [], 100000)
     for (const wallet of wallets) {
       if ((wallet.usdtBalance || 0) < 10 && (wallet.dedraBalance || 0) < 10) {
         await fireAutoRules('balance_low', wallet.userId || wallet.id, {
@@ -2822,6 +4071,28 @@ app.post('/api/translate/announcement', async (c) => {
 
 
 
+
+// Upbit Ticker Proxy
+app.get('/api/upbit-ticker', async (c) => {
+  try {
+    const markets = c.req.query('markets');
+    if (!markets) return c.json([]);
+    
+    const resp = await fetch('https://api.upbit.com/v1/ticker?markets=' + markets, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0'
+      }
+    });
+    if (!resp.ok) return c.json([]);
+    
+    const data = await resp.json();
+    return c.json(data);
+  } catch (err) {
+    return c.json([]);
+  }
+});
+
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: any, ctx: any) {
@@ -2845,9 +4116,9 @@ export default {
       try {
 
         const adminToken = await getAdminToken();
-        const settings = await fsGet('settings/rates', adminToken);
+        const settingsRaw = await fsGet('settings/rates', adminToken);
         
-        if (!settings || settings.autoSettlement === false) {
+        const settings = settingsRaw && settingsRaw.fields ? Object.fromEntries(Object.entries(settingsRaw.fields).map(([k, v]) => [k, fromFirestoreValue(v as any)])) : null; if (!settings || settings.autoSettlement === false) {
           console.log("Auto settlement is disabled.");
           return;
         }

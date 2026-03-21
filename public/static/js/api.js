@@ -574,21 +574,22 @@ export class DedraAPI {
       batch.update(doc(db, 'transactions', txId), {
         status: 'rejected', rejectedAt: serverTimestamp(), rejectedBy: adminId, rejectReason: reason
       });
-      // bonusBalance 복구 (출금 신청 시 bonusBalance에서 차감했으므로 되돌림)
+      // bonusBalance 복구 (출금 신청 시 bonusBalance에서 USDT를 차감했으므로 되돌림)
+      const usdtAmt = tx.amountUsdt || tx.amount || 0;
       const walletRef = doc(db, 'wallets', tx.userId);
       const wSnap = await getDoc(walletRef);
       if (wSnap.exists()) {
         batch.update(walletRef, {
-          bonusBalance: increment(tx.amount || 0),
-          totalWithdrawal: increment(-(tx.amount || 0)),
+          bonusBalance: increment(usdtAmt),
+          totalWithdrawal: increment(-usdtAmt),
         });
       } else {
         const walletQ = query(collection(db, 'wallets'), where('userId', '==', tx.userId));
         const wsSnap = await getDocs(walletQ);
         if (!wsSnap.empty) {
           batch.update(wsSnap.docs[0].ref, {
-            bonusBalance: increment(tx.amount || 0),
-            totalWithdrawal: increment(-(tx.amount || 0)),
+            bonusBalance: increment(usdtAmt),
+            totalWithdrawal: increment(-usdtAmt),
           });
         }
       }
@@ -2129,13 +2130,11 @@ export class DedraAPI {
         const chunks = [];
         for (let i = 0; i < lineIds.length; i += 30) chunks.push(lineIds.slice(i, i + 30));
         for (const chunk of chunks) {
-          const txSnap = await getDocs(query(
-            collection(db, 'transactions'),
-            where('userId', 'in', chunk),
-            where('type', '==', 'deposit'),
-            where('status', '==', 'approved')
+          const wSnap = await getDocs(query(
+            collection(db, 'wallets'),
+            where('userId', 'in', chunk)
           ));
-          sales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+          sales += wSnap.docs.reduce((s, d) => s + (d.data().totalInvest || d.data().totalInvested || 0), 0);
         }
         lineSales.push({ id: d1Id, sales });
       }
@@ -2196,13 +2195,11 @@ export class DedraAPI {
         const chunks = [];
         for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
         for (const chunk of chunks) {
-          const txSnap = await getDocs(query(
-            collection(db, 'transactions'),
-            where('userId', 'in', chunk),
-            where('type', '==', 'deposit'),
-            where('status', '==', 'approved')
-          ));
-          networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+            const wSnap = await getDocs(query(
+              collection(db, 'wallets'),
+              where('userId', 'in', chunk)
+            ));
+            networkSales += wSnap.docs.reduce((s, d) => s + (d.data().totalInvest || d.data().totalInvested || 0), 0);
         }
       }
 
@@ -2274,13 +2271,11 @@ export class DedraAPI {
       const chunks = [];
       for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
       for (const chunk of chunks) {
-        const txSnap = await getDocs(query(
-          collection(db, 'transactions'),
-          where('userId', 'in', chunk),
-          where('type', '==', 'deposit'),
-          where('status', '==', 'approved')
+        const wSnap = await getDocs(query(
+          collection(db, 'wallets'),
+          where('userId', 'in', chunk)
         ));
-        networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+        networkSales += wSnap.docs.reduce((s, d) => s + (d.data().totalInvest || d.data().totalInvested || 0), 0);
       }
     }
 
@@ -2456,13 +2451,11 @@ export class DedraAPI {
           const chunks = [];
           for (let i = 0; i < downline.length; i += 30) chunks.push(downline.slice(i, i + 30));
           for (const chunk of chunks) {
-            const txSnap = await getDocs(query(
-              collection(db, 'transactions'),
-              where('userId', 'in', chunk),
-              where('type', '==', 'deposit'),
-              where('status', '==', 'approved')
+            const wSnap = await getDocs(query(
+              collection(db, 'wallets'),
+              where('userId', 'in', chunk)
             ));
-            networkSales += txSnap.docs.reduce((s, d) => s + (d.data().amount || 0), 0);
+            networkSales += wSnap.docs.reduce((s, d) => s + (d.data().totalInvest || d.data().totalInvested || 0), 0);
           }
         }
 
@@ -2488,9 +2481,8 @@ export class DedraAPI {
           const hasAnyCrit = (crit.minSelfInvest||0)>0 || (crit.minNetworkSales||0)>0 || (crit.minBalancedVolume||0)>0 || (crit.minNetworkMembers||0)>0;
           if (!hasAnyCrit) continue;
           const bvRequired = (crit.minBalancedVolume || 0) > 0;
-          const pass = mode === 'any'
-            ? (cInvest || cSales || (bvRequired && cBV) || cMembers)
-            : (cInvest && cSales && (!bvRequired || cBV) && cMembers);
+          // [요청사항 적용] 배치 승격도 "본인 투자금"과 "균형 매출" 2가지만 봅니다.
+          const pass = cInvest && cBV;
           if (pass) { targetIdx = i; break; }
         }
 
@@ -2499,9 +2491,19 @@ export class DedraAPI {
           targetIdx = curIdx; // 현재 직급 유지
         }
 
+        // Update sales stats ALWAYS
+        const newRank = RANK_ORDER[targetIdx];
+        const updatePayload = {
+            totalInvested: selfInvest,
+            networkSales: networkSales,
+            updatedAt: serverTimestamp()
+        };
         if (targetIdx !== curIdx) {
-          const newRank = RANK_ORDER[targetIdx];
-          await updateDoc(doc(db, 'users', member.id), { rank: newRank, updatedAt: serverTimestamp() });
+            updatePayload.rank = newRank;
+        }
+        await updateDoc(doc(db, 'users', member.id), updatePayload);
+        
+        if (targetIdx !== curIdx) {
           if (targetIdx > curIdx) {
             await this._auditLog(adminId, 'rank', `[일괄승격] ${member.name||member.id}: ${curRank} → ${newRank}`,
               { userId: member.id, oldRank: curRank, newRank, selfInvest, networkSales, balancedVolume, networkMembers });
@@ -2897,7 +2899,7 @@ export class DedraAPI {
           ...data,
           id: d.id,
           _uid: uid,
-          totalInvested: wallet.totalInvested || data.totalInvested || 0,
+          totalInvested: wallet.totalInvested || wallet.totalInvest || data.totalInvested || data.totalInvest || 0,
           bonusBalance:  wallet.bonusBalance  || data.bonusBalance  || 0,
         };
       });
@@ -3032,7 +3034,7 @@ export class DedraAPI {
           ...data,
           id: d.id,
           _uid: uid,
-          totalInvested: wallet.totalInvested || data.totalInvested || 0,
+          totalInvested: wallet.totalInvested || wallet.totalInvest || data.totalInvested || data.totalInvest || 0,
           bonusBalance:  wallet.bonusBalance  || data.bonusBalance  || 0,
         };
       });
@@ -3321,7 +3323,7 @@ export class DedraAPI {
           if (tg === 'invested') {
             // 투자 중인 회원만 - wallets에 totalInvested > 0 확인
             const wSnap = await getDoc(doc(this.db, 'wallets', targetUserId));
-            if (!wSnap.exists() || !(wSnap.data().totalInvested > 0)) continue;
+            if (!wSnap.exists() || !((wSnap.data().totalInvested || wSnap.data().totalInvest) > 0)) continue;
           }
           // 직급 필터 (G0~G10: 해당 직급 이상)
           const rankOrder = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
@@ -3581,4 +3583,84 @@ export class DedraAPI {
   async addAuditLog(adminId, action, meta = {}) {
     await this._auditLog(adminId, 'system', action, meta);
   }
+
+  async updateAllSalesStats(adminId) {
+    try {
+      const { collection, getDocs, db, updateDoc, doc, serverTimestamp } = window.FB || this;
+      const usersSnap = await getDocs(collection(db, 'users'));
+      const walletsSnap = await getDocs(collection(db, 'wallets'));
+      
+      const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const walletMap = {};
+      walletsSnap.docs.forEach(d => {
+        walletMap[d.id] = d.data().totalInvested || d.data().totalInvest || 0;
+      });
+      
+      const childrenMap = {};
+      const userMap = {};
+      allUsers.forEach(u => {
+          childrenMap[u.id] = [];
+          userMap[u.id] = u;
+      });
+      allUsers.forEach(u => {
+          if (u.referredBy && childrenMap[u.referredBy]) {
+              childrenMap[u.referredBy].push(u.id);
+          }
+      });
+      
+      const nodeStats = {};
+      allUsers.forEach(u => {
+          nodeStats[u.id] = {
+              selfInvest: walletMap[u.id] || 0,
+              networkSales: 0
+          };
+      });
+      
+      const computeNetworkSales = (uid) => {
+          if (nodeStats[uid].networkSalesComputed) return nodeStats[uid].networkSales;
+          let sales = 0;
+          let maxLegSales = 0;
+          const children = childrenMap[uid] || [];
+          for (const childId of children) {
+              const childSelf = nodeStats[childId].selfInvest;
+              const childNet = computeNetworkSales(childId);
+              const childTotal = childSelf + childNet;
+              
+              sales += childTotal;
+              if (childTotal > maxLegSales) {
+                  maxLegSales = childTotal;
+              }
+          }
+          nodeStats[uid].networkSales = sales;
+          nodeStats[uid].otherLegSales = sales - maxLegSales;
+          nodeStats[uid].networkSalesComputed = true;
+          return sales;
+      };
+      
+      allUsers.forEach(u => computeNetworkSales(u.id));
+      
+      let updatedCount = 0;
+      for (const u of allUsers) {
+          const stats = nodeStats[u.id];
+          const hasChanges = (u.totalInvested || 0) !== stats.selfInvest || (u.networkSales || 0) !== stats.networkSales || (u.otherLegSales || 0) !== stats.otherLegSales;
+          
+          if (hasChanges) {
+              await updateDoc(doc(db, 'users', u.id), {
+                  totalInvested: stats.selfInvest,
+                  networkSales: stats.networkSales,
+                  otherLegSales: stats.otherLegSales,
+                  updatedAt: serverTimestamp()
+              });
+              updatedCount++;
+          }
+      }
+      
+      await this._auditLog(adminId, 'system', `매출 데이터 동기화 완료: ${updatedCount}명 업데이트`);
+      return { success: true, data: { updatedCount } };
+    } catch(e) {
+      console.error(e);
+      return { success: false, error: e.message };
+    }
+  }
+
 }

@@ -6,7 +6,7 @@
   <title>DEEDRA</title>
   <link rel="icon" href="/static/favicon.ico" />
   <!-- PWA -->
-  <link rel="manifest" href="/manifest.json?v=1773683172670" />
+  <link rel="manifest" href="/manifest.json?v=1773917124" />
   <meta name="theme-color" content="#0a0f1e" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
-  <link rel="stylesheet" href="/static/style.css?v=78" />
+  <link rel="stylesheet" href="/static/style.css?v=1773961967763" />
 
 
 
@@ -41,7 +41,52 @@
       100% { transform: translateY(-20px); opacity: 0; }
     }
     body, html, .page-scroll { overscroll-behavior-y: none !important; }
+  
+    @keyframes liveBlink {
+      0% { opacity: 0.3; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1.2); }
+    }
   </style>
+
+<style>
+  #forcePwModal, #forcePwModal * {
+    pointer-events: auto !important;
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+  }
+</style>
+
+  <!-- PWA Self-Healing Script -->
+  <script>
+    (function() {
+      // Check if critical objects load properly
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (!window.FB || !window.FB.auth) {
+            console.error("[Healing] window.FB is missing! Service Worker cache might be broken. Forcing cleanup...");
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                  registration.unregister();
+                }
+                // Clear all caches
+                if (window.caches) {
+                  caches.keys().then(function(names) {
+                    for (let name of names) caches.delete(name);
+                  });
+                }
+                // Force reload without cache
+                setTimeout(() => window.location.reload(true), 500);
+              });
+            } else {
+              window.location.reload(true);
+            }
+          }
+        }, 2000);
+      });
+    })();
+  </script>
+
 </head>
   
 <body>
@@ -49,7 +94,7 @@
 
   <!-- ===== 로딩 화면 ===== -->
   <div id="loadingScreen" class="loading-screen">
-    <img src="/static/img/main-banner.png" class="loading-banner" alt="DEEDRA" />
+    <h1 style="color: #fff; font-size: 28px; font-weight: 900; letter-spacing: 2px; margin-bottom: 20px; background: linear-gradient(to right, #6366f1, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DEEDRA</h1>
     <div class="spinner"></div>
   </div>
 
@@ -57,7 +102,7 @@
   <div id="authScreen" class="screen hidden">
     <div class="auth-container">
       <div class="auth-logo">
-        <img src="/static/img/main-banner.png" class="auth-banner-img" alt="DEEDRA" />
+        <img src="/static/logo-banner.png" class="auth-banner-img" alt="DEEDRA" />
       </div>
       <div class="auth-form-wrap">
         <p class="auth-tagline" data-i18n="authTagline">🔐 안전하고 스마트한 FREEZE 자산 운용</p>
@@ -83,6 +128,33 @@
             비밀번호를 잊으셨나요?
           </button>
         </form>
+
+          <!-- 캐시 삭제 버튼 -->
+          <div style="text-align:center; margin-top:20px; padding-bottom:20px;">
+            <button type="button" onclick="clearBrowserCache()" style="background:transparent; border:1px solid #ef4444; border-radius:8px; padding:10px 15px; color:#ef4444; font-size:13px; font-weight:bold; cursor:pointer;">
+              <i class="fas fa-trash-alt"></i> 로그인이 안될 경우 누르세요 (캐시 초기화)
+            </button>
+          </div>
+          <script>
+            function clearBrowserCache() {
+              if(confirm("기기 캐시 데이터를 초기화하고 새로고침하시겠습니까?")) {
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let r of registrations) r.unregister();
+                  });
+                }
+                if (window.caches) {
+                  caches.keys().then(function(names) {
+                    for (let n of names) caches.delete(n);
+                  });
+                }
+                localStorage.removeItem('deedra_session');
+                sessionStorage.clear();
+                setTimeout(() => window.location.reload(true), 500);
+              }
+            }
+          </script>
+
 
         <!-- 회원가입 폼 -->
         <form id="registerForm" class="hidden" onsubmit="event.preventDefault();handleRegister()" autocomplete="on">
@@ -163,13 +235,13 @@
     <!-- 상단 헤더 -->
     <div class="app-header">
       <div class="header-left">
-        <img src="/static/img/main-banner.png" class="header-logo-img" alt="DEEDRA" />
+        <img src="/static/logo-banner.png" class="header-logo-img" alt="DEEDRA" />
       </div>
       <div class="header-right">
         <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="테마 변경">
           <i class="fas fa-moon" id="themeIcon"></i>
         </button>
-                <button class="icon-btn" onclick="window.location.reload()" title="새로고침" style="margin-right:4px;">
+                <button class="icon-btn" onclick="window.hardRefresh()"" title="새로고침" style="margin-right:4px;">
           <i class="fas fa-sync-alt"></i>
         </button>
         <button class="icon-btn" onclick="showNotifications()">
@@ -189,13 +261,19 @@
           <!-- 인사 -->
           <div class="greeting-section" style="display:flex;justify-content:space-between;align-items:center;">
             <div>
-              <div class="greeting-text" id="greetingMsg">안녕하세요 👋</div>
+              <div class="greeting-text" style="display:flex; align-items:center; gap:8px;">
+                <span id="greetingMsg">안녕하세요 👋</span>
+                <div style="font-size:11px; font-weight:600; background:rgba(16,185,129,0.1); color:#10b981; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:5px; border:1px solid rgba(16,185,129,0.2);">
+                  <div style="width:5px; height:5px; background:#10b981; border-radius:50%; box-shadow:0 0 6px #10b981; animation: liveBlink 1.5s infinite alternate;"></div>
+                  <span>접속 <strong id="homeLiveCount">125</strong>명</span>
+                </div>
+              </div>
               <div class="greeting-name" id="userNameDisplay">-</div>
             </div>
             
             <div style="display:flex; align-items:center; gap:8px;">
               <!-- 직급 이미지 -->
-              <img id="userRankBadgeImg" src="/static/ranks/g0.png?v=2" alt="Rank" style="height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
+              <img id="userRankBadgeImg" src="/static/ranks/g0.png?v=1773917124" alt="Rank" style="height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
               
               <!-- 센터 배지 (센터장인 경우 표시) -->
               <div id="centerManagerBadgeWrap" style="display:none; align-items:center; gap:6px;">
@@ -242,9 +320,9 @@
                 <img src="/static/img/ddra-coin.png" alt="DDRA"
                   style="width:30px;height:30px;border-radius:50%;object-fit:cover;
                          box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:4px;" />
-                <div class="asset-split-label" style="color:#f59e0b;font-weight:600;" data-i18n="withdrawableDdra">출금 가능 DDRA</div>
-                <div class="asset-split-value" id="splitBonus" style="color:#f59e0b;font-size:18px;font-weight:700;">0.00 DDRA</div>
-                <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:11px;">≈ $0.00 USDT</div>
+                <div class="asset-split-label" style="color:#f59e0b;font-weight:600;" data-i18n="withdrawableUsdt">Available USDT</div>
+                <div class="asset-split-value" id="splitBonusUsdt" style="color:#f59e0b;font-size:18px;font-weight:700;">0.00 USDT</div>
+                <div class="asset-split-sub" id="splitBonusDdra" style="color:#94a3b8;font-size:11px;">≈ 0.00 DDRA</div>
                 <button onclick="showReinvestModal()" style="margin-top:8px;position:relative;z-index:10;pointer-events:auto;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;width:fit-content;margin-left:auto;margin-right:auto;transition:all 0.2s;"><i class="fas fa-sync-alt"></i> 재투자</button>
               </div>
             </div>
@@ -255,7 +333,7 @@
                 <i class="fas fa-arrow-down"></i> <span data-i18n="btnDeposit">USDT 입금</span>
               </button>
               <button class="asset-action-btn withdraw" onclick="showWithdrawModal()">
-                <i class="fas fa-arrow-up"></i> <span data-i18n="btnWithdraw">DDRA 출금</span>
+                <i class="fas fa-arrow-up"></i> <span data-i18n="btnWithdraw">USDT 출금</span>
               </button>
             </div>
           </div>
@@ -269,7 +347,7 @@
             <div style="position:relative; z-index:2;">
               <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--text-color, #fff);">
                 <i class="fas fa-sync-alt" id="autoCompoundIcon" style="color:#64748b; transition:all 0.3s;"></i>
-                <span style="font-weight:800;" id="autoCompoundTitleText">자동 복리 (Auto-Compound)</span>
+                <span style="font-weight:800;" id="autoCompoundTitleText" style="transition: color 0.3s;">자동 복리 (Auto-Compound)</span>
               </div>
               <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:4px;" id="autoCompoundDescText">매일 자정, 데일리 수익금을 FREEZE 원금에 자동 재투자합니다.</div>
             </div>
@@ -282,9 +360,9 @@
           </div>
 
           <style>
-            #autoCompoundSwitch:checked + .slider { background-color: #10b981; }
+            #autoCompoundSwitch:checked + .slider { background-color: #10b981 !important; }
             #autoCompoundSwitch:focus + .slider { box-shadow: 0 0 1px #10b981; }
-            #autoCompoundSwitch:checked + .slider:before { transform: translateX(26px); }
+            #autoCompoundSwitch:checked + .slider:before { transform: translateX(26px) !important; }
             .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.4s; border-radius:50%; }
           </style>
 
@@ -368,17 +446,6 @@
             </div>
           </div>
 
-          <!-- 최근 7일 수익 히트맵 -->
-          <div id="profitHeatmapContainer" style="margin: 0 16px 16px 16px; padding: 14px 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
-              <span><i class="fas fa-calendar-check" style="margin-right:6px; color:#10b981;"></i>최근 7일 수익 활동</span>
-              <span style="font-size:10px; opacity:0.6;">(오늘 기준)</span>
-            </div>
-            <div id="profitHeatmapGrid" style="display:flex; justify-content:space-between; gap:4px; align-items:center;">
-              <div style="text-align:center; font-size:10px; color:#64748b;">데이터 로드 중...</div>
-            </div>
-          </div>
-
           <!-- 공지사항 + 뉴스 피드 : 위아래 50:50 배치 -->
           <div class="ann-news-stack">
             <!-- 공지사항 -->
@@ -416,34 +483,7 @@
             <div data-i18n="loadingPrice" style="color:#94a3b8;font-size:12px;text-align:center;">시세 불러오는 중...</div>
           </div>
 
-          <!-- 네트워크 수익 미리보기 -->
-          <div class="section-header" style="margin-top:8px;">
-            <span class="section-title" data-i18n="networkEarnings">🌐 네트워크 수익</span>
-            <button class="see-all-btn" onclick="showNetworkEarningsPanel('gen1')" data-i18n="networkDetail">자세히 보기</button>
           </div>
-          <div onclick="showNetworkEarningsPanel('gen1')" style="cursor:pointer;
-            background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(139,92,246,0.08));
-            border:1px solid rgba(59,130,246,0.2);border-radius:14px;padding:14px 16px;
-            display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;
-          ">
-            <div style="display:flex;gap:20px;">
-              <div style="text-align:center;">
-                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;" data-i18n="todayEarn">당일 수익</div>
-                <div id="homeNetTodayEarn" style="font-size:15px;font-weight:700;color:#10b981;">$0.00</div>
-              </div>
-              <div style="text-align:center;">
-                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;" data-i18n="subMembers">하부 인원</div>
-                <div id="homeNetMembers" style="font-size:15px;font-weight:700;color:#3b82f6;">0명</div>
-              </div>
-              <div style="text-align:center;">
-                <div style="font-size:10px;color:var(--text2,#94a3b8);margin-bottom:3px;" data-i18n="totalEarnings">누적 수익</div>
-                <div id="homeNetTotalEarn" style="font-size:15px;font-weight:700;color:#8b5cf6;">$0.00</div>
-              </div>
-            </div>
-            <div style="color:var(--text2,#94a3b8);font-size:18px;">›</div>
-          </div>
-
-        </div>
       </div>
 
       <!-- ======== INVEST 페이지 ======== -->
@@ -526,8 +566,12 @@
       <!-- ======== NETWORK 페이지 ======== -->
       <div id="networkPage" class="page">
         <div class="page-scroll">
-          <div class="page-title">
+          <div class="page-title" style="display:flex; justify-content:space-between; align-items:center;">
             <span data-i18n="pageNetwork">🌐 네트워크</span>
+            <div style="font-size:12px; font-weight:600; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:14px; display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(16,185,129,0.2);">
+              <div style="width:6px; height:6px; background:#10b981; border-radius:50%; box-shadow:0 0 6px #10b981; animation: liveBlink 1.5s infinite alternate;"></div>
+              <span>실시간 접속 <strong id="networkLiveCount">125</strong>명</span>
+            </div>
           </div>
 
           
@@ -587,7 +631,7 @@
           <div class="rank-card">
             <div class="rank-title" data-i18n="currentRank">현재 직급</div>
             <div class="rank-current" id="rankCurrent" style="background:transparent;box-shadow:none;padding:0; display:flex; align-items:center; gap:20px;">
-              <img id="rankCurrentImg" src="/static/ranks/g0.png?v=2" alt="Rank" style="width:100px;height:auto;object-fit:contain;" />
+              <img id="rankCurrentImg" src="/static/ranks/g0.png?v=1773917124" alt="Rank" style="width:100px;height:auto;object-fit:contain;" />
               <div id="rankCurrentName" style="font-size:32px; font-weight:900; color:var(--primary);  letter-spacing:1px; flex:1;">STONE</div>
             </div>
             <!-- 다음 직급 안내 영역 (상세) -->
@@ -601,13 +645,6 @@
                 
                 <!-- 조건 리스트 -->
                 <div id="nextRankConditions" style="display:flex; flex-direction:column; gap:12px;">
-                </div>
-                
-                <!-- 혜택 안내 -->
-                <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(59,130,246,0.2);">
-                  <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:8px;"><i class="fas fa-gift"></i> 달성 예상 혜택</div>
-                  <ul style="margin:0; padding-left:18px; font-size:11.5px; color:var(--text2); line-height:1.6;" id="nextRankBenefits">
-                  </ul>
                 </div>
               </div>
             </div>
@@ -626,9 +663,7 @@
           <!-- 조직도 -->
           <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
             <span class="section-title" data-i18n="orgChart">🗂 조직도</span>
-<button onclick="window.openGroupChat()" style="background:var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; position:relative; z-index:50; cursor:pointer; display:flex; align-items:center; gap:6px;">
-              <i class="fas fa-comments"></i> <span>그룹 채팅</span>
-            </button>
+
 
           </div>
           
@@ -1215,18 +1250,24 @@
           <!-- 거래 내역 (상단) -->
           <div class="menu-section" style="margin-top:0;padding-top:16px;">
             <div class="menu-section-title large" data-i18n="txHistory">📊 거래 내역</div>
-            <div class="tx-tabs">
-              <button class="tx-tab active" onclick="switchTxTab('all', this)" data-i18n="txAll">전체</button>
-              <button class="tx-tab" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
-              <button class="tx-tab" onclick="switchTxTab('withdrawal', this)" data-i18n="txWithdraw">출금</button>
-              <button class="tx-tab" onclick="switchTxTab('invest', this)" data-i18n="txInvest">FREEZE</button>
-              <button class="tx-tab" onclick="switchTxTab('matching', this)">추천 매칭</button>
-              <button class="tx-tab" onclick="switchTxTab('rankBonus', this)">판권 매칭</button>
-              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('centerFee', this)" style="display: none;">센터 피</button>
+            <div class="tx-tabs" id="txTabsContainer" style="overflow-x:auto; white-space:nowrap; padding-bottom:4px;">
+              <button class="tx-tab active" onclick="switchTxTab('deposit', this)">입금</button>
+              <button class="tx-tab" onclick="switchTxTab('withdrawal', this)">출금</button>
+              <button class="tx-tab" onclick="switchTxTab('roi', this)">FREEZE</button>
+              <button class="tx-tab" onclick="switchTxTab('direct_bonus', this)">추천 수당</button>
+              <button class="tx-tab" onclick="switchTxTab('rank_bonus', this)">직급 수당</button>
+              <button class="tx-tab" onclick="switchTxTab('rank_matching', this)">추천 매칭</button>
+              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('center_fee', this)" style="display: none;">센터</button>
             </div>
-            <div id="matchingInfo" style="display: none; padding: 12px; margin-top: 10px; background: rgba(157, 78, 221, 0.1); border-radius: 8px; border: 1px solid rgba(157, 78, 221, 0.3); font-size: 13px; color: #e2e8f0; line-height: 1.5;">
-              <i class="fas fa-info-circle text-primary mr-1"></i> <b>추천 매칭:</b> 나의 산하 회원이 FREEZE 데일리 수익을 받을 때, 직추천인(1대 스폰서)에게 10%, 그 위(2대 스폰서)에게 5%가 지급되는 보너스입니다.
+            
+            
+            
+            
+            <div class="tx-filter" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding: 0 5px;">
+              <input type="date" id="txHistoryDate" onchange="loadTxHistory()" style="padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg2); color:var(--text); font-size:14px; outline:none;">
+              <button onclick="document.getElementById('txHistoryDate').value=''; loadTxHistory()" style="background:var(--bg2); border:1px solid var(--border); color:var(--text2); padding:4px 10px; border-radius:6px; font-size:12px;">전체 기간 보기</button>
             </div>
+
             <div id="txHistoryList" class="tx-list">
               <div class="skeleton-item"></div>
               <div class="skeleton-item"></div>
@@ -1249,7 +1290,7 @@
               
               <!-- 랭크 뱃지: 선명한 골드 -->
               <div id="profileRank" style="background:rgba(255,215,0,0.15); border:1px solid rgba(255,215,0,0.4); color:#ffd700; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:900; display:flex; align-items:center; gap:4px; flex-shrink:0; box-shadow:0 0 10px rgba(255,215,0,0.1);">
-                <img id="profileRankImg" src="/static/ranks/g0.png?v=2" alt="Rank" style="height:14px;width:auto;object-fit:contain;" />
+                <img id="profileRankImg" src="/static/ranks/g0.png?v=1773917124" alt="Rank" style="height:14px;width:auto;object-fit:contain;" />
               </div>
             </div>
             
@@ -1308,6 +1349,10 @@
                   <option value="vi">Tiếng Việt</option>
                   <option value="th">ภาษาไทย</option>
                 </select>
+              </div>
+              <div class="menu-item" onclick="showWalletRegisterModal()">
+                <div class="menu-item-icon icon-gray"><i class="fas fa-wallet"></i></div>
+                <span class="menu-item-text" data-i18n="registerWallet">출금 지갑 주소 등록</span>
               </div>
               <div class="menu-item">
                 <div class="menu-item-icon icon-gray"><i class="fas fa-bell"></i></div>
@@ -1515,32 +1560,33 @@
   <div class="modal-overlay" onclick="closeModal('withdrawModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title" data-i18n="modalWithdraw">💸 DDRA 출금 신청</div>
+    <div class="modal-title" data-i18n="modalWithdraw">💸 USDT 출금 신청</div>
     <div class="modal-body">
-      <!-- 출금 가능 DDRA -->
+      <!-- 출금 가능 USDT -->
       <div class="info-box" style="margin-bottom:14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.25);border-radius:14px;padding:14px 16px;">
-        <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;" data-i18n="withdrawableDdraLabel">출금 가능 DDRA (수익)</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;" data-i18n="withdrawableUsdtLabel">출금 가능 USDT (수익)</div>
         <div style="font-size:26px;font-weight:800;color:#f59e0b;letter-spacing:-0.5px;">
-          <span id="withdrawAvailable">0.00</span> DDRA
+          <span id="withdrawAvailable">0.00</span> USDT
         </div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px;" id="withdrawAvailableUsdt">≈ $0.00 USDT</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;" id="withdrawAvailableDdra">≈ 0.00 DDRA</div>
       </div>
       <!-- 원금 잠금 안내 -->
       <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text2);">
         🔒 <span data-i18n="withdrawNoticeText"><strong style="color:#818cf8">FREEZE 원금</strong>은 만기까지 잠금·&nbsp;<strong style="color:#f59e0b">수익(ROI·보너스)</strong>은 언제든지 출금 가능</span>
       </div>
       <div class="form-group">
-        <label class="form-label" data-i18n="withdrawAmountLabel">출금 수량 (DDRA)</label>
-        <input type="number" id="withdrawAmount" class="form-input" placeholder="0.00" min="0" step="1"
+        <label class="form-label" data-i18n="withdrawAmountLabelUsdt">출금 금액 (USDT)</label>
+        <input type="number" id="withdrawAmount" class="form-input" placeholder="0.00" min="0" step="0.01"
           oninput="onWithdrawAmountInput()" />
-        <!-- USDT 환산 실시간 표시 -->
+        <!-- DDRA 환산 실시간 표시 -->
         <div id="withdrawDdraCalc" style="margin-top:6px;font-size:12px;color:#94a3b8;padding:6px 10px;background:var(--card2,rgba(255,255,255,0.04));border-radius:8px;">
-          1 DDRA = $0.5000 USDT
+          예상 지급 수량: 0.00 DDRA
         </div>
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="withdrawAddressLabel">수신 지갑 주소 (DDRA)</label>
-        <input type="text" id="withdrawAddress" class="form-input" placeholder="DDRA 수신 지갑 주소 입력" />
+        <input type="text" id="withdrawAddress" class="form-input" list="savedAddresses" placeholder="DDRA 수신 지갑 주소 입력" autocomplete="off" />
+        <datalist id="savedAddresses"></datalist>
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="withdrawPinLabel">출금 PIN (6자리)</label>
@@ -1578,7 +1624,57 @@
 </div>
 
 
+
+<!-- 비밀번호 변경 모달 -->
+<div id="passwordChangeModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('passwordChangeModal')"></div>
+  <div class="modal-sheet" style="padding-bottom:env(safe-area-inset-bottom, 20px);">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔐 비밀번호 변경</div>
+    <div class="modal-body" style="padding-bottom:30px;">
+      <div class="input-group">
+        <label>기존 비밀번호</label>
+        <input type="password" id="oldPasswordInput" placeholder="기존 비밀번호 입력">
+      </div>
+      <div class="input-group">
+        <label>새 비밀번호</label>
+        <input type="password" id="newPasswordInput" placeholder="새 비밀번호 입력">
+      </div>
+      <div class="input-group">
+        <label>새 비밀번호 확인</label>
+        <input type="password" id="confirmNewPasswordInput" placeholder="새 비밀번호 다시 입력">
+      </div>
+      <div style="margin-top: 10px;">
+        <button id="savePasswordBtn" class="btn btn-primary" onclick="submitPasswordChange()" style="width: 100%;">비밀번호 변경하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 지갑 등록 모달 -->
+<div id="walletRegisterModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('walletRegisterModal')"></div>
+  <div class="modal-sheet" style="padding-bottom:env(safe-area-inset-bottom, 20px);">
+    <div class="modal-handle"></div>
+    <div class="modal-title">출금 지갑 주소 등록</div>
+    <div class="modal-body" style="padding-bottom:30px;">
+      <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">
+        본인의 솔라나(Solana) 지갑 주소를 등록해두시면 자동 입금 처리가 더욱 원활해집니다.
+      </p>
+      <div class="input-group">
+        <label>솔라나 지갑 주소</label>
+        <input type="text" id="solanaWalletInput" placeholder="솔라나 지갑 주소 입력">
+      </div>
+      <div style="margin-top: 20px;">
+        <button id="saveWalletBtn" class="btn btn-primary" onclick="saveWalletAddress()" style="width: 100%;">지갑 주소 저장하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 출금 PIN 모달 -->
+
 <div id="pinModal" class="modal hidden">
   <div class="modal-overlay" onclick="closeModal('pinModal')"></div>
   <div class="modal-sheet">
@@ -1710,12 +1806,18 @@
   <div class="modal-overlay" onclick="closeModal('reinvestModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title"><i class="fas fa-sync-alt"></i> 수익금 재투자 (원금 전환)</div>
+    <div class="modal-title"><i class="fas fa-sync-alt"></i> 수익금 재투자 (FREEZE 가입)</div>
     <div class="modal-body">
-      <p style="font-size:13px; color:var(--text2); margin-bottom:16px;">출금 가능한 수익금을 FREEZE 전용 지갑(원금)으로 전환하여 다시 투자 상품을 운용합니다.</p>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:16px;">출금 가능한 수익금으로 새로운 FREEZE 상품에 바로 재투자합니다.</p>
       <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;">
         <div style="font-size:12px; color:var(--text2); margin-bottom:8px;">출금 가능 수익금</div>
         <div id="reinvestMaxAmount" style="font-size:24px; font-weight:700; color:#10b981;">0.00 <span style="font-size:14px;">USDT</span></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>재투자할 상품 선택 (기간)</label>
+        <select id="reinvestProductSelect" class="form-input" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:#fff; border-radius:10px; padding:12px; outline:none; appearance:none;">
+          <option value="">상품을 불러오는 중...</option>
+        </select>
       </div>
       <div class="form-group">
         <label>재투자할 금액 (USDT)</label>
@@ -1836,7 +1938,7 @@
 
 
 <!-- 간편 비밀번호 변경 모달 (초기 비밀번호 000000 사용자용) -->
-<div id="forcePwModal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+<div id="forcePwModal" style="display:none;position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;pointer-events:auto !important;user-select:auto !important;">
   <div style="background:linear-gradient(145deg,#1e293b,#0f172a);border-radius:24px;padding:32px 24px 28px;width:90%;max-width:360px;box-shadow:0 25px 80px rgba(0,0,0,0.8),inset 0 1px 1px rgba(255,255,255,0.1);border:1px solid rgba(99,102,241,0.4);text-align:center;">
     <div style="font-size:42px;margin-bottom:12px;filter:drop-shadow(0 0 10px rgba(99,102,241,0.5));">🔒</div>
     <h3 style="color:#fff;font-size:18px;font-weight:800;margin-bottom:8px;letter-spacing:-0.5px;">안전한 사용을 위한 비밀번호 변경</h3>
@@ -1844,12 +1946,12 @@
     
     <div style="text-align:left;margin-bottom:12px;">
       <label style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;padding-left:4px;">새 비밀번호</label>
-      <input type="password" id="forcePwNew" placeholder="새로운 비밀번호 입력 (6자리 이상)" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
+      <input type="password" id="forcePwNew" placeholder="새로운 비밀번호 입력 (6자리 이상)" style="pointer-events:auto !important;user-select:auto !important;width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
     </div>
     
     <div style="text-align:left;margin-bottom:24px;">
       <label style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;padding-left:4px;">새 비밀번호 확인</label>
-      <input type="password" id="forcePwConfirm" placeholder="다시 한번 입력해 주세요" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
+      <input type="password" id="forcePwConfirm" placeholder="다시 한번 입력해 주세요" style="pointer-events:auto !important;user-select:auto !important;width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
     </div>
     
     <button id="forcePwBtn" onclick="submitForcePw()" style="width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 8px 20px rgba(99,102,241,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">비밀번호 변경 완료</button>
@@ -1857,14 +1959,14 @@
 </div>
 
 <!-- Firebase SDK -->
-<script type="module" src="/static/firebase.js?v=1773678020458"></script>
+<script type="module" src="/static/firebase.js?v=1773981618388"></script>
 <!-- Solana Web3.js (CDN) — 지갑 연동용 -->
 <script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"
   onload="window.solanaWeb3 = solanaWeb3;" onerror="console.warn('Solana Web3.js 로드 실패')"></script>
 <!-- Solana 지갑 연동 모듈 -->
-<script src="/static/js/solana-wallet.js?v=1773678020458"></script>
+<script src="/static/js/solana-wallet.js?v=1773917124"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=100"></script>
+<script src="/static/app.js?v=2026032104"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널
@@ -1996,7 +2098,13 @@
       </div>
       <button onclick="closeModal('dexModal')" style="background:rgba(255,255,255,0.1); border:none; color:#fff; width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
     </div>
-    <div id="jupiter-terminal" style="flex:1; width:100%; border-radius:0 0 24px 24px; overflow:hidden;"></div>
+    <div id="dexIframeContainer" style="flex:1; width:100%; position:relative;">
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#94a3b8; font-size:14px; text-align:center;">
+        <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:12px; color:#10b981;"></i><br>
+        Raydium 로딩 중...
+      </div>
+      <iframe id="dexIframe" src="" style="width:100%; height:100%; border:none; position:relative; z-index:2; background:transparent;" allow="clipboard-read; clipboard-write"></iframe>
+    </div>
   </div>
 </div>
 
@@ -2035,6 +2143,21 @@
     </div>
   </div>
 </div>
+
+
+<script src="https://terminal.jup.ag/main-v3.js"></script>
+
+<!-- 모바일 키보드 포커스 스크롤 자동 보정 스크립트 -->
+<script>
+document.addEventListener('focusin', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    // 키보드가 올라올 시간을 약간 준 뒤 스크롤 보정
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
+});
+</script>
 
 </body>
 </html>

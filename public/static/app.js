@@ -63,6 +63,13 @@ const SFX = (() => {
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+    errWithdrawTime: '지금은 출금 가능 시간이 아닙니다.\n{day} {time} 부터 출금 가능합니다.',
+    errWithdrawTimeToday: '지금은 출금 가능 시간이 아닙니다.\n오늘 {time} 부터 출금 가능합니다.',
+    errWithdrawRestricted: '현재 출금이 제한되어 있습니다.',
+    dayTomorrow: '내일',
+    dayDayAfter: '모레',
+    dayNextWeek: '다음 주 {day}요일',
+    daySun: '일', dayMon: '월', dayTue: '화', dayWed: '수', dayThu: '목', dayFri: '금', daySat: '토',
     
     upbitRealTime: 'Upbit 실시간',
     loadingPrice: '시세 불러오는 중...',
@@ -102,6 +109,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: '총 하부 인원 · 누적 수익',
     viewDetail: '상세보기 ›',
     withdrawNoticeText: '※ 처리 완료까지 1-3일 소요',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: '출금 가능 DDRA',
     withdrawableDdraLabel: '출금 가능 DDRA',
     tabGen1: '1대 조직',
@@ -183,7 +191,7 @@ const TRANSLATIONS = {
     assetInvesting: '❄️ FREEZE 중',
     assetInterest: '수익 잔액 (출금 가능)',
     btnDeposit: 'USDT 입금',
-    btnWithdraw: 'DDRA 출금',
+    btnWithdraw: '출금하기 (USDT)',
     deedraPrice: 'DDRA 현재 시세',
     recentUpdated: '최근 업데이트: ',
     investingNow: '❄️ 진행 중인 FREEZE',
@@ -306,7 +314,7 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ 반드시 위 주소로 입금 후 TXID를 입력해주세요. 관리자 승인 후 잔액이 업데이트됩니다.',
     btnCancel: '취소',
     btnSubmitDeposit: '입금 신청',
-    modalWithdraw: '💸 수익 출금 신청 (DDRA 지급)',
+    modalWithdraw: '💸 수익 출금 신청 (USDT 기준)',
     withdrawAvailLabel: '출금 가능 수익 (USDT)',
     withdrawAmountLabel: '출금 금액 (USDT)',
     withdrawAddressLabel: '수신 지갑 주소',
@@ -595,7 +603,7 @@ const TRANSLATIONS = {
     authDisabled: '비활성화된 계정입니다. 관리자에게 문의하세요.',
     authError: '오류가 발생했습니다: ',
     txTypeDeposit: 'USDT 입금',
-    txTypeWithdraw: 'DEEDRA 출금',
+    txTypeWithdraw: '출금 (USDT)',
     txTypeBonus: '보너스 지급',
     txTypeInvest: 'FREEZE 신청',
     txTypeGame: '게임',
@@ -610,6 +618,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 DDRA 현재 시세',
     earnSeeAll: '전체보기 ›',
     freezingNow: 'FREEZE 중',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: '출금 가능 DDRA',
     globalNetworkMap: '🌍 글로벌 라이브 네트워크',
     networkEarnings: '🌐 네트워크 수익',
@@ -625,6 +634,13 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+    errWithdrawTime: 'Withdrawal is not available at this time.\nAvailable from {day} {time}.',
+    errWithdrawTimeToday: 'Withdrawal is not available at this time.\nAvailable today from {time}.',
+    errWithdrawRestricted: 'Withdrawals are currently restricted.',
+    dayTomorrow: 'Tomorrow',
+    dayDayAfter: 'The day after tomorrow',
+    dayNextWeek: 'Next {day}',
+    daySun: 'Sunday', dayMon: 'Monday', dayTue: 'Tuesday', dayWed: 'Wednesday', dayThu: 'Thursday', dayFri: 'Friday', daySat: 'Saturday',
     
     upbitRealTime: 'Upbit Live',
     loadingPrice: 'Loading prices...',
@@ -663,6 +679,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: 'Total Sub Members & Earn',
     viewDetail: 'Details ›',
     withdrawNoticeText: '※ 1-3 days for processing',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: 'Withdrawable DDRA',
     withdrawableDdraLabel: 'Withdrawable DDRA',
     tabGen1: 'Gen 1',
@@ -743,7 +760,7 @@ const TRANSLATIONS = {
     assetInvesting: '❄️ Freezing',
     assetInterest: 'Earnings (Withdrawable)',
     btnDeposit: 'Deposit USDT',
-    btnWithdraw: 'Withdraw DDRA',
+    btnWithdraw: 'Withdraw (USDT)',
     deedraPrice: 'DDRA Current Price',
     recentUpdated: 'Updated: ',
     investingNow: '❄️ Active FREEZE',
@@ -861,7 +878,7 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ Please deposit to the address above and enter the TXID. Balance will be updated after admin approval.',
     btnCancel: 'Cancel',
     btnSubmitDeposit: 'Submit Deposit',
-    modalWithdraw: '💸 DDRA Withdrawal Request',
+    modalWithdraw: '💸 USDT Withdrawal Request',
     withdrawAvailLabel: 'Available Earnings (USDT)',
     withdrawAmountLabel: 'Withdrawal Amount (USDT)',
     withdrawAddressLabel: 'Recipient Wallet Address',
@@ -1148,7 +1165,7 @@ const TRANSLATIONS = {
     authDisabled: 'Account disabled. Contact admin.',
     authError: 'Error occurred: ',
     txTypeDeposit: 'USDT Deposit',
-    txTypeWithdraw: 'DDRA Withdrawal',
+    txTypeWithdraw: 'Withdrawal (USDT)',
     txTypeBonus: 'Bonus',
     txTypeInvest: 'FREEZE',
     txTypeGame: 'Game',
@@ -1162,6 +1179,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 DDRA Live Price',
     earnSeeAll: 'View All ›',
     freezingNow: 'Freezing',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: 'Withdrawable DDRA',
     networkEarnings: '🌐 Network Earnings',
     networkDetail: 'View Details',
@@ -1176,6 +1194,13 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+    errWithdrawTime: 'Hiện không phải là thời gian rút tiền.\nCó thể rút từ {day} {time}.',
+    errWithdrawTimeToday: 'Hiện không phải là thời gian rút tiền.\nCó thể rút hôm nay từ {time}.',
+    errWithdrawRestricted: 'Rút tiền hiện đang bị hạn chế.',
+    dayTomorrow: 'Ngày mai',
+    dayDayAfter: 'Ngày kia',
+    dayNextWeek: 'Thứ {day} tuần sau',
+    daySun: 'Chủ nhật', dayMon: 'Hai', dayTue: 'Ba', dayWed: 'Tư', dayThu: 'Năm', dayFri: 'Sáu', daySat: 'Bảy',
     
     majorCryptoPrice: 'Giá Tiền Điện Tử Chính',
     upbitRealTime: 'Upbit Trực tiếp',
@@ -1215,6 +1240,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: 'Tổng TV & Thu nhập',
     viewDetail: 'Chi tiết ›',
     withdrawNoticeText: '※ Xử lý trong 1-3 ngày',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: 'DDRA có thể rút',
     withdrawableDdraLabel: 'DDRA có thể rút',
     tabGen1: 'Thế hệ 1',
@@ -1293,7 +1319,7 @@ const TRANSLATIONS = {
     assetInvesting: 'Đang đầu tư',
     assetInterest: 'Thu nhập (Có thể rút)',
     btnDeposit: 'Nạp USDT',
-    btnWithdraw: 'Rút DDRA',
+    btnWithdraw: 'Rút tiền (USDT)',
     deedraPrice: 'Giá DDRA hiện tại',
     recentUpdated: 'Cập nhật: ',
     investingNow: '❄️ FREEZE đang hoạt động',
@@ -1411,7 +1437,7 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ Vui lòng nạp vào địa chỉ trên và nhập TXID. Số dư sẽ được cập nhật sau khi admin duyệt.',
     btnCancel: 'Hủy',
     btnSubmitDeposit: 'Gửi yêu cầu',
-    modalWithdraw: '💸 Yêu cầu rút DEEDRA',
+    modalWithdraw: '💸 Yêu cầu rút tiền (USDT)',
     withdrawAvailLabel: 'Số dư có thể rút',
     withdrawAmountLabel: 'Số tiền rút (DEEDRA)',
     withdrawAddressLabel: 'Địa chỉ ví nhận',
@@ -1698,7 +1724,7 @@ const TRANSLATIONS = {
     authDisabled: 'Tài khoản bị vô hiệu hóa. Liên hệ admin.',
     authError: 'Lỗi: ',
     txTypeDeposit: 'Nạp USDT',
-    txTypeWithdraw: 'Rút DDRA',
+    txTypeWithdraw: 'Rút tiền (USDT)',
     txTypeBonus: 'Thưởng',
     txTypeInvest: 'FREEZE',
     txTypeGame: 'Game',
@@ -1712,6 +1738,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 Giá DDRA Hiện Tại',
     earnSeeAll: 'Xem tất cả ›',
     freezingNow: 'Đang FREEZE',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: 'DDRA Có thể rút',
     networkEarnings: '🌐 Thu nhập Mạng lưới',
     networkDetail: 'Xem chi tiết',
@@ -1726,6 +1753,13 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+    errWithdrawTime: 'ขณะนี้ไม่อยู่ในเวลาถอนเงิน\nสามารถถอนได้ตั้งแต่ {day} {time}',
+    errWithdrawTimeToday: 'ขณะนี้ไม่อยู่ในเวลาถอนเงิน\nสามารถถอนได้วันนี้ตั้งแต่ {time}',
+    errWithdrawRestricted: 'การถอนเงินถูกจำกัดอยู่ในขณะนี้',
+    dayTomorrow: 'พรุ่งนี้',
+    dayDayAfter: 'มะรืนนี้',
+    dayNextWeek: 'สัปดาห์หน้า วัน{day}',
+    daySun: 'อาทิตย์', dayMon: 'จันทร์', dayTue: 'อังคาร', dayWed: 'พุธ', dayThu: 'พฤหัสบดี', dayFri: 'ศุกร์', daySat: 'เสาร์',
     
     majorCryptoPrice: 'ราคาคริปโตหลักแบบเรียลไทม์',
     upbitRealTime: 'Upbit เรียลไทม์',
@@ -1765,6 +1799,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: 'สมาชิกย่อยทั้งหมด & รายได้',
     viewDetail: 'รายละเอียด ›',
     withdrawNoticeText: '※ ใช้เวลาดำเนินการ 1-3 วัน',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: 'DDRA ที่ถอนได้',
     withdrawableDdraLabel: 'DDRA ที่ถอนได้',
     tabGen1: 'รุ่นที่ 1',
@@ -1842,7 +1877,7 @@ const TRANSLATIONS = {
     assetInvesting: 'กำลังลงทุน',
     assetInterest: 'รายได้ (ถอนได้)',
     btnDeposit: 'ฝาก USDT',
-    btnWithdraw: 'ถอน DDRA',
+    btnWithdraw: 'ถอนเงิน (USDT)',
     deedraPrice: 'ราคา DDRA ปัจจุบัน',
     recentUpdated: 'อัปเดต: ',
     investingNow: '❄️ FREEZE ที่ดำเนินการอยู่',
@@ -1960,7 +1995,7 @@ const TRANSLATIONS = {
     depositWarning: '⚠️ กรุณาฝากไปยังที่อยู่ด้านบนแล้วกรอก TXID ยอดจะอัปเดตหลังจากผู้ดูแลอนุมัติ',
     btnCancel: 'ยกเลิก',
     btnSubmitDeposit: 'ส่งคำขอฝาก',
-    modalWithdraw: '💸 คำขอถอน DDRA',
+    modalWithdraw: '💸 คำขอถอนเงิน (USDT)',
     withdrawAvailLabel: 'รายได้ที่ถอนได้ (USDT)',
     withdrawAmountLabel: 'จำนวนที่ถอน (USDT)',
     withdrawAddressLabel: 'ที่อยู่กระเป๋าผู้รับ',
@@ -2247,7 +2282,7 @@ const TRANSLATIONS = {
     authDisabled: 'บัญชีถูกระงับ ติดต่อผู้ดูแล',
     authError: 'เกิดข้อผิดพลาด: ',
     txTypeDeposit: 'ฝาก USDT',
-    txTypeWithdraw: 'ถอน DDRA',
+    txTypeWithdraw: 'ถอนเงิน (USDT)',
     txTypeBonus: 'โบนัส',
     txTypeInvest: 'FREEZE',
     txTypeGame: 'เกม',
@@ -2261,6 +2296,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 ราคา DDRA ปัจจุบัน',
     earnSeeAll: 'ดูทั้งหมด ›',
     freezingNow: 'กำลัง FREEZE',
+    withdrawableUsdt: 'Available USDT',
     withdrawableDdra: 'DDRA ที่ถอนได้',
     networkEarnings: '🌐 รายได้เครือข่าย',
     networkDetail: 'ดูรายละเอียด',
@@ -2833,7 +2869,7 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   // splitBonusDdra: USDT 수익의 DDRA 환산 표시
-  setEl('splitBonusDdra',      '≈ $' + fmt(bonus) + ' USDT');
+  setEl('splitBonusDdra',      '≈ ' + fmt(withdrawableDdra) + ' DDRA');
   setEl('moreWalletBonusDdra', fmt(withdrawableDdra) + ' DDRA');
 
   // splitDedraUsd: dedraBalance는 게임 전용이므로 표시만 유지
@@ -2965,7 +3001,7 @@ async function updateTodayEarnSummary(myInvestments) {
   let actualRoi = 0;
   let otherBonuses = 0;
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const { collection, query, where, getDocs, limit, db } = window.FB;
     const snap = await getDocs(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid)));
     
@@ -2973,9 +3009,9 @@ async function updateTodayEarnSummary(myInvestments) {
       const b = d.data();
       if (b.settlementDate === today) {
         if (b.type === 'roi_income' || b.type === 'roi') {
-          actualRoi += (b.amount || 0);
+          actualRoi += (b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0));
         } else {
-          otherBonuses += (b.amount || 0);
+          otherBonuses += (b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0));
         }
       }
     });
@@ -2995,7 +3031,7 @@ async function updateTodayEarnSummary(myInvestments) {
     if (el) {
       // 깜빡이는 화살표 애니메이션과 숫자 카운트업
       window.animateValue(el, 0, totalToday, 1500, (v) => {
-        return `<span style="color:#ef4444; font-weight:800;">+${fmt(v)}</span> <span style="color:#ef4444; font-size:12px; display:inline-block; animation: blink 1s infinite; vertical-align:middle;">▲</span>`;
+        return `<span style="color:#ef4444; font-weight:800;">+${fmt(v)} USDT</span> <span style="color:#ef4444; font-size:12px; display:inline-block; animation: blink 1s infinite; vertical-align:middle;">▲</span>`;
       });
     }
 
@@ -3181,7 +3217,9 @@ window.changeLang = function(lang) {
 };
 
 // ===== 화면 전환 =====
-function showScreen(name) {
+window.showScreen = function showScreen(name) {
+  const loadingScreen = document.getElementById('loadingScreen');
+  if(loadingScreen) loadingScreen.classList.add('hidden');
   document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('mainApp').classList.add('hidden');
@@ -3310,13 +3348,20 @@ window.handleLogin = async function() {
         // onAuthReady 수동 트리거
         if (typeof window._onIdTokenReceived === 'function') {
           window._onIdTokenReceived(data.idToken, data.uid, data.email);
+        } else {
+          window.FB._idToken = data.idToken;
+          window.FB._currentUser = { uid: data.uid, email: data.email };
+          window.FB._useRestAPI = true;
+          if (typeof window.onAuthReady === 'function') {
+            window.onAuthReady(window.FB._currentUser);
+          }
         }
       }
     }
   } catch (err) {
     console.error('[Login Error]', err);
     showScreen('auth');
-    showToast(getAuthErrorMsg(err.code) || t('loginError'), 'error');
+    showToast(getAuthErrorMsg(err.code) || (t('loginError') + ' : ' + err.message), 'error');
   }
 };
 
@@ -3591,7 +3636,7 @@ function updateHomeUI() {
   setEl('splitUsdtBalance', privacyFmt(fmt(usdt), '', ' USDT'));
   
   if (document.getElementById('totalAsset')) {
-    window.animateValue(document.getElementById('totalAsset'), 0, total, 1500, (v) => privacyFmt(fmt(v), '', ' USDT'));
+    const el = document.getElementById('totalAsset'); const start = parseFloat(el.getAttribute('data-last')) || 0; el.setAttribute('data-last', total); window.animateValue(el, start, total, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
   }
   
   const splitUsdtEl = document.getElementById('splitUsdt');
@@ -3599,7 +3644,7 @@ function updateHomeUI() {
     if (lockedUsdt === 0 || lockedUsdt === "0.00" || lockedUsdt === "0") {
       splitUsdtEl.textContent = privacyFmt("0.00", "", " USDT");
     } else {
-      window.animateValue(splitUsdtEl, 0, lockedUsdt, 1500, (v) => privacyFmt(fmt(v), '', ' USDT'));
+      const start = parseFloat(splitUsdtEl.getAttribute('data-last')) || 0; splitUsdtEl.setAttribute('data-last', lockedUsdt); window.animateValue(splitUsdtEl, start, lockedUsdt, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
     }
   }
   
@@ -3608,7 +3653,7 @@ function updateHomeUI() {
     if (usdt === 0 || usdt === "0.00" || usdt === "0") {
       splitUsdtBalanceEl.textContent = privacyFmt("0.00", "", " USDT");
     } else {
-      window.animateValue(splitUsdtBalanceEl, 0, usdt, 1500, (v) => privacyFmt(fmt(v), '', ' USDT'));
+      const start = parseFloat(splitUsdtBalanceEl.getAttribute('data-last')) || 0; splitUsdtBalanceEl.setAttribute('data-last', usdt); window.animateValue(splitUsdtBalanceEl, start, usdt, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
     }
   }
   
@@ -3642,8 +3687,8 @@ function updateHomeUI() {
   // splitBonus: 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ ddraPrice
   // 즉, 달러 기준 수익을 출금 시점의 DDRA 시세로 환산
   const withdrawableDdra = bonus / p;
-  setEl('splitBonus', privacyFmt(fmt(withdrawableDdra), '', ' DDRA'));
-  setEl('splitBonusDdra', privacyFmt(fmt(bonus), '≈ $', ' USDT'));
+  setEl('splitBonusUsdt', privacyFmt(fmt(bonus), '', ' USDT'));
+  setEl('splitBonusDdra', privacyFmt(fmt(withdrawableDdra), '≈ ', ' DDRA'));
   if(window.loadProfitHeatmap) window.loadProfitHeatmap();
 }
 
@@ -3800,6 +3845,7 @@ async function loadRecentTransactions() {
     );
     const snap = await getDocs(q);
     const txs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(tx => tx.status !== 'rejected' && tx.status !== 'failed')
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
       .slice(0, 3);
     renderTxList(txs, 'recentTxList');
@@ -3823,14 +3869,14 @@ function renderTxList(txs, containerId) {
     const isPlus = ['deposit', 'bonus'].includes(tx.type);
     return `
     <div class="tx-item">
-      <div class="tx-icon ${tx.type}">${icons[tx.type] || '💱'}</div>
+      
       <div class="tx-info">
         <div class="tx-title">${getTxTypeName(tx.type)}</div>
         <div class="tx-date">${fmtDate(tx.createdAt)}</div>
       </div>
       <div>
         <div class="tx-amount ${isPlus ? 'plus' : 'minus'}">
-          ${isPlus ? '+' : '-'}${fmt(tx.amount)} ${tx.currency || 'USDT'}
+          ${tx.type === 'withdrawal' ? (isPlus ? '+' : '-') + fmt(tx.amountUsdt !== undefined ? tx.amountUsdt : tx.amount) + ' USDT' : (isPlus ? '+' : '-') + fmt(tx.amount) + ' ' + (tx.currency || 'USDT')}
         </div>
         <div class="tx-status">${statusTxt[tx.status] || tx.status}</div>
       </div>
@@ -3863,10 +3909,11 @@ function loadMorePage() {
   const toggle = document.getElementById('darkModeToggle');
   if (toggle) toggle.className = currentTheme === 'dark' ? 'menu-item-toggle on' : 'menu-item-toggle';
 
-  loadTxHistory('all');
+  loadTxHistory('deposit');
 }
 
-async function loadTxHistory(typeFilter) {
+async function loadTxHistory(typeFilter = window.currentTxTab) {
+  if (typeFilter === 'roi') typeFilter = 'invest';
   const { collection, query, where, getDocs, limit, db } = window.FB;
   const listEl = document.getElementById('txHistoryList');
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
@@ -3874,29 +3921,32 @@ async function loadTxHistory(typeFilter) {
   try {
     let txs = [];
     
-    // Helper function to format date
-    const getSortTime = (item) => item.createdAt?.seconds || item.createdAt?.toMillis?.() / 1000 || 0;
+    const getSortTime = (item) => {
+      if (item.createdAt?.seconds) return item.createdAt.seconds;
+      if (typeof item.createdAt?.toMillis === 'function') return item.createdAt.toMillis() / 1000;
+      if (typeof item.createdAt === 'string') return new Date(item.createdAt).getTime() / 1000;
+      return 0;
+    };
 
     // Fetch Transactions
-    if (['all', 'deposit', 'withdrawal', 'invest'].includes(typeFilter)) {
+    if (['deposit', 'withdrawal', 'invest'].includes(typeFilter)) {
       let q;
-      if (typeFilter === 'all') {
-        q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), limit(50));
+      if (typeFilter === 'invest') {
+         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', 'invest'), limit(1000));
       } else {
-        q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(50));
+         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(1000));
       }
       const snap = await getDocs(q);
       const fetchedTxs = snap.docs.map(d => ({ id: d.id, _collection: 'transactions', ...d.data() }));
       txs = txs.concat(fetchedTxs);
       
-      // Also fetch from investments collection for 'invest' or 'all'
-      if (['all', 'invest'].includes(typeFilter)) {
-        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(50));
+      if (typeFilter === 'invest') {
+        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(1000));
         const invSnap = await getDocs(invQ);
         const fetchedInvs = invSnap.docs.map(d => ({
           id: d.id,
           _collection: 'investments',
-          type: 'invest', // mapped type
+          type: 'invest',
           amount: d.data().amount,
           createdAt: d.data().createdAt || d.data().startDate,
           ...d.data()
@@ -3906,110 +3956,182 @@ async function loadTxHistory(typeFilter) {
     }
 
     // Fetch Bonuses
-    if (['all', 'invest', 'matching', 'centerFee', 'rankBonus'].includes(typeFilter)) {
-      let qList = [];
-      if (typeFilter === 'invest') {
-        qList = [
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'daily_roi'), limit(50))
-        ];
-      } else if (typeFilter === 'matching') {
-        qList = [
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(50))
-        ];
-      } else if (typeFilter === 'rankBonus') {
-        qList = [
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(50)),
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(20)),
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(20)),
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(20))
-        ];
-      } else if (typeFilter === 'centerFee') {
-        qList = [
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(50))
-        ];
-      } else {
-        qList = [
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'daily_roi'), limit(20)),
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(20)),
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(20)),
-          query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(10))
-        ];
-      }
-
-      for (const q of qList) {
-        const snap = await getDocs(q);
-        const fetchedBonuses = snap.docs.map(d => ({ id: d.id, _collection: 'bonuses', ...d.data() }));
-        txs = txs.concat(fetchedBonuses);
-      }
+    let qList = [];
+    if (typeFilter === 'invest') {
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', 'in', ['daily_roi', 'roi', 'roi_income']), limit(1000)));
+    } else if (typeFilter === 'direct_bonus') {
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(1000)));
+    } else if (typeFilter === 'rank_bonus') {
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(1000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(1000)));
+    } else if (typeFilter === 'rank_matching') {
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(1000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(1000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_matching'), limit(1000)));
+    } else if (typeFilter === 'center_fee') {
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(1000)));
     }
 
-    // Sort combined list descending
+    for (const q of qList) {
+      const snap = await getDocs(q);
+      const fetchedBonuses = snap.docs.map(d => ({ id: d.id, _collection: 'bonuses', ...d.data() }));
+      txs = txs.concat(fetchedBonuses);
+    }
+
     txs.sort((a, b) => getSortTime(b) - getSortTime(a));
-    txs = txs.slice(0, 40); // Limit total shown
+    // 거절/실패 건 제외
+    txs = txs.filter(tx => tx.status !== 'rejected' && tx.status !== 'failed');
+    window.currentTxsData = txs; 
+
+    // Initialize Date Filter
+    const dateInput = document.getElementById('txHistoryDate');
+    if (dateInput && !dateInput.value && !window.txDateInitialized) {
+        const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+        dateInput.value = todayKST;
+        window.txDateInitialized = true;
+    }
+    
+    let filterDate = dateInput ? dateInput.value : '';
 
     if (txs.length === 0) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>' + (t('emptyTx') || '내역이 없습니다') + '</div>';
       return;
     }
 
-    // Unified render
+    // Filter by date if applicable
+    const getKSTDate = (timestamp) => new Date(timestamp * 1000 + 9 * 3600 * 1000).toISOString().slice(0,10);
+    
+    let filteredTxs = txs;
+    if (filterDate) {
+        filteredTxs = txs.filter(tx => getKSTDate(getSortTime(tx)) === filterDate);
+    }
+
+    if (filteredTxs.length === 0) {
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>해당 날짜의 내역이 없습니다.</div>';
+      return;
+    }
+
+    // Grouping by date
+    const grouped = {};
+    filteredTxs.forEach(tx => {
+        const dStr = getKSTDate(getSortTime(tx));
+        if (!grouped[dStr]) grouped[dStr] = [];
+        grouped[dStr].push(tx);
+    });
+
+
     const typeLabel = {
+      'roi': '일일 데일리 수익',
+      'roi_income': '일일 데일리 수익',
       deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
-      roi_income: '☀️ 데일리 수익', roi: '☀️ 데일리 수익', daily_roi: '☀️ 데일리 수익', direct_bonus: '👥 추천 매칭',
-      unilevel_bonus: '🌐 유니레벨 보너스', rank_bonus: '🏆 판권 매칭',
-      rank_equal_or_higher_override_1pct: '🛡️ 예외(1%) 보너스',
-      rank_equal_or_higher_override: '🛡️ 예외 보너스',
+      roi_income: '☀️ 데일리 이자', roi: '☀️ 데일리 이자', daily_roi: '☀️ 데일리 이자', 
+      direct_bonus: '👥 추천 수당',
+      rank_bonus: '🏆 직급 수당', rank_gap_passthru: '🏆 직급 수당(갭)',
+      rank_equal_or_higher_override_1pct: '🛡️ 추천 매칭(1%)',
+      rank_equal_or_higher_override: '🛡️ 추천 매칭',
+      rank_matching: '🛡️ 추천 매칭',
       center_fee: '🏢 센터 피'
     };
 
-    listEl.innerHTML = txs.map(item => {
-      const isBonus = item._collection === 'bonuses';
-      let label = typeLabel[item.type] || item.type;
-      
-      // Date and details
-      const dateStr = fmtDate(item.createdAt);
-      let details = '';
-      let base = '';
-      
-      if (isBonus) {
-        // Bonus specific
-        details = item.settlementDate ? `정산일: ${item.settlementDate}` : (item.reason || '');
-        if (item.level) label += ` · ${item.level}단계`;
-        base = item.baseIncome ? ` · 기준 D: $${fmt(item.baseIncome)}` : (item.investAmount ? ` · FREEZE $${fmt(item.investAmount)}` : '');
-      } else {
-        // Transaction specific
-        if (item.type === 'invest') {
-          details = `만기: ${item.durationDays || 360}일 (${item.dailyRate || item.roiPercent || item.dailyRoi || 0.8}%/일) - ${item.status==='active'?'진행중':'종료'}`;
-        } else {
-          details = item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료됨');
-        }
-      }
+    const tabNameMap = {
+      'deposit': '⬇️ 입금',
+      'withdrawal': '⬆️ 출금',
+      'invest': '🔒 FREEZE 및 이자',
+      'direct_bonus': '👥 추천 수당',
+      'rank_bonus': '🏆 직급 수당',
+      'rank_matching': '🛡️ 추천 매칭',
+      'center_fee': '🏢 센터 피'
+    };
 
-      // Icon
-      let icon = isBonus ? '💰' : (item.type === 'invest' ? '🔒' : (item.type === 'deposit' ? '⬇️' : '⬆️'));
-      let iconClass = item.type;
-      if (isBonus) iconClass = 'bonus';
-      
-      // Amount format
-      let amtSign = (item.type === 'withdrawal' || item.type === 'invest' && !isBonus) ? '-' : '+';
-      let amtColor = (amtSign === '-') ? 'minus' : 'plus';
-      
-      return `
-      <div class="tx-item">
-        <div class="tx-icon ${iconClass}">${icon}</div>
-        <div class="tx-info">
-          <div class="tx-title">${label}</div>
-          <div class="tx-date">${dateStr}${base}</div>
-          <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
-        </div>
-        <div>
-          <div class="tx-amount ${amtColor}">${amtSign}${fmt(item.amount)} ${item.currency || 'USDT'}</div>
-          <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)')}">
-            ${isBonus ? '완료' : (item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료'))}
+    const renderItem = (item) => {
+        const isBonus = item._collection === 'bonuses';
+        let label = typeLabel[item.type] || item.type;
+        const dateStr = fmtDate(item.createdAt);
+        let details = '';
+        let base = '';
+        if (isBonus) {
+            details = item.settlementDate ? `정산일: ${item.settlementDate}` : (item.reason || '');
+            if (item.level) label += ` · ${item.level}대`;
+            base = item.baseIncome ? ` · 기준수익: ${fmt(item.baseIncome)}` : (item.investAmount ? ` · FREEZE ${fmt(item.investAmount)}` : '');
+        } else {
+            if (item.type === 'invest') {
+                const rate = item.dailyRate || item.roiPercent || item.dailyRoi || 0.8;
+                details = `만기: ${item.durationDays || 360}일 (${rate}%/일) - ${item.status==='active'?'진행중':'종료'}`;
+            } else {
+                details = item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료됨');
+            }
+        }
+        let amtSign = (item.type === 'withdrawal' || item.type === 'invest' && !isBonus) ? '-' : '+';
+        let amtColor = (amtSign === '-') ? 'minus' : 'plus';
+        let amtValue = item.amountUsdt !== undefined ? item.amountUsdt : item.amount;
+        let currency = (item.type === 'withdrawal') ? 'USDT' : (item.currency || 'USDT');
+
+        return `
+        <div class="tx-item">
+          <div class="tx-info">
+            <div class="tx-title">${label}</div>
+            <div class="tx-date">${dateStr}${base}</div>
+            <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
           </div>
+          <div>
+            <div class="tx-amount ${amtColor}">${amtSign}${fmt(amtValue)} ${currency}</div>
+            <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)')}">
+              ${isBonus ? '완료' : (item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료'))}
+            </div>
+          </div>
+        </div>`;
+    };
+
+    let html = '';
+    for (const dStr of Object.keys(grouped).sort((a,b) => b.localeCompare(a))) {
+        const dayTxs = grouped[dStr];
+        let totalPlus = 0;
+        let totalMinus = 0;
+
+        dayTxs.forEach(tx => {
+            const isBonus = tx._collection === 'bonuses';
+            let amtSign = (tx.type === 'withdrawal' || tx.type === 'invest' && !isBonus) ? '-' : '+';
+            let amtValue = tx.amountUsdt !== undefined ? tx.amountUsdt : tx.amount;
+            if (amtSign === '+') totalPlus += Number(amtValue||0);
+            else totalMinus += Number(amtValue||0);
+        });
+
+        const dayId = 'day_' + dStr.replace(/-/g, '') + '_' + typeFilter;
+        let tabLabel = tabNameMap[typeFilter] || '내역';
+        
+        let amtStrArr = [];
+        if (totalPlus > 0) amtStrArr.push('+' + fmt(totalPlus));
+        if (totalMinus > 0) amtStrArr.push('-' + fmt(totalMinus));
+        let amtStr = amtStrArr.join(' / ') + ' USDT';
+        if (totalPlus === 0 && totalMinus === 0) amtStr = '0 USDT';
+        
+        let colorClass = (totalPlus > 0 && totalMinus === 0) ? 'plus' : ((totalMinus > 0 && totalPlus === 0) ? 'minus' : '');
+
+        html += `
+        <div class="tx-day-group" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg2);">
+            <div class="tx-day-header" onclick="document.getElementById('${dayId}').style.display = document.getElementById('${dayId}').style.display === 'none' ? 'block' : 'none'" style="padding: 16px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 13px; color: var(--text2); margin-bottom: 4px;">${dStr}</div>
+                    <div style="font-weight: bold; font-size: 15px; color: var(--text);">
+                        ${tabLabel} 총 ${dayTxs.length}건
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="tx-amount ${colorClass}" style="font-size: 16px; margin-bottom: 4px; font-weight: bold;">
+                        ${amtStr}
+                    </div>
+                    <div style="color: var(--text2); font-size: 11px;"><i class="fas fa-chevron-down"></i> 상세 보기</div>
+                </div>
+            </div>
+            <div id="${dayId}" style="display: none; padding: 4px 8px 8px 8px; background: var(--bg); max-height: 60vh; overflow-y: auto;">
+                ${dayTxs.map(renderItem).join('')}
+            </div>
         </div>
-      </div>`;
-    }).join('');
+        `;
+    }
+
+    listEl.innerHTML = html;
+
     
   } catch (err) {
     console.error('loadTxHistory error:', err);
@@ -4017,17 +4139,25 @@ async function loadTxHistory(typeFilter) {
   }
 }
 
+window.currentTxTab = 'deposit';
 window.switchTxTab = function(type, el) {
-  const info = document.getElementById('matchingInfo');
-  if (info) info.style.display = (type === 'matching') ? 'block' : 'none';
+  window.currentTxTab = type;
   document.querySelectorAll('.tx-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
+  if (el) {
+    el.classList.add('active');
+  } else {
+    // If no el provided, try to find it
+    const tabs = document.querySelectorAll('.tx-tab');
+    for(let t of tabs) {
+      if(t.getAttribute('onclick').includes(type)) {
+        t.classList.add('active');
+        break;
+      }
+    }
+  }
   loadTxHistory(type);
 };
 
-// ===== 입금 신청 =====
-// ══════════════════════════════════════════════════════════════════
-// 지갑 연동 입금 로직 (Phantom / TokenPocket / Solana Wallet Standard)
 // ══════════════════════════════════════════════════════════════════
 
 // 탭 전환
@@ -4463,13 +4593,25 @@ window.submitDeposit = async function() {
 // ===== 출금 신청 =====
 window.showWithdrawModal = function() {
   const bonus = walletData?.bonusBalance || 0;
+  
+  if (currentUser && currentUser.uid) {
+      let saved = JSON.parse(localStorage.getItem('savedAddresses_' + currentUser.uid) || '[]');
+      const dataList = document.getElementById('savedAddresses');
+      if (dataList) {
+          dataList.innerHTML = saved.map(addr => `<option value="${addr}"></option>`).join('');
+      }
+      const addrInput = document.getElementById('withdrawAddress');
+      if (addrInput && !addrInput.value && saved.length > 0) {
+          addrInput.value = saved[0];
+      }
+  }
   const bonusDdra = bonus / (deedraPrice || 0.5);  // DDRA 환산
-  // 출금 가능 DDRA 표시
+  // 출금 가능 USDT 표시
   const avEl = document.getElementById('withdrawAvailable');
-  if (avEl) avEl.textContent = fmt(bonusDdra);
-  // USDT 환산 부제목
-  const avUsdtEl = document.getElementById('withdrawAvailableUsdt');
-  if (avUsdtEl) avUsdtEl.textContent = '≈ $' + fmt(bonus) + ' USDT';
+  if (avEl) avEl.textContent = fmt(bonus);
+  // DDRA 환산 부제목
+  const avDdraEl = document.getElementById('withdrawAvailableDdra');
+  if (avDdraEl) avDdraEl.textContent = '≈ ' + fmt(bonusDdra) + ' DDRA';
   updateWithdrawDdraCalc();
   document.getElementById('withdrawModal').classList.remove('hidden');
 };
@@ -4483,28 +4625,259 @@ function updateWithdrawDdraCalc() {
   const amtEl = document.getElementById('withdrawAmount');
   const calcEl = document.getElementById('withdrawDdraCalc');
   if (!calcEl) return;
-  const ddrAmt = parseFloat(amtEl?.value || '0') || 0;
+  const usdtAmt = parseFloat(amtEl?.value || '0') || 0;
   const price = deedraPrice || 0.5;
-  if (ddrAmt > 0 && price > 0) {
-    const usdtAmt = ddrAmt * price;
-    calcEl.textContent = `≈ $${fmt(usdtAmt)} USDT (1 DDRA = $${price.toFixed(4)} USDT)`;
+  if (usdtAmt > 0 && price > 0) {
+    const ddrAmt = usdtAmt / price;
+    calcEl.textContent = `예상 지급 수량: ${fmt(ddrAmt)} DDRA (1 DDRA = ${price.toFixed(4)} USDT)`;
     calcEl.style.color = '#f59e0b';
   } else {
-    calcEl.textContent = `1 DDRA = $${price.toFixed(4)} USDT`;
+    calcEl.textContent = `예상 지급 수량: 0.00 DDRA (1 DDRA = ${price.toFixed(4)} USDT)`;
     calcEl.style.color = '#94a3b8';
   }
 }
 
+
+// ===== 재투자 기능 =====
+window.showReinvestModal = async function() {
+  const bonus = walletData?.bonusBalance || 0;
+  const maxEl = document.getElementById('reinvestMaxAmount');
+  if (maxEl) maxEl.innerHTML = fmt(bonus) + ' <span style="font-size:14px;">USDT</span>';
+  document.getElementById('reinvestInputAmount').value = '';
+  
+  // Populate Product Select
+  const sel = document.getElementById('reinvestProductSelect');
+  if (sel) {
+    if (!productsCache || !productsCache.length) {
+      try {
+        const { collection, getDocs, db } = window.FB;
+        const snap = await getDocs(collection(db, 'products'));
+        const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        productsCache = allDocs
+          .filter(p => (!p.type || p.type === 'investment') && p.isActive !== false)
+          .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
+      } catch(e) { console.error('Failed to load products for reinvest', e); }
+    }
+    
+    sel.innerHTML = '<option value="">상품 선택 (기간 / 데일리 이율)</option>';
+    if (productsCache && productsCache.length) {
+      productsCache.forEach(p => {
+        const roi = p.roiPercent != null ? p.roiPercent : (p.dailyRoi != null ? p.dailyRoi : 0);
+        const days = p.durationDays != null ? p.durationDays : (p.duration != null ? p.duration : 0);
+        sel.innerHTML += `<option value="${p.id}">${p.name} (${roi}% / ${days}일)</option>`;
+      });
+      // Auto-select first item if exists
+      if (productsCache.length > 0) sel.value = productsCache[0].id;
+    } else {
+      sel.innerHTML = '<option value="">진행 가능한 상품이 없습니다</option>';
+    }
+  }
+
+  document.getElementById('reinvestModal').classList.remove('hidden');
+};
+
+window.setReinvestPercent = function(pct) {
+  const bonus = walletData?.bonusBalance || 0;
+  let amt = bonus * (pct / 100);
+  if (pct === 100) amt = bonus;
+  document.getElementById('reinvestInputAmount').value = Math.floor(amt * 100) / 100;
+};
+
+window.submitReinvest = async function() {
+  const inputAmt = parseFloat(document.getElementById('reinvestInputAmount').value);
+  if (!inputAmt || inputAmt <= 0) { showToast('금액을 입력하세요.', 'warning'); return; }
+  const bonus = walletData?.bonusBalance || 0;
+  if (inputAmt > bonus) { showToast('출금 가능 수익금이 부족합니다.', 'warning'); return; }
+
+  const sel = document.getElementById('reinvestProductSelect');
+  if (!sel || !sel.value) { showToast('재투자할 상품을 선택해 주세요.', 'warning'); return; }
+  
+  const selectedProduct = productsCache.find(p => p.id === sel.value);
+  if (!selectedProduct) { showToast('상품 정보를 찾을 수 없습니다.', 'error'); return; }
+  
+  if (inputAmt < (selectedProduct.minAmount || selectedProduct.minAmt || 0)) { 
+      showToast('최소 투자 금액은 ' + (selectedProduct.minAmount || selectedProduct.minAmt) + ' USDT 입니다.', 'warning'); 
+      return; 
+  }
+
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '처리중...';
+
+  try {
+    const { doc, writeBatch, increment, serverTimestamp, collection, db } = window.FB;
+    const batch = writeBatch(db);
+    
+    // 1) 지갑 업데이트 (bonusBalance 차감, totalInvest 증가) - usdtBalance는 건드리지 않음
+    const walletRef = doc(db, 'wallets', currentUser.uid);
+    batch.update(walletRef, {
+      bonusBalance: increment(-inputAmt),
+      totalInvest: increment(inputAmt)
+    });
+    const userRef = doc(db, 'users', currentUser.uid);
+    batch.update(userRef, {
+      totalInvested: increment(inputAmt)
+    });
+
+    // 2) 신규 투자 상품 도큐먼트 생성
+    const startDate = new Date();
+    const days = selectedProduct.durationDays != null ? selectedProduct.durationDays : (selectedProduct.duration || 0);
+    const roi = selectedProduct.roiPercent != null ? selectedProduct.roiPercent : (selectedProduct.dailyRoi || 0);
+    const endDate = new Date(startDate.getTime() + days * 86400000);
+    const expectedReturn = (inputAmt * roi / 100);
+
+    const invRef = doc(collection(db, 'investments'));
+    batch.set(invRef, {
+      userId: currentUser.uid, 
+      productId: selectedProduct.id,
+      productName: selectedProduct.name, 
+      amount: inputAmt,
+      roiPercent: roi, 
+      durationDays: days,
+      expectedReturn, 
+      status: 'active',
+      startDate: serverTimestamp(), 
+      endDate,
+      createdAt: serverTimestamp(),
+      isReinvest: true // 재투자 마킹
+    });
+
+    // 3) 트랜잭션 기록 (Reinvest -> Invest)
+    const txRef = doc(collection(db, 'transactions'));
+    batch.set(txRef, {
+      userId: currentUser.uid,
+      type: 'invest',
+      amount: inputAmt,
+      currency: 'USDT',
+      status: 'active',
+      reason: '수익금 재투자 (FREEZE 가입: ' + selectedProduct.name + ')',
+      createdAt: serverTimestamp()
+    });
+
+    await batch.commit();
+
+    // 로컬 업데이트
+    if (walletData) {
+      walletData.bonusBalance -= inputAmt;
+      walletData.totalInvest = (walletData.totalInvest || 0) + inputAmt;
+    }
+    
+    closeModal('reinvestModal');
+    showToast('수익금 재투자가 완료되었습니다!', 'success');
+    updateWalletUI();
+    if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+    if (typeof loadMyInvestments === 'function') loadMyInvestments();
+    if (typeof loadTxHistory === 'function') loadTxHistory('all');
+  } catch (err) {
+    console.error('Reinvest Error:', err);
+    showToast('재투자 처리 중 오류가 발생했습니다: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+};
+
+
+function checkWithdrawTime(settings) {
+    if (!settings) return { allowed: true };
+    const now = new Date();
+    const day = now.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
+    const isWeekend = (day === 0 || day === 6);
+    
+    // Default to always allowed if not explicitly set
+    const allowWeekday = settings.withdrawWeekday !== false; 
+    const allowWeekend = settings.withdrawWeekend === true;  
+    
+    const startTimeStr = settings.withdrawStartTime || '09:00';
+    const endTimeStr = settings.withdrawEndTime || '17:00';
+
+    const [startH, startM] = startTimeStr.split(':').map(Number);
+    const [endH, endM] = endTimeStr.split(':').map(Number);
+
+    const currentH = now.getHours();
+    const currentM = now.getMinutes();
+    const currentTotal = currentH * 60 + currentM;
+    const startTotal = startH * 60 + startM;
+    const endTotal = endH * 60 + endM;
+
+    let isAllowedDay = isWeekend ? allowWeekend : allowWeekday;
+    let isAllowedTime = currentTotal >= startTotal && currentTotal <= endTotal;
+
+    if (isAllowedDay && isAllowedTime) {
+        return { allowed: true };
+    }
+
+    let nextDay = new Date(now);
+
+    // Check if it's the same day but earlier
+    if (isAllowedDay && currentTotal < startTotal) {
+        const msg = (t('errWithdrawTimeToday') || '지금은 출금 가능 시간이 아닙니다.\n오늘 {time} 부터 출금 가능합니다.').replace('{time}', startTimeStr);
+        return { allowed: false, message: msg };
+    }
+
+    // Look for the next available day
+    for (let i = 1; i <= 7; i++) {
+        nextDay.setDate(now.getDate() + i);
+        let nDay = nextDay.getDay();
+        let nIsWeekend = (nDay === 0 || nDay === 6);
+        let nAllowed = nIsWeekend ? allowWeekend : allowWeekday;
+        if (nAllowed) {
+            const daysOfWeek = [
+                t('daySun')||'일', t('dayMon')||'월', t('dayTue')||'화', 
+                t('dayWed')||'수', t('dayThu')||'목', t('dayFri')||'금', t('daySat')||'토'
+            ];
+            let dayStr = '';
+            if (i === 1) dayStr = t('dayTomorrow') || '내일';
+            else if (i === 2) dayStr = t('dayDayAfter') || '모레';
+            else dayStr = (t('dayNextWeek') || '다음 주 {day}요일').replace('{day}', daysOfWeek[nDay]);
+            
+            const msg = (t('errWithdrawTime') || '지금은 출금 가능 시간이 아닙니다.\n{day} {time} 부터 출금 가능합니다.')
+                .replace('{day}', dayStr)
+                .replace('{time}', startTimeStr);
+                
+            return { allowed: false, message: msg };
+        }
+    }
+    return { allowed: false, message: t('errWithdrawRestricted') || '현재 출금이 제한되어 있습니다.' };
+}
+
 window.submitWithdraw = async function() {
-  // 입력값: DDRA 수량
-  const ddrAmt = parseFloat(document.getElementById('withdrawAmount').value);
+  const { doc, getDoc, db } = window.FB;
+  let settings = {};
+  try {
+      const sysSnap = await getDoc(doc(db, 'settings', 'system'));
+      if (sysSnap.exists()) settings = sysSnap.data();
+  } catch(e) {}
+  
+  const timeCheck = checkWithdrawTime(settings);
+  if (!timeCheck.allowed) {
+      showToast(timeCheck.message, 'error');
+      return;
+  }
+
+  // 입력값: USDT 수량
+  const amountUsdt = parseFloat(document.getElementById('withdrawAmount').value);
   const address = document.getElementById('withdrawAddress').value.trim();
   const pin = document.getElementById('withdrawPin').value.trim();
 
-  if (!ddrAmt || ddrAmt <= 0) { showToast(t('toastEnterWithAmt'), 'warning'); return; }
+  if (!amountUsdt || amountUsdt <= 0) { showToast('출금할 금액을 입력하세요', 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
   if (!/^\d{6}$/.test(pin)) { showToast('PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
+
+  if (currentUser && currentUser.uid) {
+      let saved = JSON.parse(localStorage.getItem('savedAddresses_' + currentUser.uid) || '[]');
+      if (!saved.includes(address)) {
+          saved.unshift(address);
+          if (saved.length > 5) saved = saved.slice(0, 5);
+          localStorage.setItem('savedAddresses_' + currentUser.uid, JSON.stringify(saved));
+      } else {
+          saved = saved.filter(a => a !== address);
+          saved.unshift(address);
+          localStorage.setItem('savedAddresses_' + currentUser.uid, JSON.stringify(saved));
+      }
+  }
 
   // PIN 미설정 시 설정 유도
   if (!userData?.withdrawPin) {
@@ -4515,13 +4888,12 @@ window.submitWithdraw = async function() {
   }
 
   const price = deedraPrice || 0.5;
-  const amountUsdt = ddrAmt * price;  // USDT 환산
+  const ddrAmt = amountUsdt / price;  // DDRA 환산
 
-  // 출금 가능 금액 = bonusBalance(USDT) → DDRA 환산 기준
+  // 출금 가능 금액 = bonusBalance(USDT)
   const availableBonus = walletData?.bonusBalance || 0;
-  const availableDdra = availableBonus / price;
-  if (availableDdra < ddrAmt) {
-    showToast(`출금 가능 DDRA 부족 (가능: ${fmt(availableDdra)} DDRA)`, 'error'); return;
+  if (availableBonus < amountUsdt) {
+    showToast(`출금 가능 USDT 부족 (가능: ${fmt(availableBonus)} USDT)`, 'error'); return;
   }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
@@ -4586,14 +4958,14 @@ window.submitWithdraw = async function() {
 
     closeModal('withdrawModal');
     const feeMsg = feeAmount > 0 ? ` (${t('fee') || '수수료'} ${fmt(feeAmount)} DDRA)` : '';
-    showToast(`${t('toastWithdrawDone2') || '출금 신청 완료!'} ${fmt(netDdra)} DDRA${feeMsg}`, 'success');
+    showToast(`${t('toastWithdrawDone2') || '출금 신청 완료!'} (승인 대기 중)`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
     // 지갑 UI 갱신
     updateWalletUI();
     if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
-    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(activeTab ? activeTab.dataset.filter : 'all'); }
+    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(window.currentTxTab || 'deposit'); }
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
@@ -4778,7 +5150,8 @@ async function autoCompleteExpiredInvestments(investDocs) {
       });
       // 원금(USDT)을 wallets.usdtBalance에 반환
       batch.update(doc(db, 'wallets', currentUser.uid), {
-        usdtBalance: increment(inv.amount || 0)
+        usdtBalance: increment(inv.amount || 0),
+        totalInvest: increment(-(inv.amount || 0))
       });
       await batch.commit();
 
@@ -4795,6 +5168,7 @@ async function autoCompleteExpiredInvestments(investDocs) {
       // 로컬 walletData 즉시 반영
       if (walletData) {
         walletData.usdtBalance = (walletData.usdtBalance || 0) + (inv.amount || 0);
+        walletData.totalInvest = Math.max(0, (walletData.totalInvest || 0) - (inv.amount || 0));
       }
       console.info(`[AutoComplete] 투자 만기 처리 완료: ${d.id} (${inv.productName}, ${inv.amount} USDT 반환)`);
     } catch(e) { console.warn('[AutoComplete] 만기 처리 실패:', d.id, e); }
@@ -4855,6 +5229,11 @@ async function loadMyInvestments() {
       const amt = inv.amount || inv.amountUsdt || 0;
       const dailyRoiRate = (inv.roiPercent != null ? inv.roiPercent : inv.dailyRoi || 0) / 100;
       const dailyD = amt * dailyRoiRate;
+      
+      const yyyy = start.getFullYear();
+      const mm = String(start.getMonth() + 1).padStart(2, '0');
+      const dd = String(start.getDate()).padStart(2, '0');
+      const startDateStr = `${yyyy}.${mm}.${dd}`;
 
       return `
 
@@ -4867,7 +5246,7 @@ async function loadMyInvestments() {
         </div>
         <div class="invest-item-header" style="position:relative; z-index:1;">
           <span class="invest-item-name" style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:6px;">
-             ${inv.productName || 'FREEZE'}
+             ${inv.productName || 'FREEZE'} <span style="font-size:12px; font-weight:500; color:var(--text2); margin-left:2px;">(${startDateStr})</span>
           </span>
           <span class="invest-item-amount" style="font-size:16px; font-weight:800; color:var(--primary-light);">${fmt(amt)}</span>
         </div>
@@ -4968,6 +5347,10 @@ window.submitInvest = async function() {
       usdtBalance: increment(-amount),
       totalInvest: increment(amount),
     });
+    const userRef = doc(db, 'users', currentUser.uid);
+    batch.update(userRef, {
+      totalInvested: increment(amount)
+    });
 
     await batch.commit();
 
@@ -4995,7 +5378,7 @@ window.submitInvest = async function() {
     // 지갑 UI 즉시 갱신
     updateWalletUI();
     if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
-    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(activeTab ? activeTab.dataset.filter : 'all'); }
+    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(window.currentTxTab || 'deposit'); }
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
@@ -5055,7 +5438,17 @@ function updateRankUI() {
       const curMembers  = userData?.totalReferrals || userData?.referralCount || 0;
       // 매출 정보 (없으면 0)
       const curSales    = userData?.networkSales || 0; 
-      const curBalanced = userData?.networkBalancedSales || userData?.balancedVolume || userData?.networkSales || 0;
+      
+      // 균형 매출 계산 (전체 매출 - 최대 라인 매출)
+      let maxLegSales = 0;
+      if (userData?.legSales && typeof userData.legSales === 'object') {
+        const salesValues = Object.values(userData.legSales).map(v => Number(v) || 0);
+        if (salesValues.length > 0) {
+          maxLegSales = Math.max(...salesValues);
+        }
+      }
+      const calculatedBalanced = Math.max(0, curSales - maxLegSales);
+      const curBalanced = userData?.networkBalancedSales || userData?.balancedVolume || calculatedBalanced;
 
       // 필요한 조건들
       const reqSelf     = crit.minSelfInvest || 0;
@@ -5102,25 +5495,6 @@ function updateRankUI() {
       
       const conds = document.getElementById('nextRankConditions');
       if(conds) conds.innerHTML = condHtml.join('');
-      
-      // 혜택
-      let benefits = [];
-      if (nextRankId === 'G1') {
-         benefits = [
-           "승급 달성 즉시 일시불 승급 축하 보너스 지급",
-           "산하 파트너 투자/가입에 따른 추가 수당 (글로벌 룰 적용)",
-           "매일 발생하는 직급 유지 보너스 풀 참여 자격 획득"
-         ];
-      } else {
-         benefits = [
-           `${nextRankId} 승급 축하 특별 보너스 (USDT) 즉시 지급`,
-           `글로벌 전체 매출 기준 ${nextRankId} 등급 전용 유지 보너스(%) 매일 공유`,
-           "산하 파트너 투자 발생 시 더 높은 단계의 추천 수익률 적용",
-           "플랫폼 내 프리미엄 VVIP 배지 및 글로벌 네트워크 맵 이펙트 적용"
-         ];
-      }
-      const bEl = document.getElementById('nextRankBenefits');
-      if (bEl) bEl.innerHTML = benefits.map(b => `<li>${b}</li>`).join('');
       
       return;
     }
@@ -5214,7 +5588,10 @@ async function buildOrgTree() {
       email: userData?.email || '',
       rank: userData?.rank || 'G0',
       createdAt: userData?.createdAt,
-      referralCount: userData?.referralCount || userData?.totalReferrals || 0
+      referralCount: userData?.referralCount || userData?.totalReferrals || 0,
+      totalInvested: userData?.totalInvested || 0,
+      networkSales: userData?.networkSales || 0,
+      otherLegSales: userData?.otherLegSales || 0
     }];
   }
 
@@ -5269,7 +5646,7 @@ window.renderCaveTree = async function() {
     return `
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
         ${badgeHtml}
-        <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
+        <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:12px 20px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; min-width: 240px; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
              onclick="showNodeActionModal('${n.id}', '${(displayId).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
            <div style="position: relative; flex-shrink: 0; width:40px; height:40px;">
               <div style="width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden;">
@@ -5278,9 +5655,19 @@ window.renderCaveTree = async function() {
               ${onlineBadge}
               ${refBadge}
            </div>
-           <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left;">
+           <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left; width:100%;">
              <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayId}</div>
-             <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2;">${n.rank||'G0'}</div>
+             <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2; margin-bottom:8px;">${n.rank||'G0'}</div>
+             <div style="font-size:11px; text-align:left; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px; margin-top:2px;">
+                 <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#cbd5e1;">
+                     <span>본인 매출:</span>
+                     <span style="color:#10b981; font-weight:700;">${Number(n.totalInvested || n.lockedBalance || 0).toLocaleString(undefined, {maximumFractionDigits:2})} USDT</span>
+                 </div>
+                 <div style="display:flex; justify-content:space-between; color:#cbd5e1;">
+                     <span>전체 합계:</span>
+                     <span style="color:#3b82f6; font-weight:700;">${Number(n.networkSales || n.totalSales || 0).toLocaleString(undefined, {maximumFractionDigits:2})} USDT</span>
+                 </div>
+             </div>
            </div>
         </div>
       </div>
@@ -5310,15 +5697,9 @@ window.renderCaveTree = async function() {
   // 2. Fetch children for the last node in path
   const lastNode = window.cavePath[window.cavePath.length - 1];
 
-  // --- Rank-based Depth Restriction ---
+  // --- Rank-based Depth Restriction (Removed as per request) ---
   const getMaxDepth = (rank) => {
-     const r = (rank || 'g0').toLowerCase();
-     if (r === 'g0') return 1;
-     if (r === 'g1') return 2;
-     if (r === 'g2') return 3;
-     if (r === 'g3') return 5;
-     if (r === 'g4') return 10;
-     return 999;
+     return 999; // 무조건 하부조직 제한 없이 열람 가능하도록 수정
   };
   
   const userRank = userData?.rank || 'G0';
@@ -5344,7 +5725,7 @@ window.renderCaveTree = async function() {
 
   try {
     const availableDepth = Math.max(1, maxDepth - window.cavePath.length + 1);
-    const fetchDepth = Math.min(3, availableDepth); // 3 depths max at once
+    const fetchDepth = Math.min(10, availableDepth); // 10 depths max at once
     
     let children = [];
     const { collection, query, where, getDocs, limit, db } = window.FB;
@@ -5420,7 +5801,7 @@ window.renderCaveTree = async function() {
              html += renderNode(n, false, -1);
              html += `</div>`;
 
-             if (n.children && n.children.length > 0 && currentDepth < fetchDepth) {
+             if (n.children && n.children.length > 0) {
                  html += `<div style="width:2px; height:24px; background:rgba(157,78,221,0.5); margin:0; z-index:0;"></div>`;
                  html += buildNestedHtml(n.children, currentDepth + 1);
              } else if (n.hasMore || (n.children && n.children.length > 0)) {
@@ -6672,8 +7053,17 @@ window.saveProfile = async function() {
   const btn = event.target;
   btn.disabled = true; btn.textContent = '저장 중...';
   try {
-    const { doc, updateDoc, db } = window.FB;
-    await updateDoc(doc(db, 'users', currentUser.uid), { name, phone, country });
+    if (window.FB._useRestAPI) {
+      const res = await fetch('/api/user/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.FB._idToken },
+        body: JSON.stringify({ name, phone, country })
+      });
+      if (!res.ok) throw new Error('API request failed');
+    } else {
+      const { doc, updateDoc, db } = window.FB;
+      await updateDoc(doc(db, 'users', currentUser.uid), { name, phone, country });
+    }
     userData.name = name; userData.phone = phone; userData.country = country;
     closeModal('profileModal');
     showToast('프로필이 저장되었습니다.', 'success');
@@ -6687,9 +7077,49 @@ window.saveProfile = async function() {
 };
 
 window.showPasswordChange = function() {
-  showToast('비밀번호 변경 이메일을 발송했습니다.', 'info');
-  const { sendPasswordResetEmail, auth } = window.FB;
-  if (currentUser) sendPasswordResetEmail(auth, currentUser.email).catch(() => {});
+  document.getElementById('oldPasswordInput').value = '';
+  document.getElementById('newPasswordInput').value = '';
+  document.getElementById('confirmNewPasswordInput').value = '';
+  document.getElementById('passwordChangeModal').classList.remove('hidden');
+};
+
+window.submitPasswordChange = async function() {
+  if (!currentUser || !currentUser.email) return showToast('로그인 정보가 없습니다.', 'error');
+  
+  const oldPw = document.getElementById('oldPasswordInput').value;
+  const newPw = document.getElementById('newPasswordInput').value;
+  const newPwConfirm = document.getElementById('confirmNewPasswordInput').value;
+
+  if (!oldPw) return showToast('기존 비밀번호를 입력해주세요.', 'error');
+  if (!newPw) return showToast('새 비밀번호를 입력해주세요.', 'error');
+  if (newPw !== newPwConfirm) return showToast('새 비밀번호가 일치하지 않습니다.', 'error');
+  if (newPw.length < 6) return showToast('새 비밀번호는 6자리 이상이어야 합니다.', 'error');
+
+  const btn = document.getElementById('savePasswordBtn');
+  btn.disabled = true;
+  btn.textContent = '변경 중...';
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentUser.email, oldPassword: oldPw, newPassword: newPw })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || '비밀번호 변경 실패');
+    }
+    
+    showToast('비밀번호가 성공적으로 변경되었습니다.', 'success');
+    closeModal('passwordChangeModal');
+  } catch (err) {
+    console.error('Password change error:', err);
+    showToast(err.message || '비밀번호 변경에 실패했습니다.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '비밀번호 변경하기';
+  }
 };
 
 window.showWithdrawPinSetup = function() {
@@ -6708,8 +7138,17 @@ window.saveWithdrawPin = async function() {
   const btn = event.target;
   btn.disabled = true;
   try {
-    const { doc, updateDoc, db } = window.FB;
-    await updateDoc(doc(db, 'users', currentUser.uid), { withdrawPin: btoa(pin) });
+    if (window.FB._useRestAPI) {
+      const res = await fetch('/api/user/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.FB._idToken },
+        body: JSON.stringify({ withdrawPin: btoa(pin) })
+      });
+      if (!res.ok) throw new Error('API request failed');
+    } else {
+      const { doc, updateDoc, db } = window.FB;
+      await updateDoc(doc(db, 'users', currentUser.uid), { withdrawPin: btoa(pin) });
+    }
     userData.withdrawPin = btoa(pin);
     closeModal('pinModal');
     showToast('출금 PIN이 설정되었습니다.', 'success');
@@ -6989,7 +7428,7 @@ async function findUserByReferralCode(code) {
 
 function fmt(n) {
   if (n === undefined || n === null || isNaN(n)) return '0.00';
-  return parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
 function fmtInt(n) {
@@ -7574,7 +8013,7 @@ async function _loadNepSummary() {
     const totalMembers = Object.keys(genMap).length;
 
     // ── 오늘 날짜 ──
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
     // ── 내 보너스 전체 조회 (단일 where) → JS에서 날짜·fromUserId 필터 ──
     let todayGen1 = 0, todayGen2 = 0, todayGen3 = 0;
@@ -7588,13 +8027,13 @@ async function _loadNepSummary() {
         // 판권 매칭 보너스만 취급
         if (!['rank_bonus', 'rank_gap_passthru', 'rank_equal_or_higher_override_1pct', 'rank_equal_or_higher_override'].includes(t)) return;
         
-        const amtValue = data.amountUsdt || data.amount || 0;
+        const amtValue = data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0);
         totalRankBonusEarned += amtValue; // 누적 판권매칭 수익
 
         const date = data.settlementDate || (data.createdAt?.toDate?.()?.toISOString?.()?.slice(0,10)) || '';
         if (date !== today) return;
         const from = data.fromUserId || '';
-        const amt = data.amountUsdt || data.amount || 0;
+        const amt = data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0);
         if (gen1ids.includes(from)) todayGen1 += amt;
         else if (gen2ids.includes(from)) todayGen2 += amt;
         else if (gen3ids.includes(from)) todayGen3 += amt;
@@ -7680,7 +8119,7 @@ async function _loadNepTxTab(contentEl) {
     const statusColor = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
 
     contentEl.innerHTML = txs.map(tx => {
-      if (tx.isBonus) tx.amount = tx.amountUsdt || tx.amount || 0;
+      tx.amount = tx.amountUsdt !== undefined ? tx.amountUsdt : (tx.amount || 0); if (tx.type === "withdrawal") tx.currency = "USDT";
       const isPlus = ['deposit', 'bonus', 'rank_bonus', 'direct_bonus', 'daily_roi', 'center_fee', 'rank_gap_passthru'].includes(tx.type);
       const sc = statusColor[tx.status] || '#94a3b8';
       return `
@@ -7773,7 +8212,7 @@ async function _loadNepGenTab(contentEl, gen) {
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const memberIds = members.map(u => u.id);
 
     // 멤버별 총 입금(매출) 집계
@@ -7803,14 +8242,14 @@ async function _loadNepGenTab(contentEl, gen) {
         // 판권 매칭 보너스만 취급
         if (!['rank_bonus', 'rank_gap_passthru', 'rank_equal_or_higher_override_1pct', 'rank_equal_or_higher_override'].includes(t)) return;
         
-        const amt = data.amountUsdt || data.amount || 0;
+        const amt = data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0);
         totalRankBonusEarned += amt; // 누적 판권매칭 수익
 
         // const data already declared
         const date = data.settlementDate || (data.createdAt?.toDate?.()?.toISOString?.()?.slice(0,10)) || '';
         if (date !== today) return;
         if (!data.fromUserId || !memberIds.includes(data.fromUserId)) return;
-        todayMap[data.fromUserId] = (todayMap[data.fromUserId] || 0) + (data.amountUsdt || data.amount || 0);
+        todayMap[data.fromUserId] = (todayMap[data.fromUserId] || 0) + (data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
       });
     }
 
@@ -7983,7 +8422,7 @@ async function _loadNepDeepTab(contentEl) {
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     let totalSales = 0;
     let totalToday = 0;
 
@@ -8013,7 +8452,7 @@ async function _loadNepDeepTab(contentEl) {
       if (!['rank_bonus', 'rank_gap_passthru', 'rank_equal_or_higher_override_1pct', 'rank_equal_or_higher_override'].includes(t)) return;
       
       if (date === today && deepIds.includes(data.fromUserId)) {
-        totalToday += (data.amountUsdt || data.amount || 0);
+        totalToday += (data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
       }
     });
 
@@ -8061,7 +8500,7 @@ async function checkAndTriggerDailyROI() {
   try {
     const { doc, getDoc, db } = window.FB;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     // 이미 정산된 날이면 스킵
     const settlSnap = await getDoc(doc(db, 'settlements', today));
     if (settlSnap.exists()) return;
@@ -8114,7 +8553,7 @@ async function checkAndTriggerDailyROI() {
 async function loadTodayEarnCard() {
   try {
     const { collection, query, where, getDocs, limit, db } = window.FB;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const thisMonth = today.slice(0, 7); // YYYY-MM
 
     // bonuses 컬렉션에서 내 수익 조회
@@ -8126,12 +8565,12 @@ async function loadTodayEarnCard() {
     // 오늘 ROI 수익
     const todayRoi = bonuses
       .filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi'))
-      .reduce((s, b) => s + (b.amountUsdt || b.amount || 0), 0);
+      .reduce((s, b) => s + (b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)), 0);
 
     // 오늘 보너스 (네트워크 보너스 등)
     const todayBonus = bonuses
       .filter(b => b.settlementDate === today && (b.type !== 'roi_income' && b.type !== 'roi'))
-      .reduce((s, b) => s + (b.amountUsdt || b.amount || 0), 0);
+      .reduce((s, b) => s + (b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)), 0);
 
     // 누적 총 수익 (walletData.totalEarnings 사용)
     const totalEarn = walletData?.totalEarnings || 0;
@@ -8173,7 +8612,7 @@ async function loadTodayEarnCard() {
 async function loadEarnHistoryTab() {
   try {
     const { collection, query, where, getDocs, limit, db } = window.FB;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const thisMonth = today.slice(0, 7);
 
     const bonusSnap = await getDocs(
@@ -8183,10 +8622,10 @@ async function loadEarnHistoryTab() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     // 요약 계산
-    const todayRoi   = bonuses.filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi')).reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
-    const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
-    const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
-    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee','rank_equal_or_higher_override_1pct','rank_equal_or_higher_override'].includes(b.type)).reduce((s,b) => s+(b.amountUsdt || b.amount || 0),0);
+    const todayRoi   = bonuses.filter(b => b.settlementDate === today && (b.type === 'roi_income' || b.type === 'roi')).reduce((s,b) => s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0);
+    const totalEarn  = walletData?.totalEarnings || bonuses.reduce((s,b) => s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0);
+    const monthEarn  = bonuses.filter(b => (b.settlementDate||'').startsWith(thisMonth)).reduce((s,b) => s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0);
+    const netBonus   = bonuses.filter(b => ['unilevel_bonus','direct_bonus','rank_bonus','center_fee','rank_equal_or_higher_override_1pct','rank_equal_or_higher_override'].includes(b.type)).reduce((s,b) => s+(b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0)),0);
 
     const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     setEl('earnTab_todayRoi',     '$' + fmt(todayRoi));
@@ -8231,7 +8670,7 @@ function renderEarnList(bonuses, listEl, typeFilter) {
   listEl.innerHTML = filtered.slice(0, 50).map(b => {
     const date = b.settlementDate || (b.createdAt?.seconds ? new Date(b.createdAt.seconds*1000).toLocaleDateString('ko-KR') : '-');
     const label = typeLabel[b.type] || b.type || t('other');
-    const amount = b.amountUsdt || b.amount || 0;
+    const amount = b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0);
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;
       background:var(--card,#1e293b);border-radius:12px;margin-bottom:6px;
@@ -8292,7 +8731,7 @@ window.loadProfitHeatmap = async function() {
       const t = b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt);
       const dateStr = t.toISOString().slice(0, 10);
       if (dailyMap[dateStr] !== undefined && (b.type === 'daily_roi' || b.type === 'roi' || b.type === 'roi_income' || b.type === 'rank_bonus' || b.type === 'match_bonus')) {
-        dailyMap[dateStr] += (b.amount || 0);
+        dailyMap[dateStr] += (b.amountUsdt !== undefined ? b.amountUsdt : (b.amount || 0));
       }
     });
     
@@ -8509,4 +8948,478 @@ window.makeDraggableMap = function(ele) {
             isDragging = false;
         }
     }, true);
+};
+
+
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        let ref = params.get('ref') || params.get('referral') || params.get('code');
+        if (ref) localStorage.setItem('saved_ref_code', ref);
+        else ref = localStorage.getItem('saved_ref_code');
+        
+        if (ref) {
+            const el = document.getElementById('regReferral');
+            if (el) {
+                el.value = ref;
+                if (typeof showRefCodeHint === 'function') showRefCodeHint(ref);
+                if (typeof window.switchAuthTab === 'function') window.switchAuthTab('register');
+            }
+        }
+
+        let action = params.get('action');
+        if (action) localStorage.setItem('saved_action', action);
+        else {
+            action = localStorage.getItem('saved_action');
+            localStorage.removeItem('saved_action');
+        }
+        
+        if (action === 'deposit' && window.currentUser) {
+            if (typeof showDepositModal === 'function') showDepositModal();
+        } else if (action === 'withdraw' && window.currentUser) {
+            if (typeof showWithdrawModal === 'function') showWithdrawModal();
+        }
+    }, 1500);
+});
+
+if (typeof window._pendingAuthUser !== 'undefined' && typeof window.onAuthReady === 'function') {
+  window.onAuthReady(window._pendingAuthUser);
+  delete window._pendingAuthUser;
+}
+
+setTimeout(() => {
+  const loadingScreen = document.getElementById('loadingScreen');
+  if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+    if (typeof window.showScreen === 'function') window.showScreen('auth');
+    else {
+        loadingScreen.classList.add('hidden');
+        const authScreen = document.getElementById('authScreen');
+        if (authScreen) authScreen.classList.remove('hidden');
+    }
+  }
+}, 3000);
+
+window.showCacheClearGuide = function() {
+    const modal = document.createElement('div');
+    modal.className = 'cache-modal-wrap';
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.background = 'rgba(0,0,0,0.8)';
+    modal.style.zIndex = '10000';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.innerHTML = `
+        <div style="background:var(--card-bg, #1e293b); padding:24px; border-radius:16px; max-width:90%; width:320px; border:1px solid rgba(255,255,255,0.1);">
+            <div style="font-size:18px; font-weight:bold; color:#fff; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                <span>🧹</span> 캐시 삭제 안내 (안드로이드)
+            </div>
+            <div style="color:#cbd5e1; font-size:14px; line-height:1.6; margin-bottom:20px;">
+                앱 접속이나 화면 로딩에 문제가 발생할 경우 아래 순서대로 캐시를 삭제해주세요:<br><br>
+                1. 화면 우측 상단의 <b>더보기(⋮)</b> 메뉴 터치<br>
+                2. <b>[설정]</b> 선택<br>
+                3. <b>[개인정보 보호 및 보안]</b> 선택<br>
+                4. <b>[인터넷 사용 기록 삭제]</b> 선택<br>
+                5. 기간을 <b>[전체 기간]</b>으로 설정<br>
+                6. <b>[쿠키 및 사이트 데이터]</b>와 <b>[캐시된 이미지 및 파일]</b> 체크<br>
+                7. <b>[인터넷 사용 기록 삭제]</b> 버튼 터치<br>
+                8. 브라우저를 닫고 다시 DEEDRA에 접속<br>
+            </div>
+            <button onclick="this.closest('.cache-modal-wrap').remove()" style="width:100%; padding:12px; border-radius:10px; background:linear-gradient(135deg, #6366f1, #4f46e5); color:#fff; border:none; font-weight:bold; cursor:pointer;">확인</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+};
+
+
+// ===== DEX Swap Modal =====
+window.openDexSwap = function(type) {
+  const usdtMint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+  const ddraMint = "DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv";
+  
+  let inputMint = type === 'buy' ? usdtMint : ddraMint;
+  let outputMint = type === 'buy' ? ddraMint : usdtMint;
+  
+  const url = `https://raydium.io/swap/?inputMint=${inputMint}&outputMint=${outputMint}&fixed=in`;
+  
+  const modal = document.getElementById('dexModal');
+  const iframe = document.getElementById('dexIframe');
+  
+  if (modal && iframe) {
+    iframe.src = url;
+    modal.classList.remove('hidden');
+  } else {
+    window.open(url, '_blank');
+  }
+};
+// ===== 실시간 암호화폐 시세 (Upbit) =====
+function startUpbitTicker() {
+  const container = document.getElementById('upbitTickerContainer');
+  if (!container) return;
+  
+  const coinList = [
+    {id:'KRW-BTC', sym:'BTC', name:'Bitcoin'},
+    {id:'KRW-ETH', sym:'ETH', name:'Ethereum'},
+    {id:'KRW-SOL', sym:'SOL', name:'Solana'},
+    {id:'KRW-XRP', sym:'XRP', name:'Ripple'},
+    {id:'KRW-DOGE', sym:'DOGE', name:'Dogecoin'},
+    {id:'KRW-ADA', sym:'ADA', name:'Cardano'},
+    {id:'KRW-AVAX', sym:'AVAX', name:'Avalanche'},
+    {id:'KRW-DOT', sym:'DOT', name:'Polkadot'},
+    {id:'KRW-LINK', sym:'LINK', name:'Chainlink'},
+    {id:'KRW-TRX', sym:'TRX', name:'Tron'},
+    {id:'KRW-BCH', sym:'BCH', name:'Bitcoin Cash'},
+    {id:'KRW-ETC', sym:'ETC', name:'Ethereum Classic'},
+    {id:'KRW-SUI', sym:'SUI', name:'Sui'},
+    {id:'KRW-STX', sym:'STX', name:'Stacks'},
+    {id:'KRW-SEI', sym:'SEI', name:'Sei'},
+    {id:'KRW-ARB', sym:'ARB', name:'Arbitrum'},
+    {id:'KRW-OP', sym:'OP', name:'Optimism'},
+    {id:'KRW-NEAR', sym:'NEAR', name:'NEAR Protocol'},
+    {id:'KRW-APT', sym:'APT', name:'Aptos'},
+    {id:'KRW-EOS', sym:'EOS', name:'EOS'},
+    {id:'KRW-SHIB', sym:'SHIB', name:'Shiba Inu'},
+    {id:'KRW-SAND', sym:'SAND', name:'The Sandbox'},
+    {id:'KRW-MANA', sym:'MANA', name:'Decentraland'},
+    {id:'KRW-AXS', sym:'AXS', name:'Axie Infinity'}
+  ];
+  
+  let pageIndex = 0;
+  let cachedData = {};
+  
+  async function fetchPrices() {
+    try {
+      const ids = coinList.map(c => c.id).join(',');
+      const res = await fetch('/api/upbit-ticker?markets=' + ids);
+      const data = await res.json();
+      
+      data.forEach(ticker => {
+        cachedData[ticker.market] = ticker;
+      });
+      renderTickers();
+    } catch(e) {
+      console.warn('Upbit ticker fetch error:', e);
+    }
+  }
+  
+  function renderTickers() {
+    if (Object.keys(cachedData).length === 0) return;
+    
+    // Rotate every fetch (every 5 seconds) -> move pageIndex by 1
+    pageIndex = (pageIndex + 1) % 3; // 24 coins / 8 per page = 3 pages
+    
+    const startIndex = pageIndex * 8;
+    const currentCoins = coinList.slice(startIndex, startIndex + 8);
+    
+    let html = '';
+    currentCoins.forEach(coin => {
+      const ticker = cachedData[coin.id];
+      if (!ticker) return;
+      
+      const isUp = ticker.change === 'RISE';
+      const isDown = ticker.change === 'FALL';
+      const color = isUp ? '#ef4444' : isDown ? '#3b82f6' : '#94a3b8';
+      const sign = isUp ? '+' : '';
+      const pct = (ticker.signed_change_rate * 100).toFixed(2);
+      
+      let priceStr = ticker.trade_price.toLocaleString();
+      if (ticker.trade_price < 100) {
+        priceStr = ticker.trade_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
+      }
+      
+      html += `
+        <div style="background:rgba(255,255,255,0.03); padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.05); animation: fadeIn 0.5s ease;">
+          <div style="font-size:10px; color:#94a3b8; margin-bottom:2px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#fff; font-weight:700; font-size:12px;">${coin.sym}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%; text-align:right;">${coin.name}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <span style="font-size:14px; font-weight:800; color:${color}">${priceStr}</span>
+            <span style="font-size:11px; font-weight:600; color:${color}">${sign}${pct}%</span>
+          </div>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+  }
+  
+  // Inject fadeIn animation CSS if not exists
+  if (!document.getElementById('tickerAnimStyle')) {
+    const style = document.createElement('style');
+    style.id = 'tickerAnimStyle';
+    style.innerHTML = '@keyframes fadeIn { from { opacity: 0.3; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }';
+    document.head.appendChild(style);
+  }
+  
+  fetchPrices();
+  setInterval(fetchPrices, 5000);
+}
+
+setTimeout(startUpbitTicker, 2000);
+
+
+window.updateAutoCompoundUI = function(isAcChecked) {
+  const icon = document.getElementById('autoCompoundIcon');
+  const title = document.getElementById('autoCompoundTitleText');
+  const sw = document.getElementById('autoCompoundSwitch');
+  if(sw) sw.checked = isAcChecked;
+  
+  if (isAcChecked) {
+    if(icon) {
+      icon.style.color = '#10b981';
+      icon.classList.add('fa-spin');
+    }
+    if(title) {
+      title.style.color = '#10b981';
+    }
+  } else {
+    if(icon) {
+      icon.style.color = '#64748b';
+      icon.classList.remove('fa-spin');
+    }
+    if(title) {
+      title.style.color = 'var(--text-color, #fff)';
+    }
+  }
+};
+
+window.toggleAutoCompound = function(el) {
+  if (!window.userData) {
+    el.checked = !el.checked;
+    return;
+  }
+  
+  const isChecked = el.checked;
+  if (isChecked) {
+    el.checked = false;
+    const agreeCheck = document.getElementById('autoCompoundAgreeCheck');
+    const btnConfirm = document.getElementById('btnConfirmAutoCompound');
+    if (agreeCheck) {
+      agreeCheck.checked = false;
+      agreeCheck.onchange = function() {
+        btnConfirm.disabled = !this.checked;
+        btnConfirm.style.opacity = this.checked ? '1' : '0.5';
+      };
+    }
+    if (btnConfirm) {
+      btnConfirm.disabled = true;
+      btnConfirm.style.opacity = '0.5';
+    }
+    document.getElementById('autoCompoundModal').classList.remove('hidden');
+  } else {
+    if (confirm('자동 복리 기능을 정말 해제하시겠습니까? (이후 데일리 수익은 출금 가능한 상태로 적립됩니다)')) {
+      updateUserAutoCompound(false);
+    } else {
+      el.checked = true;
+    }
+  }
+};
+
+window.confirmAutoCompound = function() {
+  closeModal('autoCompoundModal');
+  updateUserAutoCompound(true);
+};
+
+window.updateUserAutoCompound = async function(isAcChecked) {
+  try {
+    if (window.FB._useRestAPI) {
+      const res = await fetch('/api/user/update-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + window.FB._idToken
+        },
+        body: JSON.stringify({ autoCompound: isAcChecked })
+      });
+      if (!res.ok) throw new Error('API request failed');
+    } else {
+      const { doc, updateDoc, db } = window.FB;
+      const userRef = doc(db, 'users', window.userData.uid);
+      await updateDoc(userRef, { autoCompound: isAcChecked });
+    }
+    window.userData.autoCompound = isAcChecked;
+    updateAutoCompoundUI(isAcChecked);
+    showToast(isAcChecked ? '자동 복리가 활성화되었습니다.' : '자동 복리가 해제되었습니다.', 'success');
+  } catch (err) {
+    console.error('Auto compound update error:', err);
+    showToast('설정 변경 중 오류가 발생했습니다.', 'error');
+    updateAutoCompoundUI(!isAcChecked); // revert UI
+  }
+};
+
+
+
+
+window.hardRefresh = async function() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (let reg of registrations) {
+        await reg.unregister();
+      }
+    }
+    if ('caches' in window) {
+      const names = await caches.keys();
+      for (let name of names) {
+        await caches.delete(name);
+      }
+    }
+  } catch (e) {
+    console.error('Cache clear error:', e);
+  }
+  // Remove existing query params and add a timestamp
+  const url = new URL(window.location.href);
+  url.searchParams.set('t', new Date().getTime());
+  window.location.href = url.toString();
+};
+
+
+// ══════════════════════════════════════════════════════════════════
+// 실시간 접속자 수 시뮬레이션 (시간대별 더 정교한 로직 & 자동 실행)
+// ══════════════════════════════════════════════════════════════════
+let liveUserCount = 0;
+let liveUserTrendCount = 0;
+let currentLiveTrend = 1;
+
+function initLiveUsers() {
+    const now = new Date();
+    const h = now.getHours();
+    
+    // 주간(09:00~17:00)은 120~200 사이
+    // 그 외 시간은 15~60 사이
+    let baseCount = 15;
+    if (h >= 9 && h < 17) {
+        // 시간에 따라 조금씩 달라지는 기본 베이스 (예: 9시는 120근처, 13시는 180근처 등 자연스럽게)
+        // 여기선 120~180 정도로 잡아서 위로 튀어도 200 안 넘게 설정
+        baseCount = Math.floor(Math.random() * 40) + 130; 
+    } else {
+        baseCount = Math.floor(Math.random() * 20) + 20;
+    }
+    
+    liveUserCount = baseCount;
+    updateLiveUserUI();
+
+    // 시작 후 1초 뒤부터 변동 시작
+    setTimeout(updateLiveUserLogic, Math.floor(Math.random() * 1500) + 1000);
+}
+
+function updateLiveUserUI() {
+    const elHome = document.getElementById('homeLiveCount');
+    const elNet = document.getElementById('networkLiveCount');
+    if (elHome) elHome.textContent = liveUserCount;
+    if (elNet) elNet.textContent = liveUserCount;
+}
+
+function updateLiveUserLogic() {
+    const now = new Date();
+    const h = now.getHours();
+    
+    // 최대치 제한 (낮 120~200, 밤 15~60)
+    let minCount = (h >= 9 && h < 17) ? 120 : 15;
+    let maxCount = (h >= 9 && h < 17) ? 198 : 60;
+
+    if (liveUserTrendCount <= 0) {
+        // 추세 전환 (플러스 2~3회, 마이너스 2~3회 등 불규칙)
+        currentLiveTrend = Math.random() > 0.5 ? 1 : -1;
+        liveUserTrendCount = Math.floor(Math.random() * 3) + 2; 
+    }
+    
+    liveUserTrendCount--;
+
+    // 변동폭: 1 ~ 3명
+    let magnitude = Math.floor(Math.random() * 3) + 1;
+    let change = currentLiveTrend * magnitude;
+    
+    // 가끔 튀는 값 (현실감을 위해 한 번씩 역방향으로 1명 튐)
+    if (Math.random() > 0.8) {
+        change = -1 * Math.sign(change) * 1;
+    }
+
+    liveUserCount += change;
+    
+    // 범위 이탈 방지 강제 보정
+    if (liveUserCount <= minCount) {
+        liveUserCount = minCount + Math.floor(Math.random() * 3);
+        currentLiveTrend = 1; // 오름세로 즉시 전환
+        liveUserTrendCount = 2;
+    }
+    if (liveUserCount >= maxCount) {
+        liveUserCount = maxCount - Math.floor(Math.random() * 3);
+        currentLiveTrend = -1; // 내림세로 즉시 전환
+        liveUserTrendCount = 2;
+    }
+
+    updateLiveUserUI();
+    
+    // 2초 ~ 6초 사이 불규칙 간격 (초침처럼 움직이지 않도록 완전 랜덤)
+    const nextInterval = Math.floor(Math.random() * 4000) + 2000;
+    setTimeout(updateLiveUserLogic, nextInterval);
+}
+
+// 스크립트가 로드되면 바로, 그리고 DOM이 준비되면 한 번 더 확실하게 실행
+setTimeout(() => {
+    if(liveUserCount === 0) initLiveUsers();
+}, 500);
+
+window.addEventListener('DOMContentLoaded', () => {
+    if(liveUserCount === 0) initLiveUsers();
+});
+
+// Add these to app.js
+window.showWalletRegisterModal = function() {
+    if (window.currentUserData && window.currentUserData.solanaWallet) {
+        document.getElementById('solanaWalletInput').value = window.currentUserData.solanaWallet;
+    } else {
+        document.getElementById('solanaWalletInput').value = '';
+    }
+    document.getElementById('walletRegisterModal').classList.remove('hidden');
+};
+
+window.saveWalletAddress = async function() {
+    const address = document.getElementById('solanaWalletInput').value.trim();
+    if (!address) {
+        showToast('지갑 주소를 입력해주세요.', 'error');
+        return;
+    }
+    
+    // Solana address basic validation (base58, 32-44 chars)
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+        showToast('유효한 솔라나 지갑 주소가 아닙니다.', 'error');
+        return;
+    }
+    
+    const btn = document.getElementById('saveWalletBtn');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = '저장 중...';
+    
+    try {
+        const idToken = await auth.currentUser.getIdToken();
+        const res = await fetch('/api/user/update-profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ solanaWallet: address })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            showToast('지갑 주소가 성공적으로 저장되었습니다.', 'success');
+            if (window.currentUserData) {
+                window.currentUserData.solanaWallet = address;
+            }
+            closeModal('walletRegisterModal');
+        } else {
+            showToast(data.error || '저장에 실패했습니다.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('네트워크 오류가 발생했습니다.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
 };

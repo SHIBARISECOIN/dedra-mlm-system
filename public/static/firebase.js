@@ -4,7 +4,7 @@ import {
   getAuth, onAuthStateChanged, signOut,
   signInWithCredential, EmailAuthProvider,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail, updatePassword
+  sendPasswordResetEmail, updatePassword, reauthenticateWithCredential
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import {
   getFirestore, collection, query, where, getDocs, onSnapshot,
@@ -193,7 +193,7 @@ window.FB = {
   },
   signInWithEmailAndPassword: loginWithEmail,
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail, updatePassword,
+  sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
   // firestore functions
   collection, query, where, getDocs, onSnapshot, addDoc,
   doc, getDoc, setDoc, updateDoc, deleteDoc, orderBy,
@@ -218,6 +218,9 @@ onAuthStateChanged(auth, (user) => {
 
     if (typeof window.onAuthReady === 'function') {
       window.onAuthReady(window.FB._currentUser);
+    } else {
+      // app.js has not loaded yet, save state to window
+      window._pendingAuthUser = window.FB._currentUser;
     }
     return;
   }
@@ -255,6 +258,7 @@ onAuthStateChanged(auth, (user) => {
       window.onAuthReady(null);
     } else if (tries >= 100) {
       clearInterval(poll);
+      console.warn("app.js failed to load within 5 seconds, forcing auth screen fallback");
       const ls = document.getElementById('loadingScreen');
       const as = document.getElementById('authScreen');
       if (ls) ls.classList.add('hidden');
