@@ -3297,6 +3297,7 @@ window.switchPage = function(page) {
         else if (page === 'network' && typeof loadNetworkPage === 'function') loadNetworkPage();
         else if (page === 'play' && typeof updateGameUI === 'function') updateGameUI();
         else if (page === 'more' && typeof loadMorePage === 'function') loadMorePage();
+        else if (page === 'podcast' && typeof window.loadUserPodcasts === 'function') window.loadUserPodcasts();
       } catch (err) {
         console.error("Error in page load function for " + page + ":", err);
       }
