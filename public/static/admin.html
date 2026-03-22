@@ -1304,6 +1304,15 @@ canvas{width:100% !important;}
                   oninput="onUsdtNewValInput(this.value)"
                   onclick="this.select()"
                   onfocus="this.select()">
+                <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+                  <button onclick="adjustUsdtEditVal(10)" style="background:#334155;color:#34d399;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">+10</button>
+                  <button onclick="adjustUsdtEditVal(100)" style="background:#334155;color:#34d399;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">+100</button>
+                  <button onclick="adjustUsdtEditVal(1000)" style="background:#334155;color:#34d399;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">+1000</button>
+                  <button onclick="adjustUsdtEditVal(-10)" style="background:#334155;color:#f87171;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">-10</button>
+                  <button onclick="adjustUsdtEditVal(-100)" style="background:#334155;color:#f87171;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">-100</button>
+                  <button onclick="adjustUsdtEditVal(-1000)" style="background:#334155;color:#f87171;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">-1000</button>
+                  <button onclick="resetUsdtEditVal()" style="background:#1e293b;color:#94a3b8;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">원래대로</button>
+                </div>
               </div>
               <div style="font-size:24px;padding-bottom:10px;color:#64748b;" id="usdtEditDelta"></div>
             </div>
@@ -14272,20 +14281,27 @@ async function selectUsdtUser(userId) {
   document.getElementById('usdtEditAlert').textContent = '';
   showToast('⏳ 잔액 조회 중...');
 
-  const usersSnap = await api.searchUsersByKeyword(userId);
-  // userId로 직접 조회
-  const { getDoc, doc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
   // api 내부 db 접근 — getUserWalletInfo 사용
   const r = await api.getUserWalletInfo(userId);
   if (!r.success) { showToast('❌ ' + r.error); return; }
 
   // 이름/이메일은 검색 결과에서 찾기
   const searchR = await api.searchUsersByKeyword(userId);
-  const userInfo = searchR.success ? searchR.data.find(u => u.id === userId) : null;
+  const userInfo = searchR.success ? searchR.data.find(u => u.id === userId) || {} : {};
+  
+  // 실제 userData 로드 (없는 변수 참조 방지)
+  let userData = {};
+  try {
+      const { getDoc, doc, db } = window.FB;
+      const uSnap = await getDoc(doc(db, 'users', userId));
+      if (uSnap.exists()) userData = uSnap.data();
+  } catch(e) { console.error('Failed to get user data', e); }
 
   _usdtEditUser   = { ...userData,
         id: userId,
-        uid: uid, name: userInfo?.name || userId, email: userInfo?.email || '' };
+        uid: userId, 
+        name: userData.name || userInfo.name || userId, 
+        email: userData.email || userInfo.email || '' };
   _usdtEditWallet = r.data;
   _usdtWithdrawable = true; // 기본값 인출가능
 
@@ -14311,6 +14327,21 @@ async function selectUsdtUser(userId) {
   document.getElementById('usdtEditCard').style.display  = 'block';
   setUsdtWithdrawable(true);
 }
+
+window.adjustUsdtEditVal = function(delta) {
+  const el = document.getElementById('usdtEditNewVal');
+  let current = parseFloat(el.value) || 0;
+  let next = Math.max(0, current + delta);
+  el.value = next.toFixed(2);
+  onUsdtNewValInput(next);
+};
+window.resetUsdtEditVal = function() {
+  if (!_usdtEditWallet) return;
+  const el = document.getElementById('usdtEditNewVal');
+  const org = _usdtEditWallet.usdtBalance || 0;
+  el.value = org.toFixed(2);
+  onUsdtNewValInput(org);
+};
 
 // 새 금액 입력 시 차이 표시
 function onUsdtNewValInput(val) {
