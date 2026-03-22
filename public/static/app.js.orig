@@ -9519,10 +9519,8 @@ window.saveWalletAddress = async function() {
         } else if (typeof auth !== 'undefined' && auth.currentUser) {
             currentUser = auth.currentUser;
         }
-        if (currentUser && typeof currentUser.getIdToken === 'function') {
+        if (currentUser) {
             idToken = await currentUser.getIdToken();
-        } else if (window.FB && window.FB._idToken) {
-            idToken = window.FB._idToken;
         }
         
         if (!idToken) throw new Error('인증 토큰이 없습니다. 다시 로그인 해주세요.');

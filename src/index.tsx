@@ -1255,7 +1255,12 @@ async function fsPatch(path: string, fields: any, token: string) {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: firestoreFields })
   })
-  return res.ok ? await res.json() : null
+  
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data.error?.message || 'Firestore PATCH failed')
+  }
+  return data
 }
 
 
