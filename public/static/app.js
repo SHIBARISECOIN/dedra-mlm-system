@@ -3239,9 +3239,27 @@ window.showScreen = function showScreen(name) {
   else if (name === 'main') document.getElementById('mainApp').classList.remove('hidden');
 }
 
+
+window.confirmGameWarning = function() {
+  sessionStorage.setItem('gameWarningAgreed', 'true');
+  const modal = document.getElementById('gameWarningModal');
+  if (modal) modal.classList.add('hidden');
+  window.switchPage('play');
+};
+
 // ===== 탭 전환 =====
 
 window.switchPage = function(page) {
+  if (page === 'play') {
+    const agreed = sessionStorage.getItem('gameWarningAgreed');
+    if (!agreed) {
+      // 만약 동의를 아직 안했다면 팝업을 띄우고 페이지 전환 중단
+      const modal = document.getElementById('gameWarningModal');
+      if (modal) modal.classList.remove('hidden');
+      return;
+    }
+  }
+
   try {
     try { sessionStorage.setItem('lastPage', page); } catch(e) { console.error("Error fetching wallet/investment:", e); }
     
