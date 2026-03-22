@@ -9303,12 +9303,23 @@ window.confirmAutoCompound = function() {
 
 window.updateUserAutoCompound = async function(isAcChecked) {
   try {
+    let idToken = window.FB && window.FB._idToken ? window.FB._idToken : '';
+    let currentUser = null;
+    if (typeof window.FB !== 'undefined' && window.FB.auth && window.FB.auth.currentUser) {
+        currentUser = window.FB.auth.currentUser;
+    } else if (typeof window.auth !== 'undefined' && window.auth.currentUser) {
+        currentUser = window.auth.currentUser;
+    } else if (typeof auth !== 'undefined' && auth.currentUser) {
+        currentUser = auth.currentUser;
+    }
+    if (currentUser) idToken = await currentUser.getIdToken();
+
     if (window.FB._useRestAPI) {
       const res = await fetch('/api/user/update-profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + window.FB._idToken
+          'Authorization': 'Bearer ' + idToken
         },
         body: JSON.stringify({ autoCompound: isAcChecked })
       });
