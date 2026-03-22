@@ -1705,17 +1705,17 @@
 <!-- 지갑 등록 모달 -->
 
 <!-- 게임 경고 모달 -->
-<div id="gameWarningModal" class="modal hidden">
+<div id="gameWarningModal" class="modal center hidden">
   <div class="modal-overlay" onclick="closeModal('gameWarningModal')"></div>
-  <div class="modal-content" style="max-width: 320px; padding: 24px; text-align: center;">
-    <div style="font-size: 32px; margin-bottom: 16px;">⚠️</div>
-    <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 12px; letter-spacing: -0.5px;">게임 입장 안내</h3>
-    <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px; word-break: keep-all;">
+  <div class="modal-sheet" style="padding: 24px; text-align: center;">
+    <div style="font-size: 36px; margin-bottom: 16px;">⚠️</div>
+    <h3 style="font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 14px; letter-spacing: -0.5px;">게임 입장 안내</h3>
+    <p style="font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 28px; word-break: keep-all; padding: 0 10px;">
       게임 베팅 시 회원님의 실제 <b>보너스 잔액(USDT)</b>이 차감 및 연동됩니다.<br><br>
       본 게임 결과에 따른 수익과 손실은 온전히 본인에게 귀속됨을 확인하며, 이에 동의하십니까?
     </p>
-    <div style="display: flex; gap: 12px;">
-      <button onclick="closeModal('gameWarningModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: rgba(255,255,255,0.05); color: #fff; border: none;">취소</button>
+    <div style="display: flex; gap: 12px; margin-top: 10px;">
+      <button onclick="closeModal('gameWarningModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: var(--bg3); color: var(--text); border: 1px solid var(--border);">취소</button>
       <button onclick="window.confirmGameWarning()" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">동의 및 입장</button>
     </div>
   </div>
