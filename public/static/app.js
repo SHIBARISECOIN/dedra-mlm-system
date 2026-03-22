@@ -9544,7 +9544,7 @@ window.loadUserPodcasts = async function() {
     const data = await res.json();
     
     if (!data.success || !data.data || data.data.length === 0) {
-      wrap.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text2); font-size:13px; background:var(--bg2); border-radius:12px;">등록된 팟캐스트가 없습니다.</div>`;
+      wrap.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text2); font-size:13px; background:var(--bg2); border-radius:12px;">등록된 콘텐츠(음성·영상)가 없습니다.</div>`;
       return;
     }
     
