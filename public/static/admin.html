@@ -15475,7 +15475,19 @@ window.uploadPodcast = async function() {
     formData.append('description', desc);
     
     // auth should be globally available or we use window.FB.auth
-    const token = await (window.FB ? window.FB.auth.currentUser.getIdToken() : window.auth.currentUser.getIdToken());
+    let token = '';
+    try {
+        const authObj = window.FB?.auth || window.auth || null;
+        if (authObj && authObj.currentUser) {
+            token = await authObj.currentUser.getIdToken();
+        } else if (currentAdmin && currentAdmin.getIdToken) {
+            token = await currentAdmin.getIdToken();
+        } else {
+            throw new Error('인증 정보를 찾을 수 없습니다.');
+        }
+    } catch(e) {
+        throw new Error('관리자 인증 세션이 만료되었거나 찾을 수 없습니다. 다시 로그인해주세요.');
+    }
     
     const res = await fetch('/api/admin/podcast/upload', {
       method: 'POST',
@@ -15515,7 +15527,15 @@ window.deletePodcast = async function(docId, fileKey) {
   if (!confirm('정말 삭제하시겠습니까? (파일과 DB 모두 삭제)')) return;
   
   try {
-    const token = await (window.FB ? window.FB.auth.currentUser.getIdToken() : window.auth.currentUser.getIdToken());
+    let token = '';
+    const authObj = window.FB?.auth || window.auth || null;
+    if (authObj && authObj.currentUser) {
+        token = await authObj.currentUser.getIdToken();
+    } else if (currentAdmin && currentAdmin.getIdToken) {
+        token = await currentAdmin.getIdToken();
+    } else {
+        throw new Error('인증 정보를 찾을 수 없습니다.');
+    }
     const res = await fetch(`/api/admin/podcast/${fileKey}?docId=${docId}`, {
       method: 'DELETE',
       headers: {
