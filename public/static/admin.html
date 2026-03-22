@@ -7533,11 +7533,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             try {
                 // 알림 문서 생성
-                const fbModule = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
-                const collection = fbModule.collection;
-                const addDoc = fbModule.addDoc;
-                const serverTimestamp = fbModule.serverTimestamp;
-                
                 const notiData = {
                     userId: currentMember.uid,
                     title: title,
@@ -7552,7 +7547,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fcmPending: type === 'push' ? true : false,
                     createdAt: serverTimestamp()
                 };
-                await addDoc(collection(window.db, 'notifications'), notiData);
+                await addDoc(collection(db, 'notifications'), notiData);
                 
                 // FCM 푸시 발송 (push 타입인 경우만)
                 if (type === 'push') {

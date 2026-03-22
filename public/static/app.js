@@ -2889,7 +2889,7 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
 
   // 게임 잔액: bonusBalance(USDT) ÷ ddraPrice → DDRA 단위
   gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
-  setEl('gameBalanceUsd', '≈ $' + fmt(bonus) + ' USDT');
+  setEl('gameBalanceUsd', '≈ $' + fmt(bonus));
 
   // 출금 모달 DDRA 환산 업데이트
   if (typeof updateWithdrawDdraCalc === "function") updateWithdrawDdraCalc();
@@ -3552,10 +3552,10 @@ function updateWalletUI() {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     const bonus = walletData.bonusBalance || 0;
     const bonusDdra = bonus / (deedraPrice || 0.5);
-    setEl('moreWalletUsdt', privacyFmt(fmt(walletData.usdtBalance || 0), '', ' USDT'));
+    setEl('moreWalletUsdt', privacyFmt(fmt(walletData.usdtBalance || 0), '', ''));
     // 수익잔액(bonusBalance)을 DDRA로 표시
     setEl('moreWalletBonus', privacyFmt(fmt(bonusDdra), '', ' DDRA'));
-    setEl('moreWalletBonusDdra', privacyFmt(fmt(bonus), '≈ $', ' USDT'));
+    setEl('moreWalletBonusDdra', privacyFmt(fmt(bonus), '≈ $', ''));
     // dedraBalance(게임전용)는 내부적으로만 유지
     setEl('moreWalletDedra', privacyFmt(fmt(walletData.dedraBalance || 0), '', ' DDRA'));
     const dedraUsd = (walletData.dedraBalance || 0) * deedraPrice;
@@ -3642,12 +3642,12 @@ function updateHomeUI() {
   console.log("updateHomeUI values: total=", total, "lockedUsdt=", lockedUsdt, "usdt=", usdt, "bonus=", bonus);
   
   // 강제로 즉시 텍스트도 설정 (애니메이션이 안 돌 경우를 대비)
-  setEl('totalAsset', privacyFmt(fmt(total), '', ' USDT'));
+  setEl('totalAsset', privacyFmt(fmt(total), '', ''));
   setEl('splitUsdt', privacyFmt(fmt(lockedUsdt), '', ''));
   setEl('splitUsdtBalance', privacyFmt(fmt(usdt), '', ''));
   
   if (document.getElementById('totalAsset')) {
-    const el = document.getElementById('totalAsset'); const start = parseFloat(el.getAttribute('data-last')) || 0; el.setAttribute('data-last', total); window.animateValue(el, start, total, 800, (v) => privacyFmt(fmt(v), '', ' USDT'));
+    const el = document.getElementById('totalAsset'); const start = parseFloat(el.getAttribute('data-last')) || 0; el.setAttribute('data-last', total); window.animateValue(el, start, total, 800, (v) => privacyFmt(fmt(v), '', ''));
   }
   
   const splitUsdtEl = document.getElementById('splitUsdt');
@@ -3671,9 +3671,9 @@ function updateHomeUI() {
   // 만약 animateValue가 씹힐 경우를 대비해 1초 뒤 한번 더 세팅
   setTimeout(() => {
     const fallbackEl = document.getElementById('splitUsdt');
-    if (fallbackEl) fallbackEl.textContent = privacyFmt(fmt(lockedUsdt), '', ' USDT');
+    if (fallbackEl) fallbackEl.textContent = privacyFmt(fmt(lockedUsdt), '', '');
     const fallbackEl2 = document.getElementById('splitUsdtBalance');
-    if (fallbackEl2) fallbackEl2.textContent = privacyFmt(fmt(usdt), '', ' USDT');
+    if (fallbackEl2) fallbackEl2.textContent = privacyFmt(fmt(usdt), '', '');
   }, 1000);
   // 실시간 환율로 현지 통화 표시 (환율 미로드 시 기본값 사용)
   setEl('totalAssetKrw', privacyFmt('≈ ' + formatLocalCurrency(total)));
@@ -3698,7 +3698,7 @@ function updateHomeUI() {
   // splitBonus: 출금 가능 DDRA = bonusBalance(USDT 수익) ÷ ddraPrice
   // 즉, 달러 기준 수익을 출금 시점의 DDRA 시세로 환산
   const withdrawableDdra = bonus / p;
-  setEl('splitBonusUsdt', privacyFmt(fmt(bonus), '', ' USDT'));
+  setEl('splitBonusUsdt', privacyFmt(fmt(bonus), '', ''));
   setEl('splitBonusDdra', privacyFmt(fmt(withdrawableDdra), '≈ ', ' DDRA'));
   if(window.loadProfitHeatmap) window.loadProfitHeatmap();
 }
@@ -3910,8 +3910,8 @@ function loadMorePage() {
   const bonus = walletData.bonusBalance || 0;
   const dedraUsd = dedra * deedraPrice;
   const bonusDdra = bonus / (deedraPrice || 0.5);
-  setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0) + ' USDT');
-  setEl('moreWalletBonus', privacyFmt(fmt(bonus), '', ' USDT'));  // 수익잔액
+  setEl('moreWalletUsdt', fmt(walletData.usdtBalance || 0));
+  setEl('moreWalletBonus', privacyFmt(fmt(bonus), '', ''));  // 수익잔액
   setEl('moreWalletBonusDdra', privacyFmt(fmt(bonusDdra), '≈ ', ' DDRA'));
   setEl('moreWalletDedra', privacyFmt(fmt(dedra), '', ' DDRA'));
   setEl('moreWalletDedraUsd', '≈ $' + fmt(dedraUsd));
@@ -5568,7 +5568,7 @@ async function loadReferralList() {
       .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
     if (netDirect) netDirect.textContent = refs.length;
-    if (netBonus) netBonus.textContent = fmt(walletData?.totalEarnings || 0) + ' USDT';
+    if (netBonus) netBonus.textContent = fmt(walletData?.totalEarnings || 0);
 
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('rankReferralCount', refs.length);
