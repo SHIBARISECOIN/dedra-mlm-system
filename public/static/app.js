@@ -2368,7 +2368,7 @@ window.togglePrivacy = function() {
     else pToggle.classList.remove('on');
   }
   
-  if (window.walletData) {
+  if (walletData) {
     // try different UI refresh functions
     if (typeof updateHomeUI === 'function') updateHomeUI();
     else if (typeof updateWalletUI === 'function') updateWalletUI();
@@ -2652,7 +2652,9 @@ async function initApp() {
         const newIdx = Math.max(0, rankOrder.indexOf(newRank));
         
         if (newIdx > lastIdx) {
-          triggerRankUpAnimation(newRank);
+          if (typeof triggerRankUpAnimation === 'function') {
+            triggerRankUpAnimation(newRank);
+          }
           localStorage.setItem(storageKey, newRank);
         } else if (newIdx < lastIdx) {
           // 강등되거나 초기화된 경우 동기화
@@ -9049,9 +9051,9 @@ window.addEventListener('DOMContentLoaded', () => {
             localStorage.removeItem('saved_action');
         }
         
-        if (action === 'deposit' && window.currentUser) {
+        if (action === 'deposit' && currentUser) {
             if (typeof showDepositModal === 'function') showDepositModal();
-        } else if (action === 'withdraw' && window.currentUser) {
+        } else if (action === 'withdraw' && currentUser) {
             if (typeof showWithdrawModal === 'function') showWithdrawModal();
         }
     }, 1500);
@@ -9265,7 +9267,7 @@ window.updateAutoCompoundUI = function(isAcChecked) {
 };
 
 window.toggleAutoCompound = function(el) {
-  if (!window.userData) {
+  if (!userData) {
     el.checked = !el.checked;
     return;
   }
@@ -9334,7 +9336,7 @@ window.updateUserAutoCompound = async function(isAcChecked) {
       throw new Error(data.error || 'API request failed');
     }
 
-    window.userData.autoCompound = isAcChecked;
+    if (userData) userData.autoCompound = isAcChecked;
     updateAutoCompoundUI(isAcChecked);
     showToast(isAcChecked ? '자동 복리가 활성화되었습니다.' : '자동 복리가 해제되었습니다.', 'success');
   } catch (err) {
