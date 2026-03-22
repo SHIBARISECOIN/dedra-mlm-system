@@ -1288,7 +1288,7 @@
               <button onclick="document.getElementById('txHistoryDate').value=''; loadTxHistory()" style="background:var(--bg2); border:1px solid var(--border); color:var(--text2); padding:4px 10px; border-radius:6px; font-size:12px;">전체 기간 보기</button>
             </div>
 
-            <div id="txHistoryList" class="tx-list">
+            <div id="txHistoryList" class="tx-list" style="max-height: 420px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
               <div class="skeleton-item"></div>
               <div class="skeleton-item"></div>
             </div>

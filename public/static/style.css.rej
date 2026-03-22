@@ -1,0 +1,11 @@
+--- public/static/style.css
++++ public/static/style.css
+@@ -800,7 +800,7 @@
+ 
+ /* ===== 공통 내역 리스트 ===== */
+ .tx-section { margin-top: 24px; }
+-.tx-list { display: flex; flex-direction: column; gap: 0px; margin-bottom: 16px; max-height: none; overflow-y: visible; }
++.tx-list { display: flex; flex-direction: column; gap: 0px; margin-bottom: 16px; }
+ .tx-list::-webkit-scrollbar { width: 4px; }
+ .tx-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+ 

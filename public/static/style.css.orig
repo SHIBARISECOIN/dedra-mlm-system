@@ -800,7 +800,7 @@ body {
 .pin-badge { display: inline-block; background: var(--red); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
 
 /* ===== 거래 내역 ===== */
-.tx-list { display: flex; flex-direction: column; gap: 0px; margin-bottom: 16px;  }
+.tx-list { display: flex; flex-direction: column; gap: 0px; margin-bottom: 16px; max-height: none; overflow-y: visible; }
 .tx-list::-webkit-scrollbar { width: 4px; }
 .tx-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
