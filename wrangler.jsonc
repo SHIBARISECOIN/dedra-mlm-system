@@ -5,5 +5,11 @@
   "pages_build_output_dir": "./dist",
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PODCAST_BUCKET",
+      "bucket_name": "deedra-podcast"
+    }
   ]
 }

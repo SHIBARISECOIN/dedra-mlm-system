@@ -167,7 +167,6 @@ app.post('/api/admin/rollback-settlement', async (c) => {
     let bonuses = [];
     let pageToken = null;
     do {
-      const qUrl = `${FIRESTORE_BASE}/bonuses?pageSize=1000${pageToken ? '&pageToken='+pageToken : ''}`;
       const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
       const data = await res.json();
       if (data.documents) {
@@ -198,7 +197,6 @@ app.post('/api/admin/rollback-settlement', async (c) => {
     let users = [];
     let uPageToken = null;
     do {
-      const qUrl = `${FIRESTORE_BASE}/users?pageSize=1000${uPageToken ? '&pageToken='+uPageToken : ''}`;
       const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
       const data = await res.json();
       if (data.documents) {
@@ -272,7 +270,6 @@ app.post('/api/admin/rollback-settlement', async (c) => {
     let wallets = [];
     let wPageToken = null;
     do {
-      const qUrl = `${FIRESTORE_BASE}/wallets?pageSize=1000${wPageToken ? '&pageToken='+wPageToken : ''}`;
       const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
       const data = await res.json();
       if (data.documents) {
@@ -2191,7 +2188,6 @@ app.post('/api/solana/check-deposits', async (c) => {
       const pendingTx = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'pending' && t.type === 'deposit')
       
       let matchedUser = null;
-      let targetTxId = `sol_${txHash.slice(0, 20)}`;
       let isUpdate = false;
       
       if (pendingTx) {
@@ -2777,7 +2773,7 @@ app.get('/api/admin/withdrawal-analysis/:userId', async (c) => {
     
     txAsSender.forEach(t => {
       const amt = t.amountUsdt || t.amount || 0;
-      if (t.type === 'withdrawal' && t.status !== 'rejected') {
+      if (t.type === 'withdrawal' && t.status !== 'rejected' && t.status !== 'failed') {
         if (t.status === 'pending') pendingWithdrawals++;
         totalWithdrawal += amt;
       }
@@ -3648,6 +3644,24 @@ async function runSettle(c: any, overrideDate?: string | null) {
           continue;
         }
 
+        // [수정됨] 1대 추천인 매칭 보너스: 하위 파트너와 동직급이거나 하위 파트너가 직급이 더 높을 때 1대 스폰서에게만 1% 지급
+        if (sponsor.id === member.parent_member_id && sponsor.rank_level <= member.rank_level && sponsor.rank_level > 0) {
+          let matchingAmt = member.total_allowance * (config.override / 100);
+          if (matchingAmt > 0) {
+            sponsor.rank_bonus += matchingAmt;
+            sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
+            let ws = walletUpdates.get(sponsor.id);
+            if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
+            ws.bonusBalanceToAdd += matchingAmt;
+            ws.totalEarningsToAdd += matchingAmt;
+            details.rankMatching += matchingAmt;
+            totalPaid += matchingAmt;
+            bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_matching', amount: Math.round(matchingAmt / dedraRate * 1e8) / 1e8, amountUsdt: matchingAmt, reason: `1대 직급 매칭 수당 ${config.override}% (기준: ${member.name} 총수당)`, level: 0 });
+          }
+          // 동급이거나 높으면 여기서 롤업 종료! (더 이상 상위로 안 올라감)
+          break;
+        }
+
         if (config.rankGapMode === 'gap') {
           // 1. 차액 롤업 방식 (추천)
           if (sponsor.rank_level > pathMaxRank) {
@@ -3665,19 +3679,6 @@ async function runSettle(c: any, overrideDate?: string | null) {
               bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_bonus', amount: Math.round(rollupAmt / dedraRate * 1e8) / 1e8, amountUsdt: rollupAmt, reason: `직급 수당 롤업 ${rankDiff * config.rankGap}% (기준: ${member.name})`, level: 0 });
             }
             pathMaxRank = sponsor.rank_level;
-          } else if (sponsor.rank_level === pathMaxRank && pathMaxRank === member.rank_level && sponsor.rank_level > 0) {
-            let matchingAmt = member.total_allowance * (config.override / 100);
-            if (matchingAmt > 0) {
-              sponsor.rank_bonus += matchingAmt;
-              sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
-              let ws = walletUpdates.get(sponsor.id);
-              if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
-              ws.bonusBalanceToAdd += matchingAmt;
-              ws.totalEarningsToAdd += matchingAmt;
-              details.rankMatching += matchingAmt;
-              totalPaid += matchingAmt;
-              bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_matching', amount: Math.round(matchingAmt / dedraRate * 1e8) / 1e8, amountUsdt: matchingAmt, reason: `직급 매칭 수당 ${config.override}% (기준: ${member.name} 총수당)`, level: 0 });
-            }
           }
           // break 제거: 상위에 더 높은 직급이 있을 수 있으므로 계속 탐색
         } else {
@@ -3700,19 +3701,6 @@ async function runSettle(c: any, overrideDate?: string | null) {
                 details.rankRollup += rollupAmt;
                 totalPaid += rollupAmt;
                 bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_bonus', amount: Math.round(rollupAmt / dedraRate * 1e8) / 1e8, amountUsdt: rollupAmt, reason: `직급 수당 중복지급 ${rankDiff * config.rankGap}% (기준: ${member.name})`, level: 0 });
-              }
-            } else if (sponsor.rank_level === member.rank_level && sponsor.rank_level > 0) {
-              let matchingAmt = member.total_allowance * (config.override / 100);
-              if (matchingAmt > 0) {
-                sponsor.rank_bonus += matchingAmt;
-                sponsor.total_allowance = sponsor.recommend_bonus + sponsor.rank_bonus;
-                let ws = walletUpdates.get(sponsor.id);
-                if (!ws) { ws = { bonusBalanceToAdd:0, totalInvestToAdd:0, totalEarningsToAdd:0, currentBonusBalance:0, currentTotalInvest:0, currentTotalEarnings:0 }; walletUpdates.set(sponsor.id, ws); }
-                ws.bonusBalanceToAdd += matchingAmt;
-                ws.totalEarningsToAdd += matchingAmt;
-                details.rankMatching += matchingAmt;
-                totalPaid += matchingAmt;
-                bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_matching', amount: Math.round(matchingAmt / dedraRate * 1e8) / 1e8, amountUsdt: matchingAmt, reason: `직급 매칭 수당 ${config.override}% (기준: ${member.name} 총수당)`, level: 0 });
               }
             }
           }
@@ -4118,6 +4106,156 @@ app.get('/api/upbit-ticker', async (c) => {
     const markets = c.req.query('markets');
     if (markets && tickerCache[markets]) return c.json(tickerCache[markets]);
     return c.json([]);
+  }
+});
+
+
+// ----- 팟캐스트 R2 라우트 -----
+// ----- 팟캐스트 조회 API (Firestore Rules 우회) -----
+app.get('/api/podcasts', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const res = await fsQuery('podcasts', adminToken, [], 100);
+    // Sort by createdAt desc
+    res.sort((a: any, b: any) => {
+      const ta = new Date(a.createdAt || 0).getTime();
+      const tb = new Date(b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+    return c.json({ success: true, data: res });
+  } catch(error: any) {
+    console.error('get podcasts err', error);
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+app.post('/api/admin/podcast/upload', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    
+    const body = await c.req.parseBody();
+    const file = body['file'];
+    const title = body['title'] || '';
+    const description = body['description'] || '';
+    
+    if (!file) {
+      return c.json({ error: 'No file uploaded' }, 400);
+    }
+    
+    const { env } = c as any;
+    if (!env.PODCAST_BUCKET) {
+      return c.json({ error: 'R2 Bucket not configured' }, 500);
+    }
+    
+    // @ts-ignore
+    const ext = file.name ? file.name.split('.').pop() : 'mp3';
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const key = `podcast_${timestamp}_${randomStr}.${ext}`;
+    
+    // @ts-ignore
+    await env.PODCAST_BUCKET.put(key, await file.arrayBuffer(), {
+      httpMetadata: {
+        // @ts-ignore
+        contentType: file.type || 'audio/mpeg'
+      }
+    });
+    
+    const audioUrl = `/api/podcast/audio/${key}`;
+    
+    // DB 저장
+    const adminToken = await getAdminToken();
+    const docData = {
+      title,
+      description,
+      fileKey: key,
+      audioUrl: audioUrl,
+      // @ts-ignore
+      fileName: file.name || '',
+      // @ts-ignore
+      fileSize: file.size || 0,
+      createdAt: new Date()
+    };
+    
+    const firestoreFields: any = {};
+    for (const [k, v] of Object.entries(docData)) {
+      firestoreFields[k] = toFirestoreValue(v);
+    }
+    
+    const docId = crypto.randomUUID().replace(/-/g, '');
+    await fetch(`${FIRESTORE_BASE}/podcasts?documentId=${docId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: firestoreFields })
+    });
+    
+    return c.json({ success: true, key, audioUrl, docId });
+  } catch (error: any) {
+    console.error('Podcast upload error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+    
+
+
+app.delete('/api/admin/podcast/:key', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    
+    const key = c.req.param('key');
+    const docId = c.req.query('docId');
+    const { env } = c as any;
+    
+    if (env.PODCAST_BUCKET) {
+      await env.PODCAST_BUCKET.delete(key);
+    }
+    
+    if (docId) {
+      const adminToken = await getAdminToken();
+      await fetch(`${FIRESTORE_BASE}/podcasts/${docId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      });
+    }
+    
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Podcast delete error:', error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+app.get('/api/podcast/audio/:key', async (c) => {
+  try {
+    const key = c.req.param('key');
+    const { env } = c as any;
+    
+    if (!env.PODCAST_BUCKET) {
+      return c.text('Not configured', 500);
+    }
+    
+    const object = await env.PODCAST_BUCKET.get(key);
+    
+    if (!object) {
+      return c.text('Not found', 404);
+    }
+    
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=31536000'); // 캐싱 적용
+    // range 헤더가 있으면 206 리턴 지원 여부는 CF R2가 어느정도 지원하는지...
+    // 기본적으로 stream body 반환시 워커에서 통과됨
+    
+    return new Response(object.body, {
+      headers
+    });
+  } catch (error: any) {
+    return c.text('Error', 500);
   }
 });
 

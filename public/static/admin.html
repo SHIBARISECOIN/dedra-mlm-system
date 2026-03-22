@@ -1080,6 +1080,7 @@ canvas{width:100% !important;}
     <div class="sidebar-section">소통·지원</div>
     <div class="menu-item" data-page="notices"><span class="menu-icon">📢</span>공지사항</div>
     <div class="menu-item" data-page="news"><span class="menu-icon">📰</span>뉴스</div>
+    <div class="menu-item" data-page="podcast"><span class="menu-icon">🎙️</span>팟캐스트</div>
     <div class="menu-item" data-page="broadcast"><span class="menu-icon">📣</span>푸시 발송</div>
     <div class="menu-item" data-page="tickets" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💬</span>1:1 문의</div> <span id="badge-tickets" style="background:var(--warning);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
 
@@ -1689,6 +1690,29 @@ canvas{width:100% !important;}
 
       <!-- 목록 -->
       <div id="newsWrap"></div>
+    </div>
+    <!-- ══════════════════════════════
+         팟캐스트 관리
+    ══════════════════════════════ -->
+    <div id="podcastPage" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="page-title" style="margin-bottom:4px;">🎙️ 팟캐스트 관리</div>
+          <div style="font-size:13px;color:#64748b;">Cloudflare R2를 사용해 음성 파일을 업로드하고 관리합니다.</div>
+        </div>
+        <button class="btn btn-primary" onclick="document.getElementById('podcastModal').style.display='flex'" style="display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:14px;">
+          <span style="font-size:18px;">⬆️</span> 음성 업로드
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="toolbar" style="justify-content:flex-end;">
+          <button class="btn btn-gray btn-sm" onclick="window.loadPodcasts()">🔄 새로고침</button>
+        </div>
+        <div id="podcastWrap">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════
@@ -4125,6 +4149,10 @@ canvas{width:100% !important;}
                   <input type="text" class="mfield-input" id="me_referredBy" placeholder="상위 회원 ID">
                 </div>
                 <div class="mfield" style="grid-column:span 2;">
+                  <label class="mfield-label">지갑 주소 (Solana)</label>
+                  <input type="text" class="mfield-input" id="me_solanaWallet" placeholder="회원 지갑 주소">
+                </div>
+                <div class="mfield" style="grid-column:span 2;">
                   <label class="mfield-label">관리자 메모</label>
                   <textarea class="mfield-input textarea" id="me_memo" placeholder="내부 메모 (회원에게 노출되지 않음)"></textarea>
                 </div>
@@ -4384,12 +4412,52 @@ canvas{width:100% !important;}
           style="padding:10px 20px;border-radius:10px;">
           닫기
         </button>
+        <button id="sendPersonalPushBtn" onclick="openPersonalPushModal()" style="padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(99,102,241,0.3);transition:all 0.2s;">
+          📣 개별 푸시 발송
+        </button>
         <button class="msave-btn" id="saveMemberInfoBtn">
           💾 변경사항 저장
         </button>
       </div>
 
     </div><!-- /member-modal-wrap -->
+  </div>
+</div>
+
+<!-- 개별 푸시 발송 모달 -->
+<div id="personalPushModal" class="modal">
+  <div class="modal-overlay" onclick="closeModal('personalPushModal')"></div>
+  <div class="modal-box" style="max-width:500px; padding:24px;">
+    <div style="font-size:18px; font-weight:800; color:#1e293b; margin-bottom:16px;">
+      📣 개별 메시지/푸시 발송
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; color:#64748b; margin-bottom:4px;">수신자</div>
+      <div id="personalPushTarget" style="font-weight:700; color:#3b82f6; font-size:15px;">-</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:6px;">메시지 종류</label>
+      <div style="display:flex; gap:10px;">
+        <label style="flex:1; display:flex; align-items:center; gap:6px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+          <input type="radio" name="pp_type" value="push" checked> 🔔 푸시 (앱 알림)
+        </label>
+        <label style="flex:1; display:flex; align-items:center; gap:6px; cursor:pointer; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+          <input type="radio" name="pp_type" value="inbox"> 📥 인박스 (알림센터만)
+        </label>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:6px;">제목</label>
+      <input type="text" id="pp_title" placeholder="알림 제목을 입력하세요" style="width:100%; padding:12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:6px;">내용</label>
+      <textarea id="pp_message" rows="4" placeholder="알림 내용을 입력하세요" style="width:100%; padding:12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; outline:none; resize:vertical; box-sizing:border-box;"></textarea>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn btn-gray" onclick="closeModal('personalPushModal')" style="padding:10px 20px; border-radius:8px;">취소</button>
+      <button id="sendPersonalPushConfirmBtn" style="padding:10px 20px; border-radius:8px; border:none; background:#3b82f6; color:#fff; font-weight:700; cursor:pointer;">발송하기</button>
+    </div>
   </div>
 </div>
 
@@ -4589,6 +4657,63 @@ canvas{width:100% !important;}
 <!-- ══════════════════════════════════════════════════════════
      모달: 뉴스 작성/수정 (Premium Editor)
 ══════════════════════════════════════════════════════════ -->
+<!-- 팟캐스트 업로드 모달 (디자인 개선) -->
+<div id="podcastModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center; padding:20px; position:fixed; inset:0; background:rgba(15,15,35,.75); backdrop-filter:blur(6px); z-index:9999;" onclick="if(event.target===this) this.style.display='none'">
+  <div class="modal-content" style="max-width:540px; width:100%; max-height:90vh; overflow-y:auto; padding:0; background:#fff; border-radius:24px; box-shadow:0 24px 60px rgba(0,0,0,.3); border:1px solid rgba(255,255,255,0.1);">
+    
+    <!-- 모달 헤더 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:24px 28px; border-bottom:1px solid #f1f5f9; position:sticky; top:0; background:#fff; z-index:10; border-radius:24px 24px 0 0;">
+      <h3 style="margin:0; font-size:20px; font-weight:800; display:flex; align-items:center; gap:12px; color:#1e293b;">
+        <span style="display:flex; align-items:center; justify-content:center; width:40px; height:40px; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border-radius:12px; font-size:20px; box-shadow:0 4px 10px rgba(99,102,241,0.3);">🎙️</span>
+        팟캐스트 업로드
+      </h3>
+      <button onclick="document.getElementById('podcastModal').style.display='none'" style="background:#f8fafc; border:none; font-size:20px; color:#64748b; cursor:pointer; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b';" onmouseout="this.style.background='#f8fafc'; this.style.color='#64748b';">✕</button>
+    </div>
+    
+    <!-- 모달 본문 -->
+    <div style="padding:28px;">
+      <div id="podcastAlert" class="inline-alert" style="display:none; margin-bottom:20px; border-radius:12px; font-weight:600;"></div>
+      
+      <!-- 에피소드 제목 -->
+      <div style="margin-bottom:22px;">
+        <label style="display:block; font-size:14px; font-weight:700; color:#334155; margin-bottom:8px;">에피소드 제목 <span style="color:#ef4444;">*</span></label>
+        <input type="text" id="pcTitle" placeholder="예: [1화] 비트코인 10만불 시대, 다음 전략은?" style="width:100%; padding:16px 18px; border:2px solid #e2e8f0; border-radius:14px; font-size:15px; font-weight:600; color:#1e293b; outline:none; transition:all 0.2s; box-sizing:border-box; background:#f8fafc;" onfocus="this.style.borderColor='#8b5cf6'; this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'">
+      </div>
+      
+      <!-- 내용 요약 -->
+      <div style="margin-bottom:22px;">
+        <label style="display:block; font-size:14px; font-weight:700; color:#334155; margin-bottom:8px;">설명 / 내용</label>
+        <textarea id="pcDesc" rows="4" placeholder="청취자들에게 보여줄 팟캐스트의 간략한 내용을 적어주세요..." style="width:100%; padding:16px 18px; border:2px solid #e2e8f0; border-radius:14px; font-size:14px; color:#334155; outline:none; transition:all 0.2s; resize:vertical; box-sizing:border-box; background:#f8fafc; line-height:1.5;" onfocus="this.style.borderColor='#8b5cf6'; this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'"></textarea>
+      </div>
+
+      <!-- 파일 업로드 영역 -->
+      <div style="margin-bottom:30px;">
+        <label style="display:flex; justify-content:space-between; align-items:center; font-size:14px; font-weight:700; color:#334155; margin-bottom:8px;">
+          <span>음성 파일 첨부 <span style="color:#ef4444;">*</span></span>
+          <span style="font-size:12px; font-weight:500; color:#94a3b8; background:#f1f5f9; padding:4px 8px; border-radius:6px;">최대 100MB 권장</span>
+        </label>
+        
+        <div style="position:relative; border:2px dashed #cbd5e1; border-radius:16px; padding:36px 20px; text-align:center; background:#f8fafc; transition:all 0.2s; cursor:pointer;" onmouseover="this.style.borderColor='#a855f7'; this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'" onclick="document.getElementById('pcFile').click()">
+          <div style="font-size:40px; margin-bottom:12px;">📁</div>
+          <div style="font-size:16px; font-weight:700; color:#1e293b; margin-bottom:6px;">오디오 파일을 여기로 드래그하거나 클릭</div>
+          <div style="font-size:13px; color:#64748b;">지원 포맷: .mp3, .m4a, .wav (R2 스토리지 저장)</div>
+          
+          <input type="file" id="pcFile" accept="audio/*" style="display:none;" onchange="if(this.files[0]) { document.getElementById('pcFileName').innerHTML = '<div style=\'display:inline-flex; align-items:center; gap:8px; background:#dcfce7; color:#166534; padding:8px 16px; border-radius:20px; font-weight:700; font-size:14px; box-shadow:0 2px 8px rgba(22,101,52,0.1);\'><span style=\'font-size:16px;\'>🎵</span> ' + this.files[0].name + ' <span style=\'opacity:0.7; font-size:12px;\'>(' + (this.files[0].size/1024/1024).toFixed(2) + 'MB)</span></div>'; } else { document.getElementById('pcFileName').innerHTML = ''; }">
+        </div>
+        <div id="pcFileName" style="margin-top:16px; text-align:center; min-height:20px;"></div>
+      </div>
+
+      <!-- 하단 버튼 -->
+      <div style="display:flex; gap:12px; padding-top:24px; border-top:1px solid #f1f5f9;">
+        <button onclick="document.getElementById('podcastModal').style.display='none'" style="flex:1; padding:16px; background:#f1f5f9; color:#475569; border:none; border-radius:14px; font-size:15px; font-weight:700; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">취소</button>
+        <button id="podcastUploadBtn" onclick="uploadPodcast()" style="flex:2; padding:16px; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border:none; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 6px 16px rgba(139,92,246,0.3); transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(139,92,246,0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 16px rgba(139,92,246,0.3)';">
+          <span style="font-size:18px;">🚀</span> 파일 업로드 및 퍼블리싱
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 <div id="newsModal" class="modal">
   <div class="modal-box" style="max-width:820px;width:95vw;max-height:92vh;overflow-y:auto;border-radius:20px;padding:0;">
 
@@ -5226,7 +5351,7 @@ async function loadDashboard() {
                     const minAgo = Math.floor((Date.now() - u.lastSeenAt) / 60000);
                     const timeStr = minAgo <= 0 ? '방금 전' : (minAgo + '분 전');
                     htmlStr += `
-                    <div class="activity-item" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="activity-item" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="showMemberDetail('${u.uid}')" title="회원 상세 보기">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <div class="activity-dot green" style="box-shadow: 0 0 6px var(--success);"></div>
                             <div class="activity-text">
@@ -5271,7 +5396,7 @@ async function loadDashboard() {
               <div class="activity-content">
                 <div class="activity-title" style="display:flex; justify-content:space-between;">
                   <span>${formatUserLabel(r.userId, r.userEmail)}</span>
-                  <strong style="color:var(--success);">+${fmtAmt(r.amount)} USDT</strong>
+                  <strong style="color:var(--success);">+${fmt2(r.amount)} USDT</strong>
                 </div>
                 <div class="activity-time">${fmtDate(r.createdAt)}</div>
               </div>
@@ -5290,7 +5415,7 @@ async function loadDashboard() {
               <div class="activity-content">
                 <div class="activity-title" style="display:flex; justify-content:space-between;">
                   <span>${formatUserLabel(r.userId, r.userEmail)}</span>
-                  <strong style="color:var(--danger);">-${fmtAmt(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)} USDT</strong>
+                  <strong style="color:var(--danger);">-${fmt2(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)} USDT</strong>
                 </div>
                 <div class="activity-time">${fmtDate(r.createdAt)}</div>
               </div>
@@ -5358,11 +5483,11 @@ async function loadDashboard() {
                       <div class="activity-content" style="flex:1;">
                         <div class="activity-title" style="display:flex; justify-content:space-between;">
                           <span style="font-size:12px;color:var(--gray);">${formatUserLabel(g.userId, g.userEmail)}</span>
-                          <strong style="color:${resultColor}; font-size:12px;">${resultText} (${fmtAmt(g.betAmount)} DDRA)</strong>
+                          <strong style="color:${resultColor}; font-size:12px;">${resultText} (${fmt2(g.betAmount)} DDRA)</strong>
                         </div>
                         <div class="activity-time" style="display:flex; justify-content:space-between; margin-top:2px;">
                           <span>${fmtDate(g.createdAt)}</span>
-                          <span style="color:var(--gray);">수익: ${isWin ? '+'+fmtAmt(g.profit) : '-'+fmtAmt(g.betAmount)} DDRA</span>
+                          <span style="color:var(--gray);">수익: ${isWin ? '+'+fmt2(g.profit) : '-'+fmt2(g.betAmount)} DDRA</span>
                         </div>
                       </div>
                     </div>`;
@@ -5370,7 +5495,7 @@ async function loadDashboard() {
                 rgEl.innerHTML = html;
                 const dp = document.getElementById('dashGameProfit');
                 if(dp) {
-                    dp.textContent = `(최근 10게임 회사수익: ${totalCompanyProfit > 0 ? '+' : ''}${fmtAmt(totalCompanyProfit)} DDRA)`;
+                    dp.textContent = `(최근 10게임 회사수익: ${totalCompanyProfit > 0 ? '+' : ''}${fmt2(totalCompanyProfit)} DDRA)`;
                     dp.style.color = totalCompanyProfit >= 0 ? 'var(--success)' : 'var(--danger)';
                 }
             }
@@ -5701,7 +5826,8 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
                 (m.name||'').toLowerCase().includes(kw) ||
                 (m.email||'').toLowerCase().includes(kw) ||
                 (m.referralCode||'').toLowerCase().includes(kw) ||
-                (m.username||'').toLowerCase().includes(kw)
+                (m.username||'').toLowerCase().includes(kw) ||
+                (m.solanaWallet||'').toLowerCase().includes(kw)
             );
         }
         if (statusFilter)  members = members.filter(m => m.status === statusFilter);
@@ -7167,6 +7293,7 @@ window.showMemberDetail = async (userId) => {
     document.getElementById('me_country').value      = currentMember.country      || '';
     document.getElementById('me_referralCode').value = currentMember.username || currentMember.referralCode || '';
     document.getElementById('me_referredBy').value   = currentMember.referredBy   || '';
+    document.getElementById('me_solanaWallet').value = currentMember.solanaWallet || '';
     document.getElementById('me_memo').value         = currentMember.adminMemo    || '';
     document.getElementById('me_status').value       = status;
     document.getElementById('rankSelect').value      = rank;
@@ -7365,6 +7492,90 @@ window.showMemberDetail = async (userId) => {
     document.getElementById('memberModal').classList.add('show');
 };
 
+// 개별 푸시 모달 열기
+window.openPersonalPushModal = () => {
+    if (!currentMember) return;
+    const targetEl = document.getElementById('personalPushTarget');
+    if (targetEl) {
+        targetEl.textContent = `${currentMember.name || '이름 없음'} (${currentMember.email || currentMember.uid})`;
+    }
+    document.getElementById('pp_title').value = '';
+    document.getElementById('pp_message').value = '';
+    document.getElementById('personalPushModal').classList.add('show');
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const pushConfirmBtn = document.getElementById('sendPersonalPushConfirmBtn');
+    if (pushConfirmBtn) {
+        pushConfirmBtn.onclick = async () => {
+            if (!currentMember) return;
+            const typeNode = document.querySelector('input[name="pp_type"]:checked');
+            const type = typeNode ? typeNode.value : 'push';
+            const title = document.getElementById('pp_title').value.trim();
+            const message = document.getElementById('pp_message').value.trim();
+            
+            if (!title) return showToast('제목을 입력하세요', 'error');
+            if (!message) return showToast('내용을 입력하세요', 'error');
+            
+            const btn = document.getElementById('sendPersonalPushConfirmBtn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '발송 중...';
+            
+            try {
+                // 알림 문서 생성
+                const fbModule = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+                const collection = fbModule.collection;
+                const addDoc = fbModule.addDoc;
+                const serverTimestamp = fbModule.serverTimestamp;
+                
+                const notiData = {
+                    userId: currentMember.uid,
+                    title: title,
+                    message: message,
+                    originalTitle: title,
+                    originalMessage: message,
+                    lang: 'ko',
+                    type: type === 'push' ? 'push' : 'system',
+                    icon: type === 'push' ? '🔔' : '📥',
+                    color: '#6366f1',
+                    isRead: false,
+                    fcmPending: type === 'push' ? true : false,
+                    createdAt: serverTimestamp()
+                };
+                await addDoc(collection(window.db, 'notifications'), notiData);
+                
+                // FCM 푸시 발송 (push 타입인 경우만)
+                if (type === 'push') {
+                    try {
+                        await fetch('/api/fcm/send', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: currentMember.uid,
+                                title: title,
+                                message: message,
+                                adminUid: typeof currentAdmin !== 'undefined' && currentAdmin ? currentAdmin.uid : 'admin'
+                            })
+                        });
+                    } catch (e) {
+                        console.warn('FCM 즉시 발송 실패 (크론잡이 처리예정):', e);
+                    }
+                }
+                
+                showToast('✅ 개별 메시지/푸시가 성공적으로 발송되었습니다.', 'success');
+                closeModal('personalPushModal');
+            } catch (err) {
+                console.error(err);
+                showToast('❌ 발송 중 오류가 발생했습니다.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        };
+    }
+});
+
 // 거래내역 로드 (탭 전환 시)
 async function loadMemberTxHistory(userId) {
     const wrap = document.getElementById('memberTxHistoryWrap');
@@ -7486,6 +7697,7 @@ function setupEvents() {
             else if (page==='settlements') loadSettlementHistory();
             else if (page==='notices') loadNotices();
             else if (page==='news') loadNews();
+            else if (page==='podcast') window.loadPodcasts();
             else if (page==='gamelogs') { loadGameLogs(); loadGameOddsAdmin(); }
             else if (page==='auditlog') loadAuditLog();
             else if (page==='tickets') loadTickets();
@@ -14377,7 +14589,7 @@ function startGlobalAdminSnapshots() {
                       <div class="activity-content">
                         <div class="activity-title" style="display:flex; justify-content:space-between;">
                           <span>${formatUserLabel(r.userId, r.userEmail)}</span>
-                          <strong style="color:var(--success);">+${fmtAmt(r.amount)} USDT</strong>
+                          <strong style="color:var(--success);">+${fmt2(r.amount)} USDT</strong>
                         </div>
                         <div class="activity-time">${fmtDate(r.createdAt)}</div>
                       </div>
@@ -14411,7 +14623,7 @@ function startGlobalAdminSnapshots() {
                       <div class="activity-content">
                         <div class="activity-title" style="display:flex; justify-content:space-between;">
                           <span>${formatUserLabel(r.userId, r.userEmail)}</span>
-                          <strong style="color:var(--danger);">-${fmtAmt(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)} USDT</strong>
+                          <strong style="color:var(--danger);">-${fmt2(r.amountUsdt !== undefined ? r.amountUsdt : r.amount)} USDT</strong>
                         </div>
                         <div class="activity-time">${fmtDate(r.createdAt)}</div>
                       </div>
@@ -15157,6 +15369,141 @@ window.exportIdReportPDF = function() {
   printWin.document.close();
   setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
 };
+// ==================== 팟캐스트 관리 ====================
+window.loadPodcasts = async function() {
+  const wrap = document.getElementById('podcastWrap');
+  if (!wrap) return;
+  
+  try {
+    const res = await fetch('/api/podcasts');
+    const data = await res.json();
+    
+    if (!data.success || !data.data || data.data.length === 0) {
+      wrap.innerHTML = `<div class="empty-state">등록된 팟캐스트가 없습니다.</div>`;
+      return;
+    }
+    
+    let html = `<table class="data-table">
+      <thead><tr><th>날짜</th><th>제목</th><th>재생</th><th>관리</th></tr></thead>
+      <tbody>`;
+      
+    data.data.forEach(p => {
+      const date = p.createdAt ? new Date(p.createdAt).toLocaleString() : '-';
+      
+      html += `<tr>
+        <td style="font-size:12px;color:var(--gray);">${date}</td>
+        <td style="font-weight:700;">${p.title}</td>
+        <td>
+          <audio controls src="${p.audioUrl}" style="height:32px;"></audio>
+        </td>
+        <td>
+          <button onclick="window.deletePodcast('${p.id}', '${p.fileKey}')" class="btn btn-danger btn-sm">삭제</button>
+        </td>
+      </tr>`;
+    });
+    
+    html += `</tbody></table>`;
+    wrap.innerHTML = html;
+  } catch (error) {
+    console.error(error);
+    wrap.innerHTML = `<div style="color:red;padding:20px;text-align:center;">불러오기 오류: ${error.message}</div>`;
+  }
+};
+
+window.uploadPodcast = async function() {
+  const title = document.getElementById('pcTitle').value.trim();
+  const desc = document.getElementById('pcDesc').value.trim();
+  const fileInput = document.getElementById('pcFile');
+  const alertEl = document.getElementById('podcastAlert');
+  const btn = document.getElementById('podcastUploadBtn');
+  
+  if (!title) {
+    alertEl.innerHTML = '제목을 입력하세요.';
+    alertEl.className = 'inline-alert inline-alert-error show';
+    alertEl.style.display = 'block';
+    return;
+  }
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    alertEl.innerHTML = '음성 파일을 선택하세요.';
+    alertEl.className = 'inline-alert inline-alert-error show';
+    alertEl.style.display = 'block';
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 파일 업로드 및 DB 저장 중...';
+    alertEl.style.display = 'none';
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('description', desc);
+    
+    // auth should be globally available or we use window.FB.auth
+    const token = await (window.FB ? window.FB.auth.currentUser.getIdToken() : window.auth.currentUser.getIdToken());
+    
+    const res = await fetch('/api/admin/podcast/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Upload failed');
+    }
+    
+    document.getElementById('podcastModal').style.display = 'none';
+    document.getElementById('pcTitle').value = '';
+    document.getElementById('pcDesc').value = '';
+    fileInput.value = '';
+    document.getElementById('pcFileName').innerHTML = '';
+    
+    if(window.showToast) window.showToast('팟캐스트가 업로드되었습니다.', 'success');
+    window.loadPodcasts();
+    
+  } catch (err) {
+    console.error(err);
+    alertEl.innerHTML = `업로드 실패: ${err.message}`;
+    alertEl.className = 'inline-alert inline-alert-error show';
+    alertEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span style="font-size:18px;">🚀</span> 파일 업로드 및 퍼블리싱';
+  }
+};
+
+window.deletePodcast = async function(docId, fileKey) {
+  if (!confirm('정말 삭제하시겠습니까? (파일과 DB 모두 삭제)')) return;
+  
+  try {
+    const token = await (window.FB ? window.FB.auth.currentUser.getIdToken() : window.auth.currentUser.getIdToken());
+    const res = await fetch(`/api/admin/podcast/${fileKey}?docId=${docId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.error || 'Delete failed');
+    }
+    
+    if(window.showToast) window.showToast('삭제되었습니다.', 'success');
+    window.loadPodcasts();
+  } catch (err) {
+    console.error(err);
+    alert('삭제 실패: ' + err.message);
+  }
+};
 </script>
 
 
@@ -15285,6 +15632,7 @@ window.exportIdReportPDF = function() {
       ];
       
       try {
+        if(!window.FB) return;
         const { collection, getDocs, updateDoc, doc, db } = window.FB;
         if(!db) return;
         
@@ -15317,6 +15665,7 @@ window.addEventListener('load', () => {
         if(window.sessionStorage.getItem('manualRankDone_100')) return;
         
         try {
+            if(!window.FB) return;
             const { collection, getDocs, updateDoc, doc, db } = window.FB;
             if(!db) return;
             

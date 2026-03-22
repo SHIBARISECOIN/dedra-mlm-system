@@ -571,9 +571,9 @@ export class DedraAPI {
       const tx = txSnap.data();
 
       const batch = writeBatch(db);
-      batch.update(doc(db, 'transactions', txId), {
-        status: 'rejected', rejectedAt: serverTimestamp(), rejectedBy: adminId, rejectReason: reason
-      });
+      // 거부된 출금은 이력에 남기지 않고 삭제 (요청사항 반영)
+      batch.delete(doc(db, 'transactions', txId));
+      
       // bonusBalance 복구 (출금 신청 시 bonusBalance에서 USDT를 차감했으므로 되돌림)
       const usdtAmt = tx.amountUsdt || tx.amount || 0;
       const walletRef = doc(db, 'wallets', tx.userId);

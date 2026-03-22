@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
-  <link rel="stylesheet" href="/static/style.css?v=1773961967763" />
+  <link rel="stylesheet" href="/static/style.css?v=2026032107" />
 
 
 
@@ -1276,7 +1276,7 @@
               <button class="tx-tab" onclick="switchTxTab('roi', this)">FREEZE</button>
               <button class="tx-tab" onclick="switchTxTab('direct_bonus', this)">추천 수당</button>
               <button class="tx-tab" onclick="switchTxTab('rank_bonus', this)">직급 수당</button>
-              <button class="tx-tab" onclick="switchTxTab('rank_matching', this)">추천 매칭</button>
+              <button class="tx-tab" onclick="switchTxTab('rank_matching', this)">직급 매칭</button>
               <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('center_fee', this)" style="display: none;">센터</button>
             </div>
             
@@ -1341,6 +1341,17 @@
               <div class="menu-item" onclick="showTickets()">
                 <div class="menu-item-icon icon-green"><i class="fas fa-headset"></i></div>
                 <span class="menu-item-text" data-i18n="support">1:1 문의</span>
+                <i class="fas fa-chevron-right menu-item-arrow"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- 미디어 -->
+          <div class="menu-section">
+            <div class="menu-list">
+              <div class="menu-item" onclick="switchPage('podcast')">
+                <div class="menu-item-icon" style="color:#8b5cf6;"><i class="fas fa-podcast"></i></div>
+                <span class="menu-item-text">🎙️ DEEDRA 팟캐스트</span>
                 <i class="fas fa-chevron-right menu-item-arrow"></i>
               </div>
             </div>
@@ -1413,6 +1424,25 @@
         </div>
       </div>
 
+      <!-- 팟캐스트 페이지 -->
+      <div id="podcastPage" class="page">
+        <div class="header">
+          <div class="logo">🎙️ 팟캐스트</div>
+        </div>
+        <div class="page-scroll">
+          <div style="padding:16px;">
+            <div style="background:var(--bg2); border-radius:12px; padding:16px; margin-bottom:20px; text-align:center;">
+              <i class="fas fa-headphones" style="font-size:32px; color:#8b5cf6; margin-bottom:10px;"></i>
+              <h3 style="margin:0 0 5px 0; color:var(--text);">DEEDRA 팟캐스트</h3>
+              <p style="margin:0; font-size:12px; color:var(--text2);">최신 소식과 시장 동향을 음성으로 만나보세요</p>
+            </div>
+            <div id="userPodcastList">
+              <div class="skeleton-item"></div>
+            </div>
+          </div>
+          <div style="height:30px;"></div>
+        </div>
+      </div>
     </div><!-- /page-container -->
 
     
@@ -1682,12 +1712,16 @@
       <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">
         본인의 솔라나(Solana) 지갑 주소를 등록해두시면 자동 입금 처리가 더욱 원활해집니다.
       </p>
-      <div class="input-group">
-        <label>솔라나 지갑 주소</label>
-        <input type="text" id="solanaWalletInput" placeholder="솔라나 지갑 주소 입력">
+      <div class="form-group">
+        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px;">
+          <i class="fa-solid fa-wallet" style="color: #8b5cf6;"></i> 솔라나 지갑 주소
+        </label>
+        <input type="text" id="solanaWalletInput" class="form-input" placeholder="Solana 지갑 주소를 붙여넣어주세요" style="font-family: monospace; font-size: 14px; padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none; transition: all 0.2s ease;">
       </div>
-      <div style="margin-top: 20px;">
-        <button id="saveWalletBtn" class="btn btn-primary" onclick="saveWalletAddress()" style="width: 100%;">지갑 주소 저장하기</button>
+      <div style="margin-top: 24px;">
+        <button id="saveWalletBtn" class="btn btn-primary" onclick="saveWalletAddress()" style="width: 100%; padding: 14px; font-weight: 600; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+          <i class="fa-solid fa-check"></i> 지갑 주소 저장하기
+        </button>
       </div>
     </div>
   </div>
@@ -1925,6 +1959,25 @@
   </div>
 </div>
 
+<!-- 알림 상세 모달 -->
+<div id="notiDetailModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('notiDetailModal')"></div>
+  <div class="modal-sheet large">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="notiDetailTitle" style="font-size:18px; line-height:1.4;"></div>
+    <div class="modal-body">
+      <div id="notiDetailDate" style="font-size:12px;color:var(--text3);margin-bottom:16px;"></div>
+      <div id="notiDetailImageWrapper" style="display:none; margin-bottom:16px; text-align:center;">
+        <img id="notiDetailImage" src="" style="max-width:100%; border-radius:12px; max-height:250px; object-fit:contain; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+      </div>
+      <div id="notiDetailBody" style="font-size:16px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:keep-all;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="closeModal('notiDetailModal')" data-i18n="btnClose">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 공지사항 상세 모달 -->
 <div id="announcementDetailModal" class="modal hidden">
   <div class="modal-overlay" onclick="closeModal('announcementDetailModal')"></div>
@@ -1986,7 +2039,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1773917124"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=2026032106"></script>
+<script src="/static/app.js?v=2026032108"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널

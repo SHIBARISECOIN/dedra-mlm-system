@@ -3041,20 +3041,31 @@ body {
   display: flex; gap: 12px; align-items: flex-start;
   padding: 14px 0; border-bottom: 1px solid var(--border);
   transition: background 0.15s;
+  cursor: pointer;
 }
+.noti-item:hover { background: rgba(255,255,255,0.02); }
 .noti-item:last-child { border-bottom: none; }
 .noti-item.unread { background: rgba(99,102,241,0.05); border-radius: 10px; padding: 12px 10px; margin-bottom: 4px; }
 .noti-icon { font-size: 22px; min-width: 32px; text-align: center; margin-top: 2px; }
-.noti-body { flex: 1; }
-.noti-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
-.noti-msg { font-size: 13px; color: var(--text2); line-height: 1.5; margin-bottom: 4px; }
+.noti-body { flex: 1; overflow: hidden; }
+.noti-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.noti-msg { 
+  font-size: 13px; color: var(--text2); line-height: 1.5; margin-bottom: 4px; 
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;
+}
 .noti-date { font-size: 11px; color: var(--text3, #64748b); }
 
 /* ===== 공지사항 상세 ===== */
 .ann-detail-content {
-  font-size: 14px; color: var(--text2); line-height: 1.8;
+  font-size: 14px; color: #111111; line-height: 1.8;
+  background-color: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
   white-space: pre-wrap; word-break: break-word;
-  padding: 8px 0;
+  overflow-x: auto;
+}
+.ann-detail-content * {
+  max-width: 100%;
 }
 
 /* ===== 오늘 수익 배너 (홈 최상단) ===== */

@@ -2695,6 +2695,16 @@ async function initApp() {
     if (sessionStorage.getItem('deedra_force_pw') === '1' || userData?.forcePwChange === true) {
       const modal = document.getElementById('forcePwModal');
       if (modal) modal.style.display = 'flex';
+    } else {
+      // 지갑 주소 미등록 시 로그인 당 1회 팝업
+      if (!sessionStorage.getItem('deedra_wallet_popup_shown') && !userData?.solanaWallet) {
+        sessionStorage.setItem('deedra_wallet_popup_shown', '1');
+        setTimeout(() => {
+            if (typeof window.showWalletRegisterModal === 'function') {
+                window.showWalletRegisterModal();
+            }
+        }, 1200);
+      }
     }
 
 
@@ -3528,6 +3538,7 @@ window.handleLogout = async function() {
   const { signOut, auth } = window.FB;
   await signOut(auth);
   localStorage.removeItem('deedra_session');
+  sessionStorage.removeItem('deedra_wallet_popup_shown');
   currentUser = null; userData = null; walletData = null;
   showScreen('auth');
 };
@@ -4027,9 +4038,9 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
       roi_income: '☀️ 데일리 이자', roi: '☀️ 데일리 이자', daily_roi: '☀️ 데일리 이자', 
       direct_bonus: '👥 추천 수당',
       rank_bonus: '🏆 직급 수당', rank_gap_passthru: '🏆 직급 수당(갭)',
-      rank_equal_or_higher_override_1pct: '🛡️ 추천 매칭(1%)',
-      rank_equal_or_higher_override: '🛡️ 추천 매칭',
-      rank_matching: '🛡️ 추천 매칭',
+      rank_equal_or_higher_override_1pct: '🛡️ 직급 매칭(1%)',
+      rank_equal_or_higher_override: '🛡️ 직급 매칭',
+      rank_matching: '🛡️ 직급 매칭',
       center_fee: '🏢 센터 피'
     };
 
@@ -4039,7 +4050,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
       'invest': '🔒 FREEZE 및 이자',
       'direct_bonus': '👥 추천 수당',
       'rank_bonus': '🏆 직급 수당',
-      'rank_matching': '🛡️ 추천 매칭',
+      'rank_matching': '🛡️ 직급 매칭',
       'center_fee': '🏢 센터 피'
     };
 
@@ -4058,7 +4069,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
                 const rate = item.dailyRate || item.roiPercent || item.dailyRoi || 0.8;
                 details = `만기: ${item.durationDays || 360}일 (${rate}%/일) - ${item.status==='active'?'진행중':'종료'}`;
             } else {
-                details = item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료됨');
+                details = item.status === 'pending' ? '처리중' : (item.status === 'held' ? '보류중' : (item.status === 'rejected' ? '거절됨' : '완료됨'));
             }
         }
         let amtSign = (item.type === 'withdrawal' || item.type === 'invest' && !isBonus) ? '-' : '+';
@@ -4075,8 +4086,8 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
           </div>
           <div>
             <div class="tx-amount ${amtColor}">${amtSign}${fmt(amtValue)} ${currency}</div>
-            <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)')}">
-              ${isBonus ? '완료' : (item.status === 'pending' ? '처리중' : (item.status === 'rejected' ? '거절됨' : '완료'))}
+            <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='held' ? 'var(--orange)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)'))}">
+              ${isBonus ? '완료' : (item.status === 'pending' ? '처리중' : (item.status === 'held' ? '보류중' : (item.status === 'rejected' ? '거절됨' : '완료')))}
             </div>
           </div>
         </div>`;
@@ -5448,7 +5459,7 @@ function updateRankUI() {
         }
       }
       const calculatedBalanced = Math.max(0, curSales - maxLegSales);
-      const curBalanced = userData?.networkBalancedSales || userData?.balancedVolume || calculatedBalanced;
+      const curBalanced = userData?.otherLegSales ?? userData?.networkBalancedSales ?? userData?.balancedVolume ?? calculatedBalanced;
 
       // 필요한 조건들
       const reqSelf     = crit.minSelfInvest || 0;
@@ -7293,8 +7304,9 @@ window.showNotifications = async function() {
       return;
     }
     const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
-    if (listEl) listEl.innerHTML = items.map(n => `
-      <div class="noti-item ${n.isRead ? '' : 'unread'}">
+    window._cachedNotiItems = items; // Store items for detail modal
+    if (listEl) listEl.innerHTML = items.map((n, idx) => `
+      <div class="noti-item ${n.isRead ? '' : 'unread'}" onclick="openNotiDetail(${idx})">
         <div class="noti-icon">${notiIcons[n.type] || '🔔'}</div>
         <div class="noti-body">
           <div class="noti-title">${n.title || '알림'}</div>
@@ -7306,6 +7318,33 @@ window.showNotifications = async function() {
   } catch(e) {
     if (listEl) listEl.innerHTML = '<div class="empty-state">' + (t('loadFail') || '알림을 불러올 수 없습니다') + '</div>';
   }
+};
+
+window.openNotiDetail = function(idx) {
+  if (!window._cachedNotiItems || !window._cachedNotiItems[idx]) return;
+  const n = window._cachedNotiItems[idx];
+  const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
+  
+  document.getElementById('notiDetailTitle').innerHTML = (notiIcons[n.type] || '🔔') + ' ' + (n.title || '알림');
+  document.getElementById('notiDetailDate').innerText = fmtDate(n.createdAt);
+  
+  const imgWrapper = document.getElementById('notiDetailImageWrapper');
+  const imgEl = document.getElementById('notiDetailImage');
+  if (n.imageUrl) {
+    imgEl.src = n.imageUrl;
+    imgWrapper.style.display = 'block';
+  } else {
+    imgEl.src = '';
+    imgWrapper.style.display = 'none';
+  }
+  
+  // Convert line breaks to <br> for better readability
+  const msgHtml = (n.message || '').replace(/\n/g, '<br>');
+  document.getElementById('notiDetailBody').innerHTML = msgHtml;
+  
+  // Close the list modal and open the detail modal
+  // closeModal('notiModal'); // Optional: whether to close list or keep it behind
+  document.getElementById('notiDetailModal').classList.remove('hidden');
 };
 
 
@@ -9373,8 +9412,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Add these to app.js
 window.showWalletRegisterModal = function() {
-    if (window.currentUserData && window.currentUserData.solanaWallet) {
-        document.getElementById('solanaWalletInput').value = window.currentUserData.solanaWallet;
+    if (userData && userData.solanaWallet) {
+        document.getElementById('solanaWalletInput').value = userData.solanaWallet;
     } else {
         document.getElementById('solanaWalletInput').value = '';
     }
@@ -9413,8 +9452,8 @@ window.saveWalletAddress = async function() {
         const data = await res.json();
         if (data.success) {
             showToast('지갑 주소가 성공적으로 저장되었습니다.', 'success');
-            if (window.currentUserData) {
-                window.currentUserData.solanaWallet = address;
+            if (userData) {
+                userData.solanaWallet = address;
             }
             closeModal('walletRegisterModal');
         } else {
@@ -9428,3 +9467,85 @@ window.saveWalletAddress = async function() {
         btn.innerText = originalText;
     }
 };
+
+// ----- 팟캐스트 로드 -----
+window.loadUserPodcasts = async function() {
+  const wrap = document.getElementById('userPodcastList');
+  if (!wrap) return;
+  
+  try {
+    const res = await fetch('/api/podcasts');
+    const data = await res.json();
+    
+    if (!data.success || !data.data || data.data.length === 0) {
+      wrap.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text2); font-size:13px; background:var(--bg2); border-radius:12px;">등록된 팟캐스트가 없습니다.</div>`;
+      return;
+    }
+    
+    let html = '';
+    data.data.forEach(p => {
+      const date = p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '';
+      
+      html += `
+      <div style="background:var(--bg2); border-radius:12px; padding:16px; margin-bottom:12px; border:1px solid var(--border);">
+        <div style="font-size:12px; color:var(--text2); margin-bottom:6px;">${date}</div>
+        <div style="font-size:15px; font-weight:700; color:var(--text); margin-bottom:10px;">${p.title}</div>
+        <div style="font-size:13px; color:var(--text2); margin-bottom:16px; line-height:1.4;">${p.description || ''}</div>
+        <div style="background:var(--bg); border-radius:8px; padding:10px;">
+          <audio controls src="${p.audioUrl}" style="width:100%; height:36px; outline:none;"></audio>
+        </div>
+      </div>`;
+    });
+    
+    wrap.innerHTML = html;
+  } catch (error) {
+    console.error(error);
+    wrap.innerHTML = `<div style="text-align:center; padding:20px; color:var(--red);">불러오기 실패: ${error.message}</div>`;
+  }
+};
+
+// ==========================================
+// [뒤로가기 및 이탈 방어 시스템 (Max Level)]
+// ==========================================
+function enforceBackButtonJail() {
+    if (window.__backJailActive) return;
+    window.__backJailActive = true;
+
+    // 1. History Stack Hijacking (히스토리 스택 탈취)
+    // 현재 상태를 히스토리에 2번 밀어넣어 뒤로가기 클릭 시 이전 페이지가 아닌 '현재 페이지'로 이동하게 만듭니다.
+    history.pushState({ page: 1 }, "title 1", location.href);
+    history.pushState({ page: 2 }, "title 2", location.href);
+
+    // 2. popstate 이벤트 가로채기 (뒤로가기 버튼 감지)
+    window.addEventListener('popstate', function(event) {
+        // 뒤로가기가 감지되면 다시 강제로 히스토리를 앞으로 밀어버립니다.
+        history.pushState({ page: 3 }, "title 3", location.href);
+        
+        // (선택) 경고창 띄우기 (모바일에서는 모달 등을 띄우는 용도로 사용 가능)
+        // alert("이 페이지에서는 뒤로가기를 사용할 수 없습니다.");
+    });
+
+    // 3. 브라우저 이탈 방지 (새로고침, 창 닫기, 외부 링크 이동 방어)
+    window.addEventListener('beforeunload', function(e) {
+        // 커스텀 메시지는 최신 브라우저에서 무시되지만, 기본 브라우저 경고창을 띄우게 만듭니다.
+        var confirmationMessage = '정말 나가시겠습니까?';
+        e.preventDefault(); // 표준 표준 방식
+        (e || window.event).returnValue = confirmationMessage; // 구형 브라우저 호환
+        return confirmationMessage;
+    });
+
+    // 4. 모바일/터치 디바이스에서의 스와이프 뒤로가기 방어
+    document.addEventListener('touchstart', function(e) {
+        if (e.touches[0].pageX < 20) { // 화면 왼쪽 끝에서 스와이프하는 제스처 방어
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
+// 브라우저 정책상 사용자 상호작용(클릭, 터치)이 있어야 beforeunload 등이 100% 작동하므로,
+// 화면의 아무 곳이나 클릭/터치하면 즉시 방어 모드가 가동되도록 설정
+document.addEventListener('click', enforceBackButtonJail, { once: true });
+document.addEventListener('touchstart', enforceBackButtonJail, { once: true });
+
+// 즉시 실행 (History 방어는 상호작용 없이도 일부 작동)
+enforceBackButtonJail();
