@@ -1734,7 +1734,7 @@ app.post('/api/auth/change-password', async (c) => {
 
 app.post('/api/user/update-profile', async (c) => {
   try {
-    // const authHeader = c.req.header('Authorization');
+    const authHeader = c.req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
     const idToken = authHeader.split(' ')[1];
     
