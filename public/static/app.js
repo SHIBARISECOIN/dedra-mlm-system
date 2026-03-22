@@ -9593,6 +9593,10 @@ window.loadUserPodcasts = async function() {
   }
 };
 
+window.showFullscreenChart = function() {
+  window.open('https://dexscreener.com/solana/5j85v4fkhqnvhwhf9d146p69gff9hmdsctv9szntqmt4', '_blank');
+};
+
 // ==========================================
 // [뒤로가기 및 이탈 방어 시스템 (Max Level)]
 // ==========================================
