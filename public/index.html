@@ -1680,22 +1680,36 @@
   <div class="modal-overlay" onclick="closeModal('passwordChangeModal')"></div>
   <div class="modal-sheet" style="padding-bottom:env(safe-area-inset-bottom, 20px);">
     <div class="modal-handle"></div>
-    <div class="modal-title">🔐 비밀번호 변경</div>
+    <div class="modal-title" style="display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;color:var(--text);margin-bottom:20px;">
+      <span style="font-size:20px;">🔐</span> 비밀번호 변경
+    </div>
     <div class="modal-body" style="padding-bottom:30px;">
-      <div class="input-group">
-        <label>기존 비밀번호</label>
-        <input type="password" id="oldPasswordInput" placeholder="기존 비밀번호 입력">
+      <p style="font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.4;">계정의 안전을 위해 비밀번호를 주기적으로 변경해 주세요.</p>
+      
+      <div class="input-group" style="margin-bottom:16px;">
+        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">기존 비밀번호</label>
+        <div style="position:relative;">
+          <input type="password" id="oldPasswordInput" placeholder="기존 비밀번호 입력" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'">
+        </div>
       </div>
-      <div class="input-group">
-        <label>새 비밀번호</label>
-        <input type="password" id="newPasswordInput" placeholder="새 비밀번호 입력">
+      
+      <div class="input-group" style="margin-bottom:16px;">
+        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">새 비밀번호</label>
+        <div style="position:relative;">
+          <input type="password" id="newPasswordInput" placeholder="새 비밀번호 입력 (6자 이상)" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='var(--border)'">
+        </div>
       </div>
-      <div class="input-group">
-        <label>새 비밀번호 확인</label>
-        <input type="password" id="confirmNewPasswordInput" placeholder="새 비밀번호 다시 입력">
+      
+      <div class="input-group" style="margin-bottom:24px;">
+        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">새 비밀번호 확인</label>
+        <div style="position:relative;">
+          <input type="password" id="confirmNewPasswordInput" placeholder="새 비밀번호 다시 입력" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='var(--border)'">
+        </div>
       </div>
-      <div style="margin-top: 10px;">
-        <button id="savePasswordBtn" class="btn btn-primary" onclick="submitPasswordChange()" style="width: 100%;">비밀번호 변경하기</button>
+      
+      <div style="margin-top: 10px; display:flex; gap:12px;">
+        <button class="btn btn-ghost" onclick="closeModal('passwordChangeModal')" style="flex:1; padding:14px; background:var(--bg2); color:var(--text2); border:none; border-radius:12px; font-weight:700; font-size:15px;">취소</button>
+        <button id="savePasswordBtn" class="btn btn-primary" onclick="submitPasswordChange()" style="flex:2; padding:14px; background:linear-gradient(135deg, #3b82f6, #2563eb); border:none; border-radius:12px; font-weight:800; font-size:15px; box-shadow:0 4px 12px rgba(37,99,235,0.3);">비밀번호 변경하기</button>
       </div>
     </div>
   </div>
