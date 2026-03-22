@@ -3263,7 +3263,21 @@ window.switchPage = function(page) {
   }
 
   try {
-    try { sessionStorage.setItem('lastPage', page); } catch(e) { console.error("Error fetching wallet/investment:", e); }
+    
+  // 자체기록(페이지 뷰) 저장
+  if (window.currentUser && window.FB) {
+    try {
+      const { addDoc, collection, db, serverTimestamp } = window.FB;
+      addDoc(collection(db, 'page_views'), {
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        page: page,
+        createdAt: serverTimestamp()
+      }).catch(e => console.warn('[Log] error:', e));
+    } catch(e) {}
+  }
+
+  try { sessionStorage.setItem('lastPage', page); } catch(e) { console.error("Error fetching wallet/investment:", e); }
     
     // Hide all pages and remove active class from all nav items
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -3518,7 +3532,7 @@ window.submitGuestTicket = async function() {
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
-    btn.disabled = false;
+    if (btn) { btn.disabled = false; }
     btn.textContent = '문의 등록';
   }
 };
@@ -4159,7 +4173,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
                     <div style="color: var(--text2); font-size: 11px;"><i class="fas fa-chevron-down"></i> 상세 보기</div>
                 </div>
             </div>
-            <div id="${dayId}" style="display: none; padding: 4px 8px 8px 8px; background: var(--bg); max-height: 60vh; overflow-y: auto;">
+            <div id="${dayId}" style="display: none; padding: 4px 8px 8px 8px; background: var(--bg); ">
                 ${dayTxs.map(renderItem).join('')}
             </div>
         </div>
@@ -4263,7 +4277,7 @@ window.connectSolanaWallet = async function() {
       showToast('❌ ' + e.message, 'error');
     }
   } finally {
-    btn.disabled = false; btn.innerHTML = '<span style="font-size:20px;">👻</span> Phantom / 지갑 연결';
+    if (btn) { btn.disabled = false; } btn.innerHTML = '<span style="font-size:20px;">👻</span> Phantom / 지갑 연결';
   }
 };
 
@@ -4347,7 +4361,7 @@ window.doWalletDeposit = async function() {
       showToast('❌ ' + e.message, 'error');
     }
   } finally {
-    btn.disabled = false; btn.innerHTML = '🚀 지갑으로 즉시 전송';
+    if (btn) { btn.disabled = false; } btn.innerHTML = '🚀 지갑으로 즉시 전송';
   }
 };
 
@@ -4388,12 +4402,12 @@ window.handleAddDdraToken = async function() {
       setTimeout(() => {
         if (btnIcon) btnIcon.textContent = '➕';
         if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
-        if (btn) btn.disabled = false;
+        if (btn) if (btn) { btn.disabled = false; }
       }, 3000);
     } else {
       if (btnIcon) btnIcon.textContent = '➕';
       if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
-      if (btn) btn.disabled = false;
+      if (btn) if (btn) { btn.disabled = false; }
 
       if (result.error === 'USER_REJECTED') {
         showToast('취소되었습니다', 'info');
@@ -4408,7 +4422,7 @@ window.handleAddDdraToken = async function() {
   } catch(e) {
     if (btnIcon) btnIcon.textContent = '➕';
     if (btnText) btnText.textContent = '내 지갑에 DDRA 추가';
-    if (btn) btn.disabled = false;
+    if (btn) if (btn) { btn.disabled = false; }
     showToast('❌ 오류: ' + e.message, 'error');
   }
 };
@@ -4605,8 +4619,9 @@ window.submitDeposit = async function() {
   if (!amount || amount <= 0) { showToast('입금 금액을 입력하세요.', 'warning'); return; }
   if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
 
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = '처리중...';
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
+  const origTxt = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '처리중...'; }
 
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
@@ -4622,7 +4637,7 @@ window.submitDeposit = async function() {
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = t('btnSubmitDeposit');
+    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitDeposit');
   }
 };
 
@@ -4749,10 +4764,12 @@ window.submitReinvest = async function() {
       return; 
   }
 
-  const btn = event.target;
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '처리중...';
+  const btn = document.getElementById('btnSubmitReinvest');
+  const originalText = btn ? btn.textContent : '재투자 승인';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '처리중...';
+  }
 
   try {
     const { doc, writeBatch, increment, serverTimestamp, collection, db } = window.FB;
@@ -4806,11 +4823,7 @@ window.submitReinvest = async function() {
 
     await batch.commit();
 
-    // 로컬 업데이트
-    if (walletData) {
-      walletData.bonusBalance -= inputAmt;
-      walletData.totalInvest = (walletData.totalInvest || 0) + inputAmt;
-    }
+    // Firestore onSnapshot이 실시간으로 잔액을 업데이트하므로 수동 차감을 제거합니다.
     
     closeModal('reinvestModal');
     showToast('수익금 재투자가 완료되었습니다!', 'success');
@@ -4822,8 +4835,10 @@ window.submitReinvest = async function() {
     console.error('Reinvest Error:', err);
     showToast('재투자 처리 중 오류가 발생했습니다: ' + err.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    if (btn) {
+      if (btn) { btn.disabled = false; }
+      btn.textContent = originalText;
+    }
   }
 };
 
@@ -4946,8 +4961,8 @@ window.submitWithdraw = async function() {
   }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = '처리중...';
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
+  if (btn) { btn.disabled = true; } btn.textContent = '처리중...';
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
@@ -5018,7 +5033,7 @@ window.submitWithdraw = async function() {
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = t('btnSubmitWithdraw');
+    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitWithdraw');
   }
 };
 
@@ -5367,7 +5382,7 @@ window.submitInvest = async function() {
   if (amount > selectedProduct.maxAmt) { showToast(t('toastMaxInvest') + selectedProduct.maxAmt, 'warning'); return; }
   if ((walletData?.usdtBalance || 0) < amount) { showToast('USDT 잔액이 부족합니다.', 'error'); return; }
 
-  const btn = event.target;
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
   btn.disabled = true; btn.textContent = '처리중...';
 
   try {
@@ -5431,7 +5446,7 @@ window.submitInvest = async function() {
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = t('btnSubmitInvest');
+    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitInvest');
   }
 };
 
@@ -6217,7 +6232,7 @@ window.playOddEven = function(choice) {
 
     if (btnOdd) btnOdd.disabled = false;
     if (btnEven) btnEven.disabled = false;
-    logGame('홀짝', win, oeBetVal);
+    logGame('홀짝', win, oeBetVal, ddraChange);
   }, 900);
 };
 
@@ -6242,10 +6257,17 @@ window.playDice = function(chosenNum) {
 
   setTimeout(() => {
     const userWins = houseRandom('dice');
+    const adminUserWinRate = 100 - (gameOdds['dice']?.houseWinRate ?? gameOdds.global.houseWinRate);
+    // Dice payout is 6x. Natural win rate is 1/6 (16.6%).
+    // Scale admin setting so 50% = 16.6% win rate
+    const adjustedProb = (1.0 / 6.0) * (adminUserWinRate / 50.0);
+    const actualUserWins = Math.random() < adjustedProb;
+
     // 유저가 이기면 선택한 숫자, 지면 다른 숫자
-    const result = userWins
+    const result = actualUserWins
       ? chosenNum
       : (() => { const others = [1,2,3,4,5,6].filter(n => n !== chosenNum); return others[Math.floor(Math.random() * others.length)]; })();
+    userWins = actualUserWins; // Override original userWins for UI/Logging
     const win = userWins;
     const betUsdt = _ddraToUsdt(diceBetVal);
     const ddraChange = win ? diceBetVal * 5 : -diceBetVal;
@@ -6267,7 +6289,7 @@ window.playDice = function(chosenNum) {
     }
 
     document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = false);
-    logGame('주사위', win, diceBetVal);
+    logGame('주사위', win, diceBetVal, ddraChange);
   }, 1000);
 };
 
@@ -6295,13 +6317,32 @@ window.playSpin = function() {
 
   // 릴별로 다른 시점에 멈춤 (순차적으로)
   const stopTimes = [800, 1100, 1400];
-  // 하우스 확률 적용: 유저가 이길지 먼저 결정
-  const slotUserWins = houseRandom('slot');
+  
+  const adminUserWinRate = 100 - (gameOdds['slot']?.houseWinRate ?? gameOdds.global.houseWinRate);
+  // Slot avg payout is ~8x. So we scale the admin win rate down to a safe RTP.
+  // 50% admin setting -> 5% actual win rate.
+  const adjustedProb = adminUserWinRate / 1000.0; 
+  
+  const slotUserWins = Math.random() < adjustedProb;
   let result;
   if (slotUserWins) {
-    // 유저 승리: 3개 같은 심볼 생성 (가중치: 낮은 배율 우선)
-    const winSymbols = ['🍋','🍇','🍎','🍊','⭐','7️⃣','💎'];
-    const sym = winSymbols[Math.floor(Math.random() * winSymbols.length)];
+    // 가중치 적용 (낮은 배율이 훨씬 자주 나오도록)
+    const weights = [
+      { sym: '🍋', w: 40 }, // 5x
+      { sym: '🍇', w: 30 }, // 5x
+      { sym: '🍎', w: 15 }, // 5x
+      { sym: '🍊', w: 10 }, // 5x
+      { sym: '⭐', w: 3 },  // 10x
+      { sym: '7️⃣', w: 1.5 },// 20x
+      { sym: '💎', w: 0.5 } // 50x
+    ];
+    const totalW = weights.reduce((acc, curr) => acc + curr.w, 0);
+    let r = Math.random() * totalW;
+    let sym = '🍋';
+    for (const item of weights) {
+      if (r < item.w) { sym = item.sym; break; }
+      r -= item.w;
+    }
     result = [sym, sym, sym];
   } else {
     // 유저 패배: 3개 중 최소 하나는 다른 심볼
@@ -6332,7 +6373,7 @@ window.playSpin = function() {
     const win = multiplier > 0;
     const earned = win ? slotBetVal * multiplier : 0;
     const betUsdt = _ddraToUsdt(slotBetVal);
-    const ddraChange = win ? earned : -slotBetVal;
+    const ddraChange = win ? (earned - slotBetVal) : -slotBetVal;
     if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
     updateGameUI();
     updateHomeUI();
@@ -6352,8 +6393,8 @@ window.playSpin = function() {
         : `😢 <strong>꽝!</strong> -${slotBetVal} DDRA (≈-${fmt(betUsdt)} USDT)`;
       el.classList.remove('hidden');
     }
-    if (spinBtn) { spinBtn.disabled = false; document.getElementById('spinBtnIcon').textContent='🎰'; document.getElementById('spinBtnText').textContent='SPIN!'; spinBtn.disabled = false; }
-    logGame('슬롯머신', win, slotBetVal);
+    if (spinBtn) { spinBtn.disabled = false; if(document.getElementById('spinBtnIcon')) document.getElementById('spinBtnIcon').textContent='🎰'; if(document.getElementById('spinBtnText')) document.getElementById('spinBtnText').textContent='SPIN!'; spinBtn.disabled = false; }
+    logGame('슬롯머신', win, slotBetVal, ddraChange);
   }, 1600);
 };
 
@@ -6532,10 +6573,6 @@ window.playRoulette = function() {
   const spinBtn = document.getElementById('rlSpinBtn');
   if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span style="display:inline-block;animation:spinRotate 0.4s linear infinite">🎡</span> 스피닝...'; }
 
-  // 하우스 확률 적용하여 결과 숫자 결정
-  const rlUserWins = houseRandom('roulette');
-  let resultNum;
-  // 베팅 유형에 따라 이기는 숫자 집합과 지는 숫자 집합 분류
   const bet = rlSelectedBet;
   const winNums = ROULETTE_ORDER.filter(n => {
     if (bet === 'red')    return RL_RED.has(n);
@@ -6552,6 +6589,16 @@ window.playRoulette = function() {
     return false;
   });
   const loseNums = ROULETTE_ORDER.filter(n => !winNums.includes(n));
+  
+  const naturalProb = winNums.length / 37.0;
+  // Admin win rate (0~100). Default houseWinRate is 3 -> user win rate is 97? 
+  // Wait, gameOdds['roulette'].houseWinRate. If admin sets user win 30%, house is 70.
+  const adminUserWinRate = 100 - (gameOdds['roulette']?.houseWinRate ?? gameOdds.global.houseWinRate);
+  // Scale natural probability by admin's setting. 50% admin setting = natural prob.
+  const adjustedProb = naturalProb * (adminUserWinRate / 50.0);
+  
+  const rlUserWins = Math.random() < adjustedProb;
+  let resultNum;
   if (rlUserWins && winNums.length > 0) {
     resultNum = winNums[Math.floor(Math.random() * winNums.length)];
   } else if (!rlUserWins && loseNums.length > 0) {
@@ -6622,7 +6669,7 @@ function showRouletteResult(num) {
   const betUsdt = _ddraToUsdt(rlBetVal);
   const earnedDdra  = win ? rlBetVal * multiplier : 0;
   const earnedUsdt = win ? _ddraToUsdt(earnedDdra) : 0;
-  const ddraChange = win ? earnedDdra : -rlBetVal;
+  const ddraChange = win ? (earnedDdra - rlBetVal) : -rlBetVal;
   if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
   updateGameUI();
   updateHomeUI();
@@ -6650,26 +6697,29 @@ function showRouletteResult(num) {
     setTimeout(() => numBtn.classList.remove('selected'), 3000);
   }
 
-  logGame('룰렛', win, rlBetVal);
+  logGame('룰렛', win, rlBetVal, ddraChange);
 }
 
-function logGame(gameName, win, bet) {
+function logGame(gameName, win, bet, actualDdraChange) {
   const listEl = document.getElementById('gameLogList');
   if (!listEl) return;
 
   const emptyEl = listEl.querySelector('.empty-state');
   if (emptyEl) emptyEl.remove();
 
+  const changeValue = actualDdraChange !== undefined ? actualDdraChange : (win ? bet : -bet);
+  const isPositive = changeValue >= 0;
+
   const item = document.createElement('div');
   item.className = 'tx-item';
   item.innerHTML = `
-    <div class="tx-icon game">${win ? '🎉' : '😢'}</div>
+    <div class="tx-icon game">${isPositive ? '🎉' : '😢'}</div>
     <div class="tx-info">
-      <div class="tx-title">${gameName} ${win ? '승리' : '패배'}</div>
+      <div class="tx-title">${gameName} ${isPositive ? '승리' : '패배'}</div>
       <div class="tx-date">${new Date().toLocaleTimeString('ko-KR')}</div>
     </div>
-    <div class="tx-amount ${win ? 'plus' : 'minus'}">
-      ${win ? '+' : '-'}${fmt(bet)} DDRA
+    <div class="tx-amount ${isPositive ? 'plus' : 'minus'}">
+      ${isPositive ? '+' : ''}${fmt(changeValue)} DDRA
     </div>`;
   listEl.insertBefore(item, listEl.firstChild);
 
@@ -6677,10 +6727,11 @@ function logGame(gameName, win, bet) {
   if (!currentUser || !walletData) return;
   try {
     const { addDoc, collection, doc, updateDoc, db, serverTimestamp } = window.FB;
-    const ddraChange = win ? bet : -bet;
+    const ddraChange = changeValue;
     const usdtChange = _ddraToUsdt(ddraChange);
-    const newBonus = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
-    if (walletData) walletData.bonusBalance = newBonus;
+    
+    // NOTE: walletData.bonusBalance is already updated correctly by the game logic before logGame is called.
+    const newBonus = walletData.bonusBalance;
 
     // gamelogs 컬렉션에 기록
     addDoc(collection(db, 'gamelogs'), {
@@ -6867,7 +6918,7 @@ window.playBaccarat = async function(betSide) {
 
   // 잔액 변경 (원금 반환은 변화 없음)
   const earned = win ? Math.floor(bacBetVal * multiplier) : 0;
-  const ddraChange = win ? (earned - (multiplier === 1 ? 0 : bacBetVal)) : -bacBetVal;
+  const ddraChange = win ? (earned - bacBetVal) : -bacBetVal;
   if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
   updateGameUI();
   updateHomeUI();
@@ -6884,7 +6935,7 @@ window.playBaccarat = async function(betSide) {
     resEl.classList.remove('hidden');
   }
 
-  logGame('바카라', ddraChange >= 0, Math.abs(ddraChange));
+  logGame('바카라', ddraChange >= 0, bacBetVal, ddraChange);
 
   // 버튼 재활성
   setTimeout(() => {
@@ -6972,7 +7023,7 @@ function initPoker() {
   const res = document.getElementById('pkResult');
   if (res) { res.className = 'game-result-v2 hidden'; res.innerHTML = ''; }
   const btn = document.getElementById('pkDealBtn');
-  if (btn) { btn.disabled = false; btn.textContent = '🃏 딜 (카드 받기)'; }
+  if (btn) { if (btn) { btn.disabled = false; } btn.textContent = '🃏 딜 (카드 받기)'; }
 }
 
 window.dealPoker = async function() {
@@ -7073,11 +7124,11 @@ window.dealPoker = async function() {
     resEl.classList.remove('hidden');
   }
 
-  logGame('포커', ddraChange >= 0, Math.abs(ddraChange));
+  logGame('포커', ddraChange >= 0, pkBetVal, ddraChange);
 
   setTimeout(() => {
     pkDealing = false;
-    if (btn) { btn.disabled = false; btn.textContent = '🃏 다시 딜!'; }
+    if (btn) { if (btn) { btn.disabled = false; } btn.textContent = '🃏 다시 딜!'; }
   }, 1000);
 };
 
@@ -7099,8 +7150,8 @@ window.saveProfile = async function() {
   const country = document.getElementById('editCountry')?.value || '';
   if (!name) { showToast('이름을 입력하세요.', 'warning'); return; }
 
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = '저장 중...';
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
   try {
     if (window.FB._useRestAPI) {
       const res = await fetch('/api/user/update-profile', {
@@ -7121,7 +7172,7 @@ window.saveProfile = async function() {
   } catch (err) {
     showToast('저장 실패: ' + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = '저장';
+    if (btn) { btn.disabled = false; } btn.textContent = '저장';
   }
 };
 
@@ -7166,7 +7217,7 @@ window.submitPasswordChange = async function() {
     console.error('Password change error:', err);
     showToast(err.message || '비밀번호 변경에 실패했습니다.', 'error');
   } finally {
-    btn.disabled = false;
+    if (btn) { btn.disabled = false; }
     btn.textContent = '비밀번호 변경하기';
   }
 };
@@ -7184,7 +7235,7 @@ window.saveWithdrawPin = async function() {
   if (pin !== confirm) { showToast('PIN이 일치하지 않습니다.', 'error'); return; }
   if (!/^\d{6}$/.test(pin)) { showToast('숫자 6자리를 입력하세요.', 'warning'); return; }
 
-  const btn = event.target;
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
   btn.disabled = true;
   try {
     if (window.FB._useRestAPI) {
@@ -7204,7 +7255,7 @@ window.saveWithdrawPin = async function() {
   } catch (err) {
     showToast('설정 실패: ' + err.message, 'error');
   } finally {
-    btn.disabled = false;
+    if (btn) { btn.disabled = false; }
   }
 };
 
@@ -7246,8 +7297,8 @@ window.submitTicket = async function() {
   const content = document.getElementById('ticketContent').value.trim();
   if (!title || !content) { showToast('제목과 내용을 입력하세요.', 'warning'); return; }
 
-  const btn = event.target;
-  btn.disabled = true; btn.textContent = '등록 중...';
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
+  if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     await addDoc(collection(db, 'tickets'), {
@@ -7261,7 +7312,7 @@ window.submitTicket = async function() {
   } catch (err) {
     showToast('등록 실패: ' + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = '문의 등록';
+    if (btn) { btn.disabled = false; } btn.textContent = '문의 등록';
   }
 };
 
@@ -7607,7 +7658,7 @@ window.submitForcePw = async function() {
     console.error('PW Change Error:', err);
     showToast(getAuthErrorMsg(err.code) || '비밀번호 변경 중 오류가 발생했습니다. 다시 로그인해주세요.', 'error');
   } finally {
-    btn.disabled = false;
+    if (btn) { btn.disabled = false; }
     btn.textContent = '비밀번호 변경 완료';
   }
 };
@@ -9552,7 +9603,7 @@ window.saveWalletAddress = async function() {
         console.error(e);
         showToast('네트워크 오류가 발생했습니다.', 'error');
     } finally {
-        btn.disabled = false;
+        if (btn) { btn.disabled = false; }
         btn.innerText = originalText;
     }
 };
@@ -9606,7 +9657,8 @@ window.loadUserPodcasts = async function() {
 };
 
 window.showFullscreenChart = function() {
-  window.open('https://dexscreener.com/solana/5j85v4fkhqnvhwhf9d146p69gff9hmdsctv9szntqmt4', '_blank');
+  const pairAddress = typeof _livePrice_pair !== 'undefined' ? _livePrice_pair : 'CCWoFvKBpLLykQZs3YBaAFGG7qS9aztSCYq5L1AY6S9c';
+  window.open(`https://dexscreener.com/solana/${pairAddress}`, '_blank');
 };
 
 // ==========================================

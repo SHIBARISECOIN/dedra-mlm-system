@@ -195,6 +195,12 @@ service cloud.firestore {
     match /chats/{roomId}/messages/{messageId} {
       allow read, write: if isLoggedIn();
     }
+
+    // page_views (페이지 뷰 자체기록)
+    match /page_views/{docId} {
+      allow read: if isAdminOrSubAdmin();
+      allow create: if isLoggedIn();
+    }
   }
 }
 

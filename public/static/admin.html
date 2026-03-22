@@ -1087,6 +1087,7 @@ canvas{width:100% !important;}
     <div class="sidebar-section">시스템·로그</div>
     <div class="menu-item" data-page="gamelogs"><span class="menu-icon">🎮</span>게임 로그</div>
     <div class="menu-item" data-page="auditlog"><span class="menu-icon">📋</span>감사 로그</div>
+    <div class="menu-item" data-page="pageviews"><span class="menu-icon">👀</span>페이지 뷰 통계</div>
     <div class="menu-item" data-page="subadmins"><span class="menu-icon">👥</span>보조계정 관리</div>
     <div class="menu-item" data-page="settings"><span class="menu-icon">⚙️</span>시스템 설정</div>
     <div class="sidebar-section">분석 도구</div>
@@ -1095,6 +1096,49 @@ canvas{width:100% !important;}
 
   <!-- 메인 컨텐츠 -->
   <div class="content">
+
+    <!-- ══════════════════════════════
+         페이지 뷰 통계
+    ══════════════════════════════ -->
+    <div id="pageviewsPage" class="page">
+      <div class="page-title">페이지 뷰 통계</div>
+      <div class="page-desc" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>앱 내 하단 탭 및 화면 전환 기록을 확인합니다.</span>
+        <button class="btn btn-primary btn-sm" onclick="loadPageViews()">새로고침</button>
+      </div>
+      <div class="card">
+        <h3 class="card-title">화면별 방문 횟수 (최근 기록)</h3>
+        <div style="max-height:400px; overflow-y:auto; margin-bottom: 20px;">
+          <table class="table" style="width:100%;">
+            <thead>
+              <tr>
+                <th style="width:50%;">페이지(화면)</th>
+                <th style="width:50%;">방문 횟수</th>
+              </tr>
+            </thead>
+            <tbody id="pageViewsTableBody">
+              <tr><td colspan="2" style="text-align:center;">데이터를 불러오는 중입니다...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 class="card-title">최근 방문 로그</h3>
+        <div style="max-height:400px; overflow-y:auto;">
+          <table class="table" style="width:100%;">
+            <thead>
+              <tr>
+                <th>일시</th>
+                <th>이메일</th>
+                <th>방문 페이지</th>
+              </tr>
+            </thead>
+            <tbody id="pageViewsLogBody">
+              <tr><td colspan="3" style="text-align:center;">데이터를 불러오는 중입니다...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
 
     <!-- ══════════════════════════════
          대시보드
@@ -5447,14 +5491,17 @@ async function loadDashboard() {
         
         
         // 티켓
-        window._dashSnaps.push(onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'open'), orderBy('createdAt', 'asc'), limit(10)), (snap) => {
+        window._dashSnaps.push(onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'open')), (snap) => {
             const rtEl = document.getElementById('recentTickets');
             if(snap.empty) {
                 rtEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">미답변 문의가 없습니다. 🎉</div>';
             } else {
+                let docs = [];
+                snap.forEach(d => docs.push(d.data()));
+                docs.sort((a,b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+                
                 let html = '';
-                snap.forEach(doc => {
-                    const tk = doc.data();
+                docs.slice(0, 10).forEach(tk => {
                     html += `
                     <div class="activity-item">
                       <div class="activity-icon" style="background:rgba(245,158,11,0.2);color:var(--warning);"><i class="fas fa-question-circle"></i></div>
@@ -5470,17 +5517,20 @@ async function loadDashboard() {
         }));
 
         // 게임
-        window._dashSnaps.push(onSnapshot(query(collection(db, 'gamelogs'), orderBy('createdAt', 'desc'), limit(10)), (snap) => {
+        window._dashSnaps.push(onSnapshot(query(collection(db, 'gamelogs'), limit(100)), (snap) => {
             const rgEl = document.getElementById('recentGames');
             if(snap.empty) {
                 rgEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray);font-size:12px;">최근 진행된 게임이 없습니다.</div>';
                 const dp = document.getElementById('dashGameProfit');
                 if(dp) dp.textContent = '';
             } else {
+                let docs = [];
+                snap.forEach(d => docs.push(d.data()));
+                docs.sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                
                 let html = '';
                 let totalCompanyProfit = 0;
-                snap.forEach(doc => {
-                    const g = doc.data();
+                docs.slice(0, 10).forEach(g => {
                     const isWin = g.isWin;
                     const companyProfit = isWin ? -(g.profit||0) : (g.betAmount||0);
                     totalCompanyProfit += companyProfit;
@@ -6004,7 +6054,7 @@ async function loadBonusLog() {
     const wrap = document.getElementById('bonusLogWrap');
     wrap.innerHTML = loading();
     try {
-        const snap = await getDocs(query(collection(db,'bonuses'), limit(100)));
+        const snap = await getDocs(query(collection(db,'bonuses'), limit(500)));
         const rows = snap.docs
             .map(d=>({id:d.id,...d.data()}))
             .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0))
@@ -6480,6 +6530,72 @@ async function saveGameOdds() {
 // ══════════════════════════════════════════════════════════════
 // 게임 로그
 // ══════════════════════════════════════════════════════════════
+
+window.loadPageViews = async function() {
+    const tableBody = document.getElementById('pageViewsTableBody');
+    const logBody = document.getElementById('pageViewsLogBody');
+    if (!tableBody || !logBody) return;
+    
+    tableBody.innerHTML = '<tr><td colspan="2" style="text-align:center;">데이터 불러오는 중...</td></tr>';
+    logBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">데이터 불러오는 중...</td></tr>';
+    
+    try {
+        const { collection, query, orderBy, limit, getDocs } = window.FB;
+        const q = query(collection(db, 'page_views'), limit(1000));
+        const snap = await getDocs(q);
+        let docs = [];
+        snap.forEach(d => docs.push(d.data()));
+        docs.sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+        
+        const counts = {};
+        let logsHtml = '';
+        
+        docs.forEach(data => {
+            const page = data.page || 'unknown';
+            counts[page] = (counts[page] || 0) + 1;
+            
+            if (logsHtml.length < 5000) { // Limit log display
+                const dateStr = data.createdAt ? new Date(data.createdAt.toMillis()).toLocaleString() : '-';
+                logsHtml += `<tr>
+                    <td style="font-size:12px;">${dateStr}</td>
+                    <td style="font-size:12px;">${data.userEmail || data.userId || '-'}</td>
+                    <td style="font-size:12px;">${page}</td>
+                </tr>`;
+            }
+        });
+        
+        // Render counts
+        const sortedPages = Object.keys(counts).sort((a,b) => counts[b] - counts[a]);
+        if (sortedPages.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="2" style="text-align:center;">기록이 없습니다.</td></tr>';
+            logBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">기록이 없습니다.</td></tr>';
+            return;
+        }
+        
+        let countHtml = '';
+        const pageNames = {
+            'home': '홈', 'play': '게임', 'wallet': '지갑', 'invest': '투자', 'more': '더보기',
+            'dashboard': '대시보드', 'deposit': '입금', 'withdraw': '출금', 'chat': '채팅', 'asset': '자산'
+        };
+        
+        for (const p of sortedPages) {
+            const label = pageNames[p] ? `${pageNames[p]} (${p})` : p;
+            countHtml += `<tr>
+                <td>${label}</td>
+                <td>${counts[p]} 회</td>
+            </tr>`;
+        }
+        
+        tableBody.innerHTML = countHtml;
+        logBody.innerHTML = logsHtml;
+        
+    } catch(err) {
+        console.error('loadPageViews error:', err);
+        tableBody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:red;">불러오기 실패</td></tr>';
+        logBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:red;">불러오기 실패</td></tr>';
+    }
+}
+
 async function loadGameLogs(gameType='', resultFilter='') {
     const wrap = document.getElementById('gameLogsWrap');
     wrap.innerHTML = loading();
@@ -6508,9 +6624,9 @@ async function loadGameLogs(gameType='', resultFilter='') {
         })(),
         // 베팅액: bet(신규) → betAmount(구형)
         _bet:  l.bet  ?? l.betAmount  ?? 0,
-        // 당첨액: win이 boolean이면 ddraChange 기반, 숫자면 winAmount
+        // 당첨액: win이 boolean이면 ddraChange + bet (총 획득액), 숫자면 winAmount
         _win:  typeof l.win === 'boolean'
-                  ? (l.win ? (l.bet ?? l.betAmount ?? 0) : 0)
+                  ? (l.win ? ((l.ddraChange ?? 0) + (l.bet ?? l.betAmount ?? 0)) : 0)
                   : (l.winAmount ?? 0),
         // 순손익: ddraChange(신규) → netChange(구형)
         _net:  l.ddraChange ?? l.netChange ?? 0,
@@ -6539,8 +6655,8 @@ async function loadGameLogs(gameType='', resultFilter='') {
     if (summaryWrap) {
         summaryWrap.innerHTML = `
           <span style="margin-right:10px;">${logs.length}건</span>
-          <span style="margin-right:10px;color:#64748b;">나간 금액(베팅): <b style="color:#3b82f6">${totalBet.toFixed(0)} DDRA</b></span>
-          <span style="margin-right:10px;color:#64748b;">들어온 금액(당첨): <b style="color:#f59e0b">${totalWin.toFixed(0)} DDRA</b></span>
+          <span style="margin-right:10px;color:#64748b;">들어온 금액(회원 베팅): <b style="color:#3b82f6">${totalBet.toFixed(0)} DDRA</b></span>
+          <span style="margin-right:10px;color:#64748b;">나간 금액(당첨 지급): <b style="color:#f59e0b">${totalWin.toFixed(0)} DDRA</b></span>
           <span style="color:${companyColor};font-weight:700;">${companyIcon} 회사 순수익: ${companySign}${companyNet.toFixed(0)} DDRA</span>`;
     }
 
@@ -6552,7 +6668,7 @@ async function loadGameLogs(gameType='', resultFilter='') {
     };
 
     wrap.innerHTML = `<div class="table-wrap"><table>
-      <thead><tr><th>게임</th><th>회원 ID</th><th>나간 금액(베팅)</th><th>들어온 금액(당첨)</th><th>순손익(회사)</th><th>일시</th></tr></thead>
+      <thead><tr><th>게임</th><th>회원 ID</th><th>들어온 금액(회원 베팅)</th><th>나간 금액(당첨 지급)</th><th>순손익(회사)</th><th>일시</th></tr></thead>
       <tbody>${logs.map(l=>{
         const net     = l._net;
         const compNet = -net;   // 회사 기준
@@ -7718,6 +7834,7 @@ function setupEvents() {
             else if (page==='broadcast') loadBroadcastHistory();
             else if (page==='dashboard') loadDashboard();
             else if (page==='subadmins') { loadSubAdminListPage(); }
+            else if (page==='pageviews') loadPageViews();
 
             else if (page==='orgtree') { loadOrgTree(); }
             else if (page==='products') { loadProducts(); }
@@ -8668,7 +8785,7 @@ function drawGameChart(canvasId, gameLogs) {
         // 필드 정규화 (신구 포맷 모두 지원)
         const betVal = l.bet ?? l.betAmount ?? 0;
         const winVal = typeof l.win === 'boolean'
-            ? (l.win ? betVal : 0)
+            ? (l.win ? ((l.ddraChange ?? 0) + betVal) : 0)
             : (l.winAmount ?? 0);
         gameTypes[key].bet += betVal;
         gameTypes[key].win += winVal;

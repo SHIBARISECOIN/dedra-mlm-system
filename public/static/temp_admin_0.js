@@ -1399,7 +1399,7 @@ async function loadGameLogs(gameType='', resultFilter='') {
         })(),
         _bet:  l.bet  ?? l.betAmount  ?? 0,
         _win:  typeof l.win === 'boolean'
-                  ? (l.win ? (l.bet ?? l.betAmount ?? 0) : 0)
+                  ? (l.win ? ((l.ddraChange ?? 0) + (l.bet ?? l.betAmount ?? 0)) : 0)
                   : (l.winAmount ?? 0),
         _net:  l.ddraChange ?? l.netChange ?? 0,
         _member: l.userEmail || ((l.userId||'').substring(0,14)+'…'),
@@ -1485,8 +1485,8 @@ async function loadGameLogs(gameType='', resultFilter='') {
     if (summaryWrap) {
         summaryWrap.innerHTML = `
           <span style="margin-right:10px;">${logs.length}건</span>
-          <span style="margin-right:10px;color:#64748b;">나간 금액(베팅): <b style="color:#3b82f6">${totalBet.toFixed(0)} DDRA</b></span>
-          <span style="margin-right:10px;color:#64748b;">들어온 금액(당첨): <b style="color:#f59e0b">${totalWin.toFixed(0)} DDRA</b></span>
+          <span style="margin-right:10px;color:#64748b;">들어온 금액(회원 베팅): <b style="color:#3b82f6">${totalBet.toFixed(0)} DDRA</b></span>
+          <span style="margin-right:10px;color:#64748b;">나간 금액(당첨 지급): <b style="color:#f59e0b">${totalWin.toFixed(0)} DDRA</b></span>
           <span style="color:${companyColor};font-weight:700;display:inline-flex;align-items:center;gap:6px;background:var(--light);padding:4px 10px;border-radius:6px;">
             ${companyIcon} 회사 순수익: ${companySign}${companyNet.toFixed(0)} DDRA 
             <span style="color:#64748b;font-size:12px;font-weight:600;">(≈ ${companySign}${Math.abs(companyNetUsd).toFixed(2)} USDT)</span>
@@ -1516,7 +1516,7 @@ window.renderGameLogsPage = function() {
     };
 
     let html = `<div class="table-wrap"><table>
-      <thead><tr><th>게임</th><th>회원 ID</th><th>나간 금액(베팅)</th><th>들어온 금액(당첨)</th><th>순손익(회사)</th><th>일시</th></tr></thead>
+      <thead><tr><th>게임</th><th>회원 ID</th><th>들어온 금액(회원 베팅)</th><th>나간 금액(당첨 지급)</th><th>순손익(회사)</th><th>일시</th></tr></thead>
       <tbody>${pageLogs.map(l=>{
         const net     = l._net;
         const compNet = -net;
@@ -3325,7 +3325,7 @@ function drawGameChart(canvasId, gameLogs) {
         // 필드 정규화 (신구 포맷 모두 지원)
         const betVal = l.bet ?? l.betAmount ?? 0;
         const winVal = typeof l.win === 'boolean'
-            ? (l.win ? betVal : 0)
+            ? (l.win ? ((l.ddraChange ?? 0) + betVal) : 0)
             : (l.winAmount ?? 0);
         gameTypes[key].bet += betVal;
         gameTypes[key].win += winVal;
