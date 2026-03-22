@@ -4607,13 +4607,26 @@ window.showWithdrawModal = function() {
   
   if (currentUser && currentUser.uid) {
       let saved = JSON.parse(localStorage.getItem('savedAddresses_' + currentUser.uid) || '[]');
+      
+      // DB에 등록된 솔라나 지갑 주소가 있으면 그것을 최우선으로 사용
+      const dbWallet = userData?.solanaWallet;
+      if (dbWallet && !saved.includes(dbWallet)) {
+          saved.unshift(dbWallet); // 최우선 옵션으로 추가
+      }
+      
       const dataList = document.getElementById('savedAddresses');
       if (dataList) {
-          dataList.innerHTML = saved.map(addr => `<option value="${addr}"></option>`).join('');
+          dataList.innerHTML = saved.map(addr => `<option value="${addr}">${addr === dbWallet ? '등록된 지갑' : ''}</option>`).join('');
       }
+      
       const addrInput = document.getElementById('withdrawAddress');
-      if (addrInput && !addrInput.value && saved.length > 0) {
-          addrInput.value = saved[0];
+      if (addrInput) {
+          // DB에 등록된 주소가 있으면 자동으로 입력
+          if (dbWallet) {
+              addrInput.value = dbWallet;
+          } else if (!addrInput.value && saved.length > 0) {
+              addrInput.value = saved[0];
+          }
       }
   }
   const bonusDdra = bonus / (deedraPrice || 0.5);  // DDRA 환산
@@ -9412,10 +9425,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Add these to app.js
 window.showWalletRegisterModal = function() {
+    const pinGroup = document.getElementById('walletPinGroup');
+    const pinInput = document.getElementById('walletPinInput');
+    
     if (userData && userData.solanaWallet) {
         document.getElementById('solanaWalletInput').value = userData.solanaWallet;
+        if (pinGroup) pinGroup.classList.remove('hidden');
+        if (pinInput) pinInput.value = '';
     } else {
         document.getElementById('solanaWalletInput').value = '';
+        if (pinGroup) pinGroup.classList.add('hidden');
+        if (pinInput) pinInput.value = '';
     }
     document.getElementById('walletRegisterModal').classList.remove('hidden');
 };
@@ -9435,6 +9455,18 @@ window.saveWalletAddress = async function() {
     
     const btn = document.getElementById('saveWalletBtn');
     const originalText = btn.innerText;
+    
+    let currentPin = '';
+    const isChanging = userData && userData.solanaWallet && userData.solanaWallet !== address;
+    if (isChanging) {
+        const pinInput = document.getElementById('walletPinInput');
+        currentPin = pinInput ? pinInput.value.trim() : '';
+        if (!currentPin || currentPin.length !== 6) {
+            showToast('변경을 위해 출금 PIN 6자리를 입력해주세요.', 'error');
+            return;
+        }
+    }
+    
     btn.disabled = true;
     btn.innerText = '저장 중...';
     
@@ -9446,7 +9478,7 @@ window.saveWalletAddress = async function() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${idToken}`
             },
-            body: JSON.stringify({ solanaWallet: address })
+            body: JSON.stringify({ solanaWallet: address, currentPin: currentPin })
         });
         
         const data = await res.json();

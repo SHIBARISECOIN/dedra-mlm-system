@@ -1754,8 +1754,30 @@ app.post('/api/user/update-profile', async (c) => {
     const uid = data.users[0].localId;
     const body = await c.req.json();
     
+    const adminToken = await getAdminToken();
+
+    // 지갑 주소 변경 시 PIN 확인 로직
+    if (body.solanaWallet !== undefined) {
+      const uRes = await fetch(`${FIRESTORE_BASE}/users/${uid}`, {
+        headers: { Authorization: `Bearer ${adminToken}` }
+      });
+      const uData = await uRes.json();
+      const currentWallet = uData.fields?.solanaWallet?.stringValue;
+      
+      if (currentWallet && currentWallet !== body.solanaWallet) {
+        if (!body.currentPin) return c.json({ error: '지갑 주소를 변경하려면 출금 PIN이 필요합니다.' }, 400);
+        
+        const storedPin = uData.fields?.withdrawPin?.stringValue;
+        const providedPinBase64 = btoa(body.currentPin);
+        
+        if (providedPinBase64 !== storedPin) {
+          return c.json({ error: '출금 PIN이 일치하지 않습니다.' }, 400);
+        }
+      }
+    }
+
     const allowedKeys = ['autoCompound', 'name', 'phone', 'country', 'withdrawPin', 'solanaWallet'];
-    const updateData = {};
+    const updateData: any = {};
     let hasChanges = false;
     for (const key of allowedKeys) {
       if (body[key] !== undefined) {
@@ -1765,8 +1787,6 @@ app.post('/api/user/update-profile', async (c) => {
     }
     
     if (!hasChanges) return c.json({ success: true });
-    
-    const adminToken = await getAdminToken();
     await fsPatch(`users/${uid}`, updateData, adminToken);
     
     return c.json({ success: true });

@@ -1718,9 +1718,17 @@
         </label>
         <input type="text" id="solanaWalletInput" class="form-input" placeholder="Solana 지갑 주소를 붙여넣어주세요" style="font-family: monospace; font-size: 14px; padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none; transition: all 0.2s ease;">
       </div>
-      <div style="margin-top: 24px;">
-        <button id="saveWalletBtn" class="btn btn-primary" onclick="saveWalletAddress()" style="width: 100%; padding: 14px; font-weight: 600; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-          <i class="fa-solid fa-check"></i> 지갑 주소 저장하기
+      <div class="form-group hidden" id="walletPinGroup" style="margin-top: 16px;">
+        <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px;">
+          <i class="fa-solid fa-lock" style="color: #ef4444;"></i> 출금 PIN 확인
+        </label>
+        <input type="password" id="walletPinInput" class="form-input" placeholder="출금 PIN 6자리 입력" maxlength="6" inputmode="numeric" style="padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none;">
+        <div style="font-size: 12px; color: #ef4444; margin-top: 6px;">* 이미 등록된 주소를 변경하려면 출금 PIN이 필요합니다.</div>
+      </div>
+      <div style="margin-top: 24px; display: flex; gap: 10px;">
+        <button class="btn btn-ghost" onclick="closeModal('walletRegisterModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: rgba(255,255,255,0.05);">나중에 하기</button>
+        <button id="saveWalletBtn" class="btn btn-primary" onclick="saveWalletAddress()" style="flex: 2; padding: 14px; font-weight: 600; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+          <i class="fa-solid fa-check"></i> 저장하기
         </button>
       </div>
     </div>
