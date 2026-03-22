@@ -172,6 +172,24 @@ export class DedraAPI {
   // ─────────────────────────────────────────────────
   // 대시보드 통계
   // ─────────────────────────────────────────────────
+  async getBadgesStats() {
+    try {
+      if (this._isSubAdmin) {
+        const json = await this._saFetch("/api/subadmin/dashboard-badges");
+        return json.success ? ok(json.data) : err(new Error(json.error));
+      }
+      const db = this.db;
+      const [depSnap, withSnap] = await Promise.all([
+        getDocs(query(collection(db, "transactions"), where("type", "==", "deposit"), where("status", "==", "pending"))),
+        getDocs(query(collection(db, "transactions"), where("type", "==", "withdrawal"), where("status", "==", "pending")))
+      ]);
+      return ok({
+        pendingDeposits: depSnap.size,
+        pendingWithdrawals: withSnap.size
+      });
+    } catch(e) { return err(e); }
+  }
+
   async getDashboardStats() {
     try {
       // 보조계정: 전용 API 사용

@@ -1570,6 +1570,37 @@ app.post('/api/subadmin/query', async (c) => {
 
 // ─── 보조계정 대시보드 통계 API ────────────────────────────────────────────────
 app.get('/api/subadmin/dashboard-stats', async (c) => {
+
+app.get('/api/subadmin/dashboard-badges', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    const sa = verifySubAdminToken(token)
+    if (!sa) return c.json({ error: '인증 실패' }, 401)
+
+    const adminToken = await getAdminToken()
+    const [dep, withs] = await Promise.all([
+      fsQuery('transactions', adminToken, [
+        { field: 'type', op: 'EQUAL', value: 'deposit' },
+        { field: 'status', op: 'EQUAL', value: 'pending' }
+      ], 1000),
+      fsQuery('transactions', adminToken, [
+        { field: 'type', op: 'EQUAL', value: 'withdrawal' },
+        { field: 'status', op: 'EQUAL', value: 'pending' }
+      ], 1000)
+    ])
+
+    return c.json({
+      success: true,
+      data: {
+        pendingDeposits: dep.length,
+        pendingWithdrawals: withs.length
+      }
+    })
+  } catch(e: any) {
+    return c.json({ success: false, error: e.message })
+  }
+})
   try {
     const authHeader = c.req.header('Authorization') || ''
     const token = authHeader.replace('Bearer ', '')

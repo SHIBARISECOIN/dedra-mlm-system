@@ -5300,6 +5300,7 @@ onAuthStateChanged(auth, async user => {
             startAdminNotifPolling();
             startGlobalAdminSnapshots();
              // 🔔 관리자 알림 폴링 시작
+            startDashboardPolling();
             _setupDone = true;
             
             setTimeout(() => {
@@ -13476,7 +13477,8 @@ function _enterSubAdminMode(sa) {
   if (!_setupDone) {
     setupEvents();
     startAdminNotifPolling();
-    _setupDone = true;
+    startDashboardPolling();
+            _setupDone = true;
   }
 
   // ── 메뉴 권한 적용 (숨김 처리)
@@ -14570,15 +14572,45 @@ document.addEventListener('click', (e) => {
 /** 30초마다 폴링 */
 
 // ==== 글로벌 대시보드 업데이트 (메뉴 뱃지 등 실시간 현황) ====
+
+// ==== 경량 뱃지 업데이트 (10초 폴링용) ====
+async function updateBadgesOnly() {
+    try {
+        let r;
+        if (_currentSubAdmin) {
+            const res = await _subAdminFetch('/api/subadmin/dashboard-badges');
+            r = await res.json();
+        } else {
+            // 메인 관리자는 snapshot이 있으므로 뱃지 폴링은 사실 불필요하지만 혹시 모르니
+            r = await api.getBadgesStats();
+        }
+        
+        if (r && r.success) {
+            const d = r.data;
+            const updateBadge = (id, count) => {
+              const b = document.getElementById(id);
+              if (b) {
+                b.textContent = count;
+                b.style.display = count > 0 ? 'inline-block' : 'none';
+              }
+            };
+            updateBadge('badge-deposits', d.pendingDeposits);
+            updateBadge('badge-withdrawals', d.pendingWithdrawals);
+        }
+    } catch(e) {
+        console.error('Badge update error:', e);
+    }
+}
+// ===========================================
 let _dashboardPollTimer = null;
 function startDashboardPolling() {
     if (_dashboardPollTimer) clearInterval(_dashboardPollTimer);
     _dashboardPollTimer = setInterval(() => {
         // 대시보드 페이지가 열려있거나, 혹은 뱃지 갱신을 위해 주기적으로 실행
         if (currentAdmin || _currentSubAdmin) {
-            loadDashboard(); // loadDashboard 안에 뱃지 업데이트 로직 포함됨
+            updateBadgesOnly();
         }
-    }, 15000); // 15초마다 갱신
+    }, 10000); // 10초마다 뱃지 갱신
 }
 // ==== 끝 ====
 
@@ -14597,7 +14629,7 @@ function startGlobalAdminSnapshots() {
     _globalSnaps.push(onSnapshot(query(collection(db, 'transactions'), where('type', '==', 'deposit'), where('status', '==', 'pending')), (snap) => {
         const cnt = snap.size;
         const b = document.getElementById('badge-deposits');
-        if(b) { b.textContent = cnt > 0 ? cnt+'+' : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
+        if(b) { b.textContent = cnt > 0 ? cnt : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
         const sd = document.getElementById('statPendingDeposits');
         if(sd) sd.textContent = cnt;
 
@@ -14631,7 +14663,7 @@ function startGlobalAdminSnapshots() {
     _globalSnaps.push(onSnapshot(query(collection(db, 'transactions'), where('type', '==', 'withdrawal'), where('status', '==', 'pending')), (snap) => {
         const cnt = snap.size;
         const b = document.getElementById('badge-withdrawals');
-        if(b) { b.textContent = cnt > 0 ? cnt+'+' : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
+        if(b) { b.textContent = cnt > 0 ? cnt : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
         const sd = document.getElementById('statPendingWithdrawals');
         if(sd) sd.textContent = cnt;
 
@@ -14666,7 +14698,7 @@ function startGlobalAdminSnapshots() {
     _globalSnaps.push(onSnapshot(query(collection(db, 'tickets'), where('status', '==', 'open')), (snap) => {
         const cnt = snap.size;
         const b = document.getElementById('badge-tickets');
-        if(b) { b.textContent = cnt > 0 ? cnt+'+' : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
+        if(b) { b.textContent = cnt > 0 ? cnt : 0; b.style.display = cnt > 0 ? 'inline-block' : 'none'; }
     }));
     
     // 실시간 접속자 (단순 주기적 업데이트용으로만 사용, 대규모 시 부하 주의 -> 우선 60초 폴링)
