@@ -9493,7 +9493,18 @@ window.saveWalletAddress = async function() {
     btn.innerText = '저장 중...';
     
     try {
-        const idToken = await auth.currentUser.getIdToken();
+        let currentUser = null;
+        if (typeof window.FB !== 'undefined' && window.FB.auth && window.FB.auth.currentUser) {
+            currentUser = window.FB.auth.currentUser;
+        } else if (typeof window.auth !== 'undefined' && window.auth.currentUser) {
+            currentUser = window.auth.currentUser;
+        } else if (typeof auth !== 'undefined' && auth.currentUser) {
+            currentUser = auth.currentUser;
+        }
+        
+        if (!currentUser) throw new Error('로그인 정보가 없습니다.');
+        
+        const idToken = await currentUser.getIdToken();
         const res = await fetch('/api/user/update-profile', {
             method: 'POST',
             headers: {
