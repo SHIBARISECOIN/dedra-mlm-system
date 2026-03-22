@@ -4070,6 +4070,10 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
                 details = `만기: ${item.durationDays || 360}일 (${rate}%/일) - ${item.status==='active'?'진행중':'종료'}`;
             } else {
                 details = item.status === 'pending' ? '처리중' : (item.status === 'held' ? '보류중' : (item.status === 'rejected' ? '거절됨' : '완료됨'));
+                if (item.txid) {
+                    const shortTxid = item.txid.length > 20 ? item.txid.substring(0, 10) + '...' + item.txid.substring(item.txid.length - 10) : item.txid;
+                    details += `<br>TXID: <a href="https://solscan.io/tx/${item.txid}" target="_blank" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${shortTxid}</a>`;
+                }
             }
         }
         let amtSign = (item.type === 'withdrawal' || item.type === 'invest' && !isBonus) ? '-' : '+';

@@ -5633,7 +5633,7 @@ async function loadDeposits(status = 'pending') {
                 ${(window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit) ? '<div style="margin-top:4px;"><span style="background:#ef4444;color:#fff;font-size:10px;padding:2px 5px;border-radius:4px;box-shadow:0 2px 4px rgba(239,68,68,0.3);"><i class="fas fa-exclamation-triangle"></i> 임의입금 이력</span></div>' : ''}
               </td>
             <td><strong style="color:var(--success)">${r.amount?.toFixed(2)}</strong></td>
-            <td title="${r.txid||''}"><code style="font-size:11px;">${(r.txid||'없음').substring(0,16)}${r.txid?.length>16?'...':''}</code></td>
+            <td title="${r.txid||''}"><code style="font-size:11px;">${r.txid ? `<a href="https://solscan.io/tx/${r.txid}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${r.txid.substring(0,16)}${r.txid.length>16?"...":""}</a>` : "없음"}</code></td>
             <td>${fmtDate(r.createdAt)}</td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
             <td><button class="btn btn-primary btn-sm" onclick="showDepositDetail('${r.id}')">상세</button></td>
@@ -5717,7 +5717,7 @@ async function loadWithdrawals(status = 'pending') {
               <td title="${r.walletAddress||''}"><code style="font-size:11px;">${(r.walletAddress||'없음').substring(0,12)}...</code></td>
               <td>${fmtDate(r.createdAt)}</td>
               <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
-              <td title="${r.txid||''}"><code style="font-size:11px;">${(r.txid||'-').substring(0,8)}...</code></td>
+              <td title="${r.txid||''}"><code style="font-size:11px;">${r.txid ? `<a href="https://solscan.io/tx/${r.txid}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${r.txid.substring(0,8)}...</a>` : "-"}</code></td>
               <td style="display:flex; gap:4px;"><button class="btn btn-primary btn-sm" onclick="showWithdrawalDetail('${r.id}')">상세</button><button class="btn btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="analyzeWithdrawal('${r.userId}', '${r.id}')">🔍 심사</button></td>
             </tr>`;
           }).join('')}</tbody>
@@ -7073,7 +7073,7 @@ window.showDepositDetail = async (txId) => {
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
         ${infoRow2('👤 회원', `<strong>${memberName}</strong>${memberPhone ? ` · <span style="color:#64748b;font-size:12px;">${memberPhone}</span>` : ''}`)}
         ${infoRow2('📧 이메일', `<span style="font-size:12px;">${memberEmail||currentTx.userId}</span>`)}
-        ${infoRow2('🔗 TXID', `<span style="font-family:monospace;font-size:11px;word-break:break-all;color:#1d4ed8;">${currentTx.txid||'-'}</span>`)}
+        ${infoRow2('🔗 TXID', currentTx.txid ? `<a href="https://solscan.io/tx/${currentTx.txid}" target="_blank" style="font-family:monospace;font-size:11px;word-break:break-all;color:#3b82f6;text-decoration:underline;">${currentTx.txid}</a>` : `<span style="font-family:monospace;font-size:11px;word-break:break-all;color:#1d4ed8;">-</span>`)}
         ${currentTx.memo ? infoRow2('📝 메모', currentTx.memo) : ''}
         ${infoRow2('📅 신청일', fmtDate(currentTx.createdAt))}
         ${currentTx.processedAt ? infoRow2('✅ 처리일', fmtDate(currentTx.processedAt)) : ''}
@@ -7180,7 +7180,7 @@ window.showWithdrawalDetail = async (txId) => {
         ${infoRow2('💰 신청(USDT)', `<strong style="color:#dc2626;">${amountUsdt.toFixed(2)} USDT</strong>`)}
         ${infoRow2('💎 지급(DDRA)', `<strong style="color:#6d28d9;">${amountDdra.toFixed(4)} DDRA</strong>`)}
         ${infoRow2('📅 신청일', fmtDate(currentTx.createdAt))}
-        ${currentTx.txid ? infoRow2('🔗 처리 TXID', `<code style="font-size:11px;word-break:break-all;">${currentTx.txid}</code>`) : ''}
+        ${currentTx.txid ? infoRow2('🔗 처리 TXID', `<a href="https://solscan.io/tx/${currentTx.txid}" target="_blank" style="font-size:11px;word-break:break-all;color:#3b82f6;text-decoration:underline;">${currentTx.txid}</a>`) : ''}
         ${currentTx.processedAt ? infoRow2('✅ 처리일', fmtDate(currentTx.processedAt)) : ''}
         ${currentTx.adminMemo ? infoRow2('💬 관리자 메모', `<span style="color:#7c3aed;">${currentTx.adminMemo}</span>`) : ''}
         ${currentTx.rejectionReason ? infoRow2('❌ 거부 사유', `<span style="color:#dc2626;">${currentTx.rejectionReason}</span>`) : ''}
@@ -7594,7 +7594,7 @@ async function loadMemberTxHistory(userId) {
             <td><span class="badge ${r.type==='deposit'?'badge-approved':'badge-pending'}">${r.type==='deposit'?'입금':'출금'}</span></td>
             <td><strong>${(r.type==='deposit' ? (r.amount||0) : (r.amountUsdt !== undefined ? r.amountUsdt : (r.amount||0))).toFixed(2)} USDT${r.type==='withdrawal' && r.amount ? ` (≈${(r.amount||0).toFixed(4)} DDRA)` : ''}</strong></td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
-            <td><code style="font-size:11px;">${(r.txid||'-').substring(0,14)}</code></td>
+            <td><code style="font-size:11px;">${r.txid ? `<a href="https://solscan.io/tx/${r.txid}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${r.txid.substring(0,14)}</a>` : "-"}</code></td>
             <td style="font-size:12px;">${fmtDate(r.createdAt)}</td>
           </tr>`).join('')}</tbody></table></div>`;
     } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); }
