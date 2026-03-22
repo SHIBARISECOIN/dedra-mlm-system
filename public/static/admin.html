@@ -1710,7 +1710,7 @@ canvas{width:100% !important;}
           <div style="font-size:13px;color:#64748b;">Cloudflare R2를 사용해 음성 파일을 업로드하고 관리합니다.</div>
         </div>
         <button class="btn btn-primary" onclick="document.getElementById('podcastModal').style.display='flex'" style="display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:14px;">
-          <span style="font-size:18px;">⬆️</span> 음성 업로드
+          <span style="font-size:18px;">⬆️</span> 미디어 업로드
         </button>
       </div>
 
@@ -4673,8 +4673,8 @@ canvas{width:100% !important;}
     <!-- 모달 헤더 -->
     <div style="display:flex; justify-content:space-between; align-items:center; padding:24px 28px; border-bottom:1px solid #f1f5f9; position:sticky; top:0; background:#fff; z-index:10; border-radius:24px 24px 0 0;">
       <h3 style="margin:0; font-size:20px; font-weight:800; display:flex; align-items:center; gap:12px; color:#1e293b;">
-        <span style="display:flex; align-items:center; justify-content:center; width:40px; height:40px; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border-radius:12px; font-size:20px; box-shadow:0 4px 10px rgba(99,102,241,0.3);">🎙️</span>
-        팟캐스트 업로드
+        <span style="display:flex; align-items:center; justify-content:center; width:40px; height:40px; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border-radius:12px; font-size:20px; box-shadow:0 4px 10px rgba(99,102,241,0.3);">🎬</span>
+        미디어 업로드
       </h3>
       <button onclick="document.getElementById('podcastModal').style.display='none'" style="background:#f8fafc; border:none; font-size:20px; color:#64748b; cursor:pointer; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; transition:all 0.2s;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#1e293b';" onmouseout="this.style.background='#f8fafc'; this.style.color='#64748b';">✕</button>
     </div>
@@ -4698,16 +4698,16 @@ canvas{width:100% !important;}
       <!-- 파일 업로드 영역 -->
       <div style="margin-bottom:30px;">
         <label style="display:flex; justify-content:space-between; align-items:center; font-size:14px; font-weight:700; color:#334155; margin-bottom:8px;">
-          <span>음성 파일 첨부 <span style="color:#ef4444;">*</span></span>
+          <span>미디어 파일 첨부 <span style="color:#ef4444;">*</span></span>
           <span style="font-size:12px; font-weight:500; color:#94a3b8; background:#f1f5f9; padding:4px 8px; border-radius:6px;">최대 100MB 권장</span>
         </label>
         
         <div style="position:relative; border:2px dashed #cbd5e1; border-radius:16px; padding:36px 20px; text-align:center; background:#f8fafc; transition:all 0.2s; cursor:pointer;" onmouseover="this.style.borderColor='#a855f7'; this.style.background='#faf5ff'" onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'" onclick="document.getElementById('pcFile').click()">
           <div style="font-size:40px; margin-bottom:12px;">📁</div>
-          <div style="font-size:16px; font-weight:700; color:#1e293b; margin-bottom:6px;">오디오 파일을 여기로 드래그하거나 클릭</div>
-          <div style="font-size:13px; color:#64748b;">지원 포맷: .mp3, .m4a, .wav (R2 스토리지 저장)</div>
+          <div style="font-size:16px; font-weight:700; color:#1e293b; margin-bottom:6px;">오디오 또는 비디오 파일을 클릭하여 첨부</div>
+          <div style="font-size:13px; color:#64748b;">지원 포맷: .mp3, .mp4, .m4a, .wav (R2 스토리지 저장)</div>
           
-          <input type="file" id="pcFile" accept="audio/*" style="display:none;" onchange="if(this.files[0]) { document.getElementById('pcFileName').innerHTML = '<div style=\'display:inline-flex; align-items:center; gap:8px; background:#dcfce7; color:#166534; padding:8px 16px; border-radius:20px; font-weight:700; font-size:14px; box-shadow:0 2px 8px rgba(22,101,52,0.1);\'><span style=\'font-size:16px;\'>🎵</span> ' + this.files[0].name + ' <span style=\'opacity:0.7; font-size:12px;\'>(' + (this.files[0].size/1024/1024).toFixed(2) + 'MB)</span></div>'; } else { document.getElementById('pcFileName').innerHTML = ''; }">
+          <input type="file" id="pcFile" accept="audio/*,video/*" style="display:none;" onchange="if(this.files[0]) { document.getElementById('pcFileName').innerHTML = '<div style=\'display:inline-flex; align-items:center; gap:8px; background:#dcfce7; color:#166534; padding:8px 16px; border-radius:20px; font-weight:700; font-size:14px; box-shadow:0 2px 8px rgba(22,101,52,0.1);\'><span style=\'font-size:16px;\'>🎬</span> ' + this.files[0].name + ' <span style=\'opacity:0.7; font-size:12px;\'>(' + (this.files[0].size/1024/1024).toFixed(2) + 'MB)</span></div>'; } else { document.getElementById('pcFileName').innerHTML = ''; }">
         </div>
         <div id="pcFileName" style="margin-top:16px; text-align:center; min-height:20px;"></div>
       </div>
@@ -15483,7 +15483,7 @@ window.uploadPodcast = async function() {
   }
   
   if (!fileInput.files || fileInput.files.length === 0) {
-    alertEl.innerHTML = '음성 파일을 선택하세요.';
+    alertEl.innerHTML = '미디어 파일을 선택하세요.';
     alertEl.className = 'inline-alert inline-alert-error show';
     alertEl.style.display = 'block';
     return;

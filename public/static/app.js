@@ -9552,13 +9552,25 @@ window.loadUserPodcasts = async function() {
     data.data.forEach(p => {
       const date = p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '';
       
+      let mediaHtml = '';
+      if (p.audioUrl) {
+        const lowerUrl = p.audioUrl.toLowerCase();
+        const isVideo = lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.webm') || lowerUrl.endsWith('.mov') || lowerUrl.includes('.mp4?') || lowerUrl.includes('.webm?') || lowerUrl.includes('.mov?');
+        
+        if (isVideo) {
+          mediaHtml = `<video controls playsinline src="${p.audioUrl}" style="width:100%; border-radius:8px; outline:none; background:#000; max-height: 250px;"></video>`;
+        } else {
+          mediaHtml = `<audio controls src="${p.audioUrl}" style="width:100%; height:36px; outline:none;"></audio>`;
+        }
+      }
+
       html += `
       <div style="background:var(--bg2); border-radius:12px; padding:16px; margin-bottom:12px; border:1px solid var(--border);">
         <div style="font-size:12px; color:var(--text2); margin-bottom:6px;">${date}</div>
         <div style="font-size:15px; font-weight:700; color:var(--text); margin-bottom:10px;">${p.title}</div>
         <div style="font-size:13px; color:var(--text2); margin-bottom:16px; line-height:1.4;">${p.description || ''}</div>
         <div style="background:var(--bg); border-radius:8px; padding:10px;">
-          <audio controls src="${p.audioUrl}" style="width:100%; height:36px; outline:none;"></audio>
+          ${mediaHtml}
         </div>
       </div>`;
     });
