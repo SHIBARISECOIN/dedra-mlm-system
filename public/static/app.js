@@ -4363,10 +4363,11 @@ function renderAnnouncements(items, containerId) {
     el.innerHTML = `<div class="empty-state"><i class="fas fa-bullhorn"></i>${t('emptyNotice')}</div>`;
     return;
   }
+  const getTrans = (obj, field) => (currentLang !== 'ko' && obj[field + '_' + currentLang]) ? obj[field + '_' + currentLang] : obj[field];
   el.innerHTML = items.map(a => `
     <div class="announcement-item" onclick="showAnnouncementDetail('${a.id}')">
       <div class="ann-title">
-        ${a.isPinned ? `<span class="pin-badge">${t('noticePinBadge') || '공지'}</span>` : ''}${a.title || '제목 없음'}
+        ${a.isPinned ? `<span class="pin-badge">${t('noticePinBadge') || '공지'}</span>` : ''}${getTrans(a, 'title') || '제목 없음'}
       </div>
       <div class="ann-date">${fmtDate(a.createdAt)}</div>
     </div>
@@ -4412,9 +4413,11 @@ window.showAnnouncementDetail = async function(id) {
     const snap = await getDoc(doc(db, 'announcements', id));
     if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}</div>`; return; }
     const a = snap.data();
-    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (a.title || '제목 없음');
+    const title = (currentLang !== 'ko' && a['title_' + currentLang]) ? a['title_' + currentLang] : a.title;
+    const content = (currentLang !== 'ko' && a['content_' + currentLang]) ? a['content_' + currentLang] : a.content;
+    if (titleEl) titleEl.textContent = (a.isPinned ? '📌 ' : '📢 ') + (title || '제목 없음');
     if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
-    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(a.content || '내용 없음').replace(/\n/g, '<br>')}</div>`;
+    if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(content || '내용 없음').replace(/\n/g, '<br>')}</div>`;
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
@@ -5705,8 +5708,8 @@ function loadSimulatorOptions() {
       else if (p.name.includes('3개월')) prodName = t('productMonth3') || p.name;
       else if (p.name.includes('1개월')) prodName = t('productMonth1') || p.name;
     }
-    const daysUnit = t('simPeriod')?.split('(')[0]?.trim() || 'days';
-    sel.innerHTML += `<option value="${p.id}" data-roi="${roi}" data-days="${days}" data-min="${p.minAmount||0}" data-max="${p.maxAmount||9999}">${prodName} (${roi}% / ${days} ${daysUnit})</option>`;
+    const daysUnitLabel = t('unit_days') || '일';
+    sel.innerHTML += `<option value="${p.id}" data-roi="${roi}" data-days="${days}" data-min="${p.minAmount||0}" data-max="${p.maxAmount||9999}">${prodName} (${roi}% / ${days}${daysUnitLabel})</option>`;
   });
 }
 

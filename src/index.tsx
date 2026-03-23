@@ -4075,24 +4075,22 @@ async function checkLowBalances(adminToken: string) {
 
 async function translateText(text: string, targetLang: string): Promise<string> {
   if (!text || !text.trim()) return ''
-  // HTML 태그 제거하여 텍스트만 번역
-  const plainText = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!plainText) return ''
 
-  // MyMemory API: 무료, API키 불필요, 한국어 지원
-  // 언어코드 매핑
+  // Google Translate API (무료 엔드포인트, 약 5000자 제한, 개행유지)
   const langMap: Record<string, string> = { en: 'en', vi: 'vi', th: 'th' }
   const targetCode = langMap[targetLang] || targetLang
 
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=ko|${targetCode}`
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
     if (!res.ok) return ''
     const data: any = await res.json()
-    if (data?.responseStatus === 200 && data?.responseData?.translatedText) {
-      return data.responseData.translatedText
+    if (data && data[0]) {
+      return data[0].map((item: any) => item[0]).join('')
     }
-  } catch (_) {}
+  } catch (err) {
+    console.error('Translation error:', err)
+  }
   return ''
 }
 
