@@ -17,5 +17,9 @@
     "vite": "^8.0.0",
     "wrangler": "^4.75.0"
   },
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name deedra"
+  }
 }
