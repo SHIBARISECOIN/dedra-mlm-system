@@ -63,6 +63,73 @@ const SFX = (() => {
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+    dexLoading: 'Raydium 로딩 중...',
+    dexModalTitle: 'DDRA 스왑 터미널',
+    gameEntranceTitle: '게임 입장 안내',
+    gameEntranceDesc: '게임 베팅 시 회원님의 실제 <b>보너스 잔액(USDT)</b>이 차감 및 연동됩니다.<br><br>본 게임 결과에 따른 수익과 손실은 온전히 본인에게 귀속됨을 확인하며, 이에 동의하십니까?',
+    gameEntranceConfirm: '동의 및 입장',
+
+    acDisableConfirm: '자동 복리 기능을 정말 해제하시겠습니까? (이후 데일리 수익은 출금 가능한 상태로 적립됩니다)',
+    clearCacheBtn: '로그인이 안될 경우 누르세요 (캐시 초기화)',
+    clearCacheConfirm: '기기 캐시 데이터를 초기화하고 새로고침하시겠습니까?',
+
+    guestTicketTitle: '비밀번호 찾기 문의',
+    guestTicketDesc: '비밀번호를 분실하신 경우, 관리자가 본인 확인 후 초기화해 드립니다.<br>아래 정보를 정확히 입력해 주세요.',
+    phGuestId: '가입하신 아이디 입력',
+    phGuestName: '가입하신 이름 입력',
+    phGuestPhone: '가입하신 전화번호 입력 (예: 010-1234-5678)',
+    btnSubmitGuestTicket: '문의 등록',
+
+    notificationCenter: '알림 센터',
+    btnConfirm: '확인',
+
+    forcePwTitle: '안전한 사용을 위한 비밀번호 변경',
+    forcePwDesc: '회원님의 현재 비밀번호는 초기 설정값(000000)입니다.<br>안전한 서비스 이용을 위해 <strong>본인만의 새로운 비밀번호</strong>로 변경해 주세요.',
+    btnChangePassword: '비밀번호 변경 완료',
+
+    autoCompoundModalTitle: '자동 복리 (Auto-Compound) 활성화',
+    btnEnable: '활성화 승인',
+    acModalDesc1: '복리의 마법을 경험하세요!',
+    acModalDesc2: '자동 복리를 켜두면 매일 자정에 발생하는 <strong>데일리 수익금이 내 지갑으로 들어오지 않고, 곧바로 진행 중인 FREEZE(투자) 원금에 추가(재투자)</strong>됩니다.',
+    acModalDesc3: '매일 원금이 커지므로 다음 날 발생하는 이자도 점점 더 커집니다.',
+    acModalDesc4: '수동으로 재투자할 때 발생하는 번거로움과 시간 지연이 없습니다.',
+    acModalDesc5: '원금에 합산된 수익금은 기존 상품 만기 시점까지 함께 락업(출금 불가)됩니다.',
+    acModalDesc6: '위 내용을 모두 읽고 이해하였으며, 데일리 수익금의 자동 재투자(원금 락업)에 동의합니다.',
+    warningSnowball: '(눈덩이 효과)',
+    warningNotice: '주의:',
+
+    reinvestBtn: '재투자',
+    reinvestModalTitle: '수익금 재투자 (FREEZE 가입)',
+    reinvestModalDesc: '출금 가능한 수익금으로 새로운 FREEZE 상품에 바로 재투자합니다.',
+    reinvestSelProduct: '재투자할 상품 선택 (기간)',
+    reinvestLoading: '상품을 불러오는 중...',
+    reinvestAmtLabel: '재투자할 금액 (USDT)',
+    reinvestAmtPh: '최소 1 USDT 이상',
+    reinvestMaxBtn: '최대',
+    reinvestSubmit: '재투자 승인',
+
+    depTabWallet: '🔗 지갑 연동',
+    depTabManual: '✏️ 수동 입금',
+    depWalletTitle: '지갑을 연결하세요',
+    depWalletDesc: 'Phantom, TokenPocket 등 Solana 지갑을 지원합니다',
+    depNoWallet: '지갑이 없으신가요?',
+    depInstallPhantom: 'Phantom 설치',
+    depInstallToken: 'TokenPocket 설치',
+    depUsdtBal: 'USDT 잔액',
+    depGasFeeInfo: '⚡ <strong>Solana 네트워크</strong> — 가스비 약 $0.001 (SOL)<br>',
+    depGasNote: '전송 전 소량의 SOL이 지갑에 있어야 합니다.',
+    depWalletSendBtn: '🚀 지갑으로 즉시 전송',
+    depManualSubmitBtn: '입금 신청',
+    depCancelBtn: '취소',
+
+    podcastMenu: '🎙️ DEEDRA 팟캐스트',
+    podcastTitle: '🎙️ 팟캐스트',
+    podcastHeader: 'DEEDRA 팟캐스트',
+    podcastDesc: '최신 소식과 시장 동향을 멀티미디어(음성·영상)로 만나보세요',
+    
+    installApp: '앱 설치하기 (홈 화면에 추가)',
+    privacyMode: '프라이버시 모드',
+
     errWithdrawTime: '지금은 출금 가능 시간이 아닙니다.\n{day} {time} 부터 출금 가능합니다.',
     errWithdrawTimeToday: '지금은 출금 가능 시간이 아닙니다.\n오늘 {time} 부터 출금 가능합니다.',
     errWithdrawRestricted: '현재 출금이 제한되어 있습니다.',
@@ -131,11 +198,20 @@ const TRANSLATIONS = {
     productMonth3: '3개월',
     productMonth6: '6개월',
     productMonth12: '12개월',
+    purchasedBadge: '보유중',
     productHint1: '{min} USDT FREEZE 시 일 수익',
     productHint2: '만기 후 언프리즈 가능',
+    uninvestedLabel: '미투자',
+    usdtPrincipalLocked: 'USDT 원금 (Locked)',
+    autoCompoundTitle: '자동 복리 (Auto-Compound)',
+    autoCompoundDesc: '보유한 USDT가 자정(0시)마다 자동으로 12개월(가장 이율이 높은 상품) 상품에 추가 Freeze됩니다. 출금 수수료 없이 복리 효과를 누릴 수 있습니다.',
     ddraConvert: 'DDRA 환산',
     maturityDate: '만기일',
     emptyNotice: '공지사항이 없습니다',
+    noticePinBadge: '공지',
+    liveChartTitle: '실시간 차트 보기',
+    liveChartSub: 'DexScreener 거래내역',
+    liveChartModalTitle: 'DEEDRA 실시간 차트',
     loadFail: '불러오기 실패',
         emptyTx: '거래 내역이 없습니다',
     chatTabGroup: '내 그룹',
@@ -148,8 +224,10 @@ const TRANSLATIONS = {
     chatPageTitle: '채팅',
     fee: '수수료',
     globalNetwork: '실시간 글로벌 네트워크',
-    majorCryptoPrice: 'Major Crypto Live Price',
     majorCryptoPrice: '주요 암호화폐 실시간 시세',
+    liveGlobalTx: '🔥 실시간 글로벌 트랜잭션',
+    shortageLabel: '부족',
+    achievedLabel: '✔ 달성 완료',
     newsViewerTitle: '📰 뉴스 보기',
     tickerJoined: '새로운 회원이 가입했습니다: {city}',
     tickerDeposited: '{city}에서 {amt} USDT 입금',
@@ -175,6 +253,7 @@ const TRANSLATIONS = {
     placeholderUsername: '아이디를 입력하세요',
     placeholderEmail: '이메일을 입력하세요',
     placeholderPassword: '비밀번호를 입력하세요',
+    placeholderWithdrawAddress: 'DDRA 수신 지갑 주소 입력',
     placeholderPasswordMin: '6자리 이상 입력하세요',
     btnLogin: '로그인',
     forgotPassword: '비밀번호를 잊으셨나요?',
@@ -187,7 +266,7 @@ const TRANSLATIONS = {
     // 홈
     greeting: '안녕하세요 👋',
     totalAssetLabel: '총 자산 (USDT 환산)',
-    assetLocked: 'USDT 원금 (잠금)',
+    assetLocked: 'USDT 원금 (Locked)',
     assetInvesting: '❄️ FREEZE 중',
     assetInterest: '수익 잔액 (출금 가능)',
     btnDeposit: 'USDT 입금',
@@ -290,10 +369,24 @@ const TRANSLATIONS = {
     txDeposit: '입금',
     txWithdraw: '출금',
     txInvest: 'FREEZE',
+    txDirectBonus: '추천 수당',
+    txRankBonus: '직급 수당',
+    txRankMatching: '직급 매칭',
+    txCenterFee: '센터',
+    viewAllPeriod: '전체 기간 보기',
     moreAnnouncements: '📢 공지사항',
     accountMgmt: '⚙️ 계정 관리',
     profileEdit: '프로필 수정',
     passwordChange: '비밀번호 변경',
+    pwChangeTitle: '비밀번호 변경',
+    pwChangeDesc: '계정의 안전을 위해 비밀번호를 주기적으로 변경해 주세요.',
+    pwCurrentLabel: '기존 비밀번호',
+    pwCurrentPlaceholder: '기존 비밀번호 입력',
+    pwNewLabel: '새 비밀번호',
+    pwNewPlaceholder: '새 비밀번호 입력 (6자 이상)',
+    pwConfirmLabel: '새 비밀번호 확인',
+    pwConfirmPlaceholder: '새 비밀번호 다시 입력',
+    btnChangePassword: '비밀번호 변경하기',
     withdrawPin: '출금 PIN 설정',
     support: '1:1 문의',
     settings: '🔧 설정',
@@ -317,10 +410,10 @@ const TRANSLATIONS = {
     modalWithdraw: '💸 수익 출금 신청 (USDT 기준)',
     withdrawAvailLabel: '출금 가능 수익 (USDT)',
     withdrawAmountLabel: '출금 금액 (USDT)',
-    withdrawAddressLabel: '수신 지갑 주소',
+    withdrawAddressLabel: '수신 지갑 주소 (Solana 네트워크 DDRA 전용)',
     withdrawAddressPlaceholder: '수신 지갑 주소 입력',
     withdrawPinLabel: '출금 PIN (6자리)',
-    withdrawWarning: '⚠️ 출금 신청 후 관리자 승인까지 1~3 영업일 소요됩니다.',
+    withdrawWarning: '⚠️ 출금 유의사항<br>1. 출금 신청 시 관리자 승인을 거쳐 지급됩니다.<br>2. 승인 완료까지 영업일 기준 1~3일이 소요될 수 있습니다.<br>3. 출금 지갑 주소는 반드시 <strong>솔라나(Solana) 네트워크의 주소</strong>를 입력해 주세요.<br>4. 타 네트워크 주소 입력 시 자산이 유실될 수 있으며, 복구되지 않습니다.',
     btnSubmitWithdraw: '출금 신청',
     modalInvest: '❄️ FREEZE 신청',
     investAmountLabel: 'FREEZE 금액 (USDT)',
@@ -360,6 +453,7 @@ const TRANSLATIONS = {
     toastDepositDone: '입금 신청 완료! 관리자 승인을 기다려주세요.',
     toastWithdrawDone: '출금 신청 완료! 처리까지 1~3 영업일 소요됩니다.',
     toastInvestDone: 'FREEZE 신청 완료! ❄️🎉',
+    toastReinvestDone: '수익금 재투자가 완료되었습니다!',
     toastChargeDone: ' DDRA 충전 완료!',
     toastGameChargeFirst: '게임 지갑을 먼저 충전해주세요.',
     toastNoBalance: '잔액 부족',
@@ -385,6 +479,16 @@ const TRANSLATIONS = {
     toastEnterPin: '출금 PIN 6자리를 입력하세요.',
     toastInsufficientBal: '잔액이 부족합니다.',
     toastWrongPin: '출금 PIN이 올바르지 않습니다.',
+    toastPinNotSet: '출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.',
+    toastLowBonus: '출금 가능 USDT 부족 (가능: {n} USDT)',
+    toastEnterAmount: '금액을 입력하세요.',
+    toastLowUsdt: 'USDT 잔액이 부족합니다.',
+    toastCopyAddr: '주소가 복사되었습니다!',
+    toastCopyCode: '추천 코드 복사 완료!',
+    toastCopyLink: '초대 링크 복사 완료!',
+    toastCopied: '✅ 복사됨',
+    toastSaveProfile: '프로필이 저장되었습니다.',
+    toastSaveAddr: '지갑 주소가 성공적으로 저장되었습니다.',
     toastEnterInvAmt: 'FREEZE 금액을 입력하세요.',
     toastMinInvest: '최소 FREEZE 금액은 $',
     toastMaxInvest: '최대 FREEZE 금액은 $',
@@ -410,8 +514,11 @@ const TRANSLATIONS = {
     noTitle: '제목 없음',
     noContent: '내용 없음',
     pinBadge: '공지',
+    statusActive: '진행중',
+    statusEnded: '종료',
     statusPending: '승인 대기',
     statusApproved: '완료',
+    statusHeld: '보류중',
     statusRejected: '거부됨',
     greetingDawn: '새벽에도 열심히네요 🌙',
     greetingMorning: '좋은 아침이에요 ☀️',
@@ -488,6 +595,9 @@ const TRANSLATIONS = {
     registerRefRequired: '추천인 코드는 필수입니다.',
     registerInvalidRef: '유효하지 않은 추천인 코드입니다.',
     registerDone: '회원가입 완료! 환영합니다 🎉',
+    registerIdUsed: '이미 사용 중인 아이디입니다.',
+    toastEnterOldPw: '기존 비밀번호를 입력해주세요.',
+    toastEnterNewPw: '새 비밀번호를 입력해주세요.',
     forgotEmailFirst: '이메일을 먼저 입력하세요.',
     forgotEmailSent: '비밀번호 재설정 이메일을 발송했습니다.',
     loginIdPwRequired: '아이디와 비밀번호를 입력하세요.',
@@ -556,6 +666,16 @@ const TRANSLATIONS = {
     shareToExpand: '추천 링크를 공유하여 네트워크를 확장해보세요!',
     me: '나',
     member: '회원',
+    nameSuffix: '님',
+    liveOnlineUsers1: '접속 ',
+    liveOnlineUsers2: '명',
+    liveOnlineUsersRealtime: '실시간 접속 ',
+    dexFastTrade: 'DDRA 빠른 거래',
+    dexFeeZero: '수수료 0% · 지갑 연동 즉시 스왑',
+    btnBuy: '매수 (Buy)',
+    btnSell: '매도 (Sell)',
+    kimchiPremium: '글로벌 시세 대비 <span style="color:#10b981;">한국 프리미엄</span>',
+    autoCompoundDescShort: '매일 자정, 데일리 수익금을 FREEZE 원금에 자동 재투자합니다.',
     joinedOn: '가입',
     referralCodeLabel: '추천 코드',
     noName: '이름 없음',
@@ -565,6 +685,16 @@ const TRANSLATIONS = {
     registering: '등록 중...',
     emptyNotifs: '알림이 없습니다',
     saving: '저장 중...',
+    registerWalletTitle: '출금 지갑 주소 등록',
+    registerWalletDesc: '본인의 솔라나(Solana) 지갑 주소를 등록해두시면 자동 입금 처리가 더욱 원활해집니다.',
+    solanaWalletAddress: '솔라나 지갑 주소',
+    placeholderSolanaWallet: 'Solana 지갑 주소를 붙여넣어주세요',
+    withdrawPinConfirm: '출금 PIN 확인',
+    placeholderWithdrawPin: '출금 PIN 6자리 입력',
+    withdrawPinWarning: '* 이미 등록된 주소를 변경하려면 출금 PIN이 필요합니다.',
+    btnDoLater: '나중에 하기',
+    btnSave: '저장하기',
+    registerWallet: '출금 지갑 주소 등록',
     withdrawFee: '수수료',
     toastWithdrawDone2: '출금 신청 완료!',
     bonusRoiIncome2: '💎 ROI 수익',
@@ -582,6 +712,8 @@ const TRANSLATIONS = {
     totalSales: '총 매출',
     salesLabel: '매출',
     deepGenMembers: '3대+ 인원',
+    deepGenSummaryDesc: '3대 이하 산하 조직의 전체 통계입니다.',
+    txCountFormat: '{type} 총 {n}건',
     genSummary: '📊 대별 집계 (3대 이하는 개인정보 보호)',
     emptyGen: '하부 멤버가 없습니다',
     emptyDeepGen: '3대 이하 하부 멤버가 없습니다',
@@ -634,6 +766,73 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+    dexLoading: 'Loading Raydium...',
+    dexModalTitle: 'DDRA Swap Terminal',
+    gameEntranceTitle: 'Game Entrance',
+    gameEntranceDesc: 'Your actual <b>Bonus Balance (USDT)</b> will be deducted and linked during game betting.<br><br>I confirm that profits and losses resulting from this game belong entirely to me, and I agree to proceed.',
+    gameEntranceConfirm: 'Agree & Enter',
+
+    acDisableConfirm: 'Are you sure you want to disable Auto-Compound? (Future daily earnings will be added to your withdrawable balance)',
+    clearCacheBtn: 'Click here if login fails (Clear Cache)',
+    clearCacheConfirm: 'Clear device cache data and refresh?',
+
+    guestTicketTitle: 'Password Recovery Inquiry',
+    guestTicketDesc: 'If you lost your password, the admin will reset it after verification.<br>Please enter your information correctly below.',
+    phGuestId: 'Enter your registered ID',
+    phGuestName: 'Enter your registered Name',
+    phGuestPhone: 'Enter your registered Phone (e.g. +1-234-567-8900)',
+    btnSubmitGuestTicket: 'Submit Inquiry',
+
+    notificationCenter: 'Notification Center',
+    btnConfirm: 'Confirm',
+
+    forcePwTitle: 'Change Password for Security',
+    forcePwDesc: 'Your current password is the default (000000).<br>For secure service use, please change to <strong>your own new password</strong>.',
+    btnChangePassword: 'Complete Password Change',
+
+    autoCompoundModalTitle: 'Enable Auto-Compound',
+    btnEnable: 'Approve Activation',
+    acModalDesc1: 'Experience the magic of compound interest!',
+    acModalDesc2: 'When Auto-Compound is enabled, your <strong>daily earnings will be directly reinvested into your active FREEZE principal</strong> every midnight instead of going to your wallet.',
+    acModalDesc3: 'As the principal grows daily, the next day\'s interest grows as well.',
+    acModalDesc4: 'No hassle or time delay compared to manual reinvestment.',
+    acModalDesc5: 'Earnings added to the principal are locked up with the original product until its maturity.',
+    acModalDesc6: 'I have read and understood all the above, and agree to the automatic reinvestment (principal lock-up) of daily earnings.',
+    warningSnowball: '(Snowball Effect)',
+    warningNotice: 'Note:',
+
+    reinvestBtn: 'Reinvest',
+    reinvestModalTitle: 'Reinvest Earnings (FREEZE)',
+    reinvestModalDesc: 'Reinvest your withdrawable earnings directly into a new FREEZE product.',
+    reinvestSelProduct: 'Select Product for Reinvestment',
+    reinvestLoading: 'Loading products...',
+    reinvestAmtLabel: 'Reinvestment Amount (USDT)',
+    reinvestAmtPh: 'Min 1 USDT',
+    reinvestMaxBtn: 'Max',
+    reinvestSubmit: 'Confirm Reinvestment',
+
+    depTabWallet: '🔗 Connect Wallet',
+    depTabManual: '✏️ Manual Deposit',
+    depWalletTitle: 'Connect your wallet',
+    depWalletDesc: 'Supports Solana wallets like Phantom, TokenPocket',
+    depNoWallet: 'Don\'t have a wallet?',
+    depInstallPhantom: 'Install Phantom',
+    depInstallToken: 'Install TokenPocket',
+    depUsdtBal: 'USDT Balance',
+    depGasFeeInfo: '⚡ <strong>Solana Network</strong> — Gas fee approx $0.001 (SOL)<br>',
+    depGasNote: 'A small amount of SOL is required in your wallet before transfer.',
+    depWalletSendBtn: '🚀 Send via Wallet instantly',
+    depManualSubmitBtn: 'Submit Request',
+    depCancelBtn: 'Cancel',
+
+    podcastMenu: '🎙️ DEEDRA Podcast',
+    podcastTitle: '🎙️ Podcast',
+    podcastHeader: 'DEEDRA Podcast',
+    podcastDesc: 'Catch up with latest news and market trends via multimedia (Audio/Video)',
+    
+    installApp: 'Install App (Add to Home Screen)',
+    privacyMode: 'Privacy Mode',
+
     errWithdrawTime: 'Withdrawal is not available at this time.\nAvailable from {day} {time}.',
     errWithdrawTimeToday: 'Withdrawal is not available at this time.\nAvailable today from {time}.',
     errWithdrawRestricted: 'Withdrawals are currently restricted.',
@@ -701,11 +900,20 @@ const TRANSLATIONS = {
     productMonth3: '3 Months',
     productMonth6: '6 Months',
     productMonth12: '12 Months',
+    purchasedBadge: 'Owned',
     productHint1: 'Daily return for {min} USDT FREEZE',
-    productHint2: 'Principal unlockable after maturity',
+    toastReinvestDone: 'Profit reinvestment completed!',
+    uninvestedLabel: 'Uninvested',
+    usdtPrincipalLocked: 'USDT Principal (Locked)',
+    autoCompoundTitle: 'Auto-Compound',
+    autoCompoundDesc: 'Your available USDT is automatically compounded to the 12-month product (highest yield) every midnight. Enjoy compound interest without withdrawal fees.',
     ddraConvert: 'DDRA Conv.',
     maturityDate: 'Maturity Date',
     emptyNotice: 'No announcements',
+    noticePinBadge: 'Notice',
+    liveChartTitle: 'Live Chart',
+    liveChartSub: 'DexScreener Activity',
+    liveChartModalTitle: 'DEEDRA Live Chart',
     loadFail: 'Failed to load',
         emptyTx: 'No transaction history',
     chatTabGroup: 'My Group',
@@ -719,7 +927,9 @@ const TRANSLATIONS = {
     fee: 'Fee',
     globalNetwork: 'Real-time Global Network',
     majorCryptoPrice: 'Major Crypto Live Price',
-    majorCryptoPrice: '주요 암호화폐 실시간 시세',
+    liveGlobalTx: '🔥 Live Global Transactions',
+    shortageLabel: 'short',
+    achievedLabel: '✔ Achieved',
     newsViewerTitle: '📰 View News',
     tickerJoined: 'New user joined in {city}',
     tickerDeposited: '{amt} USDT Deposited from {city}',
@@ -745,6 +955,7 @@ const TRANSLATIONS = {
     placeholderUsername: 'Enter your username',
     placeholderEmail: 'Enter your email',
     placeholderPassword: 'Enter your password',
+    placeholderWithdrawAddress: 'Enter DDRA recipient address',
     placeholderPasswordMin: 'At least 4 characters',
     btnLogin: 'Login',
     forgotPassword: 'Forgot your password?',
@@ -855,10 +1066,24 @@ const TRANSLATIONS = {
     txDeposit: 'Deposit',
     txWithdraw: 'Withdraw',
     txInvest: 'FREEZE',
+    txDirectBonus: 'Ref Bonus',
+    txRankBonus: 'Rank Bonus',
+    txRankMatching: 'Matching',
+    txCenterFee: 'Center',
+    viewAllPeriod: 'View All Periods',
     moreAnnouncements: '📢 Announcements',
     accountMgmt: '⚙️ Account',
     profileEdit: 'Edit Profile',
     passwordChange: 'Change Password',
+    pwChangeTitle: 'Change Password',
+    pwChangeDesc: 'Please change your password regularly for account safety.',
+    pwCurrentLabel: 'Current Password',
+    pwCurrentPlaceholder: 'Enter current password',
+    pwNewLabel: 'New Password',
+    pwNewPlaceholder: 'Enter new password (min. 6 chars)',
+    pwConfirmLabel: 'Confirm New Password',
+    pwConfirmPlaceholder: 'Re-enter new password',
+    btnChangePassword: 'Change Password',
     withdrawPin: 'Withdrawal PIN',
     support: 'Support',
     settings: '🔧 Settings',
@@ -881,10 +1106,10 @@ const TRANSLATIONS = {
     modalWithdraw: '💸 USDT Withdrawal Request',
     withdrawAvailLabel: 'Available Earnings (USDT)',
     withdrawAmountLabel: 'Withdrawal Amount (USDT)',
-    withdrawAddressLabel: 'Recipient Wallet Address',
+    withdrawAddressLabel: 'Recipient Wallet Address (Solana DDRA only)',
     withdrawAddressPlaceholder: 'Enter recipient address',
     withdrawPinLabel: 'Withdrawal PIN (6 digits)',
-    withdrawWarning: '⚠️ Admin approval takes 1-3 business days after submission.',
+    withdrawWarning: '⚠️ Withdrawal Notice<br>1. Withdrawals are processed after admin approval.<br>2. Approval takes 1-3 business days.<br>3. Please ensure the withdrawal address is a <strong>Solana network address</strong>.<br>4. Assets sent to other networks may be lost and cannot be recovered.',
     btnSubmitWithdraw: 'Submit Withdrawal',
     modalInvest: '❄️ FREEZE Request',
     investAmountLabel: 'FREEZE Amount (USDT)',
@@ -923,6 +1148,7 @@ const TRANSLATIONS = {
     toastDepositDone: 'Deposit request submitted! Waiting for admin approval.',
     toastWithdrawDone: 'Withdrawal request submitted! Processing takes 1-3 business days.',
     toastInvestDone: 'FREEZE submitted! ❄️🎉',
+    toastReinvestDone: '수익금 재투자가 완료되었습니다!',
     toastChargeDone: ' DDRA charged!',
     toastGameChargeFirst: 'Please charge your game wallet first.',
     toastNoBalance: 'Insufficient balance',
@@ -948,6 +1174,16 @@ const TRANSLATIONS = {
     toastEnterPin: 'Please enter 6-digit withdrawal PIN.',
     toastInsufficientBal: 'Insufficient balance.',
     toastWrongPin: 'Incorrect withdrawal PIN.',
+    toastPinNotSet: 'Withdrawal PIN not set. Please set it first.',
+    toastLowBonus: 'Insufficient withdrawable USDT (Available: {n} USDT)',
+    toastEnterAmount: 'Please enter amount.',
+    toastLowUsdt: 'Insufficient USDT balance.',
+    toastCopyAddr: 'Address copied!',
+    toastCopyCode: 'Referral code copied!',
+    toastCopyLink: 'Invite link copied!',
+    toastCopied: '✅ Copied',
+    toastSaveProfile: 'Profile saved.',
+    toastSaveAddr: 'Wallet address successfully saved.',
     toastEnterInvAmt: 'Please enter investment amount.',
     toastMinInvest: 'Minimum FREEZE is $',
     toastMaxInvest: 'Maximum FREEZE is $',
@@ -973,8 +1209,11 @@ const TRANSLATIONS = {
     noTitle: 'Untitled',
     noContent: 'No content',
     pinBadge: 'Notice',
+    statusActive: 'Active',
+    statusEnded: 'Ended',
     statusPending: 'Pending',
     statusApproved: 'Completed',
+    statusHeld: 'Held',
     statusRejected: 'Rejected',
     greetingDawn: 'Working hard early! 🌙',
     greetingMorning: 'Good morning ☀️',
@@ -1051,6 +1290,9 @@ const TRANSLATIONS = {
     registerRefRequired: 'Referral code is required.',
     registerInvalidRef: 'Invalid referral code.',
     registerDone: 'Registration complete! Welcome 🎉',
+    registerIdUsed: 'Username already in use.',
+    toastEnterOldPw: 'Enter old password.',
+    toastEnterNewPw: 'Enter new password.',
     forgotEmailFirst: 'Please enter your email first.',
     forgotEmailSent: 'Password reset email sent.',
     loginIdPwRequired: 'Please enter your ID and password.',
@@ -1118,6 +1360,16 @@ const TRANSLATIONS = {
     shareToExpand: 'Share referral link to grow your network!',
     me: 'Me',
     member: 'Member',
+    nameSuffix: '',
+    liveOnlineUsers1: 'Online ',
+    liveOnlineUsers2: '',
+    liveOnlineUsersRealtime: 'Live ',
+    dexFastTrade: 'DDRA Fast Trade',
+    dexFeeZero: '0% Fee · Instant Swap via Wallet',
+    btnBuy: 'Buy',
+    btnSell: 'Sell',
+    kimchiPremium: 'Global vs <span style="color:#10b981;">Korea Premium</span>',
+    autoCompoundDescShort: 'Daily earnings are auto-compounded to FREEZE principal at midnight.',
     joinedOn: 'Joined',
     referralCodeLabel: 'Referral Code',
     noName: 'No name',
@@ -1127,6 +1379,16 @@ const TRANSLATIONS = {
     registering: 'Submitting...',
     emptyNotifs: 'No notifications',
     saving: 'Saving...',
+    registerWalletTitle: 'Register Wallet Address',
+    registerWalletDesc: 'Register your Solana wallet address for smoother automatic deposit processing.',
+    solanaWalletAddress: 'Solana Wallet Address',
+    placeholderSolanaWallet: 'Paste your Solana wallet address',
+    withdrawPinConfirm: 'Confirm Withdrawal PIN',
+    placeholderWithdrawPin: 'Enter 6-digit PIN',
+    withdrawPinWarning: '* Withdrawal PIN is required to change an already registered address.',
+    btnDoLater: 'Do Later',
+    btnSave: 'Save',
+    registerWallet: 'Register Wallet',
     withdrawFee: 'Fee',
     toastWithdrawDone2: 'Withdrawal submitted!',
     bonusRoiIncome2: '💎 ROI Income',
@@ -1144,6 +1406,8 @@ const TRANSLATIONS = {
     totalSales: 'Total Sales',
     salesLabel: 'Sales',
     deepGenMembers: 'Gen3+ Members',
+    deepGenSummaryDesc: 'Overall statistics for downline organization from Gen 3 onwards.',
+    txCountFormat: 'Total {n} {type}',
     genSummary: '📊 Generation Summary (Gen3+ privacy protected)',
     emptyGen: 'No downline members',
     emptyDeepGen: 'No gen3+ downline members',
@@ -1194,6 +1458,73 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+    dexLoading: 'Đang tải Raydium...',
+    dexModalTitle: 'Giao dịch Swap DDRA',
+    gameEntranceTitle: 'Vào Trò Chơi',
+    gameEntranceDesc: '<b>Số dư Thưởng (USDT)</b> thực tế của bạn sẽ bị trừ và liên kết trong quá trình đặt cược.<br><br>Tôi xác nhận rằng lợi nhuận và thua lỗ từ trò chơi này hoàn toàn thuộc về tôi, và tôi đồng ý tiếp tục.',
+    gameEntranceConfirm: 'Đồng ý & Vào',
+
+    acDisableConfirm: 'Bạn có chắc muốn tắt Tự động tái đầu tư không? (Lợi nhuận hàng ngày sau này sẽ được thêm vào số dư có thể rút)',
+    clearCacheBtn: 'Nhấn vào đây nếu không đăng nhập được (Xóa Cache)',
+    clearCacheConfirm: 'Xóa dữ liệu bộ nhớ cache của thiết bị và tải lại?',
+
+    guestTicketTitle: 'Yêu cầu khôi phục mật khẩu',
+    guestTicketDesc: 'Nếu bạn quên mật khẩu, quản trị viên sẽ đặt lại sau khi xác minh.<br>Vui lòng nhập thông tin chính xác dưới đây.',
+    phGuestId: 'Nhập ID đã đăng ký',
+    phGuestName: 'Nhập Tên đã đăng ký',
+    phGuestPhone: 'Nhập Số điện thoại đã đăng ký',
+    btnSubmitGuestTicket: 'Gửi yêu cầu',
+
+    notificationCenter: 'Trung tâm thông báo',
+    btnConfirm: 'Xác nhận',
+
+    forcePwTitle: 'Đổi mật khẩu để bảo mật',
+    forcePwDesc: 'Mật khẩu hiện tại của bạn là mặc định (000000).<br>Để sử dụng an toàn, vui lòng đổi sang <strong>mật khẩu mới của riêng bạn</strong>.',
+    btnChangePassword: 'Hoàn tất đổi mật khẩu',
+
+    autoCompoundModalTitle: 'Kích hoạt Tự động tái đầu tư',
+    btnEnable: 'Chấp thuận kích hoạt',
+    acModalDesc1: 'Trải nghiệm phép màu của lãi kép!',
+    acModalDesc2: 'Khi Tự động tái đầu tư được bật, <strong>lợi nhuận hàng ngày của bạn sẽ được trực tiếp tái đầu tư vào gốc FREEZE</strong> mỗi nửa đêm thay vì vào ví của bạn.',
+    acModalDesc3: 'Khi gốc tăng hàng ngày, lãi của ngày hôm sau cũng tăng theo.',
+    acModalDesc4: 'Không phiền toái hay chậm trễ so với việc tái đầu tư thủ công.',
+    acModalDesc5: 'Lợi nhuận được thêm vào gốc sẽ bị khóa cùng với sản phẩm ban đầu cho đến khi đáo hạn.',
+    acModalDesc6: 'Tôi đã đọc, hiểu rõ tất cả các điều trên, và đồng ý với việc tự động tái đầu tư (khóa gốc) lợi nhuận hàng ngày.',
+    warningSnowball: '(Hiệu ứng quả cầu tuyết)',
+    warningNotice: 'Chú ý:',
+
+    reinvestBtn: 'Tái đầu tư',
+    reinvestModalTitle: 'Tái đầu tư Lợi nhuận (FREEZE)',
+    reinvestModalDesc: 'Tái đầu tư lợi nhuận có thể rút trực tiếp vào sản phẩm FREEZE mới.',
+    reinvestSelProduct: 'Chọn sản phẩm để tái đầu tư',
+    reinvestLoading: 'Đang tải sản phẩm...',
+    reinvestAmtLabel: 'Số tiền tái đầu tư (USDT)',
+    reinvestAmtPh: 'Tối thiểu 1 USDT',
+    reinvestMaxBtn: 'Tối đa',
+    reinvestSubmit: 'Xác nhận tái đầu tư',
+
+    depTabWallet: '🔗 Kết nối Ví',
+    depTabManual: '✏️ Nạp thủ công',
+    depWalletTitle: 'Kết nối ví của bạn',
+    depWalletDesc: 'Hỗ trợ các ví Solana như Phantom, TokenPocket',
+    toastReinvestDone: 'Đầu tư lại lợi nhuận thành công!',
+    depInstallPhantom: 'Cài đặt Phantom',
+    depInstallToken: 'Cài đặt TokenPocket',
+    depUsdtBal: 'Số dư USDT',
+    depGasFeeInfo: '⚡ <strong>Mạng Solana</strong> — Phí gas khoảng $0.001 (SOL)<br>',
+    depGasNote: 'Cần có một lượng nhỏ SOL trong ví trước khi chuyển.',
+    depWalletSendBtn: '🚀 Gửi ngay qua Ví',
+    depManualSubmitBtn: 'Gửi yêu cầu',
+    depCancelBtn: 'Hủy',
+
+    podcastMenu: '🎙️ Podcast DEEDRA',
+    podcastTitle: '🎙️ Podcast',
+    podcastHeader: 'Podcast DEEDRA',
+    podcastDesc: 'Cập nhật tin tức và xu hướng thị trường mới nhất qua đa phương tiện',
+    
+    installApp: 'Cài đặt Ứng dụng',
+    privacyMode: 'Chế độ Bảo mật',
+
     errWithdrawTime: 'Hiện không phải là thời gian rút tiền.\nCó thể rút từ {day} {time}.',
     errWithdrawTimeToday: 'Hiện không phải là thời gian rút tiền.\nCó thể rút hôm nay từ {time}.',
     errWithdrawRestricted: 'Rút tiền hiện đang bị hạn chế.',
@@ -1203,6 +1534,9 @@ const TRANSLATIONS = {
     daySun: 'Chủ nhật', dayMon: 'Hai', dayTue: 'Ba', dayWed: 'Tư', dayThu: 'Năm', dayFri: 'Sáu', daySat: 'Bảy',
     
     majorCryptoPrice: 'Giá Tiền Điện Tử Chính',
+    liveGlobalTx: '🔥 Giao dịch Toàn cầu Trực tiếp',
+    shortageLabel: 'thiếu',
+    achievedLabel: '✔ Đã đạt',
     upbitRealTime: 'Upbit Trực tiếp',
     loadingPrice: 'Đang tải giá...',
     coin_BTC: 'Bitcoin',
@@ -1262,11 +1596,20 @@ const TRANSLATIONS = {
     productMonth3: '3 Tháng',
     productMonth6: '6 Tháng',
     productMonth12: '12 Tháng',
+    purchasedBadge: 'Đã sở hữu',
     productHint1: 'Lợi nhuận hàng ngày với {min} USDT FREEZE',
     productHint2: 'Gốc có thể rút sau khi đáo hạn',
+    uninvestedLabel: 'Chưa đầu tư',
+    usdtPrincipalLocked: 'Gốc USDT (Đã khóa)',
+    autoCompoundTitle: 'Tự động tái đầu tư (Auto-Compound)',
+    autoCompoundDesc: 'USDT có sẵn của bạn sẽ tự động được tái đầu tư vào gói 12 tháng (lợi nhuận cao nhất) vào lúc nửa đêm. Tận hưởng lãi kép mà không mất phí rút tiền.',
     ddraConvert: 'Quy đổi DDRA',
     maturityDate: 'Ngày đáo hạn',
     emptyNotice: 'Không có thông báo',
+    noticePinBadge: 'Thông báo',
+    liveChartTitle: 'Xem biểu đồ trực tiếp',
+    liveChartSub: 'Hoạt động DexScreener',
+    liveChartModalTitle: 'Biểu đồ trực tiếp DEEDRA',
     loadFail: 'Tải thất bại',
         emptyTx: 'Không có lịch sử giao dịch',
     chatTabGroup: 'Nhóm của tôi',
@@ -1279,8 +1622,6 @@ const TRANSLATIONS = {
     chatPageTitle: 'Trò chuyện',
     fee: 'Phí',
     globalNetwork: 'Mạng lưới toàn cầu',
-    majorCryptoPrice: 'Major Crypto Live Price',
-    majorCryptoPrice: '주요 암호화폐 실시간 시세',
     newsViewerTitle: '📰 Xem Tin tức',
     tickerJoined: 'Người dùng mới đã tham gia từ {city}',
     tickerDeposited: '{amt} USDT đã được nạp từ {city}',
@@ -1304,6 +1645,7 @@ const TRANSLATIONS = {
     labelPassword: 'Mật khẩu',
     placeholderEmail: 'Nhập email của bạn',
     placeholderPassword: 'Nhập mật khẩu',
+    placeholderWithdrawAddress: 'Nhập địa chỉ nhận DDRA',
     placeholderPasswordMin: 'Tối thiểu 4 ký tự',
     btnLogin: 'Đăng nhập',
     forgotPassword: 'Quên mật khẩu?',
@@ -1315,7 +1657,7 @@ const TRANSLATIONS = {
     btnRegister: 'Đăng ký',
     greeting: 'Xin chào 👋',
     totalAssetLabel: 'Tổng tài sản (USDT)',
-    assetLocked: 'Gốc USDT (Đang khóa)',
+    assetLocked: 'Gốc USDT (Đã khóa)',
     assetInvesting: 'Đang đầu tư',
     assetInterest: 'Thu nhập (Có thể rút)',
     btnDeposit: 'Nạp USDT',
@@ -1414,10 +1756,24 @@ const TRANSLATIONS = {
     txDeposit: 'Nạp tiền',
     txWithdraw: 'Rút tiền',
     txInvest: 'Đầu tư',
+    txDirectBonus: 'Thưởng GT',
+    txRankBonus: 'Thưởng Cấp',
+    txRankMatching: 'Matching',
+    txCenterFee: 'Trung tâm',
+    viewAllPeriod: 'Xem Tất cả',
     moreAnnouncements: '📢 Thông báo',
     accountMgmt: '⚙️ Tài khoản',
     profileEdit: 'Sửa hồ sơ',
     passwordChange: 'Đổi mật khẩu',
+    pwChangeTitle: 'Đổi mật khẩu',
+    pwChangeDesc: 'Vui lòng đổi mật khẩu thường xuyên để bảo vệ tài khoản.',
+    pwCurrentLabel: 'Mật khẩu hiện tại',
+    pwCurrentPlaceholder: 'Nhập mật khẩu hiện tại',
+    pwNewLabel: 'Mật khẩu mới',
+    pwNewPlaceholder: 'Nhập mật khẩu mới (tối thiểu 6 ký tự)',
+    pwConfirmLabel: 'Xác nhận mật khẩu mới',
+    pwConfirmPlaceholder: 'Nhập lại mật khẩu mới',
+    btnChangePassword: 'Đổi mật khẩu',
     withdrawPin: 'PIN rút tiền',
     support: 'Hỗ trợ',
     settings: '🔧 Cài đặt',
@@ -1440,10 +1796,10 @@ const TRANSLATIONS = {
     modalWithdraw: '💸 Yêu cầu rút tiền (USDT)',
     withdrawAvailLabel: 'Số dư có thể rút',
     withdrawAmountLabel: 'Số tiền rút (DEEDRA)',
-    withdrawAddressLabel: 'Địa chỉ ví nhận',
+    withdrawAddressLabel: 'Địa chỉ ví nhận (Chỉ hỗ trợ mạng Solana DDRA)',
     withdrawAddressPlaceholder: 'Nhập địa chỉ ví nhận',
     withdrawPinLabel: 'PIN rút tiền (6 chữ số)',
-    withdrawWarning: '⚠️ Phê duyệt của admin mất 1-3 ngày làm việc.',
+    withdrawWarning: '⚠️ Lưu ý Rút tiền<br>1. Việc rút tiền được xử lý sau khi admin phê duyệt.<br>2. Thời gian phê duyệt mất 1-3 ngày làm việc.<br>3. Vui lòng đảm bảo địa chỉ rút tiền là <strong>địa chỉ mạng Solana</strong>.<br>4. Tài sản gửi đến mạng khác có thể bị mất và không thể phục hồi.',
     btnSubmitWithdraw: 'Gửi yêu cầu rút',
     modalInvest: '📈 Yêu cầu đầu tư',
     investAmountLabel: 'Số tiền đầu tư (USDT)',
@@ -1482,6 +1838,7 @@ const TRANSLATIONS = {
     toastDepositDone: 'Yêu cầu nạp tiền đã gửi! Chờ admin duyệt.',
     toastWithdrawDone: 'Yêu cầu rút tiền đã gửi! Mất 1-3 ngày làm việc.',
     toastInvestDone: 'Yêu cầu đầu tư đã gửi! 🎉',
+    toastReinvestDone: '수익금 재투자가 완료되었습니다!',
     toastChargeDone: ' DEEDRA đã nạp!',
     toastGameChargeFirst: 'Vui lòng nạp ví game trước.',
     toastNoBalance: 'Số dư không đủ',
@@ -1507,6 +1864,16 @@ const TRANSLATIONS = {
     toastEnterPin: 'Vui lòng nhập PIN rút 6 chữ số.',
     toastInsufficientBal: 'Số dư không đủ.',
     toastWrongPin: 'PIN rút không đúng.',
+    toastPinNotSet: 'Chưa cài đặt mã PIN rút tiền. Vui lòng cài đặt trước.',
+    toastLowBonus: 'Số dư USDT có thể rút không đủ (Có sẵn: {n} USDT)',
+    toastEnterAmount: 'Vui lòng nhập số tiền.',
+    toastLowUsdt: 'Số dư USDT không đủ.',
+    toastCopyAddr: 'Đã sao chép địa chỉ!',
+    toastCopyCode: 'Đã sao chép mã giới thiệu!',
+    toastCopyLink: 'Đã sao chép liên kết mời!',
+    toastCopied: '✅ Đã sao chép',
+    toastSaveProfile: 'Đã lưu hồ sơ.',
+    toastSaveAddr: 'Đã lưu địa chỉ ví thành công.',
     toastEnterInvAmt: 'Vui lòng nhập số tiền đầu tư.',
     toastMinInvest: 'Đầu tư tối thiểu là $',
     toastMaxInvest: 'Đầu tư tối đa là $',
@@ -1532,7 +1899,13 @@ const TRANSLATIONS = {
     noTitle: 'Không có tiêu đề',
     noContent: 'Không có nội dung',
     pinBadge: 'Thông báo',
+    statusActive: 'Đang hoạt động',
+    statusEnded: 'Đã kết thúc',
     statusPending: 'Chờ duyệt',
+    statusApproved: 'Đã duyệt',
+    statusHeld: 'Đang giữ',
+    statusRejected: 'Đã từ chối',
+    dailyRoiLabel: 'Lợi nhuận hàng ngày',
     statusApproved: 'Hoàn thành',
     statusRejected: 'Bị từ chối',
     greetingDawn: 'Chăm chỉ lắm! 🌙',
@@ -1610,6 +1983,9 @@ const TRANSLATIONS = {
     registerRefRequired: 'Mã giới thiệu là bắt buộc.',
     registerInvalidRef: 'Mã giới thiệu không hợp lệ.',
     registerDone: 'Đăng ký thành công! Chào mừng 🎉',
+    registerIdUsed: 'Tên người dùng đã được sử dụng.',
+    toastEnterOldPw: 'Nhập mật khẩu cũ.',
+    toastEnterNewPw: 'Nhập mật khẩu mới.',
     forgotEmailFirst: 'Vui lòng nhập email trước.',
     forgotEmailSent: 'Đã gửi email đặt lại mật khẩu.',
     loginIdPwRequired: 'Vui lòng nhập ID và mật khẩu.',
@@ -1677,6 +2053,16 @@ const TRANSLATIONS = {
     shareToExpand: 'Chia sẻ link giới thiệu để mở rộng mạng lưới!',
     me: 'Tôi',
     member: 'Thành viên',
+    nameSuffix: '',
+    liveOnlineUsers1: 'Online ',
+    liveOnlineUsers2: '',
+    liveOnlineUsersRealtime: 'Trực tuyến ',
+    dexFastTrade: 'Giao dịch nhanh DDRA',
+    dexFeeZero: 'Phí 0% · Hoán đổi ngay lập tức qua ví',
+    btnBuy: 'Mua (Buy)',
+    btnSell: 'Bán (Sell)',
+    kimchiPremium: 'Giá toàn cầu so với <span style="color:#10b981;">Korea Premium</span>',
+    autoCompoundDescShort: 'Thu nhập hàng ngày được tự động tái đầu tư vào gốc FREEZE vào nửa đêm.',
     joinedOn: 'Tham gia',
     referralCodeLabel: 'Mã giới thiệu',
     noName: 'Không có tên',
@@ -1686,6 +2072,16 @@ const TRANSLATIONS = {
     registering: 'Đang gửi...',
     emptyNotifs: 'Không có thông báo',
     saving: 'Đang lưu...',
+    registerWalletTitle: 'Đăng ký Địa chỉ Ví Rút tiền',
+    registerWalletDesc: 'Đăng ký địa chỉ ví Solana của bạn để xử lý nạp tiền tự động mượt mà hơn.',
+    solanaWalletAddress: 'Địa chỉ ví Solana',
+    placeholderSolanaWallet: 'Dán địa chỉ ví Solana của bạn',
+    withdrawPinConfirm: 'Xác nhận mã PIN rút tiền',
+    placeholderWithdrawPin: 'Nhập mã PIN 6 chữ số',
+    withdrawPinWarning: '* Cần có mã PIN rút tiền để thay đổi địa chỉ đã đăng ký.',
+    btnDoLater: 'Để sau',
+    btnSave: 'Lưu',
+    registerWallet: 'Đăng ký ví',
     withdrawFee: 'Phí',
     toastWithdrawDone2: 'Đã gửi yêu cầu rút tiền!',
     bonusRoiIncome2: '💎 Thu nhập ROI',
@@ -1703,6 +2099,8 @@ const TRANSLATIONS = {
     totalSales: 'Tổng doanh số',
     salesLabel: 'Doanh số',
     deepGenMembers: 'Thành viên F3+',
+    deepGenSummaryDesc: 'Thống kê tổng thể cho tổ chức tuyến dưới từ F3 trở đi.',
+    txCountFormat: 'Tổng {n} {type}',
     genSummary: '📊 Tóm tắt theo cấp',
     emptyGen: 'Không có thành viên cấp dưới',
     emptyDeepGen: 'Không có thành viên F3+ cấp dưới',
@@ -1753,6 +2151,73 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+    dexLoading: 'กำลังโหลด Raydium...',
+    dexModalTitle: 'เทอร์มินัลการแลกเปลี่ยน DDRA',
+    gameEntranceTitle: 'เข้าสู่เกม',
+    gameEntranceDesc: '<b>ยอดโบนัส (USDT)</b> จริงของคุณจะถูกหักและเชื่อมโยงระหว่างการเดิมพันเกม<br><br>ฉันยืนยันว่าผลกำไรและขาดทุนที่เกิดจากเกมนี้เป็นของฉันทั้งหมด และฉันตกลงที่จะดำเนินการต่อ',
+    gameEntranceConfirm: 'ยอมรับและเข้าสู่ระบบ',
+
+    acDisableConfirm: 'คุณแน่ใจหรือไม่ว่าต้องการปิดใช้งานการทบต้นอัตโนมัติ? (รายได้รายวันในอนาคตจะถูกเพิ่มลงในยอดคงเหลือที่ถอนได้)',
+    clearCacheBtn: 'คลิกที่นี่หากเข้าสู่ระบบไม่ได้ (ล้างแคช)',
+    clearCacheConfirm: 'ล้างข้อมูลแคชของอุปกรณ์และรีเฟรชหรือไม่?',
+
+    guestTicketTitle: 'สอบถามการกู้คืนรหัสผ่าน',
+    guestTicketDesc: 'หากคุณลืมรหัสผ่าน ผู้ดูแลระบบจะทำการรีเซ็ตให้หลังจากตรวจสอบแล้ว<br>โปรดกรอกข้อมูลให้ถูกต้องด้านล่างนี้',
+    phGuestId: 'กรอก ID ที่ลงทะเบียน',
+    phGuestName: 'กรอกชื่อที่ลงทะเบียน',
+    phGuestPhone: 'กรอกเบอร์โทรที่ลงทะเบียน',
+    btnSubmitGuestTicket: 'ส่งคำถาม',
+
+    notificationCenter: 'ศูนย์การแจ้งเตือน',
+    btnConfirm: 'ยืนยัน',
+
+    forcePwTitle: 'เปลี่ยนรหัสผ่านเพื่อความปลอดภัย',
+    forcePwDesc: 'รหัสผ่านปัจจุบันของคุณคือค่าเริ่มต้น (000000)<br>เพื่อการใช้งานที่ปลอดภัย โปรดเปลี่ยนเป็น<strong>รหัสผ่านใหม่ของคุณเอง</strong>',
+    btnChangePassword: 'เปลี่ยนรหัสผ่านเสร็จสิ้น',
+
+    autoCompoundModalTitle: 'เปิดใช้งานการทบต้นอัตโนมัติ',
+    btnEnable: 'อนุมัติการเปิดใช้งาน',
+    acModalDesc1: 'สัมผัสความมหัศจรรย์ของดอกเบี้ยทบต้น!',
+    acModalDesc2: 'เมื่อเปิดใช้งานทบต้นอัตโนมัติ <strong>รายได้รายวันของคุณจะถูกนำไปลงทุนซ้ำในเงินต้น FREEZE โดยตรง</strong> ทุกเที่ยงคืน แทนที่จะเข้ากระเป๋าเงินของคุณ',
+    acModalDesc3: 'เมื่อเงินต้นเติบโตทุกวัน ดอกเบี้ยในวันถัดไปก็จะเพิ่มขึ้นเช่นกัน',
+    acModalDesc4: 'ไม่มีความยุ่งยากหรือความล่าช้าเมื่อเทียบกับการลงทุนซ้ำแบบ thủ công',
+    acModalDesc5: 'รายได้ที่เพิ่มเข้าในเงินต้นจะถูกล็อคพร้อมกับผลิตภัณฑ์เดิมจนกว่าจะครบกำหนด',
+    acModalDesc6: 'ฉันได้อ่านและเข้าใจข้อความทั้งหมดข้างต้นแล้ว และตกลงให้มีการลงทุนซ้ำอัตโนมัติ (ล็อคเงินต้น) จากรายได้รายวัน',
+    warningSnowball: '(ผลกระทบสโนว์บอล)',
+    warningNotice: 'หมายเหตุ:',
+
+    reinvestBtn: 'นำไปลงทุนใหม่',
+    reinvestModalTitle: 'ลงทุนใหม่จากผลกำไร (FREEZE)',
+    reinvestModalDesc: 'นำผลกำไรที่ถอนได้ไปลงทุนในผลิตภัณฑ์ FREEZE ใหม่',
+    reinvestSelProduct: 'เลือกผลิตภัณฑ์เพื่อลงทุนใหม่',
+    reinvestLoading: 'กำลังโหลดผลิตภัณฑ์...',
+    reinvestAmtLabel: 'จำนวนเงินลงทุนใหม่ (USDT)',
+    reinvestAmtPh: 'ขั้นต่ำ 1 USDT',
+    reinvestMaxBtn: 'สูงสุด',
+    reinvestSubmit: 'ยืนยันการลงทุนใหม่',
+
+    depTabWallet: '🔗 เชื่อมต่อกระเป๋าเงิน',
+    depTabManual: '✏️ ฝากด้วยตนเอง',
+    depWalletTitle: 'เชื่อมต่อกระเป๋าเงินของคุณ',
+    depWalletDesc: 'รองรับกระเป๋าเงิน Solana เช่น Phantom, TokenPocket',
+    depNoWallet: 'ยังไม่มีกระเป๋าเงินใช่ไหม?',
+    depInstallPhantom: 'ติดตั้ง Phantom',
+    depInstallToken: 'ติดตั้ง TokenPocket',
+    depUsdtBal: 'ยอดคงเหลือ USDT',
+    depGasFeeInfo: '⚡ <strong>เครือข่าย Solana</strong> — ค่าแก๊สประมาณ $0.001 (SOL)<br>',
+    depGasNote: 'จำเป็นต้องมี SOL จำนวนเล็กน้อยในกระเป๋าเงินก่อนทำการโอน',
+    depWalletSendBtn: '🚀 โอนผ่านกระเป๋าเงินทันที',
+    depManualSubmitBtn: 'ส่งคำขอ',
+    depCancelBtn: 'ยกเลิก',
+
+    podcastMenu: '🎙️ DEEDRA พอดคาสต์',
+    podcastTitle: '🎙️ พอดคาสต์',
+    toastReinvestDone: 'เสร็จสิ้นการนำกำไรไปลงทุนใหม่!',
+    podcastDesc: 'ติดตามข่าวสารและแนวโน้มตลาดล่าสุดผ่านมัลติมีเดีย (เสียง/วิดีโอ)',
+    
+    installApp: 'ติดตั้งแอป',
+    privacyMode: 'โหมดส่วนตัว',
+
     errWithdrawTime: 'ขณะนี้ไม่อยู่ในเวลาถอนเงิน\nสามารถถอนได้ตั้งแต่ {day} {time}',
     errWithdrawTimeToday: 'ขณะนี้ไม่อยู่ในเวลาถอนเงิน\nสามารถถอนได้วันนี้ตั้งแต่ {time}',
     errWithdrawRestricted: 'การถอนเงินถูกจำกัดอยู่ในขณะนี้',
@@ -1762,6 +2227,9 @@ const TRANSLATIONS = {
     daySun: 'อาทิตย์', dayMon: 'จันทร์', dayTue: 'อังคาร', dayWed: 'พุธ', dayThu: 'พฤหัสบดี', dayFri: 'ศุกร์', daySat: 'เสาร์',
     
     majorCryptoPrice: 'ราคาคริปโตหลักแบบเรียลไทม์',
+    liveGlobalTx: '🔥 ธุรกรรมสดทั่วโลก',
+    shortageLabel: 'ขาด',
+    achievedLabel: '✔ สำเร็จ',
     upbitRealTime: 'Upbit เรียลไทม์',
     loadingPrice: 'กำลังโหลดราคา...',
     coin_BTC: 'บิตคอยน์',
@@ -1821,11 +2289,20 @@ const TRANSLATIONS = {
     productMonth3: '3 เดือน',
     productMonth6: '6 เดือน',
     productMonth12: '12 เดือน',
+    purchasedBadge: 'เป็นเจ้าของ',
     productHint1: 'ผลตอบแทนรายวันสำหรับ FREEZE {min} USDT',
     productHint2: 'เงินต้นสามารถถอนได้เมื่อครบกำหนด',
+    uninvestedLabel: 'ยังไม่ลงทุน',
+    usdtPrincipalLocked: 'เงินต้น USDT (ล็อค)',
+    autoCompoundTitle: 'ทบต้นอัตโนมัติ (Auto-Compound)',
+    autoCompoundDesc: 'USDT ที่มีอยู่ของคุณจะถูกทบต้นอัตโนมัติเข้าสู่แพ็กเกจ 12 เดือน (ผลตอบแทนสูงสุด) ทุกเที่ยงคืน เพลิดเพลินกับดอกเบี้ยทบต้นโดยไม่ต้องเสียค่าธรรมเนียมการถอน',
     ddraConvert: 'แปลงเป็น DDRA',
     maturityDate: 'วันครบกำหนด',
     emptyNotice: 'ไม่มีประกาศ',
+    noticePinBadge: 'ประกาศ',
+    liveChartTitle: 'ดูกราฟสด',
+    liveChartSub: 'กิจกรรม DexScreener',
+    liveChartModalTitle: 'กราฟสด DEEDRA',
     loadFail: 'โหลดล้มเหลว',
         emptyTx: 'ไม่มีประวัติการทำธุรกรรม',
     chatTabGroup: 'กลุ่มของฉัน',
@@ -1838,8 +2315,6 @@ const TRANSLATIONS = {
     chatPageTitle: 'แชท',
     fee: 'ค่าธรรมเนียม',
     globalNetwork: 'เครือข่ายระดับโลกตามเวลาจริง',
-    majorCryptoPrice: 'Major Crypto Live Price',
-    majorCryptoPrice: '주요 암호화폐 실시간 시세',
     newsViewerTitle: '📰 ดูข่าว',
     tickerJoined: 'ผู้ใช้ใหม่เข้าร่วมใน {city}',
     tickerDeposited: '{amt} USDT ฝากจาก {city}',
@@ -1862,6 +2337,7 @@ const TRANSLATIONS = {
     labelPassword: 'รหัสผ่าน',
     placeholderEmail: 'กรอกอีเมลของคุณ',
     placeholderPassword: 'กรอกรหัสผ่าน',
+    placeholderWithdrawAddress: 'กรอกที่อยู่ผู้รับ DDRA',
     placeholderPasswordMin: 'อย่างน้อย 4 ตัวอักษร',
     btnLogin: 'เข้าสู่ระบบ',
     forgotPassword: 'ลืมรหัสผ่าน?',
@@ -1972,10 +2448,24 @@ const TRANSLATIONS = {
     txDeposit: 'ฝาก',
     txWithdraw: 'ถอน',
     txInvest: 'ลงทุน',
+    txDirectBonus: 'โบนัสแนะนำ',
+    txRankBonus: 'โบนัสตำแหน่ง',
+    txRankMatching: 'Matching',
+    txCenterFee: 'ศูนย์',
+    viewAllPeriod: 'ดูทั้งหมด',
     moreAnnouncements: '📢 ประกาศ',
     accountMgmt: '⚙️ บัญชี',
     profileEdit: 'แก้ไขโปรไฟล์',
     passwordChange: 'เปลี่ยนรหัสผ่าน',
+    pwChangeTitle: 'เปลี่ยนรหัสผ่าน',
+    pwChangeDesc: 'โปรดเปลี่ยนรหัสผ่านเป็นประจำเพื่อความปลอดภัยของบัญชี',
+    pwCurrentLabel: 'รหัสผ่านปัจจุบัน',
+    pwCurrentPlaceholder: 'กรอกรหัสผ่านปัจจุบัน',
+    pwNewLabel: 'รหัสผ่านใหม่',
+    pwNewPlaceholder: 'กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)',
+    pwConfirmLabel: 'ยืนยันรหัสผ่านใหม่',
+    pwConfirmPlaceholder: 'กรอกรหัสผ่านใหม่อีกครั้ง',
+    btnChangePassword: 'เปลี่ยนรหัสผ่าน',
     withdrawPin: 'PIN ถอนเงิน',
     support: 'ติดต่อสนับสนุน',
     settings: '🔧 ตั้งค่า',
@@ -1998,10 +2488,10 @@ const TRANSLATIONS = {
     modalWithdraw: '💸 คำขอถอนเงิน (USDT)',
     withdrawAvailLabel: 'รายได้ที่ถอนได้ (USDT)',
     withdrawAmountLabel: 'จำนวนที่ถอน (USDT)',
-    withdrawAddressLabel: 'ที่อยู่กระเป๋าผู้รับ',
+    withdrawAddressLabel: 'ที่อยู่กระเป๋าผู้รับ (เฉพาะเครือข่าย Solana DDRA)',
     withdrawAddressPlaceholder: 'กรอกที่อยู่กระเป๋าผู้รับ',
     withdrawPinLabel: 'PIN ถอนเงิน (6 หลัก)',
-    withdrawWarning: '⚠️ การอนุมัติของผู้ดูแลใช้เวลา 1-3 วันทำการ',
+    withdrawWarning: '⚠️ หมายเหตุการถอนเงิน<br>1. การถอนเงินจะได้รับการดำเนินการหลังจากผู้ดูแลระบบอนุมัติ<br>2. การอนุมัติใช้เวลา 1-3 วันทำการ<br>3. โปรดตรวจสอบให้แน่ใจว่าที่อยู่ถอนเงินเป็น <strong>ที่อยู่เครือข่าย Solana</strong><br>4. สินทรัพย์ที่ส่งไปยังเครือข่ายอื่นอาจสูญหายและไม่สามารถกู้คืนได้',
     btnSubmitWithdraw: 'ส่งคำขอถอน',
     modalInvest: '📈 คำขอลงทุน',
     investAmountLabel: 'จำนวนเงินลงทุน (USDT)',
@@ -2040,6 +2530,7 @@ const TRANSLATIONS = {
     toastDepositDone: 'ส่งคำขอฝากแล้ว! รอการอนุมัติจาก admin',
     toastWithdrawDone: 'ส่งคำขอถอนแล้ว! ใช้เวลา 1-3 วันทำการ',
     toastInvestDone: 'ส่งคำขอลงทุนแล้ว! 🎉',
+    toastReinvestDone: '수익금 재투자가 완료되었습니다!',
     toastChargeDone: ' DEEDRA เติมแล้ว!',
     toastGameChargeFirst: 'กรุณาเติมเงินกระเป๋าเกมก่อน',
     toastNoBalance: 'ยอดไม่เพียงพอ',
@@ -2065,6 +2556,16 @@ const TRANSLATIONS = {
     toastEnterPin: 'กรุณากรอก PIN ถอน 6 หลัก',
     toastInsufficientBal: 'ยอดไม่เพียงพอ',
     toastWrongPin: 'PIN ถอนไม่ถูกต้อง',
+    toastPinNotSet: 'ยังไม่ได้ตั้ง PIN การถอน กรุณาตั้งค่าก่อน',
+    toastLowBonus: 'USDT ที่ถอนได้ไม่เพียงพอ (คงเหลือ: {n} USDT)',
+    toastEnterAmount: 'กรุณาใส่จำนวนเงิน',
+    toastLowUsdt: 'ยอดคงเหลือ USDT ไม่เพียงพอ',
+    toastCopyAddr: 'คัดลอกที่อยู่แล้ว!',
+    toastCopyCode: 'คัดลอกรหัสแนะนำแล้ว!',
+    toastCopyLink: 'คัดลอกลิงก์เชิญแล้ว!',
+    toastCopied: '✅ คัดลอกแล้ว',
+    toastSaveProfile: 'บันทึกโปรไฟล์แล้ว',
+    toastSaveAddr: 'บันทึกที่อยู่กระเป๋าเงินสำเร็จแล้ว',
     toastEnterInvAmt: 'กรุณากรอกจำนวนเงินลงทุน',
     toastMinInvest: 'ลงทุนขั้นต่ำคือ $',
     toastMaxInvest: 'ลงทุนสูงสุดคือ $',
@@ -2090,8 +2591,11 @@ const TRANSLATIONS = {
     noTitle: 'ไม่มีชื่อ',
     noContent: 'ไม่มีเนื้อหา',
     pinBadge: 'ประกาศ',
+    statusActive: 'กำลังใช้งาน',
+    statusEnded: 'สิ้นสุด',
     statusPending: 'รอดำเนินการ',
     statusApproved: 'เสร็จสิ้น',
+    statusHeld: 'ถูกระงับ',
     statusRejected: 'ถูกปฏิเสธ',
     greetingDawn: 'ขยันมากเลย! 🌙',
     greetingMorning: 'สวัสดีตอนเช้า ☀️',
@@ -2168,6 +2672,9 @@ const TRANSLATIONS = {
     registerRefRequired: 'รหัสแนะนำจำเป็นต้องกรอก',
     registerInvalidRef: 'รหัสแนะนำไม่ถูกต้อง',
     registerDone: 'สมัครสำเร็จ! ยินดีต้อนรับ 🎉',
+    registerIdUsed: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว',
+    toastEnterOldPw: 'กรอกรหัสผ่านเดิม',
+    toastEnterNewPw: 'กรอกรหัสผ่านใหม่',
     forgotEmailFirst: 'กรุณากรอกอีเมลก่อน',
     forgotEmailSent: 'ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว',
     loginIdPwRequired: 'กรุณากรอก ID และรหัสผ่าน',
@@ -2235,6 +2742,16 @@ const TRANSLATIONS = {
     shareToExpand: 'แชร์ลิงก์แนะนำเพื่อขยายเครือข่าย!',
     me: 'ฉัน',
     member: 'สมาชิก',
+    nameSuffix: '',
+    liveOnlineUsers1: 'ออนไลน์ ',
+    liveOnlineUsers2: ' คน',
+    liveOnlineUsersRealtime: 'กำลังออนไลน์ ',
+    dexFastTrade: 'ซื้อขายด่วน DDRA',
+    dexFeeZero: 'ค่าธรรมเนียม 0% · สลับทันทีผ่านกระเป๋าเงิน',
+    btnBuy: 'ซื้อ (Buy)',
+    btnSell: 'ขาย (Sell)',
+    kimchiPremium: 'เทียบราคากลางกับ <span style="color:#10b981;">Korea Premium</span>',
+    autoCompoundDescShort: 'รายได้รายวันจะถูกทบต้นเข้าสู่เงินต้น FREEZE อัตโนมัติทุกเที่ยงคืน',
     joinedOn: 'เข้าร่วม',
     referralCodeLabel: 'รหัสแนะนำ',
     noName: 'ไม่มีชื่อ',
@@ -2244,6 +2761,16 @@ const TRANSLATIONS = {
     registering: 'กำลังส่ง...',
     emptyNotifs: 'ไม่มีการแจ้งเตือน',
     saving: 'กำลังบันทึก...',
+    registerWalletTitle: 'ลงทะเบียนที่อยู่กระเป๋าเงินถอน',
+    registerWalletDesc: 'ลงทะเบียนที่อยู่กระเป๋าเงิน Solana ของคุณเพื่อให้การประมวลผลการฝากอัตโนมัติราบรื่นขึ้น',
+    solanaWalletAddress: 'ที่อยู่กระเป๋าเงิน Solana',
+    placeholderSolanaWallet: 'วางที่อยู่กระเป๋าเงิน Solana ของคุณ',
+    withdrawPinConfirm: 'ยืนยัน PIN การถอน',
+    placeholderWithdrawPin: 'กรอก PIN 6 หลัก',
+    withdrawPinWarning: '* ต้องใช้ PIN การถอนเพื่อเปลี่ยนที่อยู่ที่ลงทะเบียนไว้แล้ว',
+    btnDoLater: 'ทำภายหลัง',
+    btnSave: 'บันทึก',
+    registerWallet: 'ลงทะเบียนกระเป๋าเงิน',
     withdrawFee: 'ค่าธรรมเนียม',
     toastWithdrawDone2: 'ส่งคำขอถอนเงินแล้ว!',
     bonusRoiIncome2: '💎 รายได้ ROI',
@@ -2261,6 +2788,8 @@ const TRANSLATIONS = {
     totalSales: 'ยอดขายรวม',
     salesLabel: 'ยอดขาย',
     deepGenMembers: 'สมาชิกชั้น3+',
+    deepGenSummaryDesc: 'สถิติโดยรวมสำหรับองค์กรสายงานล่างตั้งแต่ชั้นที่ 3 เป็นต้นไป',
+    txCountFormat: 'รวม {n} {type}',
     genSummary: '📊 สรุปตามชั้น',
     emptyGen: 'ไม่มีสมาชิกดาวน์ไลน์',
     emptyDeepGen: 'ไม่มีสมาชิกดาวน์ไลน์ชั้น3+',
@@ -2327,16 +2856,24 @@ function detectSystemLang() {
 }
 
 function t(key) {
-  return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) ||
-         (TRANSLATIONS['en'] && TRANSLATIONS['en'][key]) || key;
+  if (TRANSLATIONS[currentLang] && typeof TRANSLATIONS[currentLang][key] !== 'undefined') {
+    return TRANSLATIONS[currentLang][key];
+  }
+  if (TRANSLATIONS['en'] && typeof TRANSLATIONS['en'][key] !== 'undefined') {
+    return TRANSLATIONS['en'][key];
+  }
+  return key;
 }
 
 function applyLang() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     const attr = el.getAttribute('data-i18n-attr');
+    const isHtml = el.getAttribute('data-i18n-html') === 'true';
     if (attr) {
       el.setAttribute(attr, t(key));
+    } else if (isHtml) {
+      el.innerHTML = t(key);
     } else {
       el.textContent = t(key);
     }
@@ -3130,13 +3667,13 @@ function renderHomeInvestCards(myInvestments, products) {
       <div class="home-inv-card-top">
         <div>
           <span class="home-inv-card-name">${inv.productName || 'FREEZE'}</span>
-          <span class="purchased-badge">보유중</span>
+          <span class="purchased-badge" data-i18n="purchasedBadge">${t('purchasedBadge') || '보유중'}</span>
         </div>
         <span class="home-inv-card-amount">$${fmt(inv.amount)}</span>
       </div>
       <div class="home-inv-card-row">
         <div class="home-inv-card-stat">
-          <div class="home-inv-card-stat-label">당일 수익</div>
+          <div class="home-inv-card-stat-label" data-i18n="todayEarning">${t('todayEarning') || '당일 수익'}</div>
           <div class="home-inv-card-stat-value blink-green">${dailyStr}</div>
         </div>
         <div class="home-inv-card-stat">
@@ -3208,8 +3745,10 @@ window.changeLang = function(lang) {
       if (typeof loadNewsFeed === "function") loadNewsFeed();
       if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
       if (typeof updateHomeUI === 'function') updateHomeUI();
+      if (typeof renderInvestSlider === 'function') renderInvestSlider();
     } else if (currentPage === 'invest') {
       if (typeof loadInvestPage === 'function') loadInvestPage();
+      if (typeof renderInvestSlider === 'function') renderInvestSlider();
     } else if (currentPage === 'network') {
       if (typeof loadNetworkPage === 'function') loadNetworkPage();
     } else if (currentPage === 'play') {
@@ -3217,15 +3756,14 @@ window.changeLang = function(lang) {
     } else if (currentPage === 'more') {
       if (typeof loadMorePage === 'function') loadMorePage();
     }
+    if (typeof loadTxHistory === 'function') loadTxHistory('deposit');
   }
-  // 언어 변경 시 환율 표시도 즉시 갱신 (통화 단위가 바뀌므로)
-  // 환율 재로드 후 자산 카드 업데이트
-  fetchForexRates().then(() => {
-    if (typeof updateHomeUI === 'function') updateHomeUI();
-  }).catch(() => {
-    if (typeof updateHomeUI === 'function') updateHomeUI();
-  });
+  
+  // 전체 화면 리프레시로 완벽한 언어 변경 적용
   showToast(t('langChanged'), 'success');
+  setTimeout(() => {
+    window.location.reload();
+  }, 500);
 };
 
 // ===== 화면 전환 =====
@@ -3439,7 +3977,7 @@ window.handleRegister = async function() {
     const uData = await uRes.json();
     if (uData.exists) {
       showScreen('auth');
-      showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.', 'error');
+      showToast(t('registerIdUsed') || '이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.', 'error');
       return;
     }
 
@@ -3504,7 +4042,7 @@ window.submitGuestTicket = async function() {
   const phone = document.getElementById('guestTicketPhone').value.trim();
 
   if (!username || !name || !phone) {
-    showToast('아이디, 이름, 전화번호를 모두 입력해주세요.', 'warning');
+    showToast(t('forgotEmailFirst') || '아이디, 이름, 전화번호를 모두 입력해주세요.', 'warning');
     return;
   }
 
@@ -3640,7 +4178,9 @@ function updateHomeUI() {
   const rankImg = document.getElementById('userRankBadgeImg');
   if (rankImg) { let r = (userData.rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = '/static/ranks/' + r + '.png?v=2'; }
   if (greetEl) greetEl.textContent = greeting + ' 👋';
-  if (nameEl) nameEl.textContent = (userData.name || '회원') + ' (' + (userData.referralCode || '') + ')님';
+  let suffix = t('nameSuffix');
+  if (suffix === 'nameSuffix') suffix = '님';
+  if (nameEl) nameEl.textContent = (userData.name || t('member') || '회원') + ' (' + (userData.referralCode || '') + ')' + suffix;
   
   // Center Manager UI toggle
   const centerBadge = document.getElementById('centerManagerBadgeWrap');
@@ -3826,7 +4366,7 @@ function renderAnnouncements(items, containerId) {
   el.innerHTML = items.map(a => `
     <div class="announcement-item" onclick="showAnnouncementDetail('${a.id}')">
       <div class="ann-title">
-        ${a.isPinned ? '<span class="pin-badge">공지</span>' : ''}${a.title || '제목 없음'}
+        ${a.isPinned ? `<span class="pin-badge">${t('noticePinBadge') || '공지'}</span>` : ''}${a.title || '제목 없음'}
       </div>
       <div class="ann-date">${fmtDate(a.createdAt)}</div>
     </div>
@@ -3853,7 +4393,7 @@ window.showAnnouncementModal = async function() {
       });
     renderAnnouncements(items, 'announcementFullList');
   } catch {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
 };
 
@@ -3866,7 +4406,7 @@ window.showAnnouncementDetail = async function(id) {
   const titleEl = document.getElementById('annDetailTitle');
   const dateEl  = document.getElementById('annDetailDate');
   const bodyEl  = document.getElementById('annDetailBody');
-  if (titleEl) titleEl.textContent = '불러오는 중...';
+  if (titleEl) titleEl.textContent = t('loading') || '불러오는 중...';
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
@@ -3876,7 +4416,7 @@ window.showAnnouncementDetail = async function(id) {
     if (dateEl)  dateEl.textContent  = fmtDate(a.createdAt);
     if (bodyEl)  bodyEl.innerHTML    = `<div class="ann-detail-content">${(a.content || '내용 없음').replace(/\n/g, '<br>')}</div>`;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
 };
 
@@ -3909,7 +4449,7 @@ function renderTxList(txs, containerId) {
     return;
   }
   const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
-  const statusTxt = { pending: '승인 대기', approved: '완료', rejected: '거부됨' };
+  const statusTxt = { pending: t('statusPending') || '승인 대기', approved: t('statusApproved') || '완료', rejected: t('statusRejected') || '거부됨' };
 
   el.innerHTML = txs.map(tx => {
     const isPlus = ['deposit', 'bonus'].includes(tx.type);
@@ -4053,7 +4593,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
     }
 
     if (filteredTxs.length === 0) {
-      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>해당 날짜의 내역이 없습니다.</div>';
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>' + (t('emptyTx') || '내역이 없습니다') + '</div>';
       return;
     }
 
@@ -4067,26 +4607,26 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
 
 
     const typeLabel = {
-      'roi': '일일 데일리 수익',
-      'roi_income': '일일 데일리 수익',
-      deposit: '⬇️ 입금', withdrawal: '⬆️ 출금', invest: '🔒 FREEZE',
-      roi_income: '☀️ 데일리 이자', roi: '☀️ 데일리 이자', daily_roi: '☀️ 데일리 이자', 
-      direct_bonus: '👥 추천 수당',
-      rank_bonus: '🏆 직급 수당', rank_gap_passthru: '🏆 직급 수당(갭)',
-      rank_equal_or_higher_override_1pct: '🛡️ 직급 매칭(1%)',
-      rank_equal_or_higher_override: '🛡️ 직급 매칭',
-      rank_matching: '🛡️ 직급 매칭',
-      center_fee: '🏢 센터 피'
+      'roi': t('dailyRoiLabel') || '일일 데일리 수익',
+      'roi_income': t('dailyRoiLabel') || '일일 데일리 수익',
+      deposit: `⬇️ ${t('txDeposit') || '입금'}`, withdrawal: `⬆️ ${t('txWithdraw') || '출금'}`, invest: `🔒 ${t('txInvest') || 'FREEZE'}`,
+      roi_income: `☀️ ${t('txInvest') || 'FREEZE'}`, roi: `☀️ ${t('txInvest') || 'FREEZE'}`, daily_roi: `☀️ ${t('txInvest') || 'FREEZE'}`, 
+      direct_bonus: `👥 ${t('txDirectBonus') || '추천 수당'}`,
+      rank_bonus: `🏆 ${t('txRankBonus') || '직급 수당'}`, rank_gap_passthru: `🏆 ${t('txRankBonus') || '직급 수당'}(갭)`,
+      rank_equal_or_higher_override_1pct: `🛡️ ${t('txRankMatching') || '직급 매칭'}(1%)`,
+      rank_equal_or_higher_override: `🛡️ ${t('txRankMatching') || '직급 매칭'}`,
+      rank_matching: `🛡️ ${t('txRankMatching') || '직급 매칭'}`,
+      center_fee: `🏢 ${t('txCenterFee') || '센터 피'}`
     };
 
     const tabNameMap = {
-      'deposit': '⬇️ 입금',
-      'withdrawal': '⬆️ 출금',
-      'invest': '🔒 FREEZE 및 이자',
-      'direct_bonus': '👥 추천 수당',
-      'rank_bonus': '🏆 직급 수당',
-      'rank_matching': '🛡️ 직급 매칭',
-      'center_fee': '🏢 센터 피'
+      'deposit': `⬇️ ${t('txDeposit') || '입금'}`,
+      'withdrawal': `⬆️ ${t('txWithdraw') || '출금'}`,
+      'invest': `🔒 ${t('txInvest') || 'FREEZE 및 이자'}`,
+      'direct_bonus': `👥 ${t('txDirectBonus') || '추천 수당'}`,
+      'rank_bonus': `🏆 ${t('txRankBonus') || '직급 수당'}`,
+      'rank_matching': `🛡️ ${t('txRankMatching') || '직급 매칭'}`,
+      'center_fee': `🏢 ${t('txCenterFee') || '센터 피'}`
     };
 
     const renderItem = (item) => {
@@ -4104,7 +4644,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
                 const rate = item.dailyRate || item.roiPercent || item.dailyRoi || 0.8;
                 details = `만기: ${item.durationDays || 360}일 (${rate}%/일) - ${item.status==='active'?'진행중':'종료'}`;
             } else {
-                details = item.status === 'pending' ? '처리중' : (item.status === 'held' ? '보류중' : (item.status === 'rejected' ? '거절됨' : '완료됨'));
+                const sPending = t('statusPending') || '처리중'; const sHeld = t('statusHeld') || '보류중'; const sRejected = t('statusRejected') || '거절됨'; const sCompleted = t('statusApproved') || '완료'; details = item.status === 'pending' ? sPending : (item.status === 'held' ? sHeld : (item.status === 'rejected' ? sRejected : sCompleted));
                 if (item.txid) {
                     const shortTxid = item.txid.length > 20 ? item.txid.substring(0, 10) + '...' + item.txid.substring(item.txid.length - 10) : item.txid;
                     details += `<br>TXID: <a href="https://solscan.io/tx/${item.txid}" target="_blank" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${shortTxid}</a>`;
@@ -4126,7 +4666,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
           <div>
             <div class="tx-amount ${amtColor}">${amtSign}${fmt(amtValue)} ${currency}</div>
             <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='held' ? 'var(--orange)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)'))}">
-              ${isBonus ? '완료' : (item.status === 'pending' ? '처리중' : (item.status === 'held' ? '보류중' : (item.status === 'rejected' ? '거절됨' : '완료')))}
+              ${isBonus ? (t('statusApproved') || '완료') : (item.status === 'pending' ? (t('statusPending') || '처리중') : (item.status === 'held' ? (t('statusHeld') || '보류중') : (item.status === 'rejected' ? (t('statusRejected') || '거절됨') : (t('statusApproved') || '완료'))))}
             </div>
           </div>
         </div>`;
@@ -4163,7 +4703,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
                 <div>
                     <div style="font-size: 13px; color: var(--text2); margin-bottom: 4px;">${dStr}</div>
                     <div style="font-weight: bold; font-size: 15px; color: var(--text);">
-                        ${tabLabel} 총 ${dayTxs.length}건
+                        ${(t('txCountFormat') || '{type} 총 {n}건').replace('{type}', tabLabel).replace('{n}', dayTxs.length)}
                     </div>
                 </div>
                 <div style="text-align: right;">
@@ -4240,7 +4780,7 @@ window.updateDepWalletFee = function(val) {
   const amt = parseFloat(val) || 0;
   const el  = document.getElementById('depWalletFeeNote');
   if (el && amt > 0) {
-    el.textContent = `전송 금액 $${amt.toFixed(2)} USDT + 네트워크 수수료 ~$0.001`;
+    el.textContent = `${t('depTransAmount') || '전송 금액'} $${amt.toFixed(2)}${t('walletFeeNote2') || ' USDT + 네트워크 수수료 ~$0.001'}`;
   }
 };
 
@@ -4336,12 +4876,12 @@ window.doWalletDeposit = async function() {
 
     if (r.success) {
       if (r.data.autoApproved) {
-        setStatus('✅ 입금 완료! 잔액이 자동으로 업데이트되었습니다.', '#16a34a');
-        showToast(`✅ $${amount} USDT 입금 완료!`, 'success');
+        setStatus(t('walletDepositComplete') || '✅ 입금 완료! 잔액이 자동으로 업데이트되었습니다.', '#16a34a');
+        showToast((t('walletDepositComplete') || `✅ ${amount} USDT 입금 완료!`).replace('입금 완료', ` ${amount} USDT 입금 완료`), 'success');
         setTimeout(() => { closeModal('depositModal'); refreshWallet?.(); }, 2500);
       } else {
-        setStatus(`⏳ 전송 완료! 관리자 확인 후 승인됩니다.\n해시: ${signature.slice(0,16)}...`, '#f59e0b');
-        showToast('전송 완료! 관리자 확인 후 승인됩니다.', 'info');
+        setStatus(`${t('walletDepositPending') || '⏳ 전송 완료! 관리자 확인 후 승인됩니다.'}\n해시: ${signature.slice(0,16)}...`, '#f59e0b');
+        showToast(t('walletDepositPending') || '전송 완료! 관리자 확인 후 승인됩니다.', 'info');
       }
     } else {
       setStatus('❌ ' + r.error, '#dc2626');
@@ -4374,7 +4914,7 @@ window.handleAddDdraToken = async function() {
   const btnText = document.getElementById('addDdraTokenBtnText');
 
   if (!window.DDRATokenRegister) {
-    showToast('❌ 지갑 모듈을 불러오지 못했습니다', 'error'); return;
+    showToast(t('walletModuleFail') || '❌ 지갑 모듈을 불러오지 못했습니다', 'error'); return;
   }
 
   // 감지된 지갑 안내
@@ -4396,7 +4936,7 @@ window.handleAddDdraToken = async function() {
 
     if (result.success) {
       if (btnIcon) btnIcon.textContent = '✅';
-      if (btnText) btnText.textContent = `${guide.name} 에 DDRA 추가 완료!`;
+      if (btnText) btnText.textContent = `${guide.name} ${t('ddraAdded') || '에 DDRA 추가 완료!'}`;
       showToast(`✅ ${guide.name} 에 DDRA 토큰이 추가되었습니다!`, 'success');
       // 3초 후 원래 버튼으로 복원
       setTimeout(() => {
@@ -4608,7 +5148,7 @@ async function loadCompanyWallet() {
 
 window.copyWalletAddress = function() {
   const addr = document.getElementById('companyWalletAddr');
-  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast('주소가 복사되었습니다!', 'success'));
+  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast(t('toastCopyAddr') || '주소가 복사되었습니다!', 'success'));
 };
 
 window.submitDeposit = async function() {
@@ -4631,7 +5171,7 @@ window.submitDeposit = async function() {
       status: 'pending', createdAt: serverTimestamp(),
     });
     closeModal('depositModal');
-    showToast('입금 신청 완료! 관리자 승인을 기다려주세요.', 'success');
+    showToast(t('toastDepositDone') || '입금 신청 완료! 관리자 승인을 기다려주세요.', 'success');
     document.getElementById('depositAmount').value = '';
     document.getElementById('depositTxid').value = '';
   } catch (err) {
@@ -4826,7 +5366,7 @@ window.submitReinvest = async function() {
     // Firestore onSnapshot이 실시간으로 잔액을 업데이트하므로 수동 차감을 제거합니다.
     
     closeModal('reinvestModal');
-    showToast('수익금 재투자가 완료되었습니다!', 'success');
+    showToast(t('toastReinvestDone') || '수익금 재투자가 완료되었습니다!', 'success');
     updateWalletUI();
     if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
     if (typeof loadMyInvestments === 'function') loadMyInvestments();
@@ -4925,10 +5465,10 @@ window.submitWithdraw = async function() {
   const address = document.getElementById('withdrawAddress').value.trim();
   const pin = document.getElementById('withdrawPin').value.trim();
 
-  if (!amountUsdt || amountUsdt <= 0) { showToast('출금할 금액을 입력하세요', 'warning'); return; }
+  if (!amountUsdt || amountUsdt <= 0) { showToast(t('toastEnterAmount') || '출금할 금액을 입력하세요', 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast('PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit') || 'PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
 
   if (currentUser && currentUser.uid) {
       let saved = JSON.parse(localStorage.getItem('savedAddresses_' + currentUser.uid) || '[]');
@@ -4945,7 +5485,7 @@ window.submitWithdraw = async function() {
 
   // PIN 미설정 시 설정 유도
   if (!userData?.withdrawPin) {
-    showToast('출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.', 'warning');
+    showToast(t('toastPinNotSet') || '출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.', 'warning');
     closeModal('withdrawModal');
     setTimeout(() => showWithdrawPinSetup(), 300);
     return;
@@ -4957,12 +5497,12 @@ window.submitWithdraw = async function() {
   // 출금 가능 금액 = bonusBalance(USDT)
   const availableBonus = walletData?.bonusBalance || 0;
   if (availableBonus < amountUsdt) {
-    showToast(`출금 가능 USDT 부족 (가능: ${fmt(availableBonus)} USDT)`, 'error'); return;
+    showToast((t('toastLowBonus') || '출금 가능 USDT 부족 (가능: {n} USDT)').replace('{n}', fmt(availableBonus)), 'error'); return;
   }
   if (userData?.withdrawPin && userData.withdrawPin !== btoa(pin)) { showToast(t('toastWrongPin'), 'error'); return; }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
-  if (btn) { btn.disabled = true; } btn.textContent = '처리중...';
+  if (btn) { btn.disabled = true; btn.textContent = '처리중...'; }
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
@@ -5022,7 +5562,7 @@ window.submitWithdraw = async function() {
 
     closeModal('withdrawModal');
     const feeMsg = feeAmount > 0 ? ` (${t('fee') || '수수료'} ${fmt(feeAmount)} DDRA)` : '';
-    showToast(`${t('toastWithdrawDone2') || '출금 신청 완료!'} (승인 대기 중)`, 'success');
+    showToast(`${t('toastWithdrawDone2') || '출금 신청 완료!'} (${t('statusPending') || '승인 대기'})`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
     document.getElementById('withdrawPin').value = '';
@@ -5033,7 +5573,7 @@ window.submitWithdraw = async function() {
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitWithdraw');
+    if (btn) { btn.disabled = false; btn.textContent = t('btnSubmitWithdraw') || '출금 신청'; }
   }
 };
 
@@ -5154,11 +5694,19 @@ async function loadProducts() {
 function loadSimulatorOptions() {
   const sel = document.getElementById('simProduct');
   if (!sel || !productsCache.length) return;
-  sel.innerHTML = '<option value="">상품 선택</option>';
+  sel.innerHTML = `<option value="">${t('simSelectProduct') || '상품 선택'}</option>`;
   productsCache.forEach(p => {
     const roi  = p.roiPercent != null ? p.roiPercent : (p.dailyRoi != null ? p.dailyRoi : 0);
     const days = p.durationDays != null ? p.durationDays : (p.duration != null ? p.duration : 0);
-    sel.innerHTML += `<option value="${p.id}" data-roi="${roi}" data-days="${days}" data-min="${p.minAmount||0}" data-max="${p.maxAmount||9999}">${p.name} (${roi}% / ${days}일)</option>`;
+    let prodName = p.name;
+    if (p.name) {
+      if (p.name.includes('12개월')) prodName = t('productMonth12') || p.name;
+      else if (p.name.includes('6개월')) prodName = t('productMonth6') || p.name;
+      else if (p.name.includes('3개월')) prodName = t('productMonth3') || p.name;
+      else if (p.name.includes('1개월')) prodName = t('productMonth1') || p.name;
+    }
+    const daysUnit = t('simPeriod')?.split('(')[0]?.trim() || 'days';
+    sel.innerHTML += `<option value="${p.id}" data-roi="${roi}" data-days="${days}" data-min="${p.minAmount||0}" data-max="${p.maxAmount||9999}">${prodName} (${roi}% / ${days} ${daysUnit})</option>`;
   });
 }
 
@@ -5241,7 +5789,7 @@ async function autoCompleteExpiredInvestments(investDocs) {
     // 만기 처리 후 지갑 UI 갱신
     updateWalletUI();
     updateHomeUI();
-    showToast(`❄️ 만기 FREEZE ${expired.length}건의 원금이 언프리즈되었습니다.`, 'success');
+    showToast((t('toastMature') || '❄️ 만기 FREEZE {n}건의 원금이 언프리즈되었습니다.').replace('{n}', expired.length), 'success');
   }
 }
 
@@ -5310,7 +5858,7 @@ async function loadMyInvestments() {
         </div>
         <div class="invest-item-header" style="position:relative; z-index:1;">
           <span class="invest-item-name" style="font-size:16px; font-weight:800; display:flex; align-items:center; gap:6px;">
-             ${inv.productName || 'FREEZE'} <span style="font-size:12px; font-weight:500; color:var(--text2); margin-left:2px;">(${startDateStr})</span>
+             ${(inv.productName && inv.productName.includes('12개월') ? t('productMonth12') : inv.productName && inv.productName.includes('6개월') ? t('productMonth6') : inv.productName && inv.productName.includes('3개월') ? t('productMonth3') : inv.productName && inv.productName.includes('1개월') ? t('productMonth1') : inv.productName) || 'FREEZE'} <span style="font-size:12px; font-weight:500; color:var(--text2); margin-left:2px;">(${startDateStr})</span>
           </span>
           <span class="invest-item-amount" style="font-size:16px; font-weight:800; color:var(--primary-light);">${fmt(amt)}</span>
         </div>
@@ -5329,7 +5877,7 @@ async function loadMyInvestments() {
 
   } catch (err) {
     console.warn(err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
 }
 
@@ -5377,13 +5925,13 @@ window.submitInvest = async function() {
   if (!selectedProduct) return;
   const amount = parseFloat(document.getElementById('investAmount').value);
 
-  if (!amount || amount <= 0) { showToast('FREEZE 금액을 입력하세요.', 'warning'); return; }
+  if (!amount || amount <= 0) { showToast(t('toastEnterAmount') || 'FREEZE 금액을 입력하세요.', 'warning'); return; }
   if (amount < selectedProduct.minAmt) { showToast(t('toastMinInvest') + selectedProduct.minAmt, 'warning'); return; }
   if (amount > selectedProduct.maxAmt) { showToast(t('toastMaxInvest') + selectedProduct.maxAmt, 'warning'); return; }
-  if ((walletData?.usdtBalance || 0) < amount) { showToast('USDT 잔액이 부족합니다.', 'error'); return; }
+  if ((walletData?.usdtBalance || 0) < amount) { showToast(t('toastLowUsdt') || 'USDT 잔액이 부족합니다.', 'error'); return; }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
-  btn.disabled = true; btn.textContent = '처리중...';
+  if (btn) { btn.disabled = true; btn.textContent = '처리중...'; }
 
   try {
     const { addDoc, collection, db, serverTimestamp, doc, updateDoc, increment, writeBatch } = window.FB;
@@ -5446,7 +5994,7 @@ window.submitInvest = async function() {
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitInvest');
+    if (btn) { btn.disabled = false; btn.textContent = t('btnSubmitInvest') || 'FREEZE 시작'; }
   }
 };
 
@@ -5526,7 +6074,7 @@ function updateRankUI() {
       const makeBar = (label, cur, req, unit) => {
          const pct = req > 0 ? Math.min(100, (cur / req) * 100) : 100;
          const diff = req - cur;
-         const diffMsg = diff > 0 ? `<span style="color:#ef4444;">${diff.toLocaleString()} ${unit} 부족</span>` : `<span style="color:#10b981;">✔ 달성 완료</span>`;
+         const diffMsg = diff > 0 ? `<span style="color:#ef4444;">${diff.toLocaleString()} ${unit} ${t("shortageLabel") || "부족"}</span>` : `<span style="color:#10b981;">${t("achievedLabel") || "✔ 달성 완료"}</span>`;
          return `
           <div style="font-size:12px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -5632,7 +6180,7 @@ async function loadReferralList() {
     }).join('');
 
   } catch (err) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
 }
 
@@ -5886,7 +6434,7 @@ window.renderCaveTree = async function() {
   } catch (err) {
     console.error(err);
     const childrenWrap = document.getElementById('caveChildrenWrap');
-    if (childrenWrap) childrenWrap.innerHTML = '<div style="color:#ef4444;font-size:13px;">데이터를 불러오지 못했습니다. (' + err.message + ')</div>';
+    if (childrenWrap) childrenWrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">${t('loadFail') || '데이터를 불러오지 못했습니다.'} (${err.message})</div>`;
   }
   
   // 새로 렌더링된 요소가 적절한 위치에 오도록 스크롤 (화면 약간 위쪽으로 포커스)
@@ -5973,7 +6521,7 @@ window.handleCaveNodeClick = function(id, name, rank, isPathNode, pathIndex, ref
 
   window.copyReferralCode = function() {
   const code = document.getElementById('myReferralCode');
-  if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast('추천 코드 복사 완료!', 'success'));
+  if (code) navigator.clipboard.writeText(code.textContent).then(() => showToast(t('toastCopyCode') || '추천 코드 복사 완료!', 'success'));
 };
 
 window.shareReferralLink = function() {
@@ -5982,7 +6530,7 @@ window.shareReferralLink = function() {
   if (navigator.share) {
     navigator.share({ title: 'DEEDRA 초대', text: '추천 코드: ' + code, url });
   } else {
-    navigator.clipboard.writeText(url).then(() => showToast('초대 링크 복사 완료!', 'success'));
+    navigator.clipboard.writeText(url).then(() => showToast(t('toastCopyLink') || '초대 링크 복사 완료!', 'success'));
   }
 };
 
@@ -6173,7 +6721,7 @@ window.setBetGameHalf = function(type) {
 
 window.playOddEven = function(choice) {
   SFX.play('coin');
-  if (gameBalanceVal < oeBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < oeBetVal) { showToast((t('toastNoBalance') || '잔액 부족') + ' (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const btnOdd = document.getElementById('oeBtnOdd');
   const btnEven = document.getElementById('oeBtnEven');
@@ -6238,7 +6786,7 @@ window.playOddEven = function(choice) {
 
 window.playDice = function(chosenNum) {
   SFX.play('dice_roll');
-  if (gameBalanceVal < diceBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < diceBetVal) { showToast((t('toastNoBalance') || '잔액 부족') + ' (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   // 버튼 비활성화
   document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = true);
@@ -6256,46 +6804,52 @@ window.playDice = function(chosenNum) {
   }
 
   setTimeout(() => {
-    const userWins = houseRandom('dice');
-    const adminUserWinRate = 100 - (gameOdds['dice']?.houseWinRate ?? gameOdds.global.houseWinRate);
-    // Dice payout is 6x. Natural win rate is 1/6 (16.6%).
-    // Scale admin setting so 50% = 16.6% win rate
-    const adjustedProb = (1.0 / 6.0) * (adminUserWinRate / 50.0);
-    const actualUserWins = Math.random() < adjustedProb;
+    try {
+      let userWins = houseRandom('dice');
+      const adminUserWinRate = 100 - (gameOdds['dice']?.houseWinRate ?? gameOdds.global?.houseWinRate ?? 50);
+      // Dice payout is 6x. Natural win rate is 1/6 (16.6%).
+      // Scale admin setting so 50% = 16.6% win rate
+      const adjustedProb = (1.0 / 6.0) * (adminUserWinRate / 50.0);
+      const actualUserWins = Math.random() < adjustedProb;
 
-    // 유저가 이기면 선택한 숫자, 지면 다른 숫자
-    const result = actualUserWins
-      ? chosenNum
-      : (() => { const others = [1,2,3,4,5,6].filter(n => n !== chosenNum); return others[Math.floor(Math.random() * others.length)]; })();
-    userWins = actualUserWins; // Override original userWins for UI/Logging
-    const win = userWins;
-    const betUsdt = _ddraToUsdt(diceBetVal);
-    const ddraChange = win ? diceBetVal * 5 : -diceBetVal;
-    if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
-    updateGameUI();
-    updateHomeUI();
+      // 유저가 이기면 선택한 숫자, 지면 다른 숫자
+      const result = actualUserWins
+        ? chosenNum
+        : (() => { const others = [1,2,3,4,5,6].filter(n => n !== chosenNum); return others[Math.floor(Math.random() * others.length)]; })();
+      userWins = actualUserWins; // Override original userWins for UI/Logging
+      const win = userWins;
+      const betUsdt = _ddraToUsdt(diceBetVal);
+      const ddraChange = win ? diceBetVal * 5 : -diceBetVal;
+      if (walletData) walletData.bonusBalance = Math.max(0, (walletData.bonusBalance || 0) + ddraChange * (deedraPrice || 0.5));
+      updateGameUI();
+      updateHomeUI();
 
-    if (dice3d) dice3d.classList.remove('dice-rolling');
-    renderDiceDots(result);
+      if (dice3d) dice3d.classList.remove('dice-rolling');
+      renderDiceDots(result);
 
-    const el = document.getElementById('diceResult');
-    SFX.play(win ? 'win' : 'lose');
-    if (el) {
-      el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
-      el.innerHTML = win
-        ? `🎉 <strong>적중! ×6</strong> +${diceBetVal * 5} DDRA (≈+${fmt(betUsdt * 5)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`
-        : `😢 <strong>빗나감</strong> -${diceBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`;
-      el.classList.remove('hidden');
+      const el = document.getElementById('diceResult');
+      if (typeof SFX !== 'undefined' && SFX.play) SFX.play(win ? 'win' : 'lose');
+      if (el) {
+        el.className = 'game-result-v2 ' + (win ? 'win' : 'lose');
+        el.innerHTML = win
+          ? `🎉 <strong>적중! ×6</strong> +${diceBetVal * 5} DDRA (≈+${fmt(betUsdt * 5)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`
+          : `😢 <strong>빗나감</strong> -${diceBetVal} DDRA (≈-${fmt(betUsdt)} USDT) &nbsp;·&nbsp; 나온 숫자: ${result}`;
+        el.classList.remove('hidden');
+      }
+
+      logGame('주사위', win, diceBetVal, ddraChange);
+    } catch(err) {
+      console.error(err);
+      if (typeof showToast === 'function') showToast('게임 처리 중 오류 발생: ' + err.message, 'error');
+    } finally {
+      document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = false);
     }
-
-    document.querySelectorAll('.dice-num-v2').forEach(b => b.disabled = false);
-    logGame('주사위', win, diceBetVal, ddraChange);
   }, 1000);
 };
 
 window.playSpin = function() {
   SFX.play('slot_spin');
-  if (gameBalanceVal < slotBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < slotBetVal) { showToast((t('toastNoBalance') || '잔액 부족') + ' (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   const spinBtn = document.getElementById('spinBtn');
   if (spinBtn) { spinBtn.disabled = true; spinBtn.innerHTML = '<span class="spin-icon" style="display:inline-block;animation:spinRotate 0.3s linear infinite">🎰</span> 스피닝...'; }
@@ -6566,7 +7120,7 @@ window.selectRlBet = function(type) {
 window.playRoulette = function() {
   SFX.play('roulette_spin');
   if (!rlSelectedBet) { showToast('베팅을 먼저 선택하세요.', 'warning'); return; }
-  if (gameBalanceVal < rlBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < rlBetVal) { showToast((t('toastNoBalance') || '잔액 부족') + ' (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
   if (rlSpinning) return;
 
   rlSpinning = true;
@@ -6820,7 +7374,7 @@ function initBaccarat() {
 window.playBaccarat = async function(betSide) {
   SFX.play('card_deal');
   if (bacBtnsLocked) return;
-  if (gameBalanceVal < bacBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < bacBetVal) { showToast((t('toastNoBalance') || '잔액 부족') + ' (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   bacBtnsLocked = true;
   document.querySelectorAll('.bac-action-btn').forEach(b => b.disabled = true);
@@ -6902,7 +7456,7 @@ window.playBaccarat = async function(betSide) {
     resultMsg = `🎉 <strong>플레이어 승리!</strong> +${bacBetVal} DDRA`;
   } else if (betSide === 'banker' && outcome === 'banker') {
     win = true; multiplier = 1.95;
-    resultMsg = `🎉 <strong>뱅커 승리!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5% 수수료)`;
+    resultMsg = `🎉 <strong>뱅커 승리!</strong> +${fmt(bacBetVal * 0.95)} DDRA (5% ${t('fee') || '수수료'})`;
   } else if (betSide === 'tie' && outcome === 'tie') {
     win = true; multiplier = 8;
     resultMsg = `🎉 <strong>타이!</strong> +${bacBetVal * 8} DDRA`;
@@ -7029,7 +7583,7 @@ function initPoker() {
 window.dealPoker = async function() {
   SFX.play('card_deal');
   if (pkDealing) return;
-  if (gameBalanceVal < pkBetVal) { showToast('잔액 부족 (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
+  if (gameBalanceVal < pkBetVal) { showToast((t('toastNoBalance') || '잔액 부족') + ' (게임 가능 DDRA: ' + fmt(gameBalanceVal) + ')', 'error'); return; }
 
   pkDealing = true;
   const btn = document.getElementById('pkDealBtn');
@@ -7190,8 +7744,8 @@ window.submitPasswordChange = async function() {
   const newPw = document.getElementById('newPasswordInput').value;
   const newPwConfirm = document.getElementById('confirmNewPasswordInput').value;
 
-  if (!oldPw) return showToast('기존 비밀번호를 입력해주세요.', 'error');
-  if (!newPw) return showToast('새 비밀번호를 입력해주세요.', 'error');
+  if (!oldPw) return showToast(t('toastEnterOldPw') || '기존 비밀번호를 입력해주세요.', 'error');
+  if (!newPw) return showToast(t('toastEnterNewPw') || '새 비밀번호를 입력해주세요.', 'error');
   if (newPw !== newPwConfirm) return showToast('새 비밀번호가 일치하지 않습니다.', 'error');
   if (newPw.length < 6) return showToast('새 비밀번호는 6자리 이상이어야 합니다.', 'error');
 
@@ -7233,10 +7787,10 @@ window.saveWithdrawPin = async function() {
   const confirm = document.getElementById('confirmPin').value.trim();
   if (!pin || pin.length !== 6) { showToast('6자리 PIN을 입력하세요.', 'warning'); return; }
   if (pin !== confirm) { showToast('PIN이 일치하지 않습니다.', 'error'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast('숫자 6자리를 입력하세요.', 'warning'); return; }
+  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit') || '숫자 6자리를 입력하세요.', 'warning'); return; }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   try {
     if (window.FB._useRestAPI) {
       const res = await fetch('/api/user/update-profile', {
@@ -7288,7 +7842,7 @@ window.showTickets = async function() {
         </span>
       </div>`).join('');
   } catch (err) {
-    if (listEl) listEl.innerHTML = '<div class="empty-state">불러오기 실패</div>';
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
 };
 
@@ -8272,7 +8826,7 @@ async function _loadNepTxTab(contentEl) {
     console.error('[NEP] tx tab error:', e);
     const msg = e.code === 'permission-denied' || e.message?.includes('Missing or insufficient')
       ? '⚠️ 데이터 접근 권한이 없습니다.<br><small>Firebase 콘솔에서 Firestore 보안 규칙을 배포해 주세요.</small>'
-      : `오류: ${e.message || '불러오기 실패'}`;
+      : `${t('loadFail') || '오류'}: ${e.message || t('loadFail')}`;
     contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">${msg}</div>`;
   }
 }
@@ -8405,24 +8959,24 @@ async function _loadNepGenTab(contentEl, gen) {
     const headerHtml = `
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:8px 6px;text-align:center;">
-          <div style="font-size:9px;color:#10b981;margin-bottom:2px;">${gen}대 인원</div>
-          <div style="font-size:14px;font-weight:700;color:#10b981;">${members.length}명</div>
+          <div style="font-size:9px;color:#10b981;margin-bottom:2px;">${gen}${t('genLabel') || '대'} ${t('memberCount2') || '인원'}</div>
+          <div style="font-size:14px;font-weight:700;color:#10b981;">${members.length}</div>
         </div>
         <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 6px;text-align:center;">
-          <div style="font-size:9px;color:#3b82f6;margin-bottom:2px;">당일 내 수익</div>
+          <div style="font-size:9px;color:#3b82f6;margin-bottom:2px;">${t('todayEarning') || '당일 내 수익'}</div>
           <div style="font-size:14px;font-weight:700;color:#3b82f6;">$${fmt(totalTodayEarn)}</div>
         </div>
         <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:8px 6px;text-align:center;">
-          <div style="font-size:9px;color:#8b5cf6;margin-bottom:2px;">${gen}대 총매출</div>
+          <div style="font-size:9px;color:#8b5cf6;margin-bottom:2px;">${gen}${t('genLabel') || '대'} ${t('totalSales') || '총매출'}</div>
           <div style="font-size:14px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
         </div>
       </div>
       <!-- 컬럼 헤더 -->
       <div style="display:grid;grid-template-columns:1fr 60px 60px 52px;gap:4px;padding:5px 8px;background:rgba(255,255,255,0.04);border-radius:6px;margin-bottom:4px;">
-        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;">ID / 상품</div>
-        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">당일 수익</div>
-        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">총 매출</div>
-        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">직급</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;">ID / ${t('product') || '상품'}</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">${t('todayEarning') || '당일 수익'}</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">${t('totalSales') || '총 매출'}</div>
+        <div style="font-size:9px;color:var(--text3,#64748b);font-weight:600;text-align:right;">${t('rank') || '직급'}</div>
       </div>`;
 
     // 멤버 목록 (당일 수익 내림차순)
@@ -8476,7 +9030,7 @@ async function _loadNepGenTab(contentEl, gen) {
     console.error('[NEP] gen tab error:', e);
     const msg = e.code === 'permission-denied' || e.message?.includes('Missing or insufficient')
       ? '⚠️ 데이터 접근 권한이 없습니다.<br><small>Firebase 콘솔에서 Firestore 보안 규칙을 배포해 주세요.</small>'
-      : `오류: ${e.message || '불러오기 실패'}`;
+      : `${t('loadFail') || '오류'}: ${e.message || t('loadFail')}`;
     contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">${msg}</div>`;
   }
 }
@@ -8589,20 +9143,20 @@ async function _loadNepDeepTab(contentEl) {
     let html = `
       <div style="display:flex;gap:6px;margin-bottom:10px;">
         <div style="flex:1;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px 6px;text-align:center;">
-          <div style="font-size:10px;color:#10b981;margin-bottom:4px;">3대+ 인원</div>
-          <div style="font-size:18px;font-weight:700;color:#10b981;">${totalDeep}명</div>
+          <div style="font-size:10px;color:#10b981;margin-bottom:4px;">${t('deepGenMembers') || '3대+ 인원'}</div>
+          <div style="font-size:18px;font-weight:700;color:#10b981;">${totalDeep}</div>
         </div>
         <div style="flex:1;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px 6px;text-align:center;">
-          <div style="font-size:10px;color:#3b82f6;margin-bottom:4px;">당일 내 수익</div>
+          <div style="font-size:10px;color:#3b82f6;margin-bottom:4px;">${t('todayEarning') || '당일 내 수익'}</div>
           <div style="font-size:18px;font-weight:700;color:#3b82f6;">$${fmt(totalToday)}</div>
         </div>
         <div style="flex:1;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px 6px;text-align:center;">
-          <div style="font-size:10px;color:#8b5cf6;margin-bottom:4px;">전체 매출</div>
+          <div style="font-size:10px;color:#8b5cf6;margin-bottom:4px;">${t('totalSales') || '총 매출'}</div>
           <div style="font-size:18px;font-weight:700;color:#8b5cf6;">$${fmt(totalSales)}</div>
         </div>
       </div>
       <div style="text-align:center;padding:20px;color:var(--text3,#64748b);font-size:12px;">
-        3대 이하 산하 조직의 전체 통계입니다.
+        ${t('deepGenSummaryDesc') || '3대 이하 산하 조직의 전체 통계입니다.'}
       </div>`;
 
     contentEl.innerHTML = html;
@@ -8610,7 +9164,7 @@ async function _loadNepDeepTab(contentEl) {
     console.error('[NEP] deep tab error:', e);
     const msg = e.code === 'permission-denied' || e.message?.includes('Missing or insufficient')
       ? '⚠️ 데이터 접근 권한이 없습니다.<br><small>Firebase 콘솔에서 Firestore 보안 규칙을 배포해 주세요.</small>'
-      : `오류: ${e.message || '불러오기 실패'}`;
+      : `${t('loadFail') || '오류'}: ${e.message || t('loadFail')}`;
     contentEl.innerHTML = `<div class="empty-state" style="color:#f87171;">${msg}</div>`;
   }
 }
@@ -9341,7 +9895,7 @@ window.toggleAutoCompound = function(el) {
     }
     document.getElementById('autoCompoundModal').classList.remove('hidden');
   } else {
-    if (confirm('자동 복리 기능을 정말 해제하시겠습니까? (이후 데일리 수익은 출금 가능한 상태로 적립됩니다)')) {
+    if (confirm(t('acDisableConfirm'))) {
       updateUserAutoCompound(false);
     } else {
       el.checked = true;
@@ -9535,7 +10089,7 @@ window.showWalletRegisterModal = function() {
 window.saveWalletAddress = async function() {
     const address = document.getElementById('solanaWalletInput').value.trim();
     if (!address) {
-        showToast('지갑 주소를 입력해주세요.', 'error');
+        showToast(t('toastEnterWithAddr') || '지갑 주소를 입력해주세요.', 'error');
         return;
     }
     
@@ -9554,7 +10108,7 @@ window.saveWalletAddress = async function() {
         const pinInput = document.getElementById('walletPinInput');
         currentPin = pinInput ? pinInput.value.trim() : '';
         if (!currentPin || currentPin.length !== 6) {
-            showToast('변경을 위해 출금 PIN 6자리를 입력해주세요.', 'error');
+            showToast(t('toastEnterPin') || '변경을 위해 출금 PIN 6자리를 입력해주세요.', 'error');
             return;
         }
     }
@@ -9591,7 +10145,7 @@ window.saveWalletAddress = async function() {
         
         const data = await res.json();
         if (data.success) {
-            showToast('지갑 주소가 성공적으로 저장되었습니다.', 'success');
+            showToast(t('toastSaveAddr') || '지갑 주소가 성공적으로 저장되었습니다.', 'success');
             if (userData) {
                 userData.solanaWallet = address;
             }
@@ -9652,7 +10206,7 @@ window.loadUserPodcasts = async function() {
     wrap.innerHTML = html;
   } catch (error) {
     console.error(error);
-    wrap.innerHTML = `<div style="text-align:center; padding:20px; color:var(--red);">불러오기 실패: ${error.message}</div>`;
+    wrap.innerHTML = `<div style="text-align:center; padding:20px; color:var(--red);">${t('loadFail') || '불러오기 실패'}: ${error.message}</div>`;
   }
 };
 
@@ -9683,13 +10237,12 @@ function enforceBackButtonJail() {
     });
 
     // 3. 브라우저 이탈 방지 (새로고침, 창 닫기, 외부 링크 이동 방어)
-    window.addEventListener('beforeunload', function(e) {
-        // 커스텀 메시지는 최신 브라우저에서 무시되지만, 기본 브라우저 경고창을 띄우게 만듭니다.
-        var confirmationMessage = '정말 나가시겠습니까?';
-        e.preventDefault(); // 표준 표준 방식
-        (e || window.event).returnValue = confirmationMessage; // 구형 브라우저 호환
-        return confirmationMessage;
-    });
+    // window.addEventListener('beforeunload', function(e) {
+    //     var confirmationMessage = '정말 나가시겠습니까?';
+    //     e.preventDefault(); 
+    //     (e || window.event).returnValue = confirmationMessage; 
+    //     return confirmationMessage;
+    // });
 
     // 4. 모바일/터치 디바이스에서의 스와이프 뒤로가기 방어
     document.addEventListener('touchstart', function(e) {

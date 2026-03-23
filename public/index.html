@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
-  <link rel="stylesheet" href="/static/style.css?v=2026032215" />
+  <link rel="stylesheet" href="/static/style.css?v=20260323044500" />
 
 
 
@@ -132,12 +132,12 @@
           <!-- 캐시 삭제 버튼 -->
           <div style="text-align:center; margin-top:20px; padding-bottom:20px;">
             <button type="button" onclick="clearBrowserCache()" style="background:transparent; border:1px solid #ef4444; border-radius:8px; padding:10px 15px; color:#ef4444; font-size:13px; font-weight:bold; cursor:pointer;">
-              <i class="fas fa-trash-alt"></i> 로그인이 안될 경우 누르세요 (캐시 초기화)
+              <i class="fas fa-trash-alt"></i> <span data-i18n="clearCacheBtn">로그인이 안될 경우 누르세요 (캐시 초기화)</span>
             </button>
           </div>
           <script>
             function clearBrowserCache() {
-              if(confirm("기기 캐시 데이터를 초기화하고 새로고침하시겠습니까?")) {
+              if(confirm(window.t ? window.t('clearCacheConfirm') : '기기 캐시 데이터를 초기화하고 Refresh하시겠습니까?')) {
                 if ('serviceWorker' in navigator) {
                   navigator.serviceWorker.getRegistrations().then(function(registrations) {
                     for(let r of registrations) r.unregister();
@@ -184,27 +184,27 @@
           <div class="form-group">
             <label class="form-label" data-i18n="labelCountry">국가 <span style="color:#ef4444">*</span></label>
             <select id="regCountry" class="form-input" style="appearance:none;-webkit-appearance:none;cursor:pointer;">
-              <option value="">-- 국가 선택 --</option>
-              <option value="KR">🇰🇷 대한민국</option>
-              <option value="US">🇺🇸 미국</option>
-              <option value="JP">🇯🇵 일본</option>
-              <option value="CN">🇨🇳 중국</option>
-              <option value="VN">🇻🇳 베트남</option>
-              <option value="TH">🇹🇭 태국</option>
-              <option value="PH">🇵🇭 필리핀</option>
-              <option value="ID">🇮🇩 인도네시아</option>
-              <option value="MY">🇲🇾 말레이시아</option>
-              <option value="SG">🇸🇬 싱가포르</option>
-              <option value="AU">🇦🇺 호주</option>
-              <option value="GB">🇬🇧 영국</option>
-              <option value="DE">🇩🇪 독일</option>
-              <option value="FR">🇫🇷 프랑스</option>
-              <option value="CA">🇨🇦 캐나다</option>
-              <option value="IN">🇮🇳 인도</option>
-              <option value="BR">🇧🇷 브라질</option>
-              <option value="RU">🇷🇺 러시아</option>
+              <option value="">-- Select Country --</option>
+              <option value="KR">🇰🇷 South Korea</option>
+              <option value="US">🇺🇸 USA</option>
+              <option value="JP">🇯🇵 Japan</option>
+              <option value="CN">🇨🇳 China</option>
+              <option value="VN">🇻🇳 Vietnam</option>
+              <option value="TH">🇹🇭 Thailand</option>
+              <option value="PH">🇵🇭 Philippines</option>
+              <option value="ID">🇮🇩 Indonesia</option>
+              <option value="MY">🇲🇾 Malaysia</option>
+              <option value="SG">🇸🇬 Singapore</option>
+              <option value="AU">🇦🇺 Australia</option>
+              <option value="GB">🇬🇧 UK</option>
+              <option value="DE">🇩🇪 Germany</option>
+              <option value="FR">🇫🇷 France</option>
+              <option value="CA">🇨🇦 Canada</option>
+              <option value="IN">🇮🇳 India</option>
+              <option value="BR">🇧🇷 Brazil</option>
+              <option value="RU">🇷🇺 Russia</option>
               <option value="UAE">🇦🇪 UAE</option>
-              <option value="OTHER">🌐 기타</option>
+              <option value="OTHER">🌐 Other</option>
             </select>
           </div>
           <div class="form-group">
@@ -217,7 +217,7 @@
                 data-i18n="placeholderReferral" data-i18n-attr="placeholder"
                 style="letter-spacing:2px;font-weight:700;padding-right:68px;" />
               <div id="refCodeStatus" style="position:absolute;right:38px;top:50%;transform:translateY(-50%);font-size:12px;"></div>
-              <button type="button" id="refCodeClearBtn" onclick="clearRefCode()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:#94a3b8;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;padding:0;align-items:center;justify-content:center;" title="지우기">✕</button>
+              <button type="button" id="refCodeClearBtn" onclick="clearRefCode()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:#94a3b8;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:13px;line-height:1;padding:0;align-items:center;justify-content:center;" title="Clear">✕</button>
             </div>
             <div id="refCodeHint" style="font-size:11px;color:#64748b;margin-top:4px;"></div>
           </div>
@@ -238,10 +238,10 @@
         <img src="/static/logo-banner.png" class="header-logo-img" alt="DEEDRA" />
       </div>
       <div class="header-right">
-        <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="테마 변경">
+        <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="Toggle Theme">
           <i class="fas fa-moon" id="themeIcon"></i>
         </button>
-                <button class="icon-btn" onclick="window.hardRefresh()"" title="새로고침" style="margin-right:4px;">
+                <button class="icon-btn" onclick="window.hardRefresh()"" title="Refresh" style="margin-right:4px;">
           <i class="fas fa-sync-alt"></i>
         </button>
         <button class="icon-btn" onclick="showNotifications()">
@@ -265,7 +265,7 @@
                 <span id="greetingMsg">안녕하세요 👋</span>
                 <div style="font-size:11px; font-weight:600; background:rgba(16,185,129,0.1); color:#10b981; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:5px; border:1px solid rgba(16,185,129,0.2);">
                   <div style="width:5px; height:5px; background:#10b981; border-radius:50%; box-shadow:0 0 6px #10b981; animation: liveBlink 1.5s infinite alternate;"></div>
-                  <span>접속 <strong id="homeLiveCount">125</strong>명</span>
+                  <span data-i18n="liveOnlineUsers1">접속 </span><strong id="homeLiveCount">125</strong><span data-i18n="liveOnlineUsers2">명</span>
                 </div>
               </div>
               <div class="greeting-name" id="userNameDisplay">-</div>
@@ -275,13 +275,13 @@
               <!-- 직급 이미지 -->
               <img id="userRankBadgeImg" src="/static/ranks/g0.png?v=1773917124" alt="Rank" style="height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
               
-              <!-- 센터 배지 (센터장인 경우 표시) -->
+              <!-- 센터 x지 (센터장인 경우 표시) -->
               <div id="centerManagerBadgeWrap" style="display:none; align-items:center; gap:6px;">
                 <!-- 센터 아이콘 이미지 -->
                 <img src="/static/center_badge.png" alt="Center" style="height:42px;width:auto;object-fit:contain;border-radius:10px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));" />
-                <!-- 작아진 공식 센터 문구 -->
+                <!-- 작아진 Official Center 문구 -->
                 <div style="background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.2)); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; border: 1px solid rgba(16,185,129,0.3); white-space:nowrap;">
-                  <i class="fas fa-building"></i> 공식 센터
+                  <i class="fas fa-building"></i> Official Center
                 </div>
               </div>
             </div>
@@ -307,7 +307,7 @@
               
               <!-- 1번 칸: 원금 & 미투자 합본 -->
               <div class="asset-split-item" style="padding: 16px 12px; display:flex; flex-direction:column; justify-content:center; gap:12px;">
-                <!-- 타이틀: USDT -->
+                <!-- Tie틀: USDT -->
                 <div style="display:flex; align-items:center; justify-content:center; gap:6px; color:#f8fafc; font-size:16px; font-weight:700;">
                   <i class="fas fa-wallet" style="color:#eab308;"></i>
                   <span>USDT</span>
@@ -324,7 +324,7 @@
 
                   <!-- 아래: 미투자 -->
                   <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                    <span style="font-size:13px; color:#94a3b8; font-weight:500;">미투자</span>
+                    <span style="font-size:13px; color:#94a3b8; font-weight:500;" data-i18n="uninvestedLabel">미투자</span>
                     <span id="splitUsdtBalance" style="font-size:16px; font-weight:700; color:#fff;">0.00</span>
                   </div>
                 </div>
@@ -342,7 +342,7 @@
                 </div>
 
                 <button onclick="showReinvestModal()" style="margin-top:4px;position:relative;z-index:10;pointer-events:auto;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;box-shadow:0 2px 6px rgba(16,185,129,0.15);">
-                  <i class="fas fa-sync-alt"></i> 재투자
+                  <i class="fas fa-sync-alt"></i> <span data-i18n="reinvestBtn">재투자</span>
                 </button>
               </div>
             </div>
@@ -367,9 +367,9 @@
             <div style="position:relative; z-index:2;">
               <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:15px; color:var(--text-color, #fff);">
                 <i class="fas fa-sync-alt" id="autoCompoundIcon" style="color:#64748b; transition:all 0.3s;"></i>
-                <span style="font-weight:800;" id="autoCompoundTitleText" style="transition: color 0.3s;">자동 복리 (Auto-Compound)</span>
+                <span style="font-weight:800;" id="autoCompoundTitleText" data-i18n="autoCompoundTitle" style="transition: color 0.3s;">자동 복리 (Auto-Compound)</span>
               </div>
-              <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:4px;" id="autoCompoundDescText">매일 자정, 데일리 수익금을 FREEZE 원금에 자동 재투자합니다.</div>
+              <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:4px;" id="autoCompoundDescText" data-i18n="autoCompoundDescShort">매일 자정, 데일리 수익금을 FREEZE 원금에 자동 재투자합니다.</div>
             </div>
             <div style="position:relative; z-index:2;">
               <label class="switch" style="position:relative; display:inline-block; width:50px; height:24px;">
@@ -392,7 +392,7 @@
             
             <!-- 김치 프리미엄 뱃지 추가 -->
             <div id="kimchiPremiumBadge" style="position:relative; z-index:2; margin-bottom:12px; background:linear-gradient(90deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); border-left:3px solid #10b981; padding:8px 12px; border-radius:4px 8px 8px 4px; display:flex; align-items:center; justify-content:space-between;">
-              <div style="font-size:11px; color:var(--text-color, #f8fafc); font-weight:600; display:flex; align-items:center; gap:6px;">
+              <div style="font-size:11px; color:var(--text-color, #f8fafc); font-weight:600; display:flex; align-items:center; gap:6px;" data-i18n="kimchiPremium" data-i18n-html="true">
                 <i class="fas fa-chart-line" style="color:#10b981;"></i> 글로벌 시세 대비 <span style="color:#10b981;">한국 프리미엄</span>
               </div>
               <div id="kimchiValue" style="font-size:13px; font-weight:800; color:#10b981;">+ 2.15%</div>
@@ -407,19 +407,19 @@
                   </div>
                 </div>
                 <div>
-                  <div style="color:var(--text-color, #fff); font-weight:800; font-size:15px; display:flex; align-items:center; gap:6px;">DDRA 빠른 거래 <span style="background:var(--badge-bg, linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))); color:var(--badge-text, #c084fc); border:1px solid var(--badge-border, rgba(168,85,247,0.3)); padding:2px 6px; border-radius:6px; font-size:9px; font-weight:800;">DEX</span></div>
-                  <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:2px;">수수료 0% · 지갑 연동 즉시 스왑</div>
+                  <div style="color:var(--text-color, #fff); font-weight:800; font-size:15px; display:flex; align-items:center; gap:6px;"><span data-i18n="dexFastTrade">DDRA 빠른 거래</span> <span style="background:var(--badge-bg, linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))); color:var(--badge-text, #c084fc); border:1px solid var(--badge-border, rgba(168,85,247,0.3)); padding:2px 6px; border-radius:6px; font-size:9px; font-weight:800;">DEX</span></div>
+                  <div style="color:var(--text-muted, #94a3b8); font-size:11px; margin-top:2px;" data-i18n="dexFeeZero">수수료 0% · 지갑 연동 즉시 스왑</div>
                 </div>
               </div>
             </div>
             <div style="display:flex; gap:10px; position:relative; z-index:2;">
               <button onclick="openDexSwap('buy')" class="dex-buy-btn" style="flex:1; background:var(--dex-buy-bg, linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15))); border:1px solid var(--dex-buy-border, rgba(16,185,129,0.4)); color:var(--dex-buy-text, #34d399); border-radius:14px; padding:14px 10px; font-weight:800; font-size:14px; cursor:pointer; transition:all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px; box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);">
                 <i class="fas fa-cart-plus" style="font-size:16px;"></i>
-                <span>매수 (Buy)</span>
+                <span data-i18n="btnBuy">매수 (Buy)</span>
               </button>
               <button onclick="openDexSwap('sell')" class="dex-sell-btn" style="flex:1; background:var(--dex-sell-bg, linear-gradient(135deg, rgba(244,63,94,0.15), rgba(225,29,72,0.15))); border:1px solid var(--dex-sell-border, rgba(244,63,94,0.4)); color:var(--dex-sell-text, #fb7185); border-radius:14px; padding:14px 10px; font-weight:800; font-size:14px; cursor:pointer; transition:all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px; box-shadow:inset 0 1px 1px rgba(255,255,255,0.1);">
                 <i class="fas fa-hand-holding-usd" style="font-size:16px;"></i>
-                <span>매도 (Sell)</span>
+                <span data-i18n="btnSell">매도 (Sell)</span>
               </button>
             </div>
           </div>
@@ -439,8 +439,8 @@
                     <i class="fas fa-chart-column"></i>
                   </div>
                   <div>
-                    <div style="color:#fff; font-weight:700; font-size:14px;">실시간 차트 보기</div>
-                    <div style="color:#94a3b8; font-size:11px;">DexScreener 거래내역</div>
+                    <div style="color:#fff; font-weight:700; font-size:14px;" data-i18n="liveChartTitle">실시간 차트 보기</div>
+                    <div style="color:#94a3b8; font-size:11px;" data-i18n="liveChartSub">DexScreener 거래내역</div>
                   </div>
                 </div>
                 <div style="color:#8b5cf6;"><i class="fas fa-chevron-right"></i></div>
@@ -466,7 +466,7 @@
             </div>
           </div>
 
-          <!-- 공지사항 + 뉴스 피드 : 위아래 50:50 배치 -->
+          <!-- 공지사항 + 뉴스 피드 : 위아래 50:50 x치 -->
           <div class="ann-news-stack">
             <!-- 공지사항 -->
             <div class="ann-news-half">
@@ -515,7 +515,7 @@
           <div class="invest-summary">
             <div class="invest-sum-item">
               <div class="invest-sum-label" data-i18n="activeInvest">활성 FREEZE</div>
-              <div class="invest-sum-value" id="activeInvestCount">0건</div>
+              <div class="invest-sum-value" id="activeInvestCount">0 items</div>
             </div>
             <div class="invest-sum-item">
               <div class="invest-sum-label" data-i18n="totalInvest">전체 FREEZE</div>
@@ -590,7 +590,7 @@
             <span data-i18n="pageNetwork">🌐 네트워크</span>
             <div style="font-size:12px; font-weight:600; background:rgba(16,185,129,0.1); color:#10b981; padding:4px 10px; border-radius:14px; display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(16,185,129,0.2);">
               <div style="width:6px; height:6px; background:#10b981; border-radius:50%; box-shadow:0 0 6px #10b981; animation: liveBlink 1.5s infinite alternate;"></div>
-              <span>실시간 접속 <strong id="networkLiveCount">125</strong>명</span>
+              <span data-i18n="liveOnlineUsersRealtime">실시간 접속 </span><strong id="networkLiveCount">125</strong><span data-i18n="liveOnlineUsers2">명</span>
             </div>
           </div>
 
@@ -601,7 +601,7 @@
               
             <!-- LIVE TRANSACTION MARQUEE -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; margin-top:20px;">
-              <span style="font-weight:700; font-size:15px; color:var(--text-color);">🔥 실시간 글로벌 트랜잭션</span>
+              <span data-i18n="liveGlobalTx" style="font-weight:700; font-size:15px; color:var(--text-color);">🔥 실시간 글로벌 트랜잭션</span>
               <span class="live-badge" style="background:rgba(239,68,68,0.15);color:#ef4444;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:bold;animation:pulse 2s infinite;">● LIVE</span>
             </div>
             
@@ -659,7 +659,7 @@
               <div style="background: linear-gradient(135deg, rgba(59,130,246,0.05), rgba(139,92,246,0.08)); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 16px;">
                 <div style="font-size:14px; font-weight:700; color:var(--text); margin-bottom:14px; display:flex; align-items:center; gap:6px;">
                   <i class="fas fa-rocket" style="color:var(--primary);"></i> 
-                  <span>다음 직급:</span> 
+                  <span>Next Rank:</span> 
                   <span id="nextRankHighlight" style="color:var(--primary); font-size:18px; font-weight:900;"></span>
                 </div>
                 
@@ -671,7 +671,7 @@
 
             <!-- Legacy (설정 없을 때) -->
             <div id="legacyRankInfo" style="display:block;">
-              <div class="rank-progress-label"><span data-i18n="rank_next_label">다음 직급:</span> <span id="rankNextLabel">G1 (3명 필요)</span></div>
+              <div class="rank-progress-label"><span data-i18n="rank_next_label">Next Rank:</span> <span id="rankNextLabel">G1 (3명 필요)</span></div>
               <div class="rank-progress-bar">
                 <div class="rank-progress-fill" id="rankProgressFill" style="width:0%"></div>
               </div>
@@ -689,7 +689,7 @@
           
           <!-- 우주 뷰 전환 버튼 -->
           <div style="text-align:right; margin-bottom: 10px;">
-            <button onclick="openGalaxyMode()" style="background:linear-gradient(135deg, #4c1d95, #7c3aed);border:none;border-radius:20px;padding:6px 14px;color:#fff;font-size:12px;font-weight:bold;cursor:pointer;box-shadow:0 2px 10px rgba(124,58,237,0.4);"><i class="fas fa-space-shuttle"></i> 🌌 갤럭시 모드</button>
+            <button onclick="openGalaxyMode()" style="background:linear-gradient(135deg, #4c1d95, #7c3aed);border:none;border-radius:20px;padding:6px 14px;color:#fff;font-size:12px;font-weight:bold;cursor:pointer;box-shadow:0 2px 10px rgba(124,58,237,0.4);"><i class="fas fa-space-shuttle"></i> 🌌 Galaxy Mode</button>
           </div>
   <div class="org-chart-wrap" id="orgChartWrap" style="height: 70vh; overflow: auto; cursor: grab;">
             <div class="org-tree" id="orgTree">
@@ -718,7 +718,7 @@
       <div id="playPage" class="page">
         <div class="page-scroll">
 
-          <!-- 게임 헤더 배너 -->
+          <!-- 게임 헤더 x너 -->
           <div class="game-header-banner">
             <div class="game-header-left">
               <div class="game-header-title">🎮 DDRA Casino</div>
@@ -741,7 +741,7 @@
               <div class="gcv2-badge live">LIVE</div>
               <div class="gcv2-icon">🪙</div>
               <div class="gcv2-name" data-i18n="gameOddEven">홀짝</div>
-              <div class="gcv2-desc" data-i18n="gameOddEvenDesc">50% 확률 · 2배</div>
+              <div class="gcv2-desc" data-i18n="gameOddEvenDesc">50% 확률 · 2x</div>
               <div class="gcv2-rtp">RTP 96%</div>
             </div>
 
@@ -749,7 +749,7 @@
               <div class="gcv2-badge hot">HOT</div>
               <div class="gcv2-icon">🎲</div>
               <div class="gcv2-name" data-i18n="gameDice">주사위</div>
-              <div class="gcv2-desc" data-i18n="gameDiceDesc">숫자 맞추기 · 6배</div>
+              <div class="gcv2-desc" data-i18n="gameDiceDesc">숫자 맞추기 · 6x</div>
               <div class="gcv2-rtp">RTP 94%</div>
             </div>
 
@@ -757,7 +757,7 @@
               <div class="gcv2-badge jackpot">JACKPOT</div>
               <div class="gcv2-icon">🎰</div>
               <div class="gcv2-name" data-i18n="gameSlot">슬롯머신</div>
-              <div class="gcv2-desc" data-i18n="gameSlotDesc">잭팟 최대 50배</div>
+              <div class="gcv2-desc" data-i18n="gameSlotDesc">잭팟 최대 50x</div>
               <div class="gcv2-rtp">RTP 92%</div>
             </div>
 
@@ -765,7 +765,7 @@
               <div class="gcv2-badge hot">HOT</div>
               <div class="gcv2-icon">🃏</div>
               <div class="gcv2-name" data-i18n="gameBaccarat">바카라</div>
-              <div class="gcv2-desc" data-i18n="gameBaccaratDesc">뱅커/플레이어 · 1.95배</div>
+              <div class="gcv2-desc" data-i18n="gameBaccaratDesc">Banker/Player · 1.95x</div>
               <div class="gcv2-rtp">RTP 98.9%</div>
             </div>
 
@@ -773,7 +773,7 @@
               <div class="gcv2-badge new-badge">NEW</div>
               <div class="gcv2-icon">🎡</div>
               <div class="gcv2-name" data-i18n="gameRoulette">룰렛</div>
-              <div class="gcv2-desc" data-i18n="gameRouletteDesc">숫자/색상 베팅 · 35배</div>
+              <div class="gcv2-desc" data-i18n="gameRouletteDesc">숫자/색상 베팅 · 35x</div>
               <div class="gcv2-rtp">RTP 97.3%</div>
             </div>
 
@@ -781,7 +781,7 @@
               <div class="gcv2-badge new-badge">NEW</div>
               <div class="gcv2-icon">♠️</div>
               <div class="gcv2-name" data-i18n="gamePoker">포커</div>
-              <div class="gcv2-desc" data-i18n="gamePokerDesc">텍사스 홀덤 · 100배</div>
+              <div class="gcv2-desc" data-i18n="gamePokerDesc">Texas Hold'em · 100x</div>
               <div class="gcv2-rtp">RTP 99%</div>
             </div>
 
@@ -799,7 +799,7 @@
             <div class="gav2-body">
               <!-- 베팅 입력 패널 -->
               <div class="bet-panel">
-                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-panel-label">Bet Amount</div>
                 <div class="bet-input-row">
                   <button class="bet-adj-btn" onclick="adjustBet('oe',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('oe',-1)">−1</button>
@@ -832,19 +832,19 @@
                   </div>
                 </div>
                 <div class="coin-shadow" id="coinShadow"></div>
-                <div class="coin-hint" id="coinResultText">홀 또는 짝을 선택하세요</div>
+                <div class="coin-hint" id="coinResultText">Select Odd or Even</div>
               </div>
 
               <div class="oe-choice-row">
                 <button class="oe-btn odd-btn" id="oeBtnOdd" onclick="playOddEven('odd')">
                   <span class="oe-num">1 3 5</span>
-                  <span class="oe-name">홀 (Odd)</span>
-                  <span class="oe-odds">× 2배</span>
+                  <span class="oe-name">Odd</span>
+                  <span class="oe-odds">× 2x</span>
                 </button>
                 <button class="oe-btn even-btn" id="oeBtnEven" onclick="playOddEven('even')">
                   <span class="oe-num">2 4 6</span>
-                  <span class="oe-name">짝 (Even)</span>
-                  <span class="oe-odds">× 2배</span>
+                  <span class="oe-name">Even</span>
+                  <span class="oe-odds">× 2x</span>
                 </button>
               </div>
               <div id="oeResult" class="game-result-v2 hidden"></div>
@@ -862,7 +862,7 @@
             </div>
             <div class="gav2-body">
               <div class="bet-panel">
-                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-panel-label">Bet Amount</div>
                 <div class="bet-input-row">
                   <button class="bet-adj-btn" onclick="adjustBet('dice',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('dice',-1)">−1</button>
@@ -915,7 +915,7 @@
             </div>
             <div class="gav2-body">
               <div class="bet-panel">
-                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-panel-label">Bet Amount</div>
                 <div class="bet-input-row">
                   <button class="bet-adj-btn" onclick="adjustBet('slot',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('slot',-1)">−1</button>
@@ -966,7 +966,7 @@
                   <div class="spt-item jackpot">💎💎💎 <span>×50</span></div>
                   <div class="spt-item gold">7️⃣7️⃣7️⃣ <span>×20</span></div>
                   <div class="spt-item silver">⭐⭐⭐ <span>×10</span></div>
-                  <div class="spt-item bronze">같은 3개 <span>×5</span></div>
+                  <div class="spt-item bronze">3 of a kind <span>×5</span></div>
                 </div>
               </div>
               <button class="btn-spin-v2" id="spinBtn" onclick="playSpin()">
@@ -987,7 +987,7 @@
             </div>
             <div class="gav2-body roulette-body-v2">
               <div class="bet-panel">
-                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-panel-label">Bet Amount</div>
                 <div class="bet-input-row">
                   <button class="bet-adj-btn" onclick="adjustBet('rl',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('rl',-1)">−1</button>
@@ -1050,7 +1050,7 @@
 
               <div class="rl-selected-v2" id="rlSelectedBet">
                 <span data-i18n="rlSelectedBet">선택:</span>
-                <span class="rl-sel-val" id="rlSelValue">없음</span>
+                <span class="rl-sel-val" id="rlSelValue">None</span>
               </div>
 
               <button class="btn-spin-v2 roulette-spin-v2" onclick="playRoulette()" id="rlSpinBtn">
@@ -1071,7 +1071,7 @@
             </div>
             <div class="gav2-body">
               <div class="bet-panel">
-                <div class="bet-panel-label">베팅 금액</div>
+                <div class="bet-panel-label">Bet Amount</div>
                 <div class="bet-input-row">
                   <button class="bet-adj-btn" onclick="adjustBet('bac',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('bac',-1)">−1</button>
@@ -1096,35 +1096,35 @@
               <!-- 바카라 그린 테이블 -->
               <div class="bac-felt-table">
                 <div class="bac-felt-side player-felt">
-                  <div class="bac-felt-label">👤 플레이어</div>
+                  <div class="bac-felt-label">👤 Player</div>
                   <div class="bac-felt-cards" id="bacPlayerCards"></div>
                   <div class="bac-felt-score" id="bacPlayerScore">-</div>
-                  <div class="bac-felt-odds">× 2배</div>
+                  <div class="bac-felt-odds">× 2x</div>
                 </div>
                 <div class="bac-felt-center">
                   <div class="bac-felt-vs">VS</div>
                   <div class="bac-tie-box">
-                    <div class="bac-tie-txt">🤝 타이</div>
-                    <div class="bac-tie-odd">× 8배</div>
+                    <div class="bac-tie-txt">🤝 Tie</div>
+                    <div class="bac-tie-odd">× 8x</div>
                   </div>
                 </div>
                 <div class="bac-felt-side banker-felt">
-                  <div class="bac-felt-label">🏦 뱅커</div>
+                  <div class="bac-felt-label">🏦 Banker</div>
                   <div class="bac-felt-cards" id="bacBankerCards"></div>
                   <div class="bac-felt-score" id="bacBankerScore">-</div>
-                  <div class="bac-felt-odds">× 1.95배</div>
+                  <div class="bac-felt-odds">× 1.95x</div>
                 </div>
               </div>
 
               <div class="bac-action-row">
                 <button class="bac-action-btn bab-player" id="bacBtnPlayer" onclick="playBaccarat('player')">
-                  <span>👤</span> 플레이어
+                  <span>👤</span> Player
                 </button>
                 <button class="bac-action-btn bab-tie" id="bacBtnTie" onclick="playBaccarat('tie')">
-                  <span>🤝</span> 타이
+                  <span>🤝</span> Tie
                 </button>
                 <button class="bac-action-btn bab-banker" id="bacBtnBanker" onclick="playBaccarat('banker')">
-                  <span>🏦</span> 뱅커
+                  <span>🏦</span> Banker
                 </button>
               </div>
               <div id="bacResult" class="game-result-v2 hidden"></div>
@@ -1136,13 +1136,13 @@
             <div class="gav2-header">
               <div class="gav2-title-wrap">
                 <span class="gav2-icon">♠️</span>
-                <span class="gav2-title">텍사스 홀덤</span>
+                <span class="gav2-title">Texas Hold'em</span>
               </div>
               <button onclick="closeGame()" class="gav2-close"><i class="fas fa-times"></i></button>
             </div>
             <div class="gav2-body">
               <div class="bet-panel">
-                <div class="bet-panel-label">앤티 베팅 금액</div>
+                <div class="bet-panel-label">앤티 Bet Amount</div>
                 <div class="bet-input-row">
                   <button class="bet-adj-btn" onclick="adjustBet('pk',-10)">−10</button>
                   <button class="bet-adj-btn" onclick="adjustBet('pk',-1)">−1</button>
@@ -1167,7 +1167,7 @@
               <!-- 포커 테이블 -->
               <div class="poker-table-v2">
                 <div class="poker-community-v2">
-                  <div class="poker-section-label">🎴 보드 (커뮤니티)</div>
+                  <div class="poker-section-label">🎴 Board (Community)</div>
                   <div class="poker-cards-v2" id="pkCommunityCards">
                     <div class="card-placeholder"></div>
                     <div class="card-placeholder"></div>
@@ -1178,7 +1178,7 @@
                 </div>
                 <div class="poker-hands-v2">
                   <div class="poker-hand-v2">
-                    <div class="poker-section-label">🤖 딜러 핸드</div>
+                    <div class="poker-section-label">🤖 Dealer Hand</div>
                     <div class="poker-cards-v2" id="pkDealerCards">
                       <div class="card-placeholder"></div>
                       <div class="card-placeholder"></div>
@@ -1186,7 +1186,7 @@
                     <div class="poker-hand-rank" id="pkDealerHand">-</div>
                   </div>
                   <div class="poker-hand-v2">
-                    <div class="poker-section-label">👤 내 핸드</div>
+                    <div class="poker-section-label">👤 My Hand</div>
                     <div class="poker-cards-v2" id="pkPlayerCards">
                       <div class="card-placeholder"></div>
                       <div class="card-placeholder"></div>
@@ -1195,24 +1195,24 @@
                   </div>
                 </div>
                 <div class="poker-paytable-v2">
-                  <div class="ppt-title">🏆 페이테이블</div>
+                  <div class="ppt-title">🏆 Paytable</div>
                   <div class="ppt-grid">
-                    <div class="ppt-row jackpot"><span>로열 플러시</span><span>×100</span></div>
-                    <div class="ppt-row gold"><span>스트레이트 플러시</span><span>×50</span></div>
-                    <div class="ppt-row gold"><span>포카드</span><span>×25</span></div>
-                    <div class="ppt-row silver"><span>풀 하우스</span><span>×9</span></div>
-                    <div class="ppt-row silver"><span>플러시</span><span>×6</span></div>
-                    <div class="ppt-row bronze"><span>스트레이트</span><span>×4</span></div>
-                    <div class="ppt-row bronze"><span>쓰리 오브 어 카인드</span><span>×3</span></div>
-                    <div class="ppt-row"><span>투 페어</span><span>×2</span></div>
-                    <div class="ppt-row"><span>원 페어</span><span>×1.5</span></div>
-                    <div class="ppt-row lose"><span>하이카드</span><span>패배</span></div>
+                    <div class="ppt-row jackpot"><span>Royal Flush</span><span>×100</span></div>
+                    <div class="ppt-row gold"><span>Straight Flush</span><span>×50</span></div>
+                    <div class="ppt-row gold"><span>Four of a Kind</span><span>×25</span></div>
+                    <div class="ppt-row silver"><span>Full House</span><span>×9</span></div>
+                    <div class="ppt-row silver"><span>Flush</span><span>×6</span></div>
+                    <div class="ppt-row bronze"><span>Straight</span><span>×4</span></div>
+                    <div class="ppt-row bronze"><span>Three of a Kind</span><span>×3</span></div>
+                    <div class="ppt-row"><span>Two Pair</span><span>×2</span></div>
+                    <div class="ppt-row"><span>One Pair</span><span>×1.5</span></div>
+                    <div class="ppt-row lose"><span>High Card</span><span>Lose</span></div>
                   </div>
                 </div>
               </div>
 
               <button class="btn-deal-v2" id="pkDealBtn" onclick="dealPoker()">
-                ♠️ 딜 (카드 받기)
+                ♠️ Deal (Receive Cards)
               </button>
               <div id="pkResult" class="game-result-v2 hidden"></div>
             </div>
@@ -1271,13 +1271,13 @@
           <div class="menu-section" style="margin-top:0;padding-top:16px;">
             <div class="menu-section-title large" data-i18n="txHistory">📊 거래 내역</div>
             <div class="tx-tabs" id="txTabsContainer" style="overflow-x:auto; white-space:nowrap; padding-bottom:4px;">
-              <button class="tx-tab active" onclick="switchTxTab('deposit', this)">입금</button>
-              <button class="tx-tab" onclick="switchTxTab('withdrawal', this)">출금</button>
-              <button class="tx-tab" onclick="switchTxTab('roi', this)">FREEZE</button>
-              <button class="tx-tab" onclick="switchTxTab('direct_bonus', this)">추천 수당</button>
-              <button class="tx-tab" onclick="switchTxTab('rank_bonus', this)">직급 수당</button>
-              <button class="tx-tab" onclick="switchTxTab('rank_matching', this)">직급 매칭</button>
-              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('center_fee', this)" style="display: none;">센터</button>
+              <button class="tx-tab active" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
+              <button class="tx-tab" onclick="switchTxTab('withdrawal', this)" data-i18n="txWithdraw">출금</button>
+              <button class="tx-tab" onclick="switchTxTab('roi', this)" data-i18n="txInvest">FREEZE</button>
+              <button class="tx-tab" onclick="switchTxTab('direct_bonus', this)" data-i18n="txDirectBonus">추천 수당</button>
+              <button class="tx-tab" onclick="switchTxTab('rank_bonus', this)" data-i18n="txRankBonus">직급 수당</button>
+              <button class="tx-tab" onclick="switchTxTab('rank_matching', this)" data-i18n="txRankMatching">직급 매칭</button>
+              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('center_fee', this)" style="display: none;" data-i18n="txCenterFee">센터</button>
             </div>
             
             
@@ -1285,7 +1285,7 @@
             
             <div class="tx-filter" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding: 0 5px;">
               <input type="date" id="txHistoryDate" onchange="loadTxHistory()" style="padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg2); color:var(--text); font-size:14px; outline:none;">
-              <button onclick="document.getElementById('txHistoryDate').value=''; loadTxHistory()" style="background:var(--bg2); border:1px solid var(--border); color:var(--text2); padding:4px 10px; border-radius:6px; font-size:12px;">전체 기간 보기</button>
+              <button onclick="document.getElementById('txHistoryDate').value=''; loadTxHistory()" style="background:var(--bg2); border:1px solid var(--border); color:var(--text2); padding:4px 10px; border-radius:6px; font-size:12px;" data-i18n="viewAllPeriod">전체 기간 보기</button>
             </div>
 
             <div id="txHistoryList" class="tx-list" style="min-height: 100px;">
@@ -1314,13 +1314,13 @@
               </div>
             </div>
             
-            <!-- 계정 관리: 버튼처럼 보이게 핑크/퍼플 컬러 포인트 -->
+            <!-- 계정 Manage: 버튼처럼 보이게 핑크/퍼플 컬러 포인트 -->
             <div data-i18n="accountMgmt" style="font-size:12px; color:#c084fc; font-weight:800; display:flex; align-items:center; gap:4px; flex-shrink:0; border-left:1px dashed rgba(99,102,241,0.5); padding-left:10px; cursor:pointer;" onclick="showProfileEdit()">
-              <i class="fas fa-user-cog" style="color:#f472b6;"></i> 관리
+              <i class="fas fa-user-cog" style="color:#f472b6;"></i> Manage
             </div>
           </div>
 
-          <!-- 계정 관리 메뉴 -->
+          <!-- 계정 Manage 메뉴 -->
           <div class="menu-section" style="margin-top:0;">
             <div class="menu-list">
               <div class="menu-item" onclick="showProfileEdit()">
@@ -1351,7 +1351,7 @@
             <div class="menu-list">
               <div class="menu-item" onclick="switchPage('podcast')">
                 <div class="menu-item-icon" style="color:#8b5cf6;"><i class="fas fa-podcast"></i></div>
-                <span class="menu-item-text">🎙️ DEEDRA 팟캐스트</span>
+                <span class="menu-item-text" data-i18n="podcastMenu">🎙️ DEEDRA 팟캐스트</span>
                 <i class="fas fa-chevron-right menu-item-arrow"></i>
               </div>
             </div>
@@ -1427,14 +1427,14 @@
       <!-- 팟캐스트 페이지 -->
       <div id="podcastPage" class="page">
         <div class="header">
-          <div class="logo">🎙️ 팟캐스트</div>
+          <div class="logo" data-i18n="podcastTitle">🎙️ 팟캐스트</div>
         </div>
         <div class="page-scroll">
           <div style="padding:16px;">
             <div style="background:var(--bg2); border-radius:12px; padding:16px; margin-bottom:20px; text-align:center;">
               <i class="fas fa-headphones" style="font-size:32px; color:#8b5cf6; margin-bottom:10px;"></i>
-              <h3 style="margin:0 0 5px 0; color:var(--text);">DEEDRA 팟캐스트</h3>
-              <p style="margin:0; font-size:12px; color:var(--text2);">최신 소식과 시장 동향을 멀티미디어(음성·영상)로 만나보세요</p>
+              <h3 style="margin:0 0 5px 0; color:var(--text);" data-i18n="podcastHeader">DEEDRA 팟캐스트</h3>
+              <p style="margin:0; font-size:12px; color:var(--text2);" data-i18n="podcastDesc">최신 소식과 시장 동향을 멀티미디어(음성·영상)로 만나보세요</p>
             </div>
             <div id="userPodcastList">
               <div class="skeleton-item"></div>
@@ -1482,18 +1482,18 @@
   <div class="modal-overlay" onclick="closeModal('depositModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">💰 USDT 입금</div>
+    <div class="modal-title" data-i18n="modalDeposit">💰 USDT 입금</div>
     <div class="modal-body" style="padding-bottom:8px;">
 
       <!-- ── 탭 전환: 지갑연동 / 수동입금 ── -->
       <div style="display:flex;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:18px;gap:3px;">
         <button id="depTabWallet" onclick="switchDepTab('wallet')"
           style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;transition:.2s;">
-          🔗 지갑 연동
+          <span data-i18n="depTabWallet">🔗 지갑 연동</span>
         </button>
         <button id="depTabManual" onclick="switchDepTab('manual')"
           style="flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:#64748b;transition:.2s;">
-          ✏️ 수동 입금
+          <span data-i18n="depTabManual">✏️ 수동 입금</span>
         </button>
       </div>
 
@@ -1504,16 +1504,16 @@
         <div id="depWalletConnect">
           <div style="text-align:center;padding:8px 0 20px;">
             <div style="font-size:42px;margin-bottom:10px;">👛</div>
-            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;">지갑을 연결하세요</div>
-            <div style="font-size:12px;color:#64748b;margin-bottom:20px;">Phantom, TokenPocket 등 Solana 지갑을 지원합니다</div>
+            <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;"> <span data-i18n="depWalletTitle">지갑을 연결하세요</span></div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:20px;"> <span data-i18n="depWalletDesc">Phantom, TokenPocket 등 Solana 지갑을 지원합니다</span></div>
             <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto;">
               <button onclick="connectSolanaWallet()" id="btnConnectWallet"
                 style="padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">
-                <span style="font-size:20px;">👻</span> Phantom / 지갑 연결
+                <span style="font-size:20px;">👻</span> <span data-i18n="depTabWallet">🔗 지갑 연결</span>
               </button>
-              <div style="font-size:11px;color:#94a3b8;">지갑이 없으신가요?
-                <a href="https://phantom.app" target="_blank" style="color:#6366f1;">Phantom 설치</a> |
-                <a href="https://tokenpocket.pro" target="_blank" style="color:#6366f1;">TokenPocket 설치</a>
+              <div style="font-size:11px;color:#94a3b8;"><span data-i18n="depNoWallet">지갑이 없으신가요?</span>
+                <a href="https://phantom.app" target="_blank" style="color:#6366f1;"> <span data-i18n="depInstallPhantom">Phantom 설치</span></a> |
+                <a href="https://tokenpocket.pro" target="_blank" style="color:#6366f1;"> <span data-i18n="depInstallToken">TokenPocket 설치</span></a>
               </div>
             </div>
           </div>
@@ -1529,15 +1529,15 @@
               <div style="font-size:12px;color:#374151;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="depWalletAddr">-</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-size:11px;color:#64748b;">USDT 잔액</div>
-              <div style="font-size:14px;font-weight:700;color:#059669;" id="depWalletBalance">조회중...</div>
+              <div style="font-size:11px;color:#64748b;"> <span data-i18n="depUsdtBal">USDT 잔액</span></div>
+              <div style="font-size:14px;font-weight:700;color:#059669;" id="depWalletBalance">Loading...</div>
             </div>
             <button onclick="disconnectSolanaWallet()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;padding:4px;">✕</button>
           </div>
 
           <!-- 금액 입력 -->
           <div class="form-group" style="margin-bottom:12px;">
-            <label class="form-label">입금 금액 (USDT)</label>
+            <label class="form-label" data-i18n="depositAmountLabel">입금 금액 (USDT)</label>
             <div style="display:flex;gap:8px;align-items:center;">
               <input type="number" id="depWalletAmount" class="form-input" placeholder="0.00" min="1" step="0.01"
                 style="flex:1;" oninput="updateDepWalletFee(this.value)">
@@ -1553,14 +1553,14 @@
 
           <!-- 네트워크 수수료 안내 -->
           <div style="background:#fef9c3;border-radius:8px;padding:10px 12px;font-size:12px;color:#854d0e;margin-bottom:16px;">
-            ⚡ <strong>Solana 네트워크</strong> — 가스비 약 $0.001 (SOL)<br>
-            <span id="depWalletFeeNote">전송 전 소량의 SOL이 지갑에 있어야 합니다.</span>
+            <span data-i18n="depGasFeeInfo" data-i18n-html="true">⚡ <strong>Solana 네트워크</strong> — 가스비 약 $0.001 (SOL)<br></span>
+            <span id="depWalletFeeNote" data-i18n="depGasNote">전송 전 소량의 SOL이 지갑에 있어야 합니다.</span>
           </div>
 
           <!-- 전송 버튼 -->
           <button onclick="doWalletDeposit()" id="btnWalletSend"
             style="width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:8px;">
-            🚀 지갑으로 즉시 전송
+            🚀 <span data-i18n="depWalletSendBtn">지갑으로 즉시 전송</span>
           </button>
 
           <!-- 진행 상태 -->
@@ -1586,11 +1586,11 @@
         </div>
         <div class="form-group">
           <label class="form-label" data-i18n="depositTxidLabel">TXID (트랜잭션 해시)</label>
-          <input type="text" id="depositTxid" class="form-input" placeholder="트랜잭션 해시 입력" />
+          <input type="text" id="depositTxid" class="form-input" placeholder="Enter TXID" />
         </div>
         <div class="form-group">
           <label class="form-label" data-i18n="depositMemoLabel">메모 (선택)</label>
-          <input type="text" id="depositMemo" class="form-input" placeholder="메모 입력 (선택)" />
+          <input type="text" id="depositMemo" class="form-input" placeholder="Enter Memo (Optional)" />
         </div>
         <div class="warning-box" data-i18n="depositWarning">⚠️ 반드시 위 주소로 입금 후 TXID를 입력해주세요. 관리자 승인 후 잔액이 업데이트됩니다.</div>
       </div><!-- /depPanelManual -->
@@ -1598,9 +1598,9 @@
     </div><!-- /modal-body -->
 
     <div class="modal-footer" id="depFooter">
-      <button class="btn btn-ghost" onclick="closeModal('depositModal')" style="flex:1">취소</button>
+      <button class="btn btn-ghost" onclick="closeModal('depositModal')" style="flex:1"><span data-i18n="depCancelBtn">Cancel</span></button>
       <!-- 수동 탭일 때만 표시 -->
-      <button class="btn btn-primary" id="depManualSubmitBtn" onclick="submitDeposit()" style="flex:2;display:none;">입금 신청</button>
+      <button class="btn btn-primary" id="depManualSubmitBtn" onclick="submitDeposit()" style="flex:2;display:none;"><span data-i18n="depManualSubmitBtn">입금 신청</span></button>
     </div>
   </div>
 </div>
@@ -1630,22 +1630,28 @@
           oninput="onWithdrawAmountInput()" />
         <!-- DDRA 환산 실시간 표시 -->
         <div id="withdrawDdraCalc" style="margin-top:6px;font-size:12px;color:#94a3b8;padding:6px 10px;background:var(--card2,rgba(255,255,255,0.04));border-radius:8px;">
-          예상 지급 수량: 0.00 DDRA
+          Expected Payout: 0.00 DDRA
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label" data-i18n="withdrawAddressLabel">수신 지갑 주소 (DDRA)</label>
-        <input type="text" id="withdrawAddress" class="form-input" list="savedAddresses" placeholder="DDRA 수신 지갑 주소 입력" autocomplete="off" />
+        <label class="form-label" data-i18n="withdrawAddressLabel">수신 지갑 주소 (Solana 네트워크 DDRA 전용)</label>
+        <input type="text" id="withdrawAddress" class="form-input" list="savedAddresses" placeholder="DDRA 수신 지갑 주소 입력" data-i18n="placeholderWithdrawAddress" data-i18n-attr="placeholder" autocomplete="off" />
         <datalist id="savedAddresses"></datalist>
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="withdrawPinLabel">출금 PIN (6자리)</label>
         <input type="password" id="withdrawPin" class="form-input" placeholder="●●●●●●" maxlength="6" autocomplete="off" inputmode="numeric" />
       </div>
-      <div class="warning-box" data-i18n="withdrawWarning">⚠️ 출금 신청 후 관리자 승인까지 1~3 영업일 소요됩니다.</div>
+      <div class="warning-box" data-i18n="withdrawWarning" data-i18n-html="true">
+        ⚠️ 출금 유의사항<br>
+        1. 출금 신청 시 관리자 승인을 거쳐 지급됩니다.<br>
+        2. 승인 완료까지 영업일 기준 1~3일이 소요될 수 있습니다.<br>
+        3. 출금 지갑 주소는 반드시 <strong>솔라나(Solana) 네트워크의 주소</strong>를 입력해 주세요.<br>
+        4. 타 네트워크 주소 입력 시 자산이 유실될 수 있으며, 복구되지 않습니다.
+      </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('withdrawModal')" style="flex:1" data-i18n="btnCancel">취소</button>
+      <button class="btn btn-ghost" onclick="closeModal('withdrawModal')" style="flex:1" data-i18n="btnCancel">Cancel</button>
       <button class="btn btn-primary" onclick="submitWithdraw()" style="flex:2" data-i18n="btnSubmitWithdraw">출금 신청</button>
     </div>
   </div>
@@ -1667,7 +1673,7 @@
       <div class="invest-preview" id="investPreview" style="display:none"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('investModal')" style="flex:1" data-i18n="btnCancel">취소</button>
+      <button class="btn btn-ghost" onclick="closeModal('investModal')" style="flex:1" data-i18n="btnCancel">Cancel</button>
       <button class="btn btn-primary" onclick="submitInvest()" style="flex:2" data-i18n="btnSubmitInvest">FREEZE 신청</button>
     </div>
   </div>
@@ -1681,35 +1687,35 @@
   <div class="modal-sheet" style="padding-bottom:env(safe-area-inset-bottom, 20px);">
     <div class="modal-handle"></div>
     <div class="modal-title" style="display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;color:var(--text);margin-bottom:20px;">
-      <span style="font-size:20px;">🔐</span> 비밀번호 변경
+      <span style="font-size:20px;">🔐</span> <span data-i18n="pwChangeTitle">비밀번호 변경</span>
     </div>
     <div class="modal-body" style="padding-bottom:30px;">
-      <p style="font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.4;">계정의 안전을 위해 비밀번호를 주기적으로 변경해 주세요.</p>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.4;" data-i18n="pwChangeDesc">계정의 안전을 위해 비밀번호를 주기적으로 변경해 주세요.</p>
       
       <div class="input-group" style="margin-bottom:16px;">
-        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">기존 비밀번호</label>
+        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;" data-i18n="pwCurrentLabel">기존 비밀번호</label>
         <div style="position:relative;">
-          <input type="password" id="oldPasswordInput" placeholder="기존 비밀번호 입력" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'">
+          <input type="password" id="oldPasswordInput" placeholder="기존 비밀번호 입력" data-i18n="pwCurrentPlaceholder" data-i18n-attr="placeholder" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='var(--border)'">
         </div>
       </div>
       
       <div class="input-group" style="margin-bottom:16px;">
-        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">새 비밀번호</label>
+        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;" data-i18n="pwNewLabel">새 비밀번호</label>
         <div style="position:relative;">
-          <input type="password" id="newPasswordInput" placeholder="새 비밀번호 입력 (6자 이상)" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='var(--border)'">
+          <input type="password" id="newPasswordInput" placeholder="새 비밀번호 입력 (6자 이상)" data-i18n="pwNewPlaceholder" data-i18n-attr="placeholder" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='var(--border)'">
         </div>
       </div>
       
       <div class="input-group" style="margin-bottom:24px;">
-        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;">새 비밀번호 확인</label>
+        <label style="display:block; font-size:13px; font-weight:700; color:var(--text); margin-bottom:8px;" data-i18n="pwConfirmLabel">새 비밀번호 확인</label>
         <div style="position:relative;">
-          <input type="password" id="confirmNewPasswordInput" placeholder="새 비밀번호 다시 입력" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='var(--border)'">
+          <input type="password" id="confirmNewPasswordInput" placeholder="새 비밀번호 다시 입력" data-i18n="pwConfirmPlaceholder" data-i18n-attr="placeholder" style="width:100%; padding:14px 16px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:15px; color:var(--text); box-sizing:border-box; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='var(--border)'">
         </div>
       </div>
       
       <div style="margin-top: 10px; display:flex; gap:12px;">
-        <button class="btn btn-ghost" onclick="closeModal('passwordChangeModal')" style="flex:1; padding:14px; background:var(--bg2); color:var(--text2); border:none; border-radius:12px; font-weight:700; font-size:15px;">취소</button>
-        <button id="savePasswordBtn" class="btn btn-primary" onclick="submitPasswordChange()" style="flex:2; padding:14px; background:linear-gradient(135deg, #3b82f6, #2563eb); border:none; border-radius:12px; font-weight:800; font-size:15px; box-shadow:0 4px 12px rgba(37,99,235,0.3);">비밀번호 변경하기</button>
+        <button class="btn btn-ghost" onclick="closeModal('passwordChangeModal')" style="flex:1; padding:14px; background:var(--bg2); color:var(--text2); border:none; border-radius:12px; font-weight:700; font-size:15px;" data-i18n="btnCancel">Cancel</button>
+        <button id="savePasswordBtn" class="btn btn-primary" onclick="submitPasswordChange()" style="flex:2; padding:14px; background:linear-gradient(135deg, #3b82f6, #2563eb); border:none; border-radius:12px; font-weight:800; font-size:15px; box-shadow:0 4px 12px rgba(37,99,235,0.3);" data-i18n="btnChangePassword">비밀번호 변경하기</button>
       </div>
     </div>
   </div>
@@ -1723,14 +1729,14 @@
   <div class="modal-overlay" onclick="closeModal('gameWarningModal')"></div>
   <div class="modal-sheet" style="padding: 24px; text-align: center;">
     <div style="font-size: 36px; margin-bottom: 16px;">⚠️</div>
-    <h3 style="font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 14px; letter-spacing: -0.5px;">게임 입장 안내</h3>
-    <p style="font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 28px; word-break: keep-all; padding: 0 10px;">
-      게임 베팅 시 회원님의 실제 <b>보너스 잔액(USDT)</b>이 차감 및 연동됩니다.<br><br>
-      본 게임 결과에 따른 수익과 손실은 온전히 본인에게 귀속됨을 확인하며, 이에 동의하십니까?
+    <h3 style="font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 14px; letter-spacing: -0.5px;" data-i18n="gameEntranceTitle">Game Entrance</h3>
+    <p style="font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 28px; word-break: keep-all; padding: 0 10px;" data-i18n="gameEntranceDesc" data-i18n-html="true">
+      Your actual <b>Bonus Balance (USDT)</b> will be deducted and linked during game betting.<br><br>
+      I confirm that profits and losses resulting from this game belong entirely to me, and I agree to proceed.
     </p>
     <div style="display: flex; gap: 12px; margin-top: 10px;">
-      <button onclick="closeModal('gameWarningModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: var(--bg3); color: var(--text); border: 1px solid var(--border);">취소</button>
-      <button onclick="window.confirmGameWarning()" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">동의 및 입장</button>
+      <button onclick="closeModal('gameWarningModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: var(--bg3); color: var(--text); border: 1px solid var(--border);">Cancel</button>
+      <button onclick="window.confirmGameWarning()" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.3);"> <span data-i18n="gameEntranceConfirm">동의 및 입장</span></button>
     </div>
   </div>
 </div>
@@ -1739,28 +1745,28 @@
   <div class="modal-overlay" onclick="closeModal('walletRegisterModal')"></div>
   <div class="modal-sheet" style="padding-bottom:env(safe-area-inset-bottom, 20px);">
     <div class="modal-handle"></div>
-    <div class="modal-title">출금 지갑 주소 등록</div>
+    <div class="modal-title" data-i18n="registerWalletTitle">출금 지갑 주소 등록</div>
     <div class="modal-body" style="padding-bottom:30px;">
-      <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">
+      <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;" data-i18n="registerWalletDesc">
         본인의 솔라나(Solana) 지갑 주소를 등록해두시면 자동 입금 처리가 더욱 원활해집니다.
       </p>
       <div class="form-group">
         <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px;">
-          <i class="fa-solid fa-wallet" style="color: #8b5cf6;"></i> 솔라나 지갑 주소
+          <i class="fa-solid fa-wallet" style="color: #8b5cf6;"></i> <span data-i18n="solanaWalletAddress">솔라나 지갑 주소</span>
         </label>
-        <input type="text" id="solanaWalletInput" class="form-input" placeholder="Solana 지갑 주소를 붙여넣어주세요" style="font-family: monospace; font-size: 14px; padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none; transition: all 0.2s ease;">
+        <input type="text" id="solanaWalletInput" class="form-input" placeholder="Solana 지갑 주소를 붙여넣어주세요" data-i18n="placeholderSolanaWallet" data-i18n-attr="placeholder" style="font-family: monospace; font-size: 14px; padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none; transition: all 0.2s ease;">
       </div>
       <div class="form-group hidden" id="walletPinGroup" style="margin-top: 16px;">
         <label class="form-label" style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #e2e8f0; margin-bottom: 8px;">
-          <i class="fa-solid fa-lock" style="color: #ef4444;"></i> 출금 PIN 확인
+          <i class="fa-solid fa-lock" style="color: #ef4444;"></i> <span data-i18n="withdrawPinConfirm">출금 PIN 확인</span>
         </label>
-        <input type="password" id="walletPinInput" class="form-input" placeholder="출금 PIN 6자리 입력" maxlength="6" inputmode="numeric" style="padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none;">
-        <div style="font-size: 12px; color: #ef4444; margin-top: 6px;">* 이미 등록된 주소를 변경하려면 출금 PIN이 필요합니다.</div>
+        <input type="password" id="walletPinInput" class="form-input" placeholder="출금 PIN 6자리 입력" data-i18n="placeholderWithdrawPin" data-i18n-attr="placeholder" maxlength="6" inputmode="numeric" style="padding: 14px 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; width: 100%; color: #fff; outline: none;">
+        <div style="font-size: 12px; color: #ef4444; margin-top: 6px;" data-i18n="withdrawPinWarning">* 이미 등록된 주소를 변경하려면 출금 PIN이 필요합니다.</div>
       </div>
       <div style="margin-top: 24px; display: flex; gap: 10px;">
-        <button class="btn btn-ghost" onclick="closeModal('walletRegisterModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: rgba(255,255,255,0.05);">나중에 하기</button>
+        <button class="btn btn-ghost" onclick="closeModal('walletRegisterModal')" style="flex: 1; padding: 14px; border-radius: 12px; font-weight: 600; background: rgba(255,255,255,0.05);" data-i18n="btnDoLater">나중에 하기</button>
         <button id="saveWalletBtn" class="btn btn-primary" onclick="saveWalletAddress()" style="flex: 2; padding: 14px; font-weight: 600; border-radius: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-          <i class="fa-solid fa-check"></i> 저장하기
+          <i class="fa-solid fa-check"></i> <span data-i18n="btnSave">저장하기</span>
         </button>
       </div>
     </div>
@@ -1785,7 +1791,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('pinModal')" style="flex:1" data-i18n="btnCancel">취소</button>
+      <button class="btn btn-ghost" onclick="closeModal('pinModal')" style="flex:1" data-i18n="btnCancel">Cancel</button>
       <button class="btn btn-primary" onclick="saveWithdrawPin()" style="flex:2" data-i18n="btnSave">저장</button>
     </div>
   </div>
@@ -1809,32 +1815,32 @@
       <div class="form-group">
         <label class="form-label" data-i18n="labelCountry">국가</label>
         <select id="editCountry" class="form-input" style="appearance:none;-webkit-appearance:none;cursor:pointer;">
-          <option value="">-- 국가 선택 --</option>
-          <option value="KR">🇰🇷 대한민국</option>
-          <option value="US">🇺🇸 미국</option>
-          <option value="JP">🇯🇵 일본</option>
-          <option value="CN">🇨🇳 중국</option>
-          <option value="VN">🇻🇳 베트남</option>
-          <option value="TH">🇹🇭 태국</option>
-          <option value="PH">🇵🇭 필리핀</option>
-          <option value="ID">🇮🇩 인도네시아</option>
-          <option value="MY">🇲🇾 말레이시아</option>
-          <option value="SG">🇸🇬 싱가포르</option>
-          <option value="AU">🇦🇺 호주</option>
-          <option value="GB">🇬🇧 영국</option>
-          <option value="DE">🇩🇪 독일</option>
-          <option value="FR">🇫🇷 프랑스</option>
-          <option value="CA">🇨🇦 캐나다</option>
-          <option value="IN">🇮🇳 인도</option>
-          <option value="BR">🇧🇷 브라질</option>
-          <option value="RU">🇷🇺 러시아</option>
+          <option value="">-- Select Country --</option>
+          <option value="KR">🇰🇷 South Korea</option>
+          <option value="US">🇺🇸 USA</option>
+          <option value="JP">🇯🇵 Japan</option>
+          <option value="CN">🇨🇳 China</option>
+          <option value="VN">🇻🇳 Vietnam</option>
+          <option value="TH">🇹🇭 Thailand</option>
+          <option value="PH">🇵🇭 Philippines</option>
+          <option value="ID">🇮🇩 Indonesia</option>
+          <option value="MY">🇲🇾 Malaysia</option>
+          <option value="SG">🇸🇬 Singapore</option>
+          <option value="AU">🇦🇺 Australia</option>
+          <option value="GB">🇬🇧 UK</option>
+          <option value="DE">🇩🇪 Germany</option>
+          <option value="FR">🇫🇷 France</option>
+          <option value="CA">🇨🇦 Canada</option>
+          <option value="IN">🇮🇳 India</option>
+          <option value="BR">🇧🇷 Brazil</option>
+          <option value="RU">🇷🇺 Russia</option>
           <option value="UAE">🇦🇪 UAE</option>
-          <option value="OTHER">🌐 기타</option>
+          <option value="OTHER">🌐 Other</option>
         </select>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('profileModal')" style="flex:1" data-i18n="btnCancel">취소</button>
+      <button class="btn btn-ghost" onclick="closeModal('profileModal')" style="flex:1" data-i18n="btnCancel">Cancel</button>
       <button class="btn btn-primary" onclick="saveProfile()" style="flex:2" data-i18n="btnSave">저장</button>
     </div>
   </div>
@@ -1844,27 +1850,27 @@
 <!-- 비밀번호 찾기 (비회원 1:1 문의) 모달 -->
 <div id="guestTicketModal" class="modal-overlay" style="display:none;z-index:999999;">
   <div class="modal-content">
-    <div class="modal-title">🔒 비밀번호 찾기 문의</div>
+    <div class="modal-title">🔒 <span data-i18n="guestTicketTitle">비밀번호 찾기 문의</span></div>
     <div class="modal-body">
       <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">
-        비밀번호를 분실하신 경우, 관리자가 본인 확인 후 초기화해 드립니다.<br>아래 정보를 정확히 입력해 주세요.
+        <span data-i18n="guestTicketDesc">비밀번호를 분실하신 경우, 관리자가 본인 확인 후 초기화해 드립니다.<br>아래 정보를 정확히 입력해 주세요.</span>
       </p>
       <div class="form-group">
-        <label class="form-label">아이디</label>
-        <input type="text" id="guestTicketUsername" class="form-input" placeholder="가입하신 아이디 입력" />
+        <label class="form-label" data-i18n="labelUsername">아이디</label>
+        <input type="text" id="guestTicketUsername" class="form-input" data-i18n="phGuestId" data-i18n-attr="placeholder" placeholder="가입하신 아이디 입력" />
       </div>
       <div class="form-group">
-        <label class="form-label">이름</label>
-        <input type="text" id="guestTicketName" class="form-input" placeholder="가입하신 이름 입력" />
+        <label class="form-label" data-i18n="labelName">이름</label>
+        <input type="text" id="guestTicketName" class="form-input" data-i18n="phGuestName" data-i18n-attr="placeholder" placeholder="가입하신 이름 입력" />
       </div>
       <div class="form-group">
-        <label class="form-label">전화번호</label>
-        <input type="text" id="guestTicketPhone" class="form-input" placeholder="가입하신 전화번호 입력 (예: 010-1234-5678)" />
+        <label class="form-label" data-i18n="labelPhone">전화번호</label>
+        <input type="text" id="guestTicketPhone" class="form-input" data-i18n="phGuestPhone" data-i18n-attr="placeholder" placeholder="가입하신 전화번호 입력 (예: 010-1234-5678)" />
       </div>
     </div>
     <div class="modal-footer" style="display:flex;gap:10px;">
-      <button class="btn btn-ghost" onclick="document.getElementById('guestTicketModal').style.display='none'" style="flex:1">취소</button>
-      <button class="btn btn-primary" id="btnSubmitGuestTicket" onclick="submitGuestTicket()" style="flex:2">문의 등록</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('guestTicketModal').style.display='none'" style="flex:1"><span data-i18n="depCancelBtn">Cancel</span></button>
+      <button class="btn btn-primary" id="btnSubmitGuestTicket" onclick="submitGuestTicket()" style="flex:2"><span data-i18n="btnSubmitGuestTicket">문의 등록</span></button>
     </div>
   </div>
 </div>
@@ -1900,33 +1906,33 @@
   <div class="modal-overlay" onclick="closeModal('reinvestModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title"><i class="fas fa-sync-alt"></i> 수익금 재투자 (FREEZE 가입)</div>
+    <div class="modal-title"><i class="fas fa-sync-alt"></i> <span data-i18n="reinvestModalTitle">수익금 재투자 (FREEZE 가입)</span></div>
     <div class="modal-body">
-      <p style="font-size:13px; color:var(--text2); margin-bottom:16px;">출금 가능한 수익금으로 새로운 FREEZE 상품에 바로 재투자합니다.</p>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:16px;" data-i18n="reinvestModalDesc">출금 가능한 수익금으로 새로운 FREEZE 상품에 바로 재투자합니다.</p>
       <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;">
-        <div style="font-size:12px; color:var(--text2); margin-bottom:8px;">출금 가능 수익금</div>
+        <div style="font-size:12px; color:var(--text2); margin-bottom:8px;" data-i18n="withdrawableUsdtLabel">출금 가능 수익금</div>
         <div id="reinvestMaxAmount" style="font-size:24px; font-weight:700; color:#10b981;">0.00 <span style="font-size:14px;">USDT</span></div>
       </div>
       <div class="form-group" style="margin-bottom:16px;">
-        <label>재투자할 상품 선택 (기간)</label>
+        <label data-i18n="reinvestSelProduct">재투자할 상품 선택 (기간)</label>
         <select id="reinvestProductSelect" class="form-input" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:#fff; border-radius:10px; padding:12px; outline:none; appearance:none;">
-          <option value="">상품을 불러오는 중...</option>
+          <option value="" data-i18n="reinvestLoading">상품을 불러오는 중...</option>
         </select>
       </div>
       <div class="form-group">
-        <label>재투자할 금액 (USDT)</label>
-        <input type="number" id="reinvestInputAmount" class="form-input" placeholder="최소 1 USDT 이상" />
+        <label data-i18n="reinvestAmtLabel">재투자할 금액 (USDT)</label>
+        <input type="number" id="reinvestInputAmount" class="form-input" data-i18n="reinvestAmtPh" data-i18n-attr="placeholder" placeholder="최소 1 USDT 이상" />
         <div style="display:flex; gap:8px; margin-top:8px;">
           <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(25)">25%</button>
           <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(50)">50%</button>
           <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(75)">75%</button>
-          <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(100)">최대</button>
+          <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:12px;" onclick="setReinvestPercent(100)"> <span data-i18n="reinvestMaxBtn">최대</span></button>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary btn-full" id="btnSubmitReinvest" onclick="submitReinvest()">재투자 승인</button>
-      <button class="btn btn-ghost btn-full" onclick="closeModal('reinvestModal')">취소</button>
+      <button class="btn btn-primary btn-full" id="btnSubmitReinvest" onclick="submitReinvest()"><span data-i18n="reinvestSubmit">재투자 승인</span></button>
+      <button class="btn btn-ghost btn-full" onclick="closeModal('reinvestModal')"><span data-i18n="depCancelBtn">Cancel</span></button>
     </div>
   </div>
 </div>
@@ -1989,7 +1995,7 @@
   <div class="modal-overlay" onclick="closeModal('notiModal')"></div>
   <div class="modal-sheet large">
     <div class="modal-handle"></div>
-    <div class="modal-title">🔔 알림 센터</div>
+    <div class="modal-title">🔔 <span data-i18n="notificationCenter">알림 센터</span></div>
     <div class="modal-body">
       <div id="notiList" class="noti-list"></div>
     </div>
@@ -2043,8 +2049,8 @@
     <div id="confirmModalIcon" style="font-size:36px;margin-bottom:12px;">⚠️</div>
     <div id="confirmModalMsg" style="color:#f1f5f9;font-size:15px;font-weight:600;margin-bottom:20px;line-height:1.5;"></div>
     <div style="display:flex;gap:10px;">
-      <button id="confirmModalCancel" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#94a3b8;font-size:14px;font-weight:600;cursor:pointer;">취소</button>
-      <button id="confirmModalOk" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">확인</button>
+      <button id="confirmModalCancel" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#94a3b8;font-size:14px;font-weight:600;cursor:pointer;"><span data-i18n="btnCancel">Cancel</span></button>
+      <button id="confirmModalOk" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:14px;font-weight:700;cursor:pointer;"><span data-i18n="btnConfirm">확인</span></button>
     </div>
   </div>
 </div>
@@ -2054,20 +2060,20 @@
 <div id="forcePwModal" style="display:none;position:fixed;inset:0;z-index:99999999;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;pointer-events:auto !important;user-select:auto !important;">
   <div style="background:linear-gradient(145deg,#1e293b,#0f172a);border-radius:24px;padding:32px 24px 28px;width:90%;max-width:360px;box-shadow:0 25px 80px rgba(0,0,0,0.8),inset 0 1px 1px rgba(255,255,255,0.1);border:1px solid rgba(99,102,241,0.4);text-align:center;">
     <div style="font-size:42px;margin-bottom:12px;filter:drop-shadow(0 0 10px rgba(99,102,241,0.5));">🔒</div>
-    <h3 style="color:#fff;font-size:18px;font-weight:800;margin-bottom:8px;letter-spacing:-0.5px;">안전한 사용을 위한 비밀번호 변경</h3>
-    <p style="color:#94a3b8;font-size:13px;line-height:1.5;margin-bottom:24px;word-break:keep-all;">회원님의 현재 비밀번호는 초기 설정값(000000)입니다.<br>안전한 서비스 이용을 위해 <strong>본인만의 새로운 비밀번호</strong>로 변경해 주세요.</p>
+    <h3 style="color:#fff;font-size:18px;font-weight:800;margin-bottom:8px;letter-spacing:-0.5px;"><span data-i18n="forcePwTitle">안전한 사용을 위한 비밀번호 변경</span></h3>
+    <p style="color:#94a3b8;font-size:13px;line-height:1.5;margin-bottom:24px;word-break:keep-all;"><span data-i18n="forcePwDesc">회원님의 현재 비밀번호는 초기 설정값(000000)입니다.<br>안전한 서비스 이용을 위해 <strong>본인만의 새로운 비밀번호</strong>로 변경해 주세요.</span></p>
     
     <div style="text-align:left;margin-bottom:12px;">
-      <label style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;padding-left:4px;">새 비밀번호</label>
-      <input type="password" id="forcePwNew" placeholder="새로운 비밀번호 입력 (6자리 이상)" style="pointer-events:auto !important;user-select:auto !important;width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
+      <label style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;padding-left:4px;" data-i18n="pwNewLabel">새 비밀번호</label>
+      <input type="password" id="forcePwNew" placeholder="New Password (Min 6)" style="pointer-events:auto !important;user-select:auto !important;width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
     </div>
     
     <div style="text-align:left;margin-bottom:24px;">
-      <label style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;padding-left:4px;">새 비밀번호 확인</label>
-      <input type="password" id="forcePwConfirm" placeholder="다시 한번 입력해 주세요" style="pointer-events:auto !important;user-select:auto !important;width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
+      <label style="display:block;color:#cbd5e1;font-size:12px;font-weight:700;margin-bottom:6px;padding-left:4px;" data-i18n="pwConfirmLabel">새 비밀번호 확인</label>
+      <input type="password" id="forcePwConfirm" placeholder="Re-enter new password" style="pointer-events:auto !important;user-select:auto !important;width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:14px 16px;color:#fff;font-size:15px;outline:none;transition:all 0.2s;" onfocus="this.style.borderColor='#8b5cf6';this.style.boxShadow='0 0 0 3px rgba(139,92,246,0.15)'" onblur="this.style.borderColor='rgba(99,102,241,0.3)';this.style.boxShadow='none'">
     </div>
     
-    <button id="forcePwBtn" onclick="submitForcePw()" style="width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 8px 20px rgba(99,102,241,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">비밀번호 변경 완료</button>
+    <button id="forcePwBtn" onclick="submitForcePw()" style="width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 8px 20px rgba(99,102,241,0.4);transition:all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'"> <span data-i18n="btnChangePassword">비밀번호 변경 완료</span></button>
   </div>
 </div>
 
@@ -2079,7 +2085,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1773917124"></script>
 <script src="/static/js/chat.js"></script>
-<script src="/static/app.js?v=2026032217"></script>
+<script src="/static/app.js?v=20260323044500"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널
@@ -2088,7 +2094,7 @@
   position:fixed; left:0; right:0; bottom:0; top:0;
   z-index:3000; pointer-events:none;
 ">
-  <!-- 딤 배경 -->
+  <!-- 딤 x경 -->
   <div id="nepBackdrop" onclick="closeNetworkEarningsPanel()" style="
     position:absolute; inset:0;
     background:rgba(0,0,0,0.55);
@@ -2117,7 +2123,7 @@
     <div style="flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:6px 16px 10px;">
       <div>
         <div style="font-size:16px;font-weight:700;color:var(--text,#f1f5f9);" data-i18n="networkPanelTitle">🌐 네트워크 수익</div>
-        <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:1px;" id="nepSubTitle">하부 조직 수익 현황</div>
+        <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:1px;" id="nepSubTitle"><span data-i18n="nepSubTitle">하부 조직 수익 현황</span></div>
       </div>
       <button onclick="closeNetworkEarningsPanel()" style="
         background:rgba(255,255,255,0.08);border:none;
@@ -2135,21 +2141,21 @@
           <div style="text-align:center;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:8px 4px;cursor:pointer;" onclick="switchNepTab('gen1')">
             <div style="font-size:9px;color:#10b981;font-weight:600;margin-bottom:3px;" data-i18n="netPerfGen1">1대 조직 실적</div>
             <div id="nepGen1Today" style="font-size:13px;font-weight:700;color:#10b981;">$-</div>
-            <div id="nepGen1Count" style="font-size:9px;color:var(--text3,#64748b);margin-top:2px;">-명</div>
+            <div id="nepGen1Count" style="font-size:9px;color:var(--text3,#64748b);margin-top:2px;">-<span data-i18n="peopleUnit">명</span></div>
             <div style="font-size:8px;color:rgba(16,185,129,0.6);margin-top:3px;" data-i18n="viewDetail">상세보기 ›</div>
           </div>
           <!-- 2대 -->
           <div style="text-align:center;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px 4px;cursor:pointer;" onclick="switchNepTab('gen2')">
             <div style="font-size:9px;color:#3b82f6;font-weight:600;margin-bottom:3px;" data-i18n="netPerfGen2">2대 조직 실적</div>
             <div id="nepGen2Today" style="font-size:13px;font-weight:700;color:#3b82f6;">$-</div>
-            <div id="nepGen2Count" style="font-size:9px;color:var(--text3,#64748b);margin-top:2px;">-명</div>
+            <div id="nepGen2Count" style="font-size:9px;color:var(--text3,#64748b);margin-top:2px;">-<span data-i18n="peopleUnit">명</span></div>
             <div style="font-size:8px;color:rgba(59,130,246,0.6);margin-top:3px;" data-i18n="viewDetail">상세보기 ›</div>
           </div>
           <!-- 산하 조직 -->
           <div style="text-align:center;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:8px 4px;cursor:pointer;" onclick="switchNepTab('deep')">
             <div style="font-size:9px;color:#8b5cf6;font-weight:600;margin-bottom:3px;" data-i18n="netPerfAll">산하 조직 실적</div>
             <div id="nepGen3Today" style="font-size:13px;font-weight:700;color:#8b5cf6;">$-</div>
-            <div id="nepGen3Count" style="font-size:9px;color:var(--text3,#64748b);margin-top:2px;">-명</div>
+            <div id="nepGen3Count" style="font-size:9px;color:var(--text3,#64748b);margin-top:2px;">-<span data-i18n="peopleUnit">명</span></div>
             <div style="font-size:8px;color:rgba(139,92,246,0.6);margin-top:3px;" data-i18n="viewDetail">상세보기 ›</div>
           </div>
         </div>
@@ -2189,7 +2195,7 @@
   <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;background:#1e293b;border-bottom:1px solid rgba(255,255,255,0.05);">
     <div style="color:#fff;font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;">
       <img src="/static/icon-192.png" style="width:20px;height:20px;border-radius:50%;" />
-      DEEDRA 실시간 차트
+      <span data-i18n="liveChartModalTitle">DEEDRA 실시간 차트</span>
     </div>
     <button onclick="closeFullscreenChart()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;"><i class="fas fa-times"></i></button>
   </div>
@@ -2207,14 +2213,14 @@
     <div style="padding:10px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center;">
       <div style="color:#fff; font-weight:800; font-size:16px; display:flex; align-items:center; gap:8px;">
         <img src="/static/img/ddra-dex-coin.png" style="width:24px; height:24px; border-radius:50%;" />
-        DDRA 스왑 터미널
+        <span data-i18n="dexModalTitle">DDRA 스왑 터미널</span>
       </div>
       <button onclick="closeModal('dexModal')" style="background:rgba(255,255,255,0.1); border:none; color:#fff; width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">&times;</button>
     </div>
     <div id="dexIframeContainer" style="flex:1; width:100%; position:relative;">
       <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#94a3b8; font-size:14px; text-align:center;">
         <i class="fas fa-spinner fa-spin" style="font-size:24px; margin-bottom:12px; color:#10b981;"></i><br>
-        Raydium 로딩 중...
+        <span data-i18n="dexLoading">Raydium 로딩 중...</span>
       </div>
       <iframe id="dexIframe" src="" style="width:100%; height:100%; border:none; position:relative; z-index:2; background:transparent;" allow="clipboard-read; clipboard-write"></iframe>
     </div>
@@ -2227,32 +2233,32 @@
   <div class="modal-overlay" onclick="closeModal('autoCompoundModal')"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title"><i class="fas fa-sync-alt" style="color:#10b981;"></i> 자동 복리 (Auto-Compound) 활성화</div>
+    <div class="modal-title"><i class="fas fa-sync-alt" style="color:#10b981;"></i> <span data-i18n="autoCompoundModalTitle">자동 복리 (Auto-Compound) 활성화</span></div>
     <div class="modal-body">
       <div style="background:var(--bg2, rgba(16,185,129,0.1)); border:1px solid rgba(16,185,129,0.3); border-radius:12px; padding:16px; margin-bottom:16px;">
         <h4 style="color:#10b981; font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-          <i class="fas fa-chart-line"></i> 복리의 마법을 경험하세요!
+          <i class="fas fa-chart-line"></i> <span data-i18n="acModalDesc1">복리의 마법을 경험하세요!</span>
         </h4>
         <p style="font-size:13px; color:var(--text-color, #e2e8f0); line-height:1.5; margin-bottom:8px;">
-          자동 복리를 켜두면 매일 자정에 발생하는 <strong>데일리 수익금이 내 지갑으로 들어오지 않고, 곧바로 진행 중인 FREEZE(투자) 원금에 추가(재투자)</strong>됩니다.
+          <span data-i18n="acModalDesc2" data-i18n-html="true">자동 복리를 켜두면 매일 자정에 발생하는 <strong>데일리 수익금이 내 지갑으로 들어오지 않고, 곧바로 진행 중인 FREEZE(투자) 원금에 추가(재투자)</strong>됩니다.</span>
         </p>
         <ul style="font-size:12px; color:var(--text-muted, #94a3b8); line-height:1.6; padding-left:16px; list-style-type:disc;">
-          <li>매일 원금이 커지므로 다음 날 발생하는 이자도 점점 더 커집니다. <span style="color:#10b981; font-weight:bold;">(눈덩이 효과)</span></li>
-          <li>수동으로 재투자할 때 발생하는 번거로움과 시간 지연이 없습니다.</li>
-          <li><strong style="color:#ef4444;">주의:</strong> 원금에 합산된 수익금은 기존 상품 만기 시점까지 함께 락업(출금 불가)됩니다.</li>
+          <li><span data-i18n="acModalDesc3">매일 원금이 커지므로 다음 날 발생하는 이자도 점점 더 커집니다.</span> <span style="color:#10b981; font-weight:bold;"><span data-i18n="warningSnowball">(눈덩이 효과)</span></span></li>
+          <li><span data-i18n="acModalDesc4">수동으로 재투자할 때 발생하는 번거로움과 시간 지연이 없습니다.</span></li>
+          <li><strong style="color:#ef4444;"><span data-i18n="warningNotice">주의:</span></strong> <span data-i18n="acModalDesc5">원금에 합산된 수익금은 기존 상품 만기 시점까지 함께 락업(출금 불가)됩니다.</span></li>
         </ul>
       </div>
       
       <label style="display:flex; align-items:flex-start; gap:10px; background:var(--card-bg, #1e293b); padding:14px; border-radius:8px; cursor:pointer; border:1px solid var(--border-color, #334155);">
         <input type="checkbox" id="autoCompoundAgreeCheck" style="margin-top:2px; transform:scale(1.3);">
         <span style="font-size:12px; color:var(--text-color, #e2e8f0); font-weight:600; line-height:1.4;">
-          위 내용을 모두 읽고 이해하였으며, 데일리 수익금의 자동 재투자(원금 락업)에 동의합니다.
+          <span data-i18n="acModalDesc6">위 내용을 모두 읽고 이해하였으며, 데일리 수익금의 자동 재투자(원금 락업)에 동의합니다.</span>
         </span>
       </label>
     </div>
     <div class="modal-footer" style="display:flex; gap:10px;">
-      <button class="btn btn-primary" id="btnConfirmAutoCompound" style="flex:1; opacity:0.5; background:#10b981; border:none; color:#fff;" disabled onclick="confirmAutoCompound()">활성화 승인</button>
-      <button class="btn btn-ghost" style="flex:1; background:transparent; border:1px solid #64748b; color:#94a3b8;" onclick="closeModal('autoCompoundModal')">취소</button>
+      <button class="btn btn-primary" id="btnConfirmAutoCompound" style="flex:1; opacity:0.5; background:#10b981; border:none; color:#fff;" disabled onclick="confirmAutoCompound()"> <span data-i18n="btnEnable">활성화 승인</span></button>
+      <button class="btn btn-ghost" style="flex:1; background:transparent; border:1px solid #64748b; color:#94a3b8;" onclick="closeModal('autoCompoundModal')"><span data-i18n="btnCancel">Cancel</span></button>
     </div>
   </div>
 </div>
