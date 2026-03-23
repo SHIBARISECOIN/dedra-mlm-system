@@ -194,6 +194,8 @@ const TRANSLATIONS = {
     totalExpectedLabel: '총 예상수익(일): +{n} USDT (원금은 만기 후 출금 가능)',
     investUnit: '건',
     perDay: '/일',
+    unit_days: '일',
+    totalEarnSuffix: '일 합계',
     productMonth1: '1개월',
     productMonth3: '3개월',
     productMonth6: '6개월',
@@ -896,6 +898,8 @@ const TRANSLATIONS = {
     totalExpectedLabel: 'Total Expected/Day: +{n} USDT (Principal withdrawable at maturity)',
     investUnit: ' items',
     perDay: '/day',
+    unit_days: ' days',
+    totalEarnSuffix: ' days total',
     productMonth1: '1 Month',
     productMonth3: '3 Months',
     productMonth6: '6 Months',
@@ -1592,6 +1596,8 @@ const TRANSLATIONS = {
     totalExpectedLabel: 'Tổng dự kiến/ngày: +{n} USDT (Gốc có thể rút khi đáo hạn)',
     investUnit: ' mục',
     perDay: '/ngày',
+    unit_days: ' ngày',
+    totalEarnSuffix: ' ngày tổng cộng',
     productMonth1: '1 Tháng',
     productMonth3: '3 Tháng',
     productMonth6: '6 Tháng',
@@ -2285,6 +2291,8 @@ const TRANSLATIONS = {
     totalExpectedLabel: 'คาดการณ์รวม/วัน: +{n} USDT (ถอนเงินต้นได้เมื่อครบกำหนด)',
     investUnit: ' รายการ',
     perDay: '/วัน',
+    unit_days: ' วัน',
+    totalEarnSuffix: ' วันรวม',
     productMonth1: '1 เดือน',
     productMonth3: '3 เดือน',
     productMonth6: '6 เดือน',
@@ -5733,10 +5741,10 @@ window.runSimulator = function() {
 
   const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   setEl('simInputAmount', fmt(amount) + ' USDT');
-  setEl('simDays', days + '일');
+  setEl('simDays', days + (t('unit_days') || '일'));
   setEl('simRoi', roi + '%');
-  setEl('simEarning', fmt(earning) + ' USDT/일 (' + fmt(earningDdra) + ' DDRA)');
-  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + '일 합계)');
+  setEl('simEarning', fmt(earning) + ' USDT' + (t('perDay') || '/일') + ' (' + fmt(earningDdra) + ' DDRA)');
+  setEl('simEarningUsd', fmt(totalEarning) + ' USDT (' + days + (t('totalEarnSuffix') || '일 합계') + ')');
 
   result.classList.add('show');
 };
@@ -5825,7 +5833,7 @@ async function loadMyInvestments() {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('activeInvestCount', sumItems.count + '건');
     setEl('totalInvestAmount', '$' + fmt(sumItems.total));
-    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT/일');
+    setEl('expectedReturn', fmt(sumItems.returns) + ' USDT' + (t('perDay') || '/일'));
 
     if (!invests.length) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-snowflake"></i>' + (t('emptyActiveFreeze') || '진행 중인 FREEZE가 없습니다') + '</div>';
@@ -5918,10 +5926,10 @@ window.updateInvestPreview = function() {
   const earningDdra = earning / (deedraPrice || 0.5);
   previewEl.style.display = 'block';
   previewEl.innerHTML = `
-    📌 일 수익: <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
-    💡 DDRA 환산: ≈ ${fmt(earningDdra)} DDRA/일 (1 DDRA = $${(deedraPrice||0.5).toFixed(4)})<br>
-    📅 만기일: ${getDaysLaterStr(selectedProduct.days)}<br>
-    🔒 원금은 만기 후 언프리즈 가능합니다.`;
+    📌 ${t('dailyReturnLabel') || '일 수익:'} <strong style="color:var(--green)">${fmt(earning)} USDT</strong><br>
+    💡 ${t('ddraConvert') || 'DDRA 환산'}: ≈ ${fmt(earningDdra)} DDRA${t('perDay') || '/일'} (1 DDRA = ${(deedraPrice||0.5).toFixed(4)})<br>
+    📅 ${t('maturityDate') || '만기일'}: ${getDaysLaterStr(selectedProduct.days)}<br>
+    🔒 ${t('productHint2') || '만기 후 언프리즈 가능합니다.'}`;
 };
 
 window.submitInvest = async function() {
