@@ -158,190 +158,143 @@ app.get('/setup', (c) => c.html(SETUP_HTML()))
 app.post('/api/admin/rollback-settlement', async (c) => {
   try {
     const body = await c.req.json();
-    if (body.secret !== CRON_SECRET) return c.json({ error: '인증 실패' }, 401);
+    if (body.secret !== 'deedra-cron-2026') return c.json({ error: '인증 실패' }, 401);
+    const targetDate = body.targetDate || "2026-03-26";
     
     const adminToken = await getAdminToken();
-    const todayPrefix = "2026-03-20";
-
     
-    let bonuses = [];
-    let pageToken = null;
-    do {
-      const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-      const data = await res.json();
-      if (data.documents) {
-        bonuses = bonuses.concat(data.documents.map(d => {
-          const doc = d;
-          const id = doc.name.split('/').pop();
-          const result = { id };
-          for (const [k, v] of Object.entries(doc.fields || {})) {
-            result[k] = v.stringValue !== undefined ? v.stringValue 
-                      : v.integerValue !== undefined ? Number(v.integerValue)
-                      : v.doubleValue !== undefined ? v.doubleValue
-                      : v.booleanValue !== undefined ? v.booleanValue
-                      : v.timestampValue !== undefined ? v.timestampValue
-                      : null;
-          }
-          return result;
-        }));
-      }
-      pageToken = data.nextPageToken;
-    } while (pageToken);
-
-    const todayBonuses = bonuses.filter(b => b.createdAt && b.createdAt.startsWith(todayPrefix));
+    // 1. Get bonuses for the target date
+    const bonuses = await fsQuery('bonuses', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'settlementDate' }, op: 'EQUAL', value: { stringValue: targetDate } } }
+    ], 100000);
     
-    const userWalletsDelta = {}; 
-    const invReversals = {}; 
+    console.log("Found bonuses to rollback:", bonuses.length);
     
+    const allUsers = await fsQuery('users', adminToken, [], 100000);
+    const allWallets = await fsQuery('wallets', adminToken, [], 100000);
+    const allInvs = await fsQuery('investments', adminToken, [], 100000);
     
-    let users = [];
-    let uPageToken = null;
-    do {
-      const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-      const data = await res.json();
-      if (data.documents) {
-        users = users.concat(data.documents.map(d => {
-          const doc = d;
-          const id = doc.name.split('/').pop();
-          const result = { id };
-          for (const [k, v] of Object.entries(doc.fields || {})) {
-            result[k] = v.stringValue !== undefined ? v.stringValue 
-                      : v.integerValue !== undefined ? Number(v.integerValue)
-                      : v.doubleValue !== undefined ? v.doubleValue
-                      : v.booleanValue !== undefined ? v.booleanValue
-                      : v.timestampValue !== undefined ? v.timestampValue
-                      : null;
-          }
-          return result;
-        }));
-      }
-      uPageToken = data.nextPageToken;
-    } while (uPageToken);
-
-    const userMap = new Map(users.map(u => [u.id, u]));
-
-    for (const b of todayBonuses) {
+    const userMap = new Map(allUsers.map((u: any) => [u.id || u.uid, u]));
+    const wMap = new Map(allWallets.map((w: any) => [w.id || w.userId, w]));
+    const invMap = new Map(allInvs.map((i: any) => [i.id, i]));
+    
+    // 2. Compute wallet deltas
+    const userWalletsDelta = {};
+    const invReversals = {};
+    
+    for (const b of bonuses) {
       if (!userWalletsDelta[b.userId]) {
         userWalletsDelta[b.userId] = { bonusBalance: 0, totalEarnings: 0, totalInvest: 0 };
       }
       const d = userWalletsDelta[b.userId];
-      d.totalEarnings += b.amountUsdt;
+      d.totalEarnings += (b.amountUsdt || 0);
 
       if (b.type === 'roi') {
         const u = userMap.get(b.userId);
-        if (u && u.autoCompound) {
-          d.totalInvest += b.amountUsdt;
+        const autoCompound = u?.autoCompound || false;
+        
+        if (autoCompound) {
+          d.totalInvest += (b.amountUsdt || 0);
         } else {
-          d.bonusBalance += b.amountUsdt;
+          d.bonusBalance += (b.amountUsdt || 0);
         }
         if (b.investmentId) {
-          invReversals[b.investmentId] = (invReversals[b.investmentId] || 0) + b.amountUsdt;
+          invReversals[b.investmentId] = (invReversals[b.investmentId] || 0) + (b.amountUsdt || 0);
         }
       } else {
-        d.bonusBalance += b.amountUsdt;
+        d.bonusBalance += (b.amountUsdt || 0);
       }
     }
-
+    
+    const writes = [];
+    
+    // 3. Prepare Investment reverts
     let invRevertedCount = 0;
-    const invPromises = [];
     for (const [invId, amountToSub] of Object.entries(invReversals)) {
-      const inv = await fsGet(`investments/${invId}`, adminToken);
+      const inv = invMap.get(invId);
       if (inv) {
         const newAmount = Math.max(0, (inv.amountUsdt || 0) - amountToSub);
         const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
         const newExpectedReturn = newAmount * (dailyRoiPct / 100);
         
-        invPromises.push(fsPatch(`investments/${invId}`, {
-          amount: newAmount,
-          amountUsdt: newAmount,
-          expectedReturn: newExpectedReturn,
-          paidRoi: Math.max(0, (inv.paidRoi || 0) - amountToSub),
-          lastSettledAt: "2026-03-19T23:59:59.000Z" 
-        }, adminToken));
+        const prevDateObj = new Date(targetDate + "T00:00:00Z");
+        prevDateObj.setDate(prevDateObj.getDate() - 1);
+        const prevDate = prevDateObj.toISOString().slice(0,10);
+        
+        writes.push({
+          update: {
+            name: `projects/dedra-mlm/databases/(default)/documents/investments/${invId}`,
+            fields: {
+              amount: toFirestoreValue(newAmount),
+              amountUsdt: toFirestoreValue(newAmount),
+              expectedReturn: toFirestoreValue(newExpectedReturn),
+              paidRoi: toFirestoreValue(Math.max(0, (inv.paidRoi || 0) - amountToSub)),
+              lastSettledAt: toFirestoreValue(`${prevDate}T23:59:59.000Z`)
+            }
+          },
+          updateMask: { fieldPaths: ['amount', 'amountUsdt', 'expectedReturn', 'paidRoi', 'lastSettledAt'] }
+        });
         invRevertedCount++;
       }
     }
-    // Batch process to avoid timeouts
-    for (let i = 0; i < invPromises.length; i += 20) {
-      await Promise.all(invPromises.slice(i, i + 20));
-    }
-
     
-    let wallets = [];
-    let wPageToken = null;
-    do {
-      const res = await fetch(qUrl, { headers: { 'Authorization': `Bearer ${adminToken}` } });
-      const data = await res.json();
-      if (data.documents) {
-        wallets = wallets.concat(data.documents.map(d => {
-          const doc = d;
-          const id = doc.name.split('/').pop();
-          const result = { id };
-          for (const [k, v] of Object.entries(doc.fields || {})) {
-            result[k] = v.stringValue !== undefined ? v.stringValue 
-                      : v.integerValue !== undefined ? Number(v.integerValue)
-                      : v.doubleValue !== undefined ? v.doubleValue
-                      : v.booleanValue !== undefined ? v.booleanValue
-                      : v.timestampValue !== undefined ? v.timestampValue
-                      : null;
-          }
-          return result;
-        }));
-      }
-      wPageToken = data.nextPageToken;
-    } while (wPageToken);
-
-    const walletMap = new Map(wallets.map(w => [w.id, w])); 
+    // 4. Prepare Wallet reverts
     let walletRevertedCount = 0;
-    const walletPromises = [];
-
     for (const [userId, delta] of Object.entries(userWalletsDelta)) {
-      const w = walletMap.get(userId);
+      const w = wMap.get(userId);
       if (w) {
-        walletPromises.push(fsPatch(`wallets/${userId}`, {
-          bonusBalance: Math.max(0, (w.bonusBalance || 0) - delta.bonusBalance),
-          totalInvest: Math.max(0, (w.totalInvest || w.totalInvested || 0) - delta.totalInvest),
-          totalEarnings: Math.max(0, (w.totalEarnings || 0) - delta.totalEarnings)
-        }, adminToken));
+        const newBonus = Math.max(0, (w.bonusBalance || 0) - delta.bonusBalance);
+        const newTotalE = Math.max(0, (w.totalEarnings || 0) - delta.totalEarnings);
+        const newTotalI = Math.max(0, (w.totalInvest || w.totalInvested || 0) - delta.totalInvest);
+        
+        writes.push({
+          update: {
+            name: `projects/dedra-mlm/databases/(default)/documents/wallets/${userId}`,
+            fields: {
+              bonusBalance: toFirestoreValue(newBonus),
+              totalEarnings: toFirestoreValue(newTotalE),
+              totalInvest: toFirestoreValue(newTotalI)
+            }
+          },
+          updateMask: { fieldPaths: ['bonusBalance', 'totalEarnings', 'totalInvest'] }
+        });
         walletRevertedCount++;
       }
     }
-    for (let i = 0; i < walletPromises.length; i += 20) {
-      await Promise.all(walletPromises.slice(i, i + 20));
-    }
-
+    
+    // 5. Delete Bonuses
     let deletedBonuses = 0;
-    const deletePromises = [];
-    for (const b of todayBonuses) {
-      deletePromises.push(fetch(`${FIRESTORE_BASE}/bonuses/${b.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${adminToken}` }
-      }));
+    for (const b of bonuses) {
+      writes.push({
+        delete: `projects/dedra-mlm/databases/(default)/documents/bonuses/${b.id}`
+      });
       deletedBonuses++;
     }
-    for (let i = 0; i < deletePromises.length; i += 20) {
-      await Promise.all(deletePromises.slice(i, i + 20));
+    
+    // 6. Execute Batch Writes in chunks
+    console.log(`Ready to batch ${writes.length} writes...`);
+    for (let i = 0; i < writes.length; i += 500) {
+      await fsBatchCommit(writes.slice(i, i + 500), adminToken);
     }
-
-    const lock = await fsGet(`settlements/2026-03-20`, adminToken);
-    if (lock) {
-      await fetch(`${FIRESTORE_BASE}/settlements/2026-03-20`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${adminToken}` }
-      });
-    }
+    
+    // 7. Delete Settlement Lock
+    await fetch(`${FIRESTORE_BASE}/settlements/${targetDate}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
 
     return c.json({ 
       success: true, 
+      message: `${targetDate} 정산이 롤백되었습니다.`,
       invRevertedCount, 
       walletRevertedCount, 
       deletedBonuses 
     });
-  } catch(e) {
+  } catch(e: any) {
+    console.error(e);
     return c.json({ error: e.message }, 500);
   }
-});
-
+})
 
 app.get('/api/admin/check-reconstruct', async (c) => {
   const adminToken = await getAdminToken();
