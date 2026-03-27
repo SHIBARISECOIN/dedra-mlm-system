@@ -5777,7 +5777,7 @@ window.submitReinvest = async function() {
     // 🔄 산하 매출 즉시 동기화
     fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
 
-    
+
     // --- 잭팟 로직 추가 ---
     try {
       const jpRef = typeof window !== 'undefined' && window.FB && window.FB.doc ? window.FB.doc(window.FB.db, 'events', 'jackpot') : doc(db, 'events', 'jackpot');
@@ -5807,7 +5807,7 @@ window.submitReinvest = async function() {
       }
     } catch(err) { console.error('Jackpot update error:', err); }
 
-// -----------------------
+    // -----------------------
 
 
     // Firestore onSnapshot이 실시간으로 잔액을 업데이트하므로 수동 차감을 제거합니다.
@@ -6452,7 +6452,7 @@ window.submitInvest = async function() {
     fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
 
     
-    
+
     // --- 잭팟 로직 추가 ---
     try {
       const jpRef = typeof window !== 'undefined' && window.FB && window.FB.doc ? window.FB.doc(window.FB.db, 'events', 'jackpot') : doc(db, 'events', 'jackpot');
@@ -6482,7 +6482,375 @@ window.submitInvest = async function() {
       }
     } catch(err) { console.error('Jackpot update error:', err); }
 
-// -------------------------------------
+
+    // 로컬 walletData도 즉시 반영 (UI 즉시 업데이트)
+    if (walletData) {
+      walletData.usdtBalance = (walletData.usdtBalance || 0) - amount;
+      walletData.totalInvest = (walletData.totalInvest || 0) + amount;
+    }
+
+    // 🔔 자동 규칙: 투자 시작 알림
+    try {
+      if (window.api && typeof window.api.fireAutoRules === 'function') {
+        await window.api.fireAutoRules('investment_start', currentUser.uid, {
+          name:        userData?.name || currentUser.email || currentUser.uid,
+          amount:      amount.toFixed(2),
+          productName: selectedProduct.name || '',
+          rank:        userData?.rank || 'G0',
+        }, currentUser.uid);
+      }
+    } catch(_) { /* 자동 규칙 실패 시 투자 처리에 영향 없음 */ }
+
+    closeModal('investModal');
+    showToast(t('toastInvestDone'), 'success');
+    loadMyInvestments();
+    // 지갑 UI 즉시 갱신
+    updateWalletUI();
+    if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
+    if (typeof loadTxHistory === 'function') { const activeTab = document.querySelector('.tx-tab.active'); loadTxHistory(window.currentTxTab || 'deposit'); }
+  } catch (err) {
+    showToast(t('failPrefix') + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = t('btnSubmitInvest') || 'FREEZE 시작'; }
+  }
+};
+
+// ===== 네트워크 페이지 =====
+async function loadNetworkPage() {
+  if (!userData) return;
+
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  setEl('myReferralCode', userData.referralCode || '-');
+  updateRankUI();
+  loadReferralList();
+  buildOrgTree();
+}
+
+function updateRankUI() {
+  if (!userData) return;
+  const rank    = userData.rank || 'G0';
+  const rankIdx = RANKS.findIndex(r => r.rank === rank);
+  const nextRankObj = RANKS[rankIdx + 1];
+
+  const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // Don't overwrite the whole div, just update the image
+  const rankImg = document.getElementById('rankCurrentImg');
+  const rankNameEl = document.getElementById('rankCurrentName');
+  const rankNamesMap = {
+    'G0': 'Stone', 'G1': 'Wood', 'G2': 'Bronze', 'G3': 'Silver', 'G4': 'Gold',
+    'G5': 'Platinum', 'G6': 'Emerald', 'G7': 'Sapphire', 'G8': 'Diamond',
+    'G9': 'White Diamond', 'G10': 'Ultimate'
+  };
+  if(rankNameEl) {
+      rankNameEl.textContent = rankNamesMap[rank] || 'Stone';
+  }
+  if (rankImg) {
+    let r = (rank || 'G0').trim().toLowerCase(); if(!r.match(/^g([0-9]|10)$/)) r = 'g0'; rankImg.src = `/static/ranks/${r}.png?v=2`;
+  } else {
+    // fallback if img is missing
+    const rc = document.getElementById('rankCurrent');
+    if (rc) rc.innerHTML = `<img id="rankCurrentImg" src="/static/ranks/${((rank || 'G0').trim().toLowerCase().match(/^g([0-9]|10)$/) ? (rank || 'G0').trim().toLowerCase() : 'g0')}.png?v=2" alt="${rank}" style="width:100px;height:auto;object-fit:contain;" /><div id="rankCurrentName" style="font-size:32px; font-weight:900; color:var(--primary); text-transform:uppercase; letter-spacing:1px; flex:1;">${rankNamesMap[rank] || 'Stone'}</div>`;
+  }
+
+  // ── 새 승진 조건 (관리자 설정) 방식 ──────────────────────────
+  if (rankPromoSettings && rankPromoSettings.criteria && nextRankObj) {
+    const criteria   = rankPromoSettings.criteria;
+    const nextRankId = nextRankObj.rank;
+    const crit       = criteria[nextRankId];
+    const useBalanced= rankPromoSettings.useBalancedVolume === true;
+
+    if (crit) {
+      // 보유 데이터 파싱
+      const curSelf     = walletData?.totalDeposit || 0;
+      const curMembers  = userData?.totalReferrals || userData?.referralCount || 0;
+      // 매출 정보 (없으면 0)
+      const curSales    = userData?.networkSales || 0; 
+      
+      // 균형 매출 계산 (전체 매출 - 최대 라인 매출)
+      let maxLegSales = 0;
+      if (userData?.legSales && typeof userData.legSales === 'object') {
+        const salesValues = Object.values(userData.legSales).map(v => Number(v) || 0);
+        if (salesValues.length > 0) {
+          maxLegSales = Math.max(...salesValues);
+        }
+      }
+      const calculatedBalanced = Math.max(0, curSales - maxLegSales);
+      const curBalanced = userData?.otherLegSales ?? userData?.networkBalancedSales ?? userData?.balancedVolume ?? calculatedBalanced;
+
+      // 필요한 조건들
+      const reqSelf     = crit.minSelfInvest || 0;
+      const reqMembers  = crit.minNetworkMembers || 0;
+      const reqSales    = crit.minNetworkSales || 0;
+      const reqBalanced = crit.minBalancedVolume || 0;
+      
+      const condHtml = [];
+      
+      // Helper
+      const makeBar = (label, cur, req, unit) => {
+         const pct = req > 0 ? Math.min(100, (cur / req) * 100) : 100;
+         const diff = req - cur;
+         const diffMsg = diff > 0 ? `<span style="color:#ef4444;">${diff.toLocaleString()} ${unit} ${t("shortageLabel") || "부족"}</span>` : `<span style="color:#10b981;">${t("achievedLabel") || "✔ 달성 완료"}</span>`;
+         return `
+          <div style="font-size:12px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span style="color:var(--text2); font-weight:600;">${label}</span>
+              <span style="color:var(--text);"><strong>${cur.toLocaleString()}</strong> / ${req.toLocaleString()} ${unit}</span>
+            </div>
+            <div class="rank-progress-bar" style="height:6px; background:rgba(150,150,150,0.2); border-radius:3px;">
+              <div class="rank-progress-fill" style="width:${pct}%; background:${pct>=100?'#10b981':'var(--primary)'}; border-radius:3px; transition:width 0.5s;"></div>
+            </div>
+            <div style="text-align:right; font-size:10px; margin-top:3px; font-weight:600;">${diffMsg}</div>
+          </div>
+         `;
+      };
+
+      if (reqSelf > 0) condHtml.push(makeBar('본인 투자금', curSelf, reqSelf, 'USDT'));
+      if (useBalanced && reqBalanced > 0) {
+         condHtml.push(makeBar((t('minorLegSum')||'소실적 합') + ' <span style="font-size:10px;font-weight:normal;">' + (t('minorLegSumSub')||'(최대 라인 제외)') + '</span>', curBalanced, reqBalanced, 'USDT'));
+      } else if (reqSales > 0) {
+         condHtml.push(makeBar('산하 매출 합계', curSales, reqSales, 'USDT'));
+      }
+      if (reqMembers > 0) condHtml.push(makeBar('산하 인원 수', curMembers, reqMembers, '명'));
+      
+      const container = document.getElementById('nextRankContainer');
+      const legacy = document.getElementById('legacyRankInfo');
+      if (container) container.style.display = 'block';
+      if (legacy) legacy.style.display = 'none';
+      
+      const hl = document.getElementById('nextRankHighlight');
+      if(hl) hl.textContent = `${nextRankId} ${rankNamesMap[nextRankId] || ''}`;
+      
+      const conds = document.getElementById('nextRankConditions');
+      if(conds) conds.innerHTML = condHtml.join('');
+      
+      return;
+    }
+  }
+
+  // ── 레거시 방식 (만약 설정이 없을 때 fallback) ─────────────
+  const container = document.getElementById('nextRankContainer');
+  const legacy = document.getElementById('legacyRankInfo');
+  if (container) container.style.display = 'none';
+  if (legacy) legacy.style.display = 'block';
+
+
+    // ── 레거시 방식 (추천인 수 기반) ─────────────────────────────
+  const refCount = userData.referralCount || userData.totalReferrals || 0;
+  setEl('rankReferralCount', refCount);
+  if (nextRankObj) {
+    const progress = Math.min(100, (refCount / nextRankObj.minRefs) * 100);
+    setEl('rankNextLabel', `${nextRankObj.rank} (${nextRankObj.minRefs - refCount}${t('neededMembers') || '명 필요'})`);
+    const fill = document.getElementById('rankProgressFill');
+    if (fill) fill.style.width = progress.toFixed(1) + '%';
+  } else {
+    setEl('rankNextLabel', t('topRankAchieved') || '최고 직급 달성! 🏆');
+    const fill = document.getElementById('rankProgressFill');
+    if (fill) fill.style.width = '100%';
+  }
+}
+
+async function loadReferralList() {
+  const { collection, query, where, getDocs, limit, db } = window.FB;
+  const listEl = document.getElementById('referralList');
+  const netBonus = document.getElementById('netBonus');
+  const netDirect = document.getElementById('netDirectCount');
+  if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
+
+  try {
+    // 단일 where만 사용 → JS 정렬 (복합 인덱스 불필요)
+    const q = query(
+      collection(db, 'users'),
+      where('referredBy', '==', currentUser.uid)
+    );
+    const snap = await getDocs(q);
+    const refs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+    if (netDirect) netDirect.textContent = refs.length;
+    if (netBonus) netBonus.textContent = fmt(walletData?.totalEarnings || 0);
+
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setEl('rankReferralCount', refs.length);
+
+    if (!refs.length) {
+      if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-user-friends"></i>' + (t('emptyRef') || '추천인이 없습니다') + '</div>';
+      return;
+    }
+
+    if (listEl) listEl.innerHTML = refs.map(r => {
+      const isOnline = r.lastSeenAt && (Date.now() - r.lastSeenAt < 120000);
+      const onlineDot = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:10px; height:10px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; box-shadow: 0 0 4px rgba(16,185,129,0.5);"></div>` : '';
+      return `
+      <div class="referral-item">
+        <div class="ref-avatar" style="position: relative;">
+          <i class="fas fa-user"></i>
+          ${onlineDot}
+        </div>
+        <div class="ref-info">
+          <div class="ref-name">${r.name || '이름 없음'}</div>
+          <div class="ref-date">${fmtDate(r.createdAt)}</div>
+        </div>
+        <div class="ref-rank">${r.rank || 'G0'}</div>
+      </div>`;
+    }).join('');
+
+  } catch (err) {
+    if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
+  }
+}
+
+
+window.cavePath = [];
+
+async function buildOrgTree() {
+  const treeEl = document.getElementById('orgTree');
+  if (!treeEl) return;
+
+  // Initialize with root if empty
+  if (window.cavePath.length === 0) {
+    window.cavePath = [{
+      id: currentUser.uid,
+      name: userData?.name || '나',
+      username: userData?.username || '',
+      email: userData?.email || '',
+      rank: userData?.rank || 'G0',
+      createdAt: userData?.createdAt,
+      referralCount: userData?.referralCount || userData?.totalReferrals || 0,
+      totalInvested: userData?.totalInvested || 0,
+      networkSales: userData?.networkSales || 0,
+      otherLegSales: userData?.otherLegSales || 0
+    }];
+  }
+
+  await renderCaveTree();
+}
+
+window.renderCaveTree = async function() {
+  const treeEl = document.getElementById('orgTree');
+  if (!treeEl) return;
+  // Reset transform and makeDraggable state when re-rendering tree
+  treeEl.style.transform = 'translate(0px, 0px)';
+  const wrap = document.getElementById('orgChartWrap');
+  
+  
+
+  
+  const colorMap = {
+    g0: '#4b5563', g1: '#3b82f6', g2: '#10b981', g3: '#059669', g4: '#d97706',
+    g5: '#ea580c', g6: '#e11d48', g7: '#dc2626', g8: '#9333ea', g9: '#7c3aed',
+    g10: 'linear-gradient(45deg, #fbbf24, #f59e0b, #d97706)'
+  };
+
+  const renderNode = (n, isPathNode, pathIndex) => {
+    const isMe = n.id === currentUser.uid;
+    const cHex = colorMap[(n.rank||'g0').toLowerCase()] || '#4b5563';
+    const bg = isMe ? 'linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(30, 30, 40, 0.95))' : 'rgba(30, 30, 40, 0.95)';
+    const border = isMe ? '2px solid #9d4edd' : `1px solid ${cHex.includes('gradient') ? '#f59e0b' : cHex}`;
+    const displayId = n.username || (n.email ? n.email.split('@')[0] : (n.id ? n.id.substring(0, 8).toUpperCase() : '***'));
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${displayId}&backgroundColor=transparent`;
+    const shadow = isPathNode ? '0 0 25px rgba(157, 78, 221, 0.4)' : '0 5px 15px rgba(0,0,0,0.3)';
+    const opacity = isPathNode && pathIndex < window.cavePath.length - 1 ? '0.7' : '1';
+    const transform = isPathNode && pathIndex < window.cavePath.length - 1 ? 'scale(0.95)' : 'scale(1)';
+
+    // 안읽은 메시지가 있는 사용자(또는 그 하위 조직에 있는 사용자)에게 뱃지 표시
+    const hasUnread = window.unreadChatPaths && window.unreadChatPaths.has(n.id) && !isMe;
+    const badgeHtml = hasUnread ? `<div style="position:absolute; top:-4px; right:-4px; width:14px; height:14px; background:#ef4444; border-radius:50%; border:2px solid var(--surface); animation: pulse 2s infinite; z-index: 5;"></div>` : '';
+
+    // 온라인 상태 표시 뱃지 (최근 2분 이내 활동)
+    const isOnline = n.lastSeenAt && (Date.now() - n.lastSeenAt < 120000);
+    const onlineBadge = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:14px; height:14px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; z-index:5; box-shadow: 0 0 5px rgba(16,185,129,0.5);"></div>` : '';
+
+    let refCount = n.referralCount || n.totalReferrals || 0;
+    if (refCount === 0 && n.children && n.children.length > 0) refCount = n.children.length;
+    else if (refCount === 0 && n.hasMore) refCount = "1+";
+    else if (refCount === 0 && isPathNode && pathIndex < window.cavePath.length - 1) refCount = "1+";
+    
+    let refBadge = '';
+    if (refCount !== 0 && refCount !== '0') {
+        refBadge = `<div style="position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); background:#2563eb; color:#fff; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; border:1px solid #1e1e28; z-index:10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">하위 ${refCount}명</div>`;
+    }
+
+    return `
+      <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; position: relative;">
+        ${badgeHtml}
+        <div style="background:${bg}; backdrop-filter:blur(10px); border:${border}; border-radius:16px; color:#fff; padding:10px 14px; box-shadow: ${shadow}; display:flex; align-items:center; gap:8px; cursor:pointer; min-width: 180px; opacity:${opacity}; transform:${transform}; transition:all 0.3s;"
+             onclick="showNodeActionModal('${n.id}', '${(displayId).replace(/'/g, `\\'`)}', '${n.rank}', ${isPathNode}, ${pathIndex}, '${refCount}')">
+           <div style="position: relative; flex-shrink: 0; width:40px; height:40px;">
+              <div style="width:100%; height:100%; border-radius:50%; background:rgba(255,255,255,0.1); overflow:hidden;">
+                 <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
+              </div>
+              ${onlineBadge}
+              ${refBadge}
+           </div>
+           <div style="display:flex; flex-direction:column; overflow:hidden; text-align:left; width:100%;">
+             <div style="font-weight:bold; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayId}</div>
+             <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2; margin-bottom:8px;">${n.rank||'G0'}</div>
+             <div style="font-size:11px; text-align:left; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px; margin-top:2px;">
+                 <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#cbd5e1;">
+                     <span>본인 매출:</span>
+                     <span style="color:#10b981; font-weight:700;">${Number(n.totalInvested || n.lockedBalance || 0).toLocaleString(undefined, {maximumFractionDigits:2})} USDT</span>
+                 </div>
+                 <div style="display:flex; justify-content:space-between; color:#cbd5e1;">
+                     <span>전체 합계:</span>
+                     <span style="color:#3b82f6; font-weight:700;">${Number(n.networkSales || n.totalSales || 0).toLocaleString(undefined, {maximumFractionDigits:2})} USDT</span>
+                 </div>
+             </div>
+           </div>
+        </div>
+      </div>
+    `;
+  };
+
+  // 1. Render active path
+  let html = `<div style="display:flex; flex-direction:column; align-items:center; width:100%;">`;
+  
+  for (let i = 0; i < window.cavePath.length; i++) {
+     html += renderNode(window.cavePath[i], true, i);
+     // V-connector to next node or children
+     html += `<div style="width:2px; height:30px; background:linear-gradient(to bottom, #9d4edd, rgba(157,78,221,0.2)); margin:4px 0; position:relative;"></div>`;
+  }
+
+  // Loading spinner for children
+  html += `<div id="caveChildrenWrap" style="display:flex; flex-wrap:wrap; justify-content:center; gap:20px; max-width:100%; padding:10px;">
+              <div class="spinner" style="margin:20px;"></div>
+           </div>`;
+  
+  html += `</div>`;
+  treeEl.innerHTML = html;
+  if (wrap) { try { window.makeDraggableMap(wrap, treeEl); } catch(e) { console.error(e); } }
+  
+  
+
+  // 2. Fetch children for the last node in path
+  const lastNode = window.cavePath[window.cavePath.length - 1];
+
+  // --- Rank-based Depth Restriction (Removed as per request) ---
+  const getMaxDepth = (rank) => {
+     return 999; // 무조건 하부조직 제한 없이 열람 가능하도록 수정
+  };
+  
+  const userRank = userData?.rank || 'G0';
+  const maxDepth = getMaxDepth(userRank);
+  const currentDepthToFetch = window.cavePath.length; // path length 1 fetches depth 1
+  
+  if (currentDepthToFetch > maxDepth) {
+     const childrenWrap = document.getElementById('caveChildrenWrap');
+     if (childrenWrap) {
+        childrenWrap.innerHTML = `
+           <div style="background:rgba(20,20,30,0.8); border:1px solid rgba(157,78,221,0.3); border-radius:16px; padding:24px 30px; text-align:center; max-width:85%; box-shadow:0 10px 30px rgba(0,0,0,0.5); backdrop-filter:blur(5px); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
+             <div style="font-size:36px; margin-bottom:12px; filter:drop-shadow(0 0 10px rgba(245,158,11,0.5));">🔒</div>
+             <div style="color:#f59e0b; font-weight:800; font-size:16px; margin-bottom:8px; letter-spacing:0.5px;">${t('orgDepthLimitTitle')}</div>
+             <div style="color:#cbd5e1; font-size:13px; line-height:1.6;">
+                ${t('orgDepthLimitDesc').replace('{rank}', userRank).replace('{depth}', maxDepth)}
+             </div>
+           </div>
+        `;
+     }
+     return;
+  }
+  // -------------------------------------
 
   try {
     const availableDepth = Math.max(1, maxDepth - window.cavePath.length + 1);
