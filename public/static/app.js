@@ -11194,7 +11194,7 @@ function renderJackpotBanner(data) {
           </span>
         </div>
         
-        <div style="margin-top:8px; font-size: 11px; color: #facc15; font-weight: 600; display: ${data.changeCount ? 'inline-block' : 'none'}; background: rgba(250, 204, 21, 0.15); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(250, 204, 21, 0.3);">
+        <div style="margin-top:8px; font-size: 11px; color: #facc15; font-weight: 600; display: inline-block; background: rgba(250, 204, 21, 0.15); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(250, 204, 21, 0.3);">
           ${(typeof currentLang !== 'undefined' && currentLang === 'en') ? 'Target changed ' + (data.changeCount||0) + ' times!' : 
             (typeof currentLang !== 'undefined' && currentLang === 'vi') ? 'Mục tiêu đã thay đổi ' + (data.changeCount||0) + ' lần!' : 
             (typeof currentLang !== 'undefined' && currentLang === 'th') ? 'เป้าหมายเปลี่ยนไป ' + (data.changeCount||0) + ' ครั้ง!' : 
