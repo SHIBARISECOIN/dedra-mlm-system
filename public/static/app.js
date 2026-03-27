@@ -3759,6 +3759,9 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
 
 
 // ===== 홈 EARN 패널 - 상품 미리보기 로드 =====
+// --- EARN 캐시 변수 추가 ---
+window._cachedMyInvestments = null;
+
 async function loadHomeEarn() {
   setTimeout(window.initLiveTransactionMarquee, 500);
   const listEl = document.getElementById('homeEarnList');
@@ -3776,20 +3779,32 @@ async function loadHomeEarn() {
         .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
     }
 
-    // 내 활성 투자 로드
-    let myInvestments = [];
-    if (currentUser) {
+    // 내 활성 투자 로드 (캐시 활용)
+    let myInvestments = window._cachedMyInvestments || [];
+    
+    if (currentUser && !window._cachedMyInvestments) {
       try {
         const q = query(collection(db, 'investments'), where('userId', '==', currentUser.uid));
         const iSnap = await getDocs(q);
         myInvestments = iSnap.docs.map(d => ({ id: d.id, ...d.data() }))
           .filter(inv => inv.status === 'active');
+        window._cachedMyInvestments = myInvestments;
       } catch(e) { /* 조용히 */ }
     }
 
-    renderHomeEarn(productsCache, myInvestments);
-    renderHomeInvestCards(myInvestments, productsCache);
-    updateTodayEarnSummary(myInvestments);
+    // 렌더링을 DOM 업데이트 최소화하여 실행
+    if (listEl.innerHTML.includes('earn-skeleton')) {
+      renderHomeEarn(productsCache, myInvestments);
+      renderHomeInvestCards(myInvestments, productsCache);
+      updateTodayEarnSummary(myInvestments);
+    } else {
+      // 이미 렌더링된 상태라면 백그라운드에서 조용히 데이터만 갱신 (리렌더링 깜빡임 방지)
+      setTimeout(() => {
+        renderHomeEarn(productsCache, myInvestments);
+        renderHomeInvestCards(myInvestments, productsCache);
+        updateTodayEarnSummary(myInvestments);
+      }, 500);
+    }
   } catch (e) {
     console.error('[EARN] 상품 로드 오류:', e);
     if (e && e.code) { listEl.innerHTML = `<div style="font-size:11px;color:red;text-align:center;padding:12px 0;">Error: ${e.message}</div>`; return; }
@@ -4661,8 +4676,15 @@ async function loadDDayCard() {
 
 // ===== 공지사항 =====
 async function loadAnnouncements() {
-  const { collection, query, where, getDocs, limit, db } = window.FB;
+  const { collection, query, where, getDocs, db } = window.FB;
   try {
+    // If already cached, just render first 3
+    if (window._cachedAnnouncements && window._cachedAnnouncements.length > 0) {
+      renderAnnouncements(window._cachedAnnouncements.slice(0, 3), 'announcementList');
+      renderAnnouncements(window._cachedAnnouncements.slice(0, 3), 'moreAnnouncementList');
+      return;
+    }
+    
     // 단일 where만 사용 (복합 인덱스 불필요) → JS로 정렬·필터
     const q = query(
       collection(db, 'announcements'),
@@ -4675,10 +4697,13 @@ async function loadAnnouncements() {
         if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-      })
-      .slice(0, 5);
-    renderAnnouncements(items, 'announcementList');
-    renderAnnouncements(items, 'moreAnnouncementList');
+      });
+      
+    window._cachedAnnouncements = items;
+    
+    // Main 화면에는 3개만 렌더링
+    renderAnnouncements(items.slice(0, 3), 'announcementList');
+    renderAnnouncements(items.slice(0, 3), 'moreAnnouncementList');
   } catch (err) {
     console.error('[announcements] load error:', err);
     if (err && err.code) { document.getElementById('announcementList').innerHTML = `<div class="empty-state" style="color:red">${err.message}</div>`; return; }
@@ -4706,11 +4731,18 @@ function renderAnnouncements(items, containerId) {
 }
 
 window.showAnnouncementModal = async function() {
-  const { collection, query, where, getDocs, limit, db } = window.FB;
   const modal = document.getElementById('announcementModal');
   if (modal) modal.classList.remove('hidden');
   const listEl = document.getElementById('announcementFullList');
+  
+  if (window._cachedAnnouncements && window._cachedAnnouncements.length > 0) {
+    renderAnnouncements(window._cachedAnnouncements, 'announcementFullList');
+    return;
+  }
+  
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
+  
+  const { collection, query, where, getDocs, db } = window.FB;
   try {
     const q = query(
       collection(db, 'announcements'),
@@ -4723,6 +4755,8 @@ window.showAnnouncementModal = async function() {
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       });
+    
+    window._cachedAnnouncements = items;
     renderAnnouncements(items, 'announcementFullList');
   } catch {
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
@@ -5812,7 +5846,7 @@ window.submitReinvest = async function() {
 
     // Firestore onSnapshot이 실시간으로 잔액을 업데이트하므로 수동 차감을 제거합니다.
     
-    closeModal('reinvestModal');
+    window._cachedMyInvestments = null; closeModal('reinvestModal');
     showToast(t('toastReinvestDone') || '수익금 재투자가 완료되었습니다!', 'success');
     updateWalletUI();
     if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
@@ -6501,7 +6535,7 @@ window.submitInvest = async function() {
       }
     } catch(_) { /* 자동 규칙 실패 시 투자 처리에 영향 없음 */ }
 
-    closeModal('investModal');
+    window._cachedMyInvestments = null; closeModal('investModal');
     showToast(t('toastInvestDone'), 'success');
     loadMyInvestments();
     // 지갑 UI 즉시 갱신
