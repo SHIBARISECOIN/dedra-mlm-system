@@ -3569,22 +3569,32 @@ async function initApp() {
     }
 
 
+    // 1. 핵심 UI 우선 로드 (즉시)
     updateHomeUI();
-    loadAnnouncements();
-    if (typeof loadNewsFeed === "function") loadNewsFeed();
-    loadRecentTransactions();
-    loadDDayCard();
     loadHomeEarn();
-    startNotificationListener();
-    // 홈 네트워크 수익 미리보기 로드
-    setTimeout(() => _loadNepSummary && _loadNepSummary(), 800);
-    // ROI 당일 정산 미실행 시 큐 등록 (백그라운드, UX 무관)
-    setTimeout(() => checkAndTriggerDailyROI(), 3000);
-    if (window.chatManager && typeof window.chatManager.init === "function") {
-      window.chatManager.init();
-    }
-    // 홈 오늘 수익 카드 로드
-    setTimeout(() => loadTodayEarnCard(), 1500);
+    
+    // 2. 중요도 높은 정보 로드 (짧은 지연)
+    setTimeout(() => {
+      loadAnnouncements();
+      loadDDayCard();
+      loadTodayEarnCard();
+    }, 300);
+    
+    // 3. 서브 정보 로드 (중간 지연)
+    setTimeout(() => {
+      if (typeof loadNewsFeed === "function") loadNewsFeed();
+      loadRecentTransactions();
+      _loadNepSummary && _loadNepSummary();
+    }, 800);
+    
+    // 4. 백그라운드 / 부가 기능 로드 (긴 지연)
+    setTimeout(() => {
+      startNotificationListener();
+      if (window.chatManager && typeof window.chatManager.init === "function") {
+        window.chatManager.init();
+      }
+      checkAndTriggerDailyROI();
+    }, 1500);
 
     // 테마 복원
     restoreTheme();
@@ -4685,15 +4695,17 @@ async function loadAnnouncements() {
       return;
     }
     
-    // 단일 where만 사용 (복합 인덱스 불필요) → JS로 정렬·필터
+    const { orderBy, limit } = window.FB;
+    // 복합 인덱스 오류 방지를 위해 최근 10개만 가져와서 클라이언트에서 필터링
     const q = query(
       collection(db, 'announcements'),
-      where('isActive', '==', true)
+      orderBy('createdAt', 'desc'),
+      limit(10)
     );
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(a => a.isActive !== false) // isActive가 명시적으로 false가 아닌 것만 (기본적으로 노출)
       .sort((a, b) => {
-        // isPinned 내림차순 → createdAt 내림차순
         if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
@@ -4742,14 +4754,17 @@ window.showAnnouncementModal = async function() {
   
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
   
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, where, getDocs, db, orderBy, limit } = window.FB;
   try {
+    // 전체 보기를 누르면 최근 30개만 가져옵니다
     const q = query(
       collection(db, 'announcements'),
-      where('isActive', '==', true)
+      orderBy('createdAt', 'desc'),
+      limit(30)
     );
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(a => a.isActive !== false)
       .sort((a, b) => {
         if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
