@@ -7,20 +7,11 @@ if (match) {
   let saObjStr = match[1];
   let sa = eval('(' + saObjStr + ')');
   sa.private_key = sa.private_key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
-  
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(sa)
-    });
-  }
+  admin.initializeApp({ credential: admin.credential.cert(sa) });
   
   const db = admin.firestore();
-  db.collection('events').doc('jackpot').get().then(doc => {
-    if (doc.exists) {
-      console.log('JACKPOT_DATA:', doc.data());
-    } else {
-      console.log('JACKPOT_DATA: Document does not exist');
-    }
+  db.collection('announcements').orderBy('createdAt', 'desc').limit(15).get().then(snap => {
+    console.log('Got', snap.size, 'docs');
     process.exit(0);
   }).catch(err => {
     console.error('Error:', err);

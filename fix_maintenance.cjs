@@ -15,15 +15,8 @@ if (match) {
   }
   
   const db = admin.firestore();
-  db.collection('events').doc('jackpot').get().then(doc => {
-    if (doc.exists) {
-      console.log('JACKPOT_DATA:', doc.data());
-    } else {
-      console.log('JACKPOT_DATA: Document does not exist');
-    }
+  db.collection('settings').doc('system').update({ maintenanceMode: false }).then(() => {
+    console.log('maintenanceMode set to false.');
     process.exit(0);
-  }).catch(err => {
-    console.error('Error:', err);
-    process.exit(1);
   });
 }

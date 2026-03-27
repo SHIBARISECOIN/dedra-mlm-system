@@ -4676,7 +4676,7 @@ async function loadAnnouncements() {
     const q = query(
       collection(db, 'announcements'),
       orderBy('createdAt', 'desc'),
-      limit(15)
+      limit(3)
     );
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
