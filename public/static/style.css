@@ -145,7 +145,7 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== 스크린 ===== */
-.screen { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.screen { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 /* ===== 인증 화면 ===== */
 .auth-container {
@@ -280,7 +280,7 @@ body {
 .icon-btn i { font-size: 15px; }
 
 .badge-dot {
-  position: absolute; top: 6px; right: 6px;
+  position: fixed; top: 6px; right: 6px;
   width: 8px; height: 8px;
   background: var(--red); border-radius: 50%;
   border: 2px solid var(--bg2);
@@ -288,7 +288,7 @@ body {
 
 /* ===== 페이지 컨테이너 ===== */
 .page-container {
-  position: absolute;
+  position: fixed;
   top: var(--header-height);
   left: 0; right: 0; bottom: var(--nav-height);
   overflow: hidden;
@@ -308,7 +308,7 @@ body {
 
 /* ===== 하단 탭 ===== */
 .bottom-nav {
-  position: absolute; bottom: 0; left: 0; right: 0;
+  position: fixed; bottom: 0; left: 0; right: 0;
   height: var(--nav-height);
   background: var(--bg2);
   border-top: 1px solid var(--border);
@@ -376,7 +376,7 @@ body {
 
 .asset-main-card::after {
   content: '◈';
-  position: absolute; right: -10px; bottom: -20px;
+  position: fixed; right: -10px; bottom: -20px;
   font-size: 120px; color: rgba(255,255,255,0.03);
   pointer-events: none;
 }
@@ -538,7 +538,7 @@ body {
   box-shadow: 0 8px 20px rgba(37,99,235,0.3), inset 0 2px 4px rgba(255,255,255,0.3);
 }
 .split-left::after {
-  content: ''; position: absolute; top: -50%; right: -50%; width: 150%; height: 150%;
+  content: ''; position: fixed; top: -50%; right: -50%; width: 150%; height: 150%;
   background: radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 60%);
   pointer-events: none;
 }
@@ -594,7 +594,7 @@ body {
   box-shadow: 0 8px 20px rgba(16,185,129,0.3), inset 0 2px 4px rgba(255,255,255,0.3);
 }
 .split-right::after {
-  content: ''; position: absolute; bottom: -50%; right: -50%; width: 150%; height: 150%;
+  content: ''; position: fixed; bottom: -50%; right: -50%; width: 150%; height: 150%;
   background: radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 60%);
   pointer-events: none;
 }
@@ -904,7 +904,7 @@ body {
 }
 
 .product-tier-bar {
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  position: fixed; top: 0; left: 0; right: 0; height: 3px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   opacity: 0.8;
 }
@@ -1177,7 +1177,7 @@ body {
   box-shadow: 0 0 20px rgba(13,71,161,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .game-wallet-bar::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(13,71,161,0.05) 50%, transparent 100%);
   animation: walletShimmer 3s ease-in-out infinite;
 }
@@ -1217,12 +1217,12 @@ body {
   position: relative; overflow: hidden;
 }
 .game-card::before {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: fixed; inset: 0;
   background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%);
   border-radius: 20px; pointer-events: none;
 }
 .game-card::after {
-  content: ''; position: absolute; top: -50%; left: -50%;
+  content: ''; position: fixed; top: -50%; left: -50%;
   width: 200%; height: 200%;
   background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 60%);
   opacity: 0; transition: opacity 0.3s;
@@ -1274,7 +1274,7 @@ body {
 }
 /* 썸네일 내부 이모지 글로우 */
 .game-thumb::after {
-  content: ''; position: absolute; inset: 0; border-radius: 18px;
+  content: ''; position: fixed; inset: 0; border-radius: 18px;
   background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
   pointer-events: none;
 }
@@ -1283,7 +1283,7 @@ body {
 .game-desc { font-size: 11px; color: var(--text3); line-height: 1.4; }
 
 .game-badge {
-  position: absolute; top: 10px; right: 10px;
+  position: fixed; top: 10px; right: 10px;
   font-size: 9px; font-weight: 800;
   padding: 3px 8px; border-radius: 10px;
   letter-spacing: 0.3px;
@@ -1410,7 +1410,7 @@ body {
   100% { transform: rotateY(720deg) translateY(0); }
 }
 .coin-face {
-  position: absolute; width: 100px; height: 100px; border-radius: 50%;
+  position: fixed; width: 100px; height: 100px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 42px; backface-visibility: hidden;
   box-shadow: 0 0 0 4px rgba(255,255,255,0.1), 0 8px 24px rgba(0,0,0,0.4);
@@ -1439,7 +1439,7 @@ body {
   position: relative; overflow: hidden;
 }
 .choice-btn::before {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: fixed; inset: 0;
   background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent);
 }
 .choice-btn .choice-icon { font-size: 28px; display: block; }
@@ -1532,7 +1532,7 @@ body {
   position: relative; overflow: hidden;
 }
 .dice-num-btn::before {
-  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  content: ''; position: fixed; inset: 0; border-radius: 12px;
   background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
 }
 .dice-num-btn:hover {
@@ -1552,7 +1552,7 @@ body {
   box-shadow: 0 0 30px rgba(186,104,200,0.15), inset 0 0 30px rgba(0,0,0,0.3);
 }
 .slot-cabinet::before {
-  content: '🎰'; position: absolute; top: -12px; left: 50%;
+  content: '🎰'; position: fixed; top: -12px; left: 50%;
   transform: translateX(-50%);
   font-size: 24px; background: var(--bg1); padding: 0 8px;
   filter: drop-shadow(0 0 8px rgba(186,104,200,0.6));
@@ -1570,7 +1570,7 @@ body {
 }
 /* 슬롯 윈도우 라인 */
 .slot-machine::before {
-  content: ''; position: absolute; top: 50%; left: 10px; right: 10px;
+  content: ''; position: fixed; top: 50%; left: 10px; right: 10px;
   height: 2px; transform: translateY(-50%);
   background: linear-gradient(90deg, transparent, rgba(255,215,0,0.6), transparent);
   z-index: 5; pointer-events: none;
@@ -1585,7 +1585,7 @@ body {
   position: relative; overflow: hidden;
 }
 .slot-reel::before, .slot-reel::after {
-  content: ''; position: absolute; left: 0; right: 0; height: 28px;
+  content: ''; position: fixed; left: 0; right: 0; height: 28px;
   pointer-events: none; z-index: 2;
 }
 .slot-reel::before {
@@ -1623,7 +1623,7 @@ body {
   position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden;
 }
 .jackpot-particle {
-  position: absolute; font-size: 20px;
+  position: fixed; font-size: 20px;
   animation: particleFall 2s ease-in forwards;
 }
 @keyframes particleFall {
@@ -1680,7 +1680,7 @@ body {
   transition: all 0.3s;
 }
 .game-result::before {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: fixed; inset: 0;
   background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
 }
 .game-result.win {
@@ -1785,7 +1785,7 @@ body {
 .menu-item-toggle.on { background: var(--accent); }
 .menu-item-toggle::after {
   content: '';
-  position: absolute; top: 2px; left: 2px;
+  position: fixed; top: 2px; left: 2px;
   width: 20px; height: 20px; border-radius: 50%;
   background: #fff; transition: left 0.2s;
 }
@@ -1861,7 +1861,7 @@ body {
 .modal.center { align-items: center; }
 
 .modal-overlay {
-  position: absolute; inset: 0;
+  position: fixed; inset: 0;
   background: rgba(0,0,0,0.7);
   backdrop-filter: blur(2px);
   opacity: 1;
@@ -1985,15 +1985,15 @@ body {
 
 /* ===== 토스트 ===== */
 .toast {
-  /* #app 내부 absolute로 위치 — 하단바 위에 정확히 표시 */
-  position: absolute;
+  /* fixed로 화면 하단에 고정 */
+  position: fixed;
   bottom: calc(var(--nav-height) + 12px);
   left: 50%;
   transform: translateX(-50%) translateY(calc(var(--nav-height) + 80px));
   background: #303030; color: #fff;
   padding: 12px 20px; border-radius: 24px;
   font-size: 14px; font-weight: 600;
-  z-index: 9998; /* bottom-nav(200)보다 낮게, 모달(1000)보다 낮게 */
+  z-index: 999999; /* bottom-nav(200)보다 낮게, 모달(1000)보다 낮게 */
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   max-width: calc(100% - 48px);
@@ -2032,7 +2032,7 @@ body {
 
 /* 빛반사 애니메이션 */
 .rank-badge::after {
-  content: ''; position: absolute; top: -50%; left: -50%;
+  content: ''; position: fixed; top: -50%; left: -50%;
   width: 200%; height: 200%;
   background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
   transform: rotate(30deg) translateX(-100%);
@@ -2196,7 +2196,7 @@ body {
 
 /* 포인터 화살표 */
 .roulette-pointer {
-  position: absolute;
+  position: fixed;
   top: -6px; left: 50%;
   transform: translateX(-50%);
   font-size: 28px;
@@ -2237,7 +2237,7 @@ body {
   position: relative; overflow: hidden;
 }
 .rl-simple-btn::before {
-  content: ''; position: absolute; inset: 0; border-radius: 12px;
+  content: ''; position: fixed; inset: 0; border-radius: 12px;
   background: linear-gradient(135deg, rgba(255,255,255,0.07), transparent);
 }
 .rl-simple-btn.red    { background: linear-gradient(135deg,#7f0000,#c62828); color:#ffcdd2; border-color:rgba(198,40,40,.5); }
@@ -2489,7 +2489,7 @@ body {
   position: relative; overflow: hidden;
 }
 .game-header-banner::before {
-  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
   background: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.2) 0%, transparent 50%);
   pointer-events: none;
 }
@@ -2527,7 +2527,7 @@ body {
   box-shadow: 0 8px 24px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.05);
 }
 .game-card-v2::before {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: fixed; inset: 0;
   border-radius: 20px; pointer-events: none;
   opacity: 0.8;
 }
@@ -2570,7 +2570,7 @@ body {
 .game-poker .gcv2-icon { filter: drop-shadow(0 0 12px rgba(59,130,246,0.8)); }
 
 .gcv2-badge {
-  position: absolute; top: 12px; right: 12px;
+  position: fixed; top: 12px; right: 12px;
   font-size: 10px; font-weight: 900; padding: 3px 8px;
   border-radius: 8px; letter-spacing: 0.5px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
@@ -2675,7 +2675,7 @@ body {
   border-bottom: 6px solid transparent;
 }
 .oe-btn::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 40%;
+  content: ''; position: fixed; top: 0; left: 0; right: 0; height: 40%;
   background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
   pointer-events: none;
 }
@@ -2704,7 +2704,7 @@ body {
   padding: 24px 0; position: relative;
 }
 .dice-glow {
-  position: absolute; width: 120px; height: 120px;
+  position: fixed; width: 120px; height: 120px;
   background: radial-gradient(circle, rgba(245,158,11,0.2), transparent 70%);
   border-radius: 50%;
 }
@@ -2757,7 +2757,7 @@ body {
   position: relative;
 }
 .slot-machine-v2::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); pointer-events: none;
 }
 .slot-machine-top {
@@ -2792,7 +2792,7 @@ body {
 }
 .slot-divider { width: 2px; background: rgba(245,158,11,0.3); margin: 0 4px; border-radius: 1px; }
 .slot-win-line {
-  position: absolute; top: 50%; left: 8px; right: 8px; height: 2px;
+  position: fixed; top: 50%; left: 8px; right: 8px; height: 2px;
   transform: translateY(-50%);
   background: linear-gradient(90deg, transparent, rgba(245,158,11,0.6), transparent);
   pointer-events: none;
@@ -2841,13 +2841,13 @@ body {
 .roulette-wheel-v2 { position: relative; width: 280px; height: 280px; }
 .roulette-wheel-v2 canvas { display: block; border-radius: 50%; box-shadow: 0 0 40px rgba(0,0,0,0.6), 0 0 80px rgba(124,58,237,0.15); }
 .roulette-pointer-v2 {
-  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  position: fixed; top: -12px; left: 50%; transform: translateX(-50%);
   color: #f59e0b; font-size: 22px; text-shadow: 0 0 10px rgba(245,158,11,0.8);
   z-index: 2; animation: pointerBounce 1s ease-in-out infinite;
 }
 @keyframes pointerBounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-4px)} }
 .roulette-center-hub {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
   width: 28px; height: 28px; border-radius: 50%;
   background: radial-gradient(circle, #ffd700, #b8860b);
   box-shadow: 0 0 12px rgba(255,215,0,0.6); z-index: 2;
@@ -2908,7 +2908,7 @@ body {
   padding: 14px 10px; position: relative; overflow: hidden;
 }
 .bac-felt-table::before {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: fixed; inset: 0;
   background: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.01) 20px, rgba(255,255,255,0.01) 21px);
 }
 .bac-felt-side { flex: 1; text-align: center; position: relative; z-index: 1; }
@@ -2949,7 +2949,7 @@ body {
   position: relative; overflow: hidden;
 }
 .poker-table-v2::before {
-  content: ''; position: absolute; inset: 0;
+  content: ''; position: fixed; inset: 0;
   background: radial-gradient(ellipse at 50% 50%, rgba(34,197,94,0.04), transparent 70%);
 }
 .poker-community-v2, .poker-hands-v2 { position: relative; z-index: 1; margin-bottom: 12px; }
@@ -2993,8 +2993,8 @@ body {
 .play-card.red .card-rank, .play-card.red .card-suit, .play-card.red .card-rank-bot { color: #dc2626; }
 .play-card.black .card-rank, .play-card.black .card-suit, .play-card.black .card-rank-bot { color: #111; }
 .card-rank { font-size: 13px; font-weight: 800; line-height: 1; }
-.card-suit { font-size: 18px; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); line-height: 1; }
-.card-rank-bot { font-size: 13px; font-weight: 800; line-height: 1; position: absolute; bottom: 4px; right: 5px; transform: rotate(180deg); }
+.card-suit { font-size: 18px; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); line-height: 1; }
+.card-rank-bot { font-size: 13px; font-weight: 800; line-height: 1; position: fixed; bottom: 4px; right: 5px; transform: rotate(180deg); }
 .play-card.face-down {
   background: repeating-linear-gradient(45deg, #1e3a8a, #1e3a8a 4px, #1d4ed8 4px, #1d4ed8 8px);
   border: 2px solid rgba(255,255,255,0.15);
@@ -3029,7 +3029,7 @@ body {
 
 /* ===== 알림 시스템 ===== */
 .badge-dot {
-  position: absolute; top: 4px; right: 4px;
+  position: fixed; top: 4px; right: 4px;
   background: #ef4444; color: #fff;
   border-radius: 10px; font-size: 9px; font-weight: 700;
   min-width: 16px; height: 16px; line-height: 16px;
@@ -3168,7 +3168,7 @@ body {
   background: linear-gradient(145deg, rgba(16,185,129,0.08), var(--bg2));
 }
 .home-inv-card-tier-bar {
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  position: fixed; top: 0; left: 0; right: 0; height: 3px;
 }
 .home-inv-card-top {
   display: flex; justify-content: space-between; align-items: flex-start;
@@ -3259,7 +3259,7 @@ body {
   font-size: 8px; color: rgba(74,222,128,0.6);
 }
 .earn-prod-active-dot {
-  position: absolute; top: 5px; right: 5px;
+  position: fixed; top: 5px; right: 5px;
   width: 7px; height: 7px; border-radius: 50%;
   background: #10b981;
   box-shadow: 0 0 6px #10b981;
@@ -3272,7 +3272,7 @@ body {
 /* 구매 이미지 강조 오버레이 */
 .earn-prod-card.active-purchase::after {
   content: '✅ 보유중';
-  position: absolute; bottom: 0; left: 0; right: 0;
+  position: fixed; bottom: 0; left: 0; right: 0;
   background: rgba(16,185,129,0.75);
   color: #fff; font-size: 8px; font-weight: 700;
   text-align: center; padding: 2px 0;
@@ -3362,7 +3362,7 @@ body {
 }
 .earn-item.purchased::before {
   content: '';
-  position: absolute; left: 0; top: 0; bottom: 0;
+  position: fixed; left: 0; top: 0; bottom: 0;
   width: 3px; background: #10b981;
 }
 .earn-item:active { background: rgba(74,222,128,0.1); }
@@ -3495,7 +3495,7 @@ body {
 .coin-side {
   width: 120px; height: 120px;
   border-radius: 50%;
-  position: absolute;
+  position: fixed;
   backface-visibility: hidden;
   display: flex; align-items: center; justify-content: center;
 }
@@ -3631,7 +3631,7 @@ body {
 }
 .slot-machine-v2::before {
   content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  position: fixed; top: 0; left: 0; right: 0; height: 3px;
   background: linear-gradient(90deg, transparent, #a855f7, #7c3aed, transparent);
   animation: scanLine 3s ease-in-out infinite;
 }
@@ -3656,7 +3656,7 @@ body {
 }
 .slot-screen::before {
   content: '';
-  position: absolute;
+  position: fixed;
   left: 0; right: 0;
   top: 50%;
   transform: translateY(-50%);
@@ -3677,7 +3677,7 @@ body {
 }
 .slot-reel-v2::before, .slot-reel-v2::after {
   content: '';
-  position: absolute; left: 0; right: 0;
+  position: fixed; left: 0; right: 0;
   height: 40px;
   z-index: 2; pointer-events: none;
 }
@@ -3728,7 +3728,7 @@ body {
 }
 .roulette-wheel-v2 canvas { display: block; border-radius: 50%; }
 .roulette-pointer-v2 {
-  position: absolute; top: -16px; left: 50%;
+  position: fixed; top: -16px; left: 50%;
   transform: translateX(-50%);
   color: #fde68a; font-size: 24px;
   filter: drop-shadow(0 2px 6px rgba(253,230,138,0.8));
@@ -3736,7 +3736,7 @@ body {
 }
 @keyframes pointerBob { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-3px); } }
 .roulette-center-hub {
-  position: absolute; top: 50%; left: 50%;
+  position: fixed; top: 50%; left: 50%;
   transform: translate(-50%,-50%);
   width: 40px; height: 40px;
   background: radial-gradient(circle, #fde68a, #d97706);
@@ -3762,7 +3762,7 @@ body {
 }
 .bac-felt-table::before {
   content: '';
-  position: absolute; inset: 0;
+  position: fixed; inset: 0;
   background: repeating-linear-gradient(
     45deg, transparent, transparent 10px,
     rgba(255,255,255,0.01) 10px, rgba(255,255,255,0.01) 11px
@@ -3771,7 +3771,7 @@ body {
 }
 .bac-felt-table::after {
   content: '';
-  position: absolute; inset: 0;
+  position: fixed; inset: 0;
   border-radius: 18px;
   box-shadow: inset 0 0 60px rgba(0,0,0,0.35);
   pointer-events: none;
@@ -3828,7 +3828,7 @@ body {
 .card-v2.black { color: #1e293b; }
 .card-v2::before {
   content: attr(data-val);
-  position: absolute; top: 3px; left: 5px;
+  position: fixed; top: 3px; left: 5px;
   font-size: 10px; font-weight: 900; line-height: 1;
 }
 .card-back {
@@ -3843,7 +3843,7 @@ body {
 }
 .card-back::after {
   content: '';
-  position: absolute; inset: 3px;
+  position: fixed; inset: 3px;
   border: 1px solid rgba(99,102,241,0.5);
   border-radius: 4px;
   background: repeating-linear-gradient(
@@ -3866,7 +3866,7 @@ body {
 }
 .poker-table-v2::before {
   content: '';
-  position: absolute; inset: 0; border-radius: 18px;
+  position: fixed; inset: 0; border-radius: 18px;
   box-shadow: inset 0 0 80px rgba(0,0,0,0.4);
   pointer-events: none;
 }
@@ -3918,7 +3918,7 @@ body {
 }
 .gcv2-card::before {
   content: '';
-  position: absolute; inset: 0;
+  position: fixed; inset: 0;
   background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%);
   pointer-events: none;
 }
@@ -3932,14 +3932,14 @@ body {
 }
 .gcv2-icon-wrap::after {
   content: '';
-  position: absolute; inset: -2px;
+  position: fixed; inset: -2px;
   border-radius: 50%;
   background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.1) 180deg, transparent 360deg);
   animation: iconSpin 8s linear infinite;
 }
 @keyframes iconSpin { to { transform: rotate(360deg); } }
 .gcv2-badge {
-  position: absolute; top: 8px; right: 8px;
+  position: fixed; top: 8px; right: 8px;
   font-size: 9px; font-weight: 800;
   padding: 2px 7px; border-radius: 999px;
   text-transform: uppercase; letter-spacing: 0.05em;
@@ -4093,7 +4093,7 @@ body {
   100% { transform: rotateX(720deg) rotateY(720deg) scale(1) translateY(0); }
 }
 .dice-face-v2 {
-  position: absolute;
+  position: fixed;
   width: 80px; height: 80px;
   background: linear-gradient(135deg, #ffffff, #f1f5f9);
   border: 1px solid #cbd5e1;
