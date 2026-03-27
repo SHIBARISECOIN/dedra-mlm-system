@@ -13,7 +13,7 @@ async function run() {
   const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
   const walletMap = {};
   walletsSnap.docs.forEach(d => {
-    walletMap[d.id] = d.data().totalInvested || d.data().totalInvest || 0;
+    walletMap[d.id] = (d.data().totalInvest !== undefined ? d.data().totalInvest : d.data().totalInvested) || 0;
   });
   
   const childrenMap = {};

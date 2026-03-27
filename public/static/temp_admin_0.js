@@ -167,6 +167,9 @@ async function getDocs(queryOrCollection) {
         return { docs, size: docs.length, empty: docs.length === 0,
                  forEach: (fn) => docs.forEach(fn) };
     } catch(e) {
+                // 🛑 전송 실패 시 DB 상태를 다시 대기중(pending)으로 복구 (Unlock)
+                try { await api.unmarkWithdrawalProcessing(currentTx.id, currentAdmin.uid); } catch(err) { console.error('Unlock error', err); }
+                
         console.error('[SubAdmin proxy getDocs] 네트워크 오류:', e.message);
         return { docs: [], size: 0, empty: true, forEach: () => {} };
     }
@@ -1348,8 +1351,8 @@ async function saveGameOdds() {
       poker_win:    _oddsData.poker,
       updatedAt: new Date().toISOString()
     };
-    // merge:false 로 문서 전체 교체 → 이전 필드 완전히 제거
-    await api.setRawDocFull('settings', 'gameOdds', payload);
+    // merge:true 로 문서 병합 → 다른 필드 유지, 입력한 확률만 업데이트
+    await api.setRawDoc('settings', 'gameOdds', payload);
     if (st) { st.textContent = '저장 완료'; st.className = 'odds-save-status ok'; }
     showToast('게임 확률이 저장되었습니다.', 'success');
     try {

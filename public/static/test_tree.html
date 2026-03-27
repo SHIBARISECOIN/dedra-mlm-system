@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.node { width: 120px; height: 50px; background: #333; border: 1px solid #9d4edd; border-radius: 8px; color: white; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body style="background: #111; color: white; padding: 50px;">
+
+<div style="display:flex; flex-direction:column; align-items:center; width:100%;">
+    <!-- Parent -->
+    <div class="node">Parent</div>
+    <div style="width:2px; height:30px; background:#9d4edd;"></div>
+    
+    <!-- Children Wrap -->
+    <!-- We want the vertical line to align with the parent's center. 
+         Since parent is flex-centered, the center is at 50% of the screen.
+         If we make a container that is left-aligned to the screen center: -->
+    <div style="display:flex; width: 100%; justify-content: center;">
+        <!-- This inner div's left edge is exactly at the center of the screen -->
+        <div style="display:flex; flex-direction:column; align-items:flex-start; position:relative; width: 0;">
+            <!-- Depth 1 Children -->
+            <div style="display:flex; flex-direction:column; position:relative; left: 20px;">
+                
+                <!-- Child 1 -->
+                <div style="display:flex; flex-direction:column; align-items:flex-start; position:relative; padding-bottom:15px; width:max-content;">
+                    <!-- Vertical Line connecting to the parent's center line.
+                         It needs to be at left: -20px. -->
+                    <div style="position:absolute; left:-20px; top:-30px; width:2px; height:calc(100% + 30px); background:#9d4edd;"></div>
+                    <!-- Horizontal Line -->
+                    <div style="position:absolute; left:-20px; top:25px; width:20px; height:2px; background:#9d4edd;"></div>
+                    
+                    <div class="node">Child 1</div>
+                    
+                    <!-- Child 1's Children (Depth 2) -->
+                    <div style="display:flex; flex-direction:column; align-items:flex-start; position:relative; padding-left:30px; margin-top:15px;">
+                        
+                        <!-- Child 1-1 -->
+                        <div style="display:flex; flex-direction:column; align-items:flex-start; position:relative; padding-bottom:15px; width:max-content;">
+                            <div style="position:absolute; left:-15px; top:-15px; width:2px; height:calc(100% + 15px); background:#9d4edd;"></div>
+                            <div style="position:absolute; left:-15px; top:25px; width:15px; height:2px; background:#9d4edd;"></div>
+                            <div class="node">Child 1-1</div>
+                        </div>
+
+                        <!-- Child 1-2 (Last child) -->
+                        <div style="display:flex; flex-direction:column; align-items:flex-start; position:relative; padding-bottom:15px; width:max-content;">
+                            <div style="position:absolute; left:-15px; top:-15px; width:2px; height:40px; background:#9d4edd;"></div>
+                            <div style="position:absolute; left:-15px; top:25px; width:15px; height:2px; background:#9d4edd;"></div>
+                            <div class="node">Child 1-2</div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Child 2 (Last Child) -->
+                <div style="display:flex; flex-direction:column; align-items:flex-start; position:relative; padding-bottom:15px; width:max-content;">
+                    <!-- If it's the last child, the vertical line should stop at top:25px -->
+                    <div style="position:absolute; left:-20px; top:-15px; width:2px; height:40px; background:#9d4edd;"></div>
+                    <div style="position:absolute; left:-20px; top:25px; width:20px; height:2px; background:#9d4edd;"></div>
+                    <div class="node">Child 2</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

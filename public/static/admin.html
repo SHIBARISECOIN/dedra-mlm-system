@@ -3,16 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>DEEDRA - 관리자</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 window.makeDraggableMap = function(ele) {
     if (!ele) return;
     
-    // Always attach events only once, but allow transform state to persist
     if (!ele._dragInit) {
         ele._dragInit = true;
-        
         ele.style.cursor = 'grab';
         ele.style.overflow = 'hidden';
         ele.style.position = 'relative';
@@ -55,23 +56,28 @@ window.makeDraggableMap = function(ele) {
         ele.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
-            window.orgZoom(zoomDelta, e.pageX, e.pageY, ele);
+            if (typeof window.orgZoom === 'function') {
+                window.orgZoom(zoomDelta, e.pageX, e.pageY, ele);
+            } else {
+                // Fallback
+                window.adminOrgScale = Math.min(3, Math.max(0.2, (window.adminOrgScale || 1) + zoomDelta));
+                ele._updateTransform();
+            }
         }, { passive: false });
         
         ele._updateTransform = function() {
             const currentInner = ele.querySelector('.org-tree-inner-zoom') || document.getElementById('orgTreeInner') || ele.firstElementChild;
-            const scale = typeof orgScale !== 'undefined' ? orgScale : 1;
+            // Get scale from window object or default to 1
+            const scale = window.adminOrgScale || 1;
             if (currentInner) {
                 currentInner.style.transformOrigin = '0 0';
-                currentInner.style.transition = 'none'; // remove transition for smooth drag
+                currentInner.style.transition = 'none';
                 currentInner.style.transform = `translate(${ele._translateX}px, ${ele._translateY}px) scale(${scale})`;
             }
         };
     }
     
-    // Always apply transform on init/re-init so it doesn't jump back
     if (ele._updateTransform) {
-        // use a tiny timeout to ensure DOM is ready
         setTimeout(() => ele._updateTransform(), 10);
     }
 };
@@ -349,7 +355,7 @@ textarea.form-input{resize:vertical;min-height:70px;}
 .audit-time{font-size:10px;color:var(--gray);white-space:nowrap;}
 
 /* ── 공지사항 & 뉴스 ── */
-.notice-item{background:#fff;border-radius:10px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;transition:box-shadow .2s,transform .15s;cursor:pointer;}
+.notice-item{background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;justify-content:space-between;align-items:flex-start;gap:8px;transition:box-shadow .2s,transform .15s;cursor:pointer;}
 .notice-item:hover{box-shadow:0 3px 12px rgba(99,102,241,.1);transform:translateY(-1px);}
 .notice-meta{display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap;}
 .notice-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px;line-height:1.4;}
@@ -368,10 +374,10 @@ textarea.form-input{resize:vertical;min-height:70px;}
 [contenteditable][data-placeholder]:empty::before{content:attr(data-placeholder);color:#94a3b8;pointer-events:none;}
 
 /* 공지/뉴스 에디터 내 블록 */
-.editor-block-info{background:#eff6ff;border-left:4px solid #3b82f6;border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;color:#1e40af;}
-.editor-block-warn{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;color:#92400e;}
-.editor-block-danger{background:#fef2f2;border-left:4px solid #ef4444;border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;color:#991b1b;}
-.editor-block-success{background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;color:#14532d;}
+.editor-block-info{background:#eff6ff;border-left:4px solid #3b82f6;border-radius:0 8px 8px 0;padding:10px 12px;margin:10px 0;color:#1e40af;}
+.editor-block-warn{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:10px 12px;margin:10px 0;color:#92400e;}
+.editor-block-danger{background:#fef2f2;border-left:4px solid #ef4444;border-radius:0 8px 8px 0;padding:10px 12px;margin:10px 0;color:#991b1b;}
+.editor-block-success{background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;padding:10px 12px;margin:10px 0;color:#14532d;}
 
 /* ── 게임 로그 ── */
 .game-type-badge{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;}
@@ -682,7 +688,7 @@ canvas{width:100% !important;}
 .mcard-body { padding:16px 18px; }
 
 /* 폼 필드 그리드 */
-.mform-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.mform-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .mform-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
 .mform-grid.full  { grid-column:span 2; }
 
@@ -709,7 +715,7 @@ canvas{width:100% !important;}
 .mfield-input.select { cursor:pointer; }
 
 /* 상태/직급 선택 카드 */
-.mstatus-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.mstatus-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
 /* 센터장 임명 카드 */
 .mcard-center-manager {
@@ -749,7 +755,7 @@ canvas{width:100% !important;}
 
 /* 지갑 잔액 카드형 그리드 */
 .wallet-grid {
-  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;
+  display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;
 }
 .wallet-item {
   background:#fff; border:1.5px solid #eef2ff; border-radius:12px;
@@ -944,7 +950,7 @@ canvas{width:100% !important;}
           onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
           onkeydown="if(event.key==='Enter')adminDoLogin()"/>
       </div>
-      <div id="adminLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
+      <div id="adminLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;font-size:13px;font-weight:600;padding:10px 12px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
       <button id="adminLoginBtn" onclick="adminDoLogin()"
         style="width:100%;padding:15px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;transition:opacity .2s;"
         onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
@@ -967,7 +973,7 @@ canvas{width:100% !important;}
           onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
           onkeydown="if(event.key==='Enter')subAdminDoLogin()"/>
       </div>
-      <div id="subLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
+      <div id="subLoginErr" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#fca5a5;font-size:13px;font-weight:600;padding:10px 12px;border-radius:10px;margin-bottom:16px;text-align:center;"></div>
       <button onclick="subAdminDoLogin()"
         style="width:100%;padding:15px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:0.3px;transition:opacity .2s;"
         onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='1'">
@@ -1089,6 +1095,11 @@ canvas{width:100% !important;}
     <div class="menu-item" data-page="auditlog"><span class="menu-icon">📋</span>감사 로그</div>
     <div class="menu-item" data-page="pageviews"><span class="menu-icon">👀</span>페이지 뷰 통계</div>
     <div class="menu-item" data-page="subadmins"><span class="menu-icon">👥</span>보조계정 관리</div>
+    
+    <div class="sidebar-section">이벤트·프로모션</div>
+    <div class="menu-item" data-page="events"><span class="menu-icon">🎰</span>이벤트관련</div>
+
+    <div class="sidebar-section">시스템 설정</div>
     <div class="menu-item" data-page="settings"><span class="menu-icon">⚙️</span>시스템 설정</div>
     <div class="sidebar-section">분석 도구</div>
     <div class="menu-item" data-page="idreport"><span class="menu-icon">🔍</span>ID 분석 리포트</div>
@@ -1103,7 +1114,8 @@ canvas{width:100% !important;}
     <div id="pageviewsPage" class="page">
       <div class="page-title">페이지 뷰 통계</div>
       <div class="page-desc" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>앱 내 하단 탭 및 화면 전환 기록을 확인합니다.</span>
+        <span>과거 자체 기록입니다. <strong>새로운 페이지뷰 통계는 구글 애널리틱스(GA4)를 통해 확인하세요.</strong></span>
+        <a href="https://analytics.google.com/" target="_blank" class="btn btn-sm" style="background:#f59e0b; color:#fff; text-decoration:none;">📈 구글 애널리틱스 이동</a>
         <button class="btn btn-primary btn-sm" onclick="loadPageViews()">새로고침</button>
       </div>
       <div class="card">
@@ -1262,6 +1274,7 @@ canvas{width:100% !important;}
       <div class="card">
         <div class="tabs" id="depositTabs">
           <div class="tab active" data-status="pending">⏳ 대기중</div>
+          <div class="tab" data-status="held">⏸ 보류됨</div>
           <div class="tab" data-status="approved">✅ 승인됨</div>
           <div class="tab" data-status="rejected">❌ 거부됨</div>
         </div>
@@ -1272,7 +1285,7 @@ canvas{width:100% !important;}
 
       <!-- ══════ Solana 입금 자동 감지 패널 ══════ -->
       <div style="background:linear-gradient(135deg,#0f3460,#533483);border-radius:14px;padding:18px 22px;max-width:960px;margin-bottom:20px;box-shadow:0 4px 16px rgba(0,0,0,.15);">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <div>
             <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:3px;">🔍 Solana USDT 입금 자동 감지</div>
             <div style="font-size:12px;color:#a5b4fc;">Solana RPC를 통해 입금 주소로 들어온 USDT(SPL)를 자동으로 감지합니다</div>
@@ -1301,7 +1314,7 @@ canvas{width:100% !important;}
         <!-- 검색창 -->
         <div style="position:relative;max-width:480px;margin-bottom:16px;">
           <input type="text" id="usdtEditSearch" placeholder="🔍  아이디 / 이름 / 이메일 입력..."
-            style="width:100%;padding:12px 16px;border-radius:10px;border:2px solid #475569;background:#0f172a;color:#f1f5f9;font-size:14px;outline:none;box-sizing:border-box;"
+            style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #475569;background:#0f172a;color:#f1f5f9;font-size:14px;outline:none;box-sizing:border-box;"
             oninput="onUsdtSearchInput(this.value)" autocomplete="off">
           <!-- 자동완성 드롭다운 -->
           <div id="usdtSearchDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1.5px solid #475569;border-radius:10px;margin-top:4px;z-index:999;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
@@ -1324,7 +1337,7 @@ canvas{width:100% !important;}
             </div>
 
             <!-- 현재 잔액 표시 -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;">
               <div style="background:#1e293b;border-radius:10px;padding:14px;text-align:center;">
                 <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">💵 전체 USDT</div>
                 <div style="font-size:20px;font-weight:800;color:#34d399;" id="usdtEditCurrent">$0.00</div>
@@ -1447,11 +1460,33 @@ canvas{width:100% !important;}
         </div>
       </div>
 
+      <!-- ── 출금 보안/차단 설정 카드 ── -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:15px;font-weight:700;color:#1e293b;">🛡️ 출금 보안/심사 필터 (어뷰징 차단)</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:#334155;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="withdrawRule_noDeposit" style="width:16px;height:16px;accent-color:#6366f1;">
+            <span><b>입금 이력 없는 회원 차단</b> (실제 외부 입금내역이 없으면 출금 불가)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="withdrawRule_noInvest" style="width:16px;height:16px;accent-color:#6366f1;">
+            <span><b>투자 이력 없는 회원 차단</b> (프리즈/투자 내역이 전혀 없으면 출금 불가)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="withdrawRule_under24h" style="width:16px;height:16px;accent-color:#6366f1;">
+            <span><b>가입 24시간 이내 차단</b> (신규 계정 가입 후 24시간 동안 출금 불가)</span>
+          </label>
+          <button onclick="saveWithdrawRules()" style="margin-top:8px;background:#10b981;color:#fff;border:none;border-radius:8px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start;">💾 보안 필터 저장</button>
+        </div>
+      </div>
+
       <!-- ── DEEDRA 시세 설정 (단순 한 줄) ── -->
       <div id="dedraRateCard" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;margin-bottom:16px;">
 
         <!-- 상단: 현재 시세 + 실시간 배지 -->
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <span style="font-size:15px;font-weight:700;color:#1e293b;">💎 DDRA 시세</span>
           <span id="dedraRateDisplay"
             style="font-size:22px;font-weight:800;color:#6366f1;cursor:pointer;padding:4px 10px;border-radius:8px;transition:background .15s;"
@@ -1469,10 +1504,10 @@ canvas{width:100% !important;}
         </div>
 
         <!-- 실시간 토글 + 토큰 주소 설정 행 -->
-        <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:10px;">
 
           <!-- 실시간 ON/OFF 토글 -->
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;">
               <div id="liveToggleWrap" onclick="toggleLivePrice()" style="width:44px;height:24px;border-radius:12px;background:#e2e8f0;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;">
                 <div id="liveToggleThumb" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2);transition:left .2s;"></div>
@@ -1530,6 +1565,8 @@ canvas{width:100% !important;}
       <div class="card">
         <div class="tabs" id="withdrawalTabs">
           <div class="tab active" data-status="pending">대기중</div>
+          <div class="tab" data-status="held">보류됨</div>
+          <div class="tab" data-status="failed">실패됨</div>
           <div class="tab" data-status="approved">승인됨</div>
           <div class="tab" data-status="rejected">거부됨</div>
         </div>
@@ -1545,7 +1582,7 @@ canvas{width:100% !important;}
       <div class="page-desc">전체 회원 목록 조회 및 상태/직급/잔액 관리</div>
       <div class="card">
         <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
-          <input class="search-input" id="memberSearch" placeholder="🔍 이름, 이메일, 아이디로 검색..." style="min-width:220px;">
+          <input class="search-input" id="memberSearch" placeholder="🔍 이름, 이메일, 아이디로 검색..." style="min-width:180px;">
           <select class="select-filter" id="memberStatusFilter">
             <option value="">전체 상태</option>
             <option value="active">활성</option>
@@ -1572,6 +1609,7 @@ canvas{width:100% !important;}
             <option value="">그룹 없음</option>
             <option value="country">국가별 그룹</option>
             <option value="rank">직급별 그룹</option>
+            <option value="date">가입일별 그룹</option>
           </select>
           <span id="memberCount" style="font-size:13px;color:var(--gray);margin-left:auto;"></span>
           <button class="btn btn-success btn-sm" id="exportMembersBtn">📥 CSV 내보내기</button>
@@ -1591,7 +1629,7 @@ canvas{width:100% !important;}
         <div class="card-header"><span class="card-title">🎁 수동 보너스 지급</span></div>
         <div style="padding:24px;">
           <div id="bonusAlert" class="inline-alert"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             <div class="form-group">
               <label class="form-label">회원 회원 ID</label>
               <input class="form-input" id="bonusUserId" placeholder="회원 ID 입력">
@@ -1633,7 +1671,7 @@ canvas{width:100% !important;}
         <div class="card-header"><span class="card-title">✍️ 임의 조정 실행</span></div>
         <div style="padding:24px;">
           <div id="maAlert" class="inline-alert"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;">
             <div class="form-group">
               <label class="form-label">회원 ID (UID 또는 이메일)</label>
               <input class="form-input" id="maUserId" placeholder="회원 아이디, 이메일, UID 입력">
@@ -1647,7 +1685,7 @@ canvas{width:100% !important;}
               </select>
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;">
             <div class="form-group">
               <label class="form-label">조정 금액 (+/-)</label>
               <div style="display:flex;gap:8px;">
@@ -1679,7 +1717,7 @@ canvas{width:100% !important;}
     </div>
 
 <div id="noticesPage" class="page">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
         <div>
           <div class="page-title" style="margin-bottom:4px;">📢 공지사항</div>
           <div style="font-size:13px;color:#64748b;">회원에게 공지할 내용을 작성하고 관리합니다</div>
@@ -1713,7 +1751,7 @@ canvas{width:100% !important;}
          뉴스 관리
     ══════════════════════════════ -->
     <div id="newsPage" class="page">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
         <div>
           <div class="page-title" style="margin-bottom:4px;">📰 뉴스</div>
           <div style="font-size:13px;color:#64748b;">DDRA 관련 뉴스·시장 동향·업데이트 정보를 관리합니다</div>
@@ -1748,7 +1786,7 @@ canvas{width:100% !important;}
          팟캐스트 관리
     ══════════════════════════════ -->
     <div id="podcastPage" class="page">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
         <div>
           <div class="page-title" style="margin-bottom:4px;">🎙️ 팟캐스트 관리</div>
           <div style="font-size:13px;color:#64748b;">Cloudflare R2를 사용해 음성 파일을 업로드하고 관리합니다.</div>
@@ -1907,7 +1945,7 @@ canvas{width:100% !important;}
       <div class="page-desc">모든 관리자 작업은 자동으로 기록되며 수정·삭제가 절대 불가합니다.</div>
 
       <!-- 요약 카드 -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:20px;">
         <div style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:14px;padding:16px 18px;">
           <div style="font-size:11px;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:.5px;">전체 로그</div>
           <div id="auditStat_total" style="font-size:26px;font-weight:900;color:#4c1d95;margin-top:4px;">-</div>
@@ -1964,7 +2002,7 @@ canvas{width:100% !important;}
       </div>
 
       <!-- 불변 경고 배너 -->
-      <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:12px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+      <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1.5px solid #fca5a5;border-radius:12px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
         <span style="font-size:22px;">🔒</span>
         <div>
           <div style="font-size:13px;font-weight:800;color:#dc2626;">감사 로그는 절대 삭제·수정 불가합니다</div>
@@ -2076,7 +2114,7 @@ canvas{width:100% !important;}
       ════════════════════════════ -->
       <div id="investTab_dashboard_body">
         <!-- ── 기간 필터 ── -->
-        <div style="background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+        <div style="background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
           <span style="font-size:13px;font-weight:600;color:#374151;">📅 조회 기간</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="inv-quick-btn active" data-days="30" onclick="setInvQuick(30,this)" style="padding:5px 12px;border-radius:8px;border:1.5px solid #6366f1;background:#ede9fe;color:#6366f1;font-size:12px;font-weight:600;cursor:pointer;">최근 30일</button>
@@ -2115,7 +2153,7 @@ canvas{width:100% !important;}
       ════════════════════════════ -->
       <div id="investTab_expiring_body" style="display:none;">
         <!-- ── 만료 기간 선택 ── -->
-        <div style="background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+        <div style="background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
           <span style="font-size:13px;font-weight:600;color:#374151;">⏰ 만료 예정 기간</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="exp-quick-btn active" data-mode="week" onclick="setExpireMode('week',this)" style="padding:5px 12px;border-radius:8px;border:1.5px solid #ef4444;background:#fef2f2;color:#ef4444;font-size:12px;font-weight:600;cursor:pointer;">7일 이내</button>
@@ -2173,7 +2211,7 @@ canvas{width:100% !important;}
     <div id="broadcastPage" class="page">
 
       <!-- 페이지 헤더 -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:8px;">
         <div>
           <div class="page-title" style="margin-bottom:4px;">📣 푸시 발송</div>
           <div style="font-size:13px;color:#64748b;">푸시·인박스 형태로 회원에게 즉시·예약·자동 알림을 발송합니다</div>
@@ -3044,7 +3082,7 @@ canvas{width:100% !important;}
         </div>
 
         <!-- 요약 카드 -->
-        <div id="statsSummaryCards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+        <div id="statsSummaryCards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;"></div>
 
         <!-- 상품별 통계 테이블 -->
         <div style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
@@ -3074,7 +3112,7 @@ canvas{width:100% !important;}
            <div style="font-size:16px; font-weight:700; color:#1e293b;">📋 최근 정산 이력</div>
            <button class="btn btn-sm" onclick="loadSettlementHistory()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; font-weight:600;"><span class="icon">🔄</span> 새로고침</button>
         </div>
-        <div id="settlementHistoryList2" style="display:flex; flex-direction:column; gap:12px; max-height:600px; overflow-y:auto; padding-right:8px;">
+        <div id="settlementHistoryList2" style="display:flex; flex-direction:column; gap:8px; max-height:600px; overflow-y:auto; padding-right:8px;">
           <!-- JS로 로드 -->
         </div>
       </div>
@@ -3089,13 +3127,21 @@ canvas{width:100% !important;}
           <span style="font-size:20px;">⚙️</span> 4대 핵심 보너스 + 센터피 설정
         </div>
 
+        <!-- 보너스 ON/OFF 스위치 영역 -->
+        <div style="margin-bottom:24px;">
+            <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+                <span>🔌</span> 마케팅 로직 ON/OFF 스위치
+            </div>
+            <div id="logicSwitchGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
           <!-- 1. 추천 매칭 보너스 -->
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
             <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:6px;">
               <span>👥</span> 추천 매칭 보너스 (기준: 일일 ROI)
             </div>
-            <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-size:13px;color:#475569;">1대 (직접 추천)</span>
                 <div style="display:flex;align-items:center;gap:6px;">
@@ -3176,11 +3222,24 @@ canvas{width:100% !important;}
           </div>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;gap:12px;border-top:1px solid #e2e8f0;padding-top:20px;margin-top:24px;">
+        <div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e2e8f0;padding-top:20px;margin-top:24px;">
           <button class="btn btn-gray" id="reloadNewRatesBtn">↩ 원래대로</button>
           <button class="btn btn-primary" id="saveNewRatesBtn" style="padding:10px 24px;">💾 설정 저장</button>
         </div>
         <div id="newRatesAlert" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- 현재 활성화된 마케팅 로직 요약 설명서 -->
+      <div id="ruleExplainCard" style="background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.07);max-width:960px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="font-size:16px;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">📖</span> 현재 활성 마케팅 룰 요약
+          </div>
+          <button class="btn btn-sm btn-outline" id="refreshRuleExplainBtn" style="padding:6px 12px;font-size:13px;">🔄 새로고침</button>
+        </div>
+        <div id="ruleExplainContent" style="font-size:13.5px;color:#475569;line-height:1.6;">
+          <div style="text-align:center;padding:30px;color:#94a3b8;">설정을 불러오는 중입니다...</div>
+        </div>
       </div>
 
     <!-- 직급 승진 조건 설정 카드 (기존) -->
@@ -3191,7 +3250,7 @@ canvas{width:100% !important;}
             <span style="font-size:22px;">🎖️</span>
             <div>
               <div style="font-size:16px;font-weight:700;color:#1e293b;">직급 승진 조건 설정</div>
-              <div style="font-size:12px;color:#64748b;margin-top:2px;">각 직급 달성에 필요한 <strong>본인 투자액</strong>, <strong>산하 매출</strong>, <strong>균형 매출</strong>, <strong>산하 인원</strong> 조건을 설정합니다.</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">각 직급 달성에 필요한 <strong>본인 투자액</strong>, <strong>산하 매출</strong>, <strong>소실적 합</strong>, <strong>산하 인원</strong> 조건을 설정합니다.</div>
             </div>
           </div>
           <button id="saveRankPromoBtn" class="btn btn-primary btn-sm" style="min-width:120px;">💾 승진조건 저장</button>
@@ -3230,17 +3289,17 @@ canvas{width:100% !important;}
           </div>
         </div>
 
-        <!-- 균형 매출 옵션 -->
+        <!-- 소실적 합 옵션 -->
         <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
           <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
             <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;flex:1;min-width:260px;">
               <input type="checkbox" id="rp_useBalancedVolume" style="width:17px;height:17px;margin-top:2px;accent-color:#ea580c;flex-shrink:0;"
                 onchange="window.onRpBalancedVolumeChange()">
               <div>
-                <div style="font-size:13px;font-weight:700;color:#9a3412;">⚖️ 균형 매출(Balanced Volume) 조건 사용</div>
+                <div style="font-size:13px;font-weight:700;color:#9a3412;">⚖️ 소실적 합(Balanced Volume) 조건 사용</div>
                 <div style="font-size:11px;color:#78350f;margin-top:3px;line-height:1.6;">
                   산하 매출 합계 계산 시, <strong>직1대 하부 중 매출이 가장 큰 1개 라인의 매출을 제외</strong>하고 나머지 합계로 조건을 검사합니다.<br>
-                  <em>예) 전체 산하 매출 $50,000 중 최대 라인 $30,000 → 균형 매출 = $20,000</em>
+                  <em>예) 전체 산하 매출 $50,000 중 최대 라인 $30,000 → 소실적 합 = $20,000</em>
                 </div>
               </div>
             </label>
@@ -3255,10 +3314,10 @@ canvas{width:100% !important;}
             </div>
           </div>
           <div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-radius:7px;font-size:11px;color:#92400e;line-height:1.6;">
-            📌 <strong>균형 매출 규칙</strong>: 승급 기준일 당일 기준, 승급 대상자의 본인 투자금 및
+            📌 <strong>소실적 합 규칙</strong>: 승급 기준일 당일 기준, 승급 대상자의 본인 투자금 및
             직1대 하부 투자자 중 투자금이 가장 큰 <strong>1인(또는 1라인)</strong>의 투자금을 제외한
             나머지 전체 투자금 합계가 해당 직급의 기준 금액 이상이어야 합니다.<br>
-            ※ 이 옵션을 켜면 <strong>「산하 매출 합계」컬럼이 균형 매출 기준</strong>으로 적용됩니다.
+            ※ 이 옵션을 켜면 <strong>「산하 매출 합계」컬럼이 소실적 합 기준</strong>으로 적용됩니다.
           </div>
         </div>
 
@@ -3270,7 +3329,7 @@ canvas{width:100% !important;}
                 <th style="padding:10px 14px;text-align:left;font-weight:700;border-radius:8px 0 0 0;">직급</th>
                 <th style="padding:10px 14px;text-align:center;font-weight:700;">💰 본인 투자액 (USDT)</th>
                 <th id="rp_salesColHeader" style="padding:10px 14px;text-align:center;font-weight:700;">📈 산하 매출 합계 (USDT)</th>
-                <th style="padding:10px 14px;text-align:center;font-weight:700;">⚖️ 균형 매출 (USDT)</th>
+                <th style="padding:10px 14px;text-align:center;font-weight:700;">⚖️ 소실적 합 (USDT)</th>
                 <th style="padding:10px 14px;text-align:center;font-weight:700;">👥 산하 인원 수 (명)</th>
               </tr>
             </thead>
@@ -3281,7 +3340,7 @@ canvas{width:100% !important;}
         </div>
 
         <!-- 일괄 승격 버튼 -->
-        <div style="margin-top:16px;padding:14px;background:#fefce8;border:1.5px solid #fde047;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="margin-top:16px;padding:14px;background:#fefce8;border:1.5px solid #fde047;border-radius:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <div style="flex:1;min-width:200px;">
             <div style="font-size:13px;font-weight:700;color:#854d0e;">⚡ 저장 후 일괄 승격 실행</div>
             <div style="font-size:11px;color:#92400e;margin-top:2px;">설정된 조건을 기준으로 전체 회원의 직급을 즉시 재계산합니다.</div>
@@ -3332,7 +3391,7 @@ canvas{width:100% !important;}
         <!-- ── 자동/수동 정산 모드 선택 ── -->
         <div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:18px;margin-bottom:18px;">
           <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">🤖 자동 정산 설정</div>
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 18px;border-radius:8px;border:2px solid #e2e8f0;background:#fff;font-size:13px;font-weight:600;">
               <input type="radio" name="settlementMode" id="settlementModeManual" value="manual" checked
                 style="accent-color:#6366f1;" onchange="updateSettlementModeUI()">
@@ -3347,7 +3406,7 @@ canvas{width:100% !important;}
           <!-- 자동 실행 옵션 (숨김/표시) -->
           <div id="autoSettlementOptions" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px;">
             <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:10px;">⏰ 자동 정산 시간 설정</div>
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <div>
                 <label style="display:block;font-size:11px;color:#64748b;margin-bottom:4px;">정산 시(KST 한국시간, 0~23)</label>
                 <input type="number" id="autoSettlementHour" min="0" max="23" value="0"
@@ -3575,7 +3634,7 @@ canvas{width:100% !important;}
         <!-- 검색 행 -->
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
           <input id="idreportInput" type="text" placeholder="회원 ID (이메일, 추천코드, UID, 이름 모두 가능)"
-            style="flex:1;padding:12px 16px;border-radius:10px;border:1.5px solid #d1d5db;background:#fff;color:#111827;font-size:14px;outline:none;"
+            style="flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid #d1d5db;background:#fff;color:#111827;font-size:14px;outline:none;"
             onkeydown="if(event.key==='Enter')runIdReport()"
           />
           <button onclick="runIdReport()"
@@ -3584,7 +3643,7 @@ canvas{width:100% !important;}
           </button>
         </div>
         <!-- 옵션 행 -->
-        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:8px;">
             <label style="font-size:12px;color:#6b7280;font-weight:600;">📅 기준 날짜</label>
             <input id="idreportDate" type="date"
@@ -3641,6 +3700,86 @@ canvas{width:100% !important;}
     </div>
 
     <!-- ══════════════════════════════
+         이벤트·프로모션
+    ══════════════════════════════ -->
+    <div id="eventsPage" class="page">
+      <div class="page-title">🎰 이벤트 관련 관리</div>
+      <div class="page-desc">플랫폼 내 진행 중인 다양한 이벤트와 프로모션을 관리합니다.</div>
+
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
+          <span style="font-size:16px;font-weight:700;color:#1e293b;">잭팟 이벤트 설정</span>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <span style="font-size:14px;font-weight:bold;color:#ef4444;" id="jackpotStatusText">OFF</span>
+            <div style="position:relative;width:48px;height:26px;">
+              <input type="checkbox" id="jackpotActive" style="opacity:0;width:0;height:0;position:absolute;" onchange="document.getElementById('jackpotStatusText').textContent=this.checked?'ON':'OFF'; document.getElementById('jackpotStatusText').style.color=this.checked?'#10b981':'#ef4444'; document.getElementById('jackpotTrack').style.background=this.checked?'#6366f1':'#cbd5e1'; document.getElementById('jackpotThumb').style.left=this.checked?'23px':'3px';">
+              <div id="jackpotTrack" style="position:absolute;inset:0;background:#cbd5e1;border-radius:13px;transition:.3s;cursor:pointer;pointer-events:none;"></div>
+              <div id="jackpotThumb" style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.3s;pointer-events:none;"></div>
+            </div>
+          </label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">기본 잭팟 상금 (USDT)</label>
+            <input type="number" id="jackpotAmount" placeholder="예: 20000" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:bold;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">※ 표시할 가짜 상금입니다. (유저들을 유혹할 금액)</div>
+          </div>
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">리셋 타이머 (시간)</label>
+            <input type="number" id="jackpotDuration" placeholder="예: 24" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:bold;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">※ 누군가 투자할 때마다 타이머가 이 시간으로 리셋됩니다.</div>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:16px;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">마지막 입금자 (현재 1위)</div>
+          <div id="jackpotLastInvestor" style="font-size:15px;font-weight:bold;color:#6366f1;">아직 없음</div>
+          <div style="font-size:12px;color:#64748b;margin-top:8px;margin-bottom:4px;">타이머 종료 예정 시간</div>
+          <div id="jackpotEndTime" style="font-size:14px;font-weight:bold;color:#ef4444;">-</div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button onclick="resetJackpotTimer()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;">타이머 수동 리셋</button>
+          <button onclick="saveJackpotSettings()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;">💾 이벤트 설정 저장</button>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
+          <span style="font-size:16px;font-weight:700;color:#1e293b;">📉 하락장 보상 이벤트 (Bear Market Cushion)</span>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <span style="font-size:14px;font-weight:bold;color:#ef4444;" id="bearStatusText">OFF</span>
+            <div style="position:relative;width:48px;height:26px;">
+              <input type="checkbox" id="bearActive" style="opacity:0;width:0;height:0;position:absolute;" onchange="document.getElementById('bearStatusText').textContent=this.checked?'ON':'OFF'; document.getElementById('bearStatusText').style.color=this.checked?'#10b981':'#ef4444'; document.getElementById('bearTrack').style.background=this.checked?'#6366f1':'#cbd5e1'; document.getElementById('bearThumb').style.left=this.checked?'23px':'3px';">
+              <div id="bearTrack" style="position:absolute;inset:0;background:#cbd5e1;border-radius:13px;transition:.3s;cursor:pointer;pointer-events:none;"></div>
+              <div id="bearThumb" style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.3s;pointer-events:none;"></div>
+            </div>
+          </label>
+        </div>
+
+        <div style="font-size:13px;color:#64748b;margin-bottom:16px;line-height:1.5;">
+          코인 시세가 하락 중일 때(24시간 기준 변동률 마이너스), <strong>해당 하락률(%)만큼의 USDT</strong>를 입금 시 보너스로 추가 지급합니다.<br>
+          <span style="color:#ef4444;font-weight:bold;">※ 단, 한 번이라도 출금 이력이 있는 회원은 혜택에서 제외됩니다.</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">시작 일시 (선택)</label>
+            <input type="datetime-local" id="bearStartDate" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">종료 일시 (선택)</label>
+            <input type="datetime-local" id="bearEndDate" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;">
+          <button onclick="saveBearMarketSettings()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;">💾 하락장 보상 설정 저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
          시스템 설정
     ══════════════════════════════ -->
     <div id="settingsPage" class="page">
@@ -3681,7 +3820,7 @@ canvas{width:100% !important;}
                 <span style="line-height:40px;">~</span>
                 <input type="time" class="form-input" id="cfg_withdrawEndTime" value="17:00">
               </div>
-              <div style="display:flex; gap:16px; font-size:14px; margin-bottom:4px;">
+              <div style="display:flex; gap:6px; font-size:14px; margin-bottom:4px;">
                 <label><input type="checkbox" id="cfg_withdrawWeekday" checked> 평일(월~금) 출금 허용</label>
                 <label><input type="checkbox" id="cfg_withdrawWeekend"> 휴일(토,일) 출금 허용</label>
               </div>
@@ -3694,6 +3833,11 @@ canvas{width:100% !important;}
                 <option value="true">🔴 점검 중</option>
               </select>
             </div>
+            <div class="form-group" style="margin-top:8px;">
+              <label class="form-label">점검 모드 안내 메시지</label>
+              <textarea class="form-input" id="cfg_maintenanceMessage" rows="3" placeholder="기본 메시지 사용 시 비워두세요"></textarea>
+            </div>
+
           </div>
           <div class="form-group">
             <label class="form-label">사이트 공지 (로그인 화면 표시)</label>
@@ -3702,6 +3846,44 @@ canvas{width:100% !important;}
         </div>
 
         
+        
+        <!-- ── VIP 부스터 뱃지 설정 ── -->
+        <div class="settings-section" style="border:1px solid #f59e0b;">
+          <div class="settings-section-title" style="color:#d97706;">🔥 VIP 부스터 뱃지 (Bonding Curve) 설정</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:16px;">
+            유저들이 구매할 때마다 가격이 상승하는 한정판 뱃지 이벤트입니다. (구매 시 데일리 수익 +0.5%)
+          </div>
+          <div class="settings-grid">
+            <div class="form-group">
+              <label class="form-label">활성화 여부</label>
+              <select class="form-input" id="cfg_badgeEnabled">
+                <option value="false">❌ 비활성화 (숨김)</option>
+                <option value="true">✅ 활성화 (메인 화면 노출)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">판매 시작 일시</label>
+              <input type="datetime-local" class="form-input" id="cfg_badgeStartDate">
+              <div style="font-size:11px;color:var(--gray);margin-top:4px;">이 시간 전까지는 홍보(티저) 화면만 보이고 구매할 수 없습니다.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">초기 가격 (USDT)</label>
+              <input type="number" class="form-input" id="cfg_badgeInitialPrice" placeholder="100" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">구매당 가격 상승률 (%)</label>
+              <input type="number" class="form-input" id="cfg_badgePriceBumpPct" placeholder="5" min="0" step="0.1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">총 발행 수량</label>
+              <input type="number" class="form-input" id="cfg_badgeMaxCount" placeholder="100" min="1">
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-primary" id="btnResetBadgeCount" style="background:#ef4444;border-color:#ef4444;">판매 수량 및 현재 가격 초기화 (주의)</button>
+          </div>
+        </div>
+
         <!-- ── 시스템 백업/복원 설정 ── -->
         <div class="settings-section" style="border:1px solid #ef4444;">
           <div class="settings-section-title" style="color:#ef4444;">🚨 비상 백업 및 복원</div>
@@ -3710,7 +3892,7 @@ canvas{width:100% !important;}
             <br><strong style="color:#ef4444;">경고:</strong> 복원 시 현재 데이터가 스냅샷 시점으로 완전히 덮어씌워집니다!
           </div>
           
-          <div style="display:flex;gap:12px;margin-bottom:16px;">
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
             <button onclick="createSnapshot()" style="padding:12px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
               📸 현재 상태 스냅샷 백업
             </button>
@@ -4222,13 +4404,20 @@ canvas{width:100% !important;}
                 <span class="mcard-icon">⚙️</span>
                 <span class="mcard-title">계정 상태 & 직급</span>
               </div>
-              <div class="mcard-body" style="display:flex;flex-direction:column;gap:12px;">
+              <div class="mcard-body" style="display:flex;flex-direction:column;gap:8px;">
                 <div class="mfield">
                   <label class="mfield-label">계정 상태</label>
                   <select class="mfield-input select" id="me_status">
                     <option value="active">✅ 활성</option>
                     <option value="suspended">🚫 정지</option>
                     <option value="dormant">😴 휴면</option>
+                  </select>
+                </div>
+                <div class="mfield">
+                  <label class="mfield-label" style="color:var(--danger)">출금 정지 여부</label>
+                  <select class="mfield-input select" id="me_withdrawSuspended">
+                    <option value="false">🟢 출금 가능</option>
+                    <option value="true">⛔ 출금 정지</option>
                   </select>
                 </div>
                 <div class="mfield">
@@ -4287,7 +4476,7 @@ canvas{width:100% !important;}
             </div>
             <div class="mcard-body">
               <div class="malert" id="pwResetAlert"></div>
-              <div class="mform-grid" style="grid-template-columns:1fr 1fr auto;align-items:flex-end;gap:12px;">
+              <div class="mform-grid" style="grid-template-columns:1fr 1fr auto;align-items:flex-end;gap:8px;">
                 <div class="mfield">
                   <label class="mfield-label">새 비밀번호 <span style="color:#ef4444;">*</span></label>
                   <input type="text" class="mfield-input" id="memberNewPw"
@@ -4322,7 +4511,7 @@ canvas{width:100% !important;}
               <span class="mcard-icon">📊</span>
               <span class="mcard-title">현재 자산 현황</span>
             </div>
-            <div class="mcard-body" style="padding:12px 16px;">
+            <div class="mcard-body" style="padding:10px 12px;">
               <div id="memberWalletBody" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
                 <!-- JS가 채워줌 -->
               </div>
@@ -4548,7 +4737,7 @@ canvas{width:100% !important;}
 
     <!-- 모달 헤더 -->
     <div style="background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%);padding:24px 28px;border-radius:20px 20px 0 0;position:relative;">
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
         <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">📢</div>
         <div>
           <div id="noticeModalTitle" style="font-size:18px;font-weight:800;color:#fff;">새 공지 작성</div>
@@ -4571,7 +4760,7 @@ canvas{width:100% !important;}
           📌 제목 <span style="color:#ef4444;">*</span>
         </label>
         <input id="noticeTitle" type="text" placeholder="공지 제목을 입력하세요"
-          style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;font-weight:600;color:#1e293b;outline:none;transition:border .2s;box-sizing:border-box;"
+          style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;font-weight:600;color:#1e293b;outline:none;transition:border .2s;box-sizing:border-box;"
           onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
 
@@ -4621,9 +4810,9 @@ canvas{width:100% !important;}
               style="width:30px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;text-decoration:underline;">U</button>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
             <button type="button" onclick="nFontSize('h2')" title="대제목"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H2</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H2</button>
             <button type="button" onclick="nFontSize('h3')" title="소제목"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H3</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H3</button>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
             <button type="button" onclick="nExec('insertUnorderedList')" title="목록"
               style="width:30px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:14px;cursor:pointer;color:#374151;">≡</button>
@@ -4648,16 +4837,16 @@ canvas{width:100% !important;}
             </select>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
             <button type="button" onclick="nInsertBlock('info')" title="정보 블록"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#eff6ff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#3b82f6;">ℹ️</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#eff6ff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#3b82f6;">ℹ️</button>
             <button type="button" onclick="nInsertBlock('warn')" title="경고 블록"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fffbeb;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#d97706;">⚠️</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fffbeb;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#d97706;">⚠️</button>
             <button type="button" onclick="nInsertBlock('danger')" title="중요 블록"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fef2f2;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#ef4444;">🚨</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fef2f2;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#ef4444;">🚨</button>
             <button type="button" onclick="nInsertBlock('success')" title="성공 블록"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#f0fdf4;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#16a34a;">✅</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#f0fdf4;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#16a34a;">✅</button>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
             <button type="button" onclick="nInsertHr()" title="구분선"
-              style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;cursor:pointer;color:#64748b;">—</button>
+              style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;cursor:pointer;color:#64748b;">—</button>
           </div>
           <!-- 에디터 본문 -->
           <div id="noticeEditor" contenteditable="true"
@@ -4716,7 +4905,7 @@ canvas{width:100% !important;}
     
     <!-- 모달 헤더 -->
     <div style="display:flex; justify-content:space-between; align-items:center; padding:24px 28px; border-bottom:1px solid #f1f5f9; position:sticky; top:0; background:#fff; z-index:10; border-radius:24px 24px 0 0;">
-      <h3 style="margin:0; font-size:20px; font-weight:800; display:flex; align-items:center; gap:12px; color:#1e293b;">
+      <h3 style="margin:0; font-size:20px; font-weight:800; display:flex; align-items:center; gap:8px; color:#1e293b;">
         <span style="display:flex; align-items:center; justify-content:center; width:40px; height:40px; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border-radius:12px; font-size:20px; box-shadow:0 4px 10px rgba(99,102,241,0.3);">🎬</span>
         미디어 업로드
       </h3>
@@ -4757,7 +4946,7 @@ canvas{width:100% !important;}
       </div>
 
       <!-- 하단 버튼 -->
-      <div style="display:flex; gap:12px; padding-top:24px; border-top:1px solid #f1f5f9;">
+      <div style="display:flex; gap:8px; padding-top:24px; border-top:1px solid #f1f5f9;">
         <button onclick="document.getElementById('podcastModal').style.display='none'" style="flex:1; padding:16px; background:#f1f5f9; color:#475569; border:none; border-radius:14px; font-size:15px; font-weight:700; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">취소</button>
         <button id="podcastUploadBtn" onclick="uploadPodcast()" style="flex:2; padding:16px; background:linear-gradient(135deg, #6366f1, #a855f7); color:#fff; border:none; border-radius:14px; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 6px 16px rgba(139,92,246,0.3); transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(139,92,246,0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 16px rgba(139,92,246,0.3)';">
           <span style="font-size:18px;">🚀</span> 파일 업로드 및 퍼블리싱
@@ -4772,7 +4961,7 @@ canvas{width:100% !important;}
 
     <!-- 모달 헤더 -->
     <div style="background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);padding:24px 28px;border-radius:20px 20px 0 0;position:relative;">
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
         <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">📰</div>
         <div>
           <div id="newsModalTitle" style="font-size:18px;font-weight:800;color:#fff;">뉴스 등록</div>
@@ -4807,7 +4996,7 @@ canvas{width:100% !important;}
           📰 뉴스 제목 <span style="color:#ef4444;">*</span>
         </label>
         <input id="newsTitle" type="text" placeholder="뉴스 제목을 입력하세요"
-          style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;font-weight:600;color:#1e293b;outline:none;transition:border .2s;box-sizing:border-box;"
+          style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;font-weight:600;color:#1e293b;outline:none;transition:border .2s;box-sizing:border-box;"
           onfocus="this.style.borderColor='#0ea5e9'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
 
@@ -4869,8 +5058,8 @@ canvas{width:100% !important;}
             <button type="button" onclick="newsExec('italic')" style="width:30px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-style:italic;font-size:13px;cursor:pointer;color:#374151;">I</button>
             <button type="button" onclick="newsExec('underline')" style="width:30px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;text-decoration:underline;">U</button>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
-            <button type="button" onclick="newsFontSize('h2')" style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H2</button>
-            <button type="button" onclick="newsFontSize('h3')" style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H3</button>
+            <button type="button" onclick="newsFontSize('h2')" style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H2</button>
+            <button type="button" onclick="newsFontSize('h3')" style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#374151;">H3</button>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
             <button type="button" onclick="newsExec('insertUnorderedList')" style="width:30px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:14px;cursor:pointer;color:#374151;">≡</button>
             <button type="button" onclick="newsExec('insertOrderedList')" style="width:30px;height:30px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:13px;cursor:pointer;color:#374151;">1.</button>
@@ -4885,9 +5074,9 @@ canvas{width:100% !important;}
               <option value="#1e293b">⚫ 검정</option>
             </select>
             <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
-            <button type="button" onclick="newsInsertBlock('info')" style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#eff6ff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#3b82f6;">ℹ️</button>
-            <button type="button" onclick="newsInsertBlock('warn')" style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#fffbeb;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#d97706;">⚠️</button>
-            <button type="button" onclick="newsInsertBlock('success')" style="padding:0 10px;height:30px;border:1px solid #e2e8f0;background:#f0fdf4;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#16a34a;">✅</button>
+            <button type="button" onclick="newsInsertBlock('info')" style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#eff6ff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#3b82f6;">ℹ️</button>
+            <button type="button" onclick="newsInsertBlock('warn')" style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#fffbeb;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#d97706;">⚠️</button>
+            <button type="button" onclick="newsInsertBlock('success')" style="padding:0 4px;height:30px;border:1px solid #e2e8f0;background:#f0fdf4;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:#16a34a;">✅</button>
           </div>
           <div id="newsEditor" contenteditable="true"
             style="min-height:260px;padding:16px 18px;font-size:14px;line-height:1.8;color:#1e293b;outline:none;"
@@ -4937,7 +5126,7 @@ canvas{width:100% !important;}
     <div style="font-size:13px;color:#64748b;margin-bottom:24px;">관리자 접근 비밀번호를 입력하세요</div>
     <input type="password" id="settingsAuthInput"
       placeholder="비밀번호 입력"
-      style="width:100%;padding:12px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;text-align:center;letter-spacing:4px;outline:none;box-sizing:border-box;margin-bottom:8px;"
+      style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;text-align:center;letter-spacing:4px;outline:none;box-sizing:border-box;margin-bottom:8px;"
       onkeydown="if(event.key==='Enter')window._confirmSettingsAuth()"
     />
     <div id="settingsAuthErr" style="font-size:12px;color:#ef4444;min-height:18px;margin-bottom:14px;"></div>
@@ -5742,7 +5931,12 @@ async function loadWithdrawals(status = 'pending') {
         } catch(e) {}
     }
 
-    const q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','==',status));
+    let q;
+    if (status === 'pending') {
+        q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','in',['pending', 'processing']));
+    } else {
+        q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','==',status));
+    }
     
     const renderRows = async (snap) => {
         const uids = snap.docs.map(d => d.data().userId);
@@ -5927,6 +6121,8 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
             members = [...members].sort((a, b) => (a.country||'').localeCompare(b.country||''));
         } else if (groupBy === 'rank') {
             members = [...members].sort((a, b) => (RANK_ORDER[b.rank||'G0']||0) - (RANK_ORDER[a.rank||'G0']||0));
+        } else if (groupBy === 'date') {
+            members = [...members].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)); // 최신 가입일 그룹 먼저
         }
 
         document.getElementById('memberCount').textContent = `${members.length}명`;
@@ -5966,11 +6162,22 @@ async function loadMembers(keyword='', statusFilter='', rankFilter='', countryFi
 
         pageMembers.forEach(m => {
             // 그룹 헤더 출력
-            if (groupBy === 'country' || groupBy === 'rank') {
-                const gval = groupBy === 'country' ? (m.country||'미지정') : (m.rank||'G0');
+            if (groupBy === 'country' || groupBy === 'rank' || groupBy === 'date') {
+                let gval = '';
+                let icon = '';
+                if (groupBy === 'country') { gval = m.country||'미지정'; icon = '🌏'; }
+                else if (groupBy === 'rank') { gval = m.rank||'G0'; icon = '🏅'; }
+                else if (groupBy === 'date') { 
+                    gval = m.createdAt ? fmtDateShort(m.createdAt) : '날짜 없음'; // Or custom YYYY-MM-DD
+                    if (m.createdAt) {
+                        const d = m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt.seconds * 1000);
+                        gval = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    }
+                    icon = '📅';
+                }
+                
                 if (gval !== lastGroupVal) {
                     lastGroupVal = gval;
-                    const icon = groupBy === 'country' ? '🌏' : '🏅';
                     rowsHtml += `<tr style="background:linear-gradient(90deg,#f0f4ff 0%,#f8faff 100%);">
                         <td colspan="10" style="font-weight:700;font-size:13px;color:#4338ca;padding:8px 14px;border-left:3px solid #6366f1;">
                           ${icon} ${gval}
@@ -6131,7 +6338,7 @@ function renderNoticeList() {
             </div>
             <div class="notice-title">${n.title}</div>
             <div class="notice-preview">${previewText}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:12px;align-items:center;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:8px;align-items:center;">
               <span>🕐 ${fmtDate(n.createdAt)}</span>
               ${n.updatedAt && n.updatedAt.seconds !== n.createdAt?.seconds ? `<span>✏️ 수정됨</span>` : ''}
             </div>
@@ -6316,7 +6523,7 @@ function renderNewsList() {
             </div>
             <div class="notice-title">${n.title}</div>
             <div class="notice-preview" style="-webkit-line-clamp:1;">${n.summary || ''}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <span>🕐 ${fmtDate(n.createdAt)}</span>
               ${n.viewCount ? `<span>👁 ${n.viewCount}</span>` : ''}
               ${n.tags?.length ? `<span style="color:#6366f1;">${n.tags.map(t=>'#'+t).join(' ')}</span>` : ''}
@@ -6363,14 +6570,14 @@ window.viewNews = function(newsId) {
           </div>
           <h2 style="font-size:20px;font-weight:800;color:#1e293b;margin:0 0 8px;">${n.title}</h2>
           ${n.summary?`<p style="font-size:14px;color:#64748b;margin:0 0 10px;font-style:italic;">${n.summary}</p>`:''}
-          <div style="font-size:12px;color:#94a3b8;display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:12px;color:#94a3b8;display:flex;gap:8px;flex-wrap:wrap;">
             <span>🕐 ${fmtDate(n.createdAt)}</span>
             ${n.viewCount?`<span>👁 ${n.viewCount}</span>`:''}
           </div>
         </div>
         <hr style="border:none;border-top:1px solid #f1f5f9;margin:16px 0;">
         <div style="font-size:14px;line-height:1.9;color:#374151;">${n.content || ''}</div>
-        ${n.sourceUrl?`<div style="margin-top:20px;padding:12px 16px;background:#f8fafc;border-radius:10px;font-size:13px;">
+        ${n.sourceUrl?`<div style="margin-top:20px;padding:10px 12px;background:#f8fafc;border-radius:10px;font-size:13px;">
           🔗 원문: <a href="${n.sourceUrl}" target="_blank" style="color:#0ea5e9;">${n.sourceUrl}</a>
         </div>`:''}
         ${n.tags?.length?`<div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;">
@@ -6510,8 +6717,8 @@ async function saveGameOdds() {
       poker_win:    _oddsData.poker,
       updatedAt: new Date().toISOString()
     };
-    // merge:false 로 문서 전체 교체 → 이전 필드 완전히 제거
-    await api.setRawDocFull('settings', 'gameOdds', payload);
+    // merge:true 로 문서 병합 → 다른 필드 유지, 입력한 확률만 업데이트
+    await api.setRawDoc('settings', 'gameOdds', payload);
     if (st) { st.textContent = '저장 완료'; st.className = 'odds-save-status ok'; }
     showToast('게임 확률이 저장되었습니다.', 'success');
     try {
@@ -6540,9 +6747,8 @@ window.loadPageViews = async function() {
     logBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">데이터 불러오는 중...</td></tr>';
     
     try {
-        const { collection, query, orderBy, limit, getDocs } = window.FB;
-        const q = query(collection(db, 'page_views'), limit(1000));
-        const snap = await getDocs(q);
+        const q = query(collection(window.db || window.FB?.db || db, 'page_views'), limit(1000));
+        const snap = await (typeof getDocs === 'function' ? getDocs(q) : _fsGetDocs(q));
         let docs = [];
         snap.forEach(d => docs.push(d.data()));
         docs.sort((a,b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
@@ -7022,7 +7228,7 @@ function renderAuditLogs() {
                   rawBadge +
                 '</div>' +
                 renderAuditDetail(log) +
-                '<div style="margin-top:5px;display:flex;gap:12px;flex-wrap:wrap;">' +
+                '<div style="margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;">' +
                   '<span style="font-size:11px;color:#94a3b8;">🛡 관리자: <strong style="color:#64748b;">'  + adminShort + '</strong></span>' +
                   '<span style="font-size:11px;color:#94a3b8;">🕐 ' + timeStr + '</span>' +
                 '</div>' +
@@ -7158,7 +7364,8 @@ window.showDepositDetail = async (txId) => {
     currentTx = {id:txId,...snap.data()};
     const isPending = currentTx.status === 'pending';
     const isHeld    = currentTx.status === 'held';
-    const canAct    = isPending || isHeld;
+    const isFailed  = currentTx.status === 'failed';
+    const canAct    = isPending || isHeld || isFailed || currentTx.status === 'processing';
 
     // 회원 정보 조회
     let memberName = currentTx.userId, memberPhone = '', memberEmail = '';
@@ -7177,7 +7384,7 @@ window.showDepositDetail = async (txId) => {
     if (subEl) subEl.textContent = memberName + ' • ' + fmtDate(currentTx.createdAt);
 
     // 상태 배지 색상
-    const statusColor = { pending:'#f59e0b', approved:'#10b981', rejected:'#ef4444', held:'#6366f1' };
+    const statusColor = { pending:'#f59e0b', processing:'#3b82f6', approved:'#10b981', rejected:'#ef4444', held:'#6366f1', failed:'#ea580c' };
     const sColor = statusColor[currentTx.status] || '#94a3b8';
 
     document.getElementById('depositModalBody').innerHTML = `
@@ -7235,7 +7442,8 @@ window.showWithdrawalDetail = async (txId) => {
     currentTx = {id:txId,...snap.data()};
     const isPending = currentTx.status === 'pending';
     const isHeld    = currentTx.status === 'held';
-    const canAct    = isPending || isHeld;
+    const isFailed  = currentTx.status === 'failed';
+    const canAct    = isPending || isHeld || isFailed || currentTx.status === 'processing';
 
     // DEEDRA 시세
     let dedraRate = 0;
@@ -7324,7 +7532,7 @@ window.showWithdrawalDetail = async (txId) => {
     if (document.getElementById('phantomWithdrawalBtn')) document.getElementById('phantomWithdrawalBtn').style.display = canAct ? 'flex' : 'none';
     document.getElementById('rejectWithdrawalBtn').style.display  = canAct ? '' : 'none';
     const holdWdBtn = document.getElementById('holdWithdrawalBtn');
-    if (holdWdBtn) holdWdBtn.style.display = isPending ? '' : 'none';
+    if (holdWdBtn) holdWdBtn.style.display = (isPending || isFailed) ? '' : 'none';
 
     document.getElementById('withdrawalModal').classList.add('show');
 };
@@ -7422,6 +7630,7 @@ window.showMemberDetail = async (userId) => {
     document.getElementById('me_solanaWallet').value = currentMember.solanaWallet || '';
     document.getElementById('me_memo').value         = currentMember.adminMemo    || '';
     document.getElementById('me_status').value       = status;
+    document.getElementById('me_withdrawSuspended').value = (currentMember.withdrawSuspended === true) ? 'true' : 'false';
     document.getElementById('rankSelect').value      = rank;
 
     // 알림 초기화
@@ -7537,6 +7746,7 @@ window.showMemberDetail = async (userId) => {
             referredBy:   document.getElementById('me_referredBy').value.trim(),
             adminMemo:    document.getElementById('me_memo').value.trim(),
             status:       document.getElementById('me_status').value,
+            withdrawSuspended: document.getElementById('me_withdrawSuspended').value === 'true',
             rank:         rankValue,
         };
         // 관리자가 직급을 직접 변경한 경우 자동 승격에서 제외
@@ -7812,7 +8022,7 @@ function setupEvents() {
             sessionStorage.setItem('adminCurrentPage', page);
             document.getElementById(page+'Page').classList.add('active');
             if (page==='deposits') { loadCompanyWallets(); loadDeposits('pending'); }
-            else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); }
+            else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); loadWithdrawRules(); }
             else if (page==='members') { allMembers=[]; loadMembers(); }
             else if (page==='bonus') loadBonusLog();
             else if (page==='settlements') loadSettlementHistory();
@@ -7822,6 +8032,7 @@ function setupEvents() {
             else if (page==='gamelogs') { loadGameLogs(); loadGameOddsAdmin(); }
             else if (page==='auditlog') loadAuditLog();
             else if (page==='tickets') loadTickets();
+            else if (page==='events') { loadJackpotSettings(); loadBearMarketSettings(); }
             else if (page==='settings') loadSettings();
             else if (page==='statistics') loadStatistics();
             else if (page==='settings') {
@@ -7904,7 +8115,7 @@ function setupEvents() {
     // ── 로그아웃 ──
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         // 보조계정 로그아웃
-        if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) {
+        if ((typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin) || sessionStorage.getItem('subAdminSession')) {
             sessionStorage.removeItem('subAdminSession');
             _currentSubAdmin = null;
             window._subAdminPerms = {};
@@ -7974,6 +8185,17 @@ function setupEvents() {
             try {
                 phantomBtn.disabled = true;
                 phantomBtn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:#fff;"></div> 처리 중...';
+                
+                // 🛑 이중 출금 방지: 블록체인 전송 전 DB 상태를 먼저 '처리중'으로 잠금 (Lock)
+                const lockRes = await api.markWithdrawalProcessing(currentTx.id, currentAdmin.uid);
+                if (!lockRes.success) {
+                    showToast('❌ 전송 불가: ' + lockRes.error, 'error');
+                    // Lock 실패시 모달 닫기
+                    closeModal('withdrawalModal');
+                    loadWithdrawals(currentWithdrawalStatus);
+                    return; // 송금 진행 중단
+                }
+
                 
                 // 1. Solana Wallet (Phantom) 연결 확인
                 const sw = window.SolanaWallet;
@@ -8102,16 +8324,28 @@ function setupEvents() {
                 // Sign and send
                 showToast('지갑에서 승인해주세요...', 'info');
                 const signedTx = await provider.signTransaction(tx);
-                const signature = await connection.sendRawTransaction(signedTx.serialize());
                 
-                showToast('트랜잭션 전송 중... (약 10~20초 소요)', 'info');
-                await connection.confirmTransaction({
-                    signature,
-                    blockhash: latestBlockhash.blockhash,
-                    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
-                });
+                // signature를 이 스코프에 선언
+                let signature = null;
+                try {
+                    signature = await connection.sendRawTransaction(signedTx.serialize());
+                    showToast('트랜잭션 전송 중... (약 10~20초 소요)', 'info');
+                    
+                    // 솔라나는 confirm 단계에서 타임아웃이 잦지만 이미 블록에 포함되는 경우가 많습니다.
+                    try {
+                        await connection.confirmTransaction({
+                            signature: signature,
+                            blockhash: latestBlockhash.blockhash,
+                            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+                        }, 'confirmed');
+                    } catch (confirmErr) {
+                        console.warn("confirmTransaction 오류 발생 (하지만 이미 전송되었을 수 있음):", confirmErr);
+                    }
+                } catch (sendErr) {
+                    throw sendErr; // 전송 자체가 안된 경우 바깥 catch로 던짐
+                }
                 
-                // Once confirmed on chain, approve in database
+                // Once confirmed on chain (or ignored timeout), approve in database
                 showToast('✅ 블록체인 전송 성공! 시스템 승인 처리 중...', 'success');
                 const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, signature, 'Phantom 자동 송금 완료');
                 
@@ -8130,7 +8364,17 @@ function setupEvents() {
                 if (msg.includes('custom program error: 0x1')) {
                     msg = '관리자 지갑에 송금할 DDRA 토큰 잔액이 부족합니다.';
                 }
-                showToast('❌ ' + msg, 'error');
+                
+                if (signature) {
+                    showToast('⚠️ 전송은 되었으나 승인 처리 중 오류 발생. 수동 승인 바람!', 'warning');
+                    // 전송이 이미 진행되었으므로, 실패로 상태를 변경하지 않음.
+                    // 대신 관리자가 수동으로 TXID를 넣고 승인해야 할 수 있으므로 모달을 닫지 않음.
+                } else {
+                    showToast('❌ ' + msg, 'error');
+                    // 🛑 전송 실패 시 DB 상태를 실패(failed)로 변경
+                    try { await api.failWithdrawalProcessing(currentTx.id, currentAdmin.uid, msg); } catch(err) { console.error('Unlock error', err); }
+                }
+                loadWithdrawals(currentWithdrawalStatus);
             } finally {
                 phantomBtn.disabled = false;
                 phantomBtn.innerHTML = '👻 팬텀 지갑으로 자동 송금';
@@ -8203,7 +8447,7 @@ function setupEvents() {
                 setTimeout(() => { waAlert.className = 'malert'; waAlert.textContent=''; }, 5000);
             };
             const newVal = document.getElementById(newId).value.trim();
-            const reason = document.getElementById(reasonId).value.trim();
+            let reason = document.getElementById(reasonId).value.trim();
             if (!newVal || isNaN(newVal)) { showWA('error','⚠️ 유효한 숫자를 입력하세요.'); return; }
             // reason check removed
             if (!reason) reason = "관리자 직접 수정";
@@ -8500,6 +8744,20 @@ function setupEvents() {
     });
 
     // ── 시스템 설정 저장 ──
+    
+    document.getElementById('btnResetBadgeCount').addEventListener('click', async () => {
+        if(!confirm('정말 VIP 부스터 뱃지의 판매 수량과 현재 가격을 초기화하시겠습니까? (이미 구매한 유저의 정보는 유지되지만 가격은 초기화됩니다)')) return;
+        try {
+            await window.FB.setDoc(window.FB.doc(window.FB.db, 'settings', 'system'), {
+                badgeSoldCount: 0,
+                badgeCurrentPrice: parseFloat(document.getElementById('cfg_badgeInitialPrice').value) || 100
+            }, { merge: true });
+            alert('초기화 완료되었습니다. 설정 저장 버튼을 눌러 나머지 설정을 저장하세요.');
+        } catch(e) {
+            alert('초기화 실패: ' + e.message);
+        }
+    });
+
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
         const _gv = id => { const el=document.getElementById(id); return el?el.value.trim():''; };
         const _gc = id => { const el=document.getElementById(id); return el?el.checked:false; };
@@ -8513,7 +8771,13 @@ function setupEvents() {
             withdrawEndTime: document.getElementById('cfg_withdrawEndTime').value || '17:00',
             withdrawWeekday: document.getElementById('cfg_withdrawWeekday').checked,
             withdrawWeekend: document.getElementById('cfg_withdrawWeekend').checked,
+            badgeEnabled: document.getElementById('cfg_badgeEnabled').value === 'true',
+            badgeStartDate: document.getElementById('cfg_badgeStartDate').value,
+            badgeInitialPrice: parseFloat(document.getElementById('cfg_badgeInitialPrice').value) || 100,
+            badgePriceBumpPct: parseFloat(document.getElementById('cfg_badgePriceBumpPct').value) || 5,
+            badgeMaxCount: parseInt(document.getElementById('cfg_badgeMaxCount').value) || 100,
             maintenanceMode: document.getElementById('cfg_maintenanceMode').value === 'true',
+            maintenanceMessage: _gv('cfg_maintenanceMessage'),
             siteNotice: _gv('cfg_siteNotice'),
             // DDRA 토큰 등록 설정
             ddraSolanaMint:  _gv('cfg_ddraSolanaMint'),
@@ -9302,6 +9566,103 @@ function initDedraRatePreview2() {}
 // ══════════════════════════════════════════════════
 // 시스템 설정
 // ══════════════════════════════════════════════════
+// ── 라스트맨 잭팟 설정 (Events) ───────────────────────────────
+window.loadJackpotSettings = async function() {
+  try {
+    const snap = await getDoc(doc(db, 'events', 'jackpot'));
+    if (snap.exists()) {
+      const d = snap.data();
+      const activeEl = document.getElementById('jackpotActive');
+      if (activeEl) {
+          activeEl.checked = !!d.active;
+          document.getElementById('jackpotStatusText').textContent = d.active ? 'ON' : 'OFF';
+          document.getElementById('jackpotStatusText').style.color = d.active ? '#10b981' : '#ef4444';
+          document.getElementById('jackpotTrack').style.background = d.active ? '#6366f1' : '#cbd5e1';
+          document.getElementById('jackpotThumb').style.left = d.active ? '23px' : '3px';
+      }
+      if (d.amount) document.getElementById('jackpotAmount').value = d.amount;
+      if (d.durationHours) document.getElementById('jackpotDuration').value = d.durationHours;
+      
+      document.getElementById('jackpotLastInvestor').textContent = d.lastInvestor || '아직 없음';
+      
+      if (d.endTime) {
+         const end = new Date(d.endTime);
+         document.getElementById('jackpotEndTime').textContent = end.toLocaleString();
+      } else {
+         document.getElementById('jackpotEndTime').textContent = '-';
+      }
+    }
+  } catch(e) { console.error('잭팟 설정 로드 실패', e); }
+};
+
+window.saveJackpotSettings = async function() {
+  const active = document.getElementById('jackpotActive').checked;
+  const amount = parseFloat(document.getElementById('jackpotAmount').value) || 20000;
+  const durationHours = parseFloat(document.getElementById('jackpotDuration').value) || 24;
+  try {
+    await setDoc(doc(db, 'events', 'jackpot'), {
+      active, amount, durationHours, updatedAt: serverTimestamp()
+    }, { merge: true });
+    showToast('✅ 잭팟 설정이 저장되었습니다.', 'success');
+  } catch(e) { showToast('❌ 저장 실패: ' + e.message, 'error'); }
+};
+
+window.loadBearMarketSettings = async function() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'bearMarketEvent'));
+    if (snap.exists()) {
+      const d = snap.data();
+      const activeEl = document.getElementById('bearActive');
+      if (activeEl) {
+        activeEl.checked = !!d.enabled;
+        document.getElementById('bearStatusText').textContent = d.enabled ? 'ON' : 'OFF';
+        document.getElementById('bearStatusText').style.color = d.enabled ? '#10b981' : '#ef4444';
+        document.getElementById('bearTrack').style.background = d.enabled ? '#6366f1' : '#cbd5e1';
+        document.getElementById('bearThumb').style.left = d.enabled ? '23px' : '3px';
+      }
+      if (d.startDate) {
+        // convert ISO to datetime-local format (YYYY-MM-DDThh:mm)
+        const dObj = new Date(d.startDate);
+        dObj.setMinutes(dObj.getMinutes() - dObj.getTimezoneOffset());
+        document.getElementById('bearStartDate').value = dObj.toISOString().slice(0,16);
+      }
+      if (d.endDate) {
+        const dObj = new Date(d.endDate);
+        dObj.setMinutes(dObj.getMinutes() - dObj.getTimezoneOffset());
+        document.getElementById('bearEndDate').value = dObj.toISOString().slice(0,16);
+      }
+    }
+  } catch(e) { console.error('Bear market load error:', e); }
+};
+
+window.saveBearMarketSettings = async function() {
+  const enabled = document.getElementById('bearActive').checked;
+  const startVal = document.getElementById('bearStartDate').value;
+  const endVal = document.getElementById('bearEndDate').value;
+  
+  const startDate = startVal ? new Date(startVal).toISOString() : null;
+  const endDate = endVal ? new Date(endVal).toISOString() : null;
+  
+  try {
+    await setDoc(doc(db, 'settings', 'bearMarketEvent'), {
+      enabled, startDate, endDate, updatedAt: serverTimestamp()
+    }, { merge: true });
+    showToast('✅ 하락장 보상 이벤트 설정이 저장되었습니다.', 'success');
+  } catch(e) { showToast('❌ 저장 실패: ' + e.message, 'error'); }
+};
+
+window.resetJackpotTimer = async function() {
+  if (!confirm('정말 잭팟 타이머를 지금부터 다시 리셋하시겠습니까?')) return;
+  const durationHours = parseFloat(document.getElementById('jackpotDuration').value) || 24;
+  try {
+    await setDoc(doc(db, 'events', 'jackpot'), {
+      endTime: Date.now() + (durationHours * 3600 * 1000)
+    }, { merge: true });
+    showToast('✅ 타이머가 리셋되었습니다.', 'success');
+    loadJackpotSettings();
+  } catch(e) { showToast('❌ 리셋 실패: ' + e.message, 'error'); }
+};
+
 async function loadSettings() {
     const r = await api.getSystemSettings();
     if (!r.success) { showInlineAlert('settingsAlert','error','설정 로드 실패: '+r.error); return; }
@@ -9312,7 +9673,20 @@ async function loadSettings() {
     document.getElementById('cfg_minWithdrawal').value = s.minWithdrawal||10;
     document.getElementById('cfg_withdrawalFeeRate').value = ((s.withdrawalFeeRate||0.02)*100).toFixed(1);
     document.getElementById('cfg_maintenanceMode').value = s.maintenanceMode?'true':'false';
+    const elMsg = document.getElementById('cfg_maintenanceMessage');
+    if(elMsg) elMsg.value = s.maintenanceMessage||'';
     document.getElementById('cfg_siteNotice').value = s.siteNotice||'';
+
+    document.getElementById('cfg_withdrawStartTime').value = s.withdrawStartTime||'09:00';
+    document.getElementById('cfg_withdrawEndTime').value = s.withdrawEndTime||'17:00';
+    document.getElementById('cfg_withdrawWeekday').checked = s.withdrawWeekday!==false;
+    document.getElementById('cfg_withdrawWeekend').checked = s.withdrawWeekend===true;
+
+    document.getElementById('cfg_badgeEnabled').value = s.badgeEnabled?'true':'false';
+    document.getElementById('cfg_badgeStartDate').value = s.badgeStartDate||'';
+    document.getElementById('cfg_badgeInitialPrice').value = s.badgeInitialPrice||100;
+    document.getElementById('cfg_badgePriceBumpPct').value = s.badgePriceBumpPct||5;
+    document.getElementById('cfg_badgeMaxCount').value = s.badgeMaxCount||100;
     // 텔레그램 설정
     const tg = s.telegram || {};
     const _sv = (id,v) => { const el=document.getElementById(id); if(el) el.value = v||''; };
@@ -9391,7 +9765,7 @@ function fmtDate(ts) {
     return d.toLocaleString('ko-KR');
 }
 function fmtStatus(s) {
-    return {pending:'대기중',approved:'승인됨',rejected:'거부됨'}[s]||s;
+    return {pending:'대기중',processing:'처리중',approved:'승인됨',rejected:'거부됨',held:'보류됨',failed:'실패됨'}[s]||s;
 }
 // fmtAuditAction → AUDIT_ACTION_MAP 기반 (3700번대에 정의됨)
 
@@ -10558,6 +10932,12 @@ async function loadRates() {
             if (typeof renderAutoSettlementSettings === 'function') {
                 renderAutoSettlementSettings(d);
             }
+            if (typeof renderLogicSwitches === 'function') {
+                renderLogicSwitches(d);
+            }
+            if (typeof renderRuleExplain === 'function') {
+                renderRuleExplain(d);
+            }
         }
         runOtherInits();
     } catch(e) {
@@ -10578,7 +10958,13 @@ async function saveNewRates() {
             rate_rankGap: parseFloat(document.getElementById('rate_rankGap').value) || 0,
             rate_override: parseFloat(document.getElementById('rate_override').value) || 0,
             rate_centerFee: parseFloat(document.getElementById('rate_centerFee').value) || 0,
-            rankGapMode: document.getElementById('rate_rankGapMode') ? document.getElementById('rate_rankGapMode').value : 'gap'
+            rankGapMode: document.getElementById('rate_rankGapMode') ? document.getElementById('rate_rankGapMode').value : 'gap',
+            enableDirectBonus: document.getElementById('sw_enableDirectBonus') ? document.getElementById('sw_enableDirectBonus').checked : true,
+            enableUnilevel: document.getElementById('sw_enableUnilevel') ? document.getElementById('sw_enableUnilevel').checked : true,
+            enableDirectBonus2Gen: document.getElementById('sw_enableDirectBonus2Gen') ? document.getElementById('sw_enableDirectBonus2Gen').checked : false,
+            enableRankDiffBonus: document.getElementById('sw_enableRankDiffBonus') ? document.getElementById('sw_enableRankDiffBonus').checked : false,
+            enableRankBonus: document.getElementById('sw_enableRankBonus') ? document.getElementById('sw_enableRankBonus').checked : false,
+            enableRankGapBonus: document.getElementById('sw_enableRankGapBonus') ? document.getElementById('sw_enableRankGapBonus').checked : false
         };
         
         const r = await api.updateRates(currentAdmin.uid, payload);
@@ -10644,7 +11030,7 @@ function renderLogicSwitches(rates) {
                    ? storedVal === true          // 저장된 값이 있으면 엄격히 boolean true만 ON
                    : switchDefaults[s.id] === true; // 없으면 기본값
         return `
-        <div style="background:${on?'#f0fdf4':'#fef2f2'};border:1.5px solid ${on?'#86efac':'#fca5a5'};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
+        <div style="background:${on?'#f0fdf4':'#fef2f2'};border:1.5px solid ${on?'#86efac':'#fca5a5'};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:8px;">
             <label class="toggle-label" style="margin:0;cursor:pointer;display:flex;align-items:center;gap:10px;flex:1;">
                 <input type="checkbox" id="sw_${s.id}" ${on?'checked':''} onchange="updateSwitchStyle('${s.id}',this.checked)"
                     style="width:18px;height:18px;cursor:pointer;accent-color:#16a34a;">
@@ -10863,17 +11249,25 @@ function setupRateButtons() {
     }, 1000);
 
 // ── 마케팅 규칙 설명 버튼 ──
-    document.getElementById('showRuleExplainBtn').onclick = () => {
-        const panel = document.getElementById('ruleExplainPanel');
-        if (panel.style.display === 'none') {
-            panel.style.display = 'block';
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            renderRuleExplain(currentRates);
-        } else {
-            panel.style.display = 'none';
-        }
-    };
-    document.getElementById('refreshRuleExplainBtn').onclick = () => renderRuleExplain(currentRates);
+    const showRuleBtn = document.getElementById('showRuleExplainBtn');
+    if (showRuleBtn) {
+        showRuleBtn.onclick = () => {
+            const panel = document.getElementById('ruleExplainPanel');
+            if (panel) {
+                if (panel.style.display === 'none') {
+                    panel.style.display = 'block';
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    renderRuleExplain(currentRates);
+                } else {
+                    panel.style.display = 'none';
+                }
+            }
+        };
+    }
+    const refreshRuleBtn = document.getElementById('refreshRuleExplainBtn');
+    if (refreshRuleBtn) {
+        refreshRuleBtn.onclick = () => renderRuleExplain(currentRates);
+    }
 
         // ── 직급 승진 조건 저장 버튼 ──
     const saveRankPromoBtn = document.getElementById('saveRankPromoBtn');
@@ -10985,7 +11379,7 @@ function renderRankPromoTable(settings) {
     if (bvEl)      bvEl.checked    = settings.useBalancedVolume === true;
     if (exLinesEl) exLinesEl.value = settings.excludeTopLines || 1;
 
-    // 균형 매출 옵션 패널 표시 여부
+    // 소실적 합 옵션 패널 표시 여부
     const bvOptions = document.getElementById('rp_balancedVolumeOptions');
     if (bvOptions) bvOptions.style.display = settings.useBalancedVolume ? 'block' : 'none';
 
@@ -11044,7 +11438,7 @@ function renderRankPromoTable(settings) {
     }).join('');
 }
 
-// 균형 매출 체크박스 토글
+// 소실적 합 체크박스 토글
 window.onRpBalancedVolumeChange = function() {
     const checked = document.getElementById('rp_useBalancedVolume')?.checked;
     const bvOptions = document.getElementById('rp_balancedVolumeOptions');
@@ -11327,8 +11721,8 @@ function renderGlobalOptions(opts) {
   grid.innerHTML = GLOBAL_OPTIONS_DEF.map(o => {
     const on = opts[o.id] === true;
     return `
-    <label style="display:flex;align-items:center;gap:12px;background:${on?'#f0fdf4':'#f8fafc'};
-      border:1.5px solid ${on?'#86efac':'#cbd5e1'};border-radius:10px;padding:12px 16px;cursor:pointer;
+    <label style="display:flex;align-items:center;gap:8px;background:${on?'#f0fdf4':'#f8fafc'};
+      border:1.5px solid ${on?'#86efac':'#cbd5e1'};border-radius:10px;padding:10px 12px;cursor:pointer;
       transition:all .2s;">
       <input type="checkbox" id="go_${o.id}" ${on?'checked':''} onchange="updateGlobalOptionStyle('${o.id}',this.checked)"
         style="width:18px;height:18px;cursor:pointer;accent-color:#0ea5e9;">
@@ -11433,8 +11827,8 @@ function renderBonusProductPanel(product, cfg) {
   return `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
     <!-- 활성화 스위치 -->
-    <div style="grid-column:span 2;display:flex;align-items:center;gap:12px;background:${isActive?'#f0fdf4':'#fef2f2'};
-      border:1.5px solid ${isActive?'#86efac':'#fca5a5'};border-radius:10px;padding:12px 16px;">
+    <div style="grid-column:span 2;display:flex;align-items:center;gap:8px;background:${isActive?'#f0fdf4':'#fef2f2'};
+      border:1.5px solid ${isActive?'#86efac':'#fca5a5'};border-radius:10px;padding:10px 12px;">
       <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
         <input type="checkbox" id="bp_active_${pid}" ${isActive?'checked':''}
           style="width:20px;height:20px;accent-color:#16a34a;cursor:pointer;"
@@ -11720,6 +12114,34 @@ window.saveAutoWithdrawSettings = async function() {
   }
 };
 
+window.loadWithdrawRules = async function() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'system'));
+    if (snap.exists()) {
+      const d = snap.data();
+      if(document.getElementById('withdrawRule_noDeposit')) document.getElementById('withdrawRule_noDeposit').checked = !!d.withdrawRule_noDeposit;
+      if(document.getElementById('withdrawRule_noInvest')) document.getElementById('withdrawRule_noInvest').checked = !!d.withdrawRule_noInvest;
+      if(document.getElementById('withdrawRule_under24h')) document.getElementById('withdrawRule_under24h').checked = !!d.withdrawRule_under24h;
+    }
+  } catch(e) { console.error('출금 보안설정 로드 실패', e); }
+};
+
+window.saveWithdrawRules = async function() {
+  const rDeposit = document.getElementById('withdrawRule_noDeposit').checked;
+  const rInvest = document.getElementById('withdrawRule_noInvest').checked;
+  const r24h = document.getElementById('withdrawRule_under24h').checked;
+  try {
+    await setDoc(doc(db, 'settings', 'system'), {
+      withdrawRule_noDeposit: rDeposit,
+      withdrawRule_noInvest: rInvest,
+      withdrawRule_under24h: r24h
+    }, { merge: true });
+    showToast('✅ 출금 보안 필터가 저장되었습니다.', 'success');
+  } catch(e) {
+    showToast('❌ 설정 저장 실패: ' + e.message, 'error');
+  }
+};
+
 // ── Cron URL 초기화 (정산 카드 로드 시 호출) ──
 function initCronUrl() {
   const input = document.getElementById('cronUrlInput');
@@ -11943,7 +12365,7 @@ function startAutoSettlementScheduler(rates) {
       const resultEl = document.getElementById('settlementResult');
       if (resultEl) {
         resultEl.innerHTML = `
-          <div style="padding:12px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;color:#15803d;font-size:13px;">
+          <div style="padding:10px 12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;color:#15803d;font-size:13px;">
             ⏰ 자동 정산 실행 중 (${today})...
           </div>`;
       }
@@ -11962,12 +12384,12 @@ function startAutoSettlementScheduler(rates) {
           showToast(`✅ 자동 정산 완료: ${d.date}`, 'success');
         } else if (r.data?.skipped) {
           resultEl.innerHTML = `
-            <div style="padding:12px 16px;background:#fffbeb;border:1.5px solid #fde047;border-radius:10px;color:#92400e;font-size:13px;">
+            <div style="padding:10px 12px;background:#fffbeb;border:1.5px solid #fde047;border-radius:10px;color:#92400e;font-size:13px;">
               ⚠️ [자동 정산] ${r.data.reason}
             </div>`;
         } else {
           resultEl.innerHTML = `
-            <div style="padding:12px 16px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:13px;">
+            <div style="padding:10px 12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:13px;">
               ❌ [자동 정산 실패] ${r.error}
             </div>`;
         }
@@ -12379,7 +12801,7 @@ async function loadOrgTree(rootId = null) {
     const wrap = document.getElementById('orgTreeWrapAdmin');
     if (!wrap) return;
 
-    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>조직 트리 로딩 중...</span></div>';
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:8px;color:#64748b;"><div class="spinner"></div><span>조직 트리 로딩 중...</span></div>';
 
     try {
         let rootNode = null;
@@ -12452,7 +12874,7 @@ window.renderAdminCaveTree = async function() {
     
     return `
       <div class="org-node-wrap" style="animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;">
-        <div style="background:${bg}; border:${border}; border-radius:12px; padding:12px 16px; box-shadow: ${shadow}; display:flex; align-items:center; gap:12px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s; min-width:220px;"
+        <div style="background:${bg}; border:${border}; border-radius:12px; padding:10px 12px; box-shadow: ${shadow}; display:flex; align-items:center; gap:8px; cursor:pointer; opacity:${opacity}; transform:${transform}; transition:all 0.3s; min-width:180px;"
              onclick="handleAdminCaveNodeClick('${n.id}', '${displayId}', '${n.rank}', '${n.uid}', ${isPathNode}, ${pathIndex})">
            <div style="width:36px; height:36px; border-radius:50%; background:#f1f5f9; overflow:hidden; flex-shrink:0;">
               <img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" />
@@ -12465,7 +12887,7 @@ window.renderAdminCaveTree = async function() {
              </div>
              <div style="font-size:10px; color:#475569; margin-top:4px;">
                자신: <span style="font-weight:600;">${(n.totalInvested || 0).toLocaleString()}</span> USDT<br/>
-               산하(균형): <span style="font-weight:600;">${(n.networkSales || 0).toLocaleString()}</span> USDT
+               산하(소실적 합): <span style="font-weight:600;">${(n.networkSales || 0).toLocaleString()}</span> USDT
              </div>
              <div class="org-node-details" style="font-size:10px; color:#475569; margin-top:6px; padding-top:6px; border-top:1px solid rgba(0,0,0,0.05); display:none;">
                <div>개인누적투자: <span style="font-weight:600;color:#10b981;">${(n.totalInvest || n.totalInvested || 0).toLocaleString()}</span> USDT</div>
@@ -12488,7 +12910,7 @@ window.renderAdminCaveTree = async function() {
   }
 
   // Loading spinner for children
-  html += `<div id="adminCaveChildrenWrap" style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px; max-width:100%; padding:10px;">
+  html += `<div id="adminCaveChildrenWrap" style="display:flex; flex-wrap:wrap; justify-content:center; gap:6px; max-width:100%; padding:10px;">
               <div class="spinner" style="margin:20px;"></div>
            </div>`;
   
@@ -12522,7 +12944,7 @@ window.renderAdminCaveTree = async function() {
           let html = `<div style="display:flex; justify-content:center; align-items:flex-start; position:relative;">`;
           
           nodes.forEach((n, idx) => {
-             html += `<div style="display:flex; flex-direction:column; align-items:center; position:relative; padding:0 10px;">`;
+             html += `<div style="display:flex; flex-direction:column; align-items:center; position:relative; padding:0 2px;">`;
              
              if (nodes.length > 1) {
                  let left = idx === 0 ? '50%' : '0';
@@ -12530,14 +12952,14 @@ window.renderAdminCaveTree = async function() {
                  html += `<div style="position:absolute; top:0; left:${left}; width:${width}; height:2px; background:rgba(99,102,241,0.5); z-index:0;"></div>`;
              }
 
-             html += `<div style="width:2px; height:24px; background:rgba(99,102,241,0.5); z-index:0;"></div>`;
+             html += `<div style="width:2px; height:60px; background:rgba(99,102,241,0.5); z-index:0;"></div>`;
              
              html += `<div style="z-index:1;">`;
              html += renderNode(n, false, -1);
              html += `</div>`;
 
              if (n.children && n.children.length > 0 && currentDepth < fetchDepth) {
-                 html += `<div style="width:2px; height:24px; background:rgba(99,102,241,0.5); margin:0; z-index:0;"></div>`;
+                 html += `<div style="width:2px; height:60px; background:rgba(99,102,241,0.5); margin:0; z-index:0;"></div>`;
                  html += buildNestedHtml(n.children, currentDepth + 1);
              } else if (n.hasMore || (n.children && n.children.length > 0)) {
                  const displayId = n.username || (n.email ? n.email.split('@')[0] : (n.id ? n.id.substring(0, 8).toUpperCase() : '***'));
@@ -12595,7 +13017,8 @@ window.handleAdminCaveNodeClick = function(id, name, rank, uid, isPathNode, path
 // 줌 컨트롤 핸들러
 window.orgZoom = function(delta, mouseX, mouseY, eleObj) {
     if (typeof orgScale === 'undefined') window.orgScale = 1;
-    orgScale = Math.min(3, Math.max(0.2, orgScale + delta));
+    orgScale = Math.min(3, Math.max(0.2, (window.adminOrgScale || orgScale || 1) + delta));
+    window.adminOrgScale = orgScale;
     
     const wrap = document.getElementById('orgTreeWrapAdmin');
     if (!wrap) return;
@@ -12622,6 +13045,8 @@ window.orgZoom = function(delta, mouseX, mouseY, eleObj) {
 };
 
 window.orgZoomReset = function() {
+    orgScale = 1;
+    window.adminOrgScale = 1;
     window.orgScale = 1;
     const wrap = document.getElementById('orgTreeWrapAdmin');
     if (!wrap) return;
@@ -12647,7 +13072,7 @@ window.orgZoomReset = function() {
 async function loadOrgTreeCentered(userId, nodeHint) {
     const wrap  = document.getElementById('orgTreeWrapAdmin');
     const depth = parseInt(document.getElementById('orgTreeDepth')?.value) || 5;
-    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:#64748b;"><div class="spinner"></div><span>트리 로딩 중...</span></div>';
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:8px;color:#64748b;"><div class="spinner"></div><span>트리 로딩 중...</span></div>';
 
     const r = await api.getOrgTreeCentered(userId, depth, depth);
     if (!r.success || !r.data) {
@@ -13070,7 +13495,7 @@ function openAddPlanModal(type) {
           ➕ ${type==='investment'?'투자 패키지':'스테이킹 플랜'} 추가
         </div>
         <div id="addPlanAlert" style="margin-bottom:8px;"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
           ${fields.map(f => `
             <div ${f.field==='name'?'style="grid-column:span 2;"':''}>
               <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px;">${f.label}</label>
@@ -13494,6 +13919,7 @@ const SUB_ADMIN_MENUS = [
   { key:'tickets',     label:'🎫 1:1 문의' },
   { key:'auditlog',    label:'📋 감사 로그' },
   { key:'settings',    label:'⚙️ 시스템 설정' },
+  { key:'events',      label:'🎰 이벤트관련' },
 ];
 
 // 보조계정 Firebase Auth 로그인 - customToken 방식은 Workers 환경에서 미지원
@@ -13619,7 +14045,7 @@ function _enterSubAdminMode(sa) {
     if (firstPage === 'dashboard') loadDashboard();
     else if (firstPage === 'members') { allMembers = []; loadMembers(); }
     else if (firstPage === 'deposits') { loadCompanyWallets(); loadDeposits('pending'); }
-    else if (firstPage === 'withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); }
+    else if (firstPage === 'withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); loadWithdrawRules(); }
     else if (firstPage === 'bonus') loadBonusLog();
     else if (firstPage === 'notices') loadNotices();
     else if (firstPage === 'news') loadNews();
@@ -13633,6 +14059,7 @@ function _enterSubAdminMode(sa) {
     else if (firstPage === 'products') loadProducts();
     else if (firstPage === 'rates') loadRates();
     else if (firstPage === 'centers') loadCenters();
+    else if (firstPage === 'events') { loadJackpotSettings(); loadBearMarketSettings(); }
     else loadDashboard(); // fallback
   }, 300);
 }
@@ -13758,7 +14185,7 @@ window.loadSubAdminList = loadSubAdminList;
 // ── 보조계정 모달 열기 ──
 window.openSubAdminModal = async function(editId = null) {
   // 보조계정으로 접근 차단
-  if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) {
+  if ((typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin) || sessionStorage.getItem('subAdminSession')) {
     showToast('🚫 관리자 전용 기능입니다.', 'error'); return;
   }
   document.getElementById('subAdminEditId').value = editId || '';
@@ -13988,7 +14415,7 @@ window.doImportMembers = async function() {
     }
 
     // 완료 결과
-    let html = `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 16px;">
+    let html = `<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 12px;">
       <div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ 임포트 완료</div>
       <div style="font-size:12px;color:#15803d;">
         총 ${members.length}건 → 성공 <strong>${ok}</strong>건 / 실패 ${fail}건 / 건너뜀 ${skip}건
@@ -14030,7 +14457,7 @@ window.doMigrateUsername = async function() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '실패');
     resultEl.innerHTML = `
-      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 16px;">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 12px;">
         <div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ 마이그레이션 완료</div>
         <div style="font-size:12px;color:#15803d;">
           전체 ${data.total}명 → 마이그레이션 <strong>${data.migrated}</strong>명 / 건너뜀 ${data.skipped}명 / 실패 ${data.failed}명
@@ -14065,7 +14492,7 @@ window.doBulkResetPassword = async function() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '실패');
     resultEl.innerHTML = `
-      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:12px 16px;">
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:10px 12px;">
         <div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ 비밀번호 초기화 완료</div>
         <div style="font-size:12px;color:#15803d;">
           대상 ${data.total}명 → 성공 <strong>${data.updated}</strong>명 / 실패 ${data.failed}명
@@ -14376,7 +14803,7 @@ async function onUsdtSearchInput(val) {
     }
     drop.innerHTML = r.data.map(u => `
       <div onclick="selectUsdtUser('${u.id}')"
-        style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #334155;display:flex;align-items:center;gap:10px;"
+        style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #334155;display:flex;align-items:center;gap:10px;"
         onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''">
         <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👤</div>
         <div>
@@ -14583,7 +15010,7 @@ function renderAdminNotifList(items) {
     const isUnread = !n.isRead;
     return `
       <div data-notif-id="${n.id}" onclick="handleAdminNotifClick('${n.id}')" style="
-        padding:12px 16px;border-bottom:1px solid #f1f5f9;cursor:pointer;
+        padding:10px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;
         background:${isUnread ? s.bg : '#fff'};
         display:flex;gap:10px;align-items:flex-start;
         transition:background 0.15s;
@@ -15201,7 +15628,7 @@ window.runIdReport = async function() {
             }
           }
         }
-        simLines.push(`<div style="margin-top:12px;padding:12px 16px;background:#fffbeb;border-radius:10px;border-left:3px solid #f59e0b;font-size:13px;">
+        simLines.push(`<div style="margin-top:12px;padding:10px 12px;background:#fffbeb;border-radius:10px;border-left:3px solid #f59e0b;font-size:13px;">
           <b style="color:#b45309;">🎯 판권 매칭 [방식${gapMode}] — 풀: $${fmt4(totalD)} × ${(gapPoolRate*100).toFixed(1)}% = <span style="color:#d97706;">$${fmt4(poolAmt)}</span> | 패스스루: ${gapPassThruRule==='same_or_higher'?'동급+상위직급 (낮은직급 제외)':'동급이하 (낮은직급 포함)'}</b>
           <div style="margin-top:8px;">${gapRows.length?gapRows.join(''):'<span style="color:#9ca3af;font-size:12px;">직급 상승 추천인 없음</span>'}</div>
         </div>`);
@@ -15310,7 +15737,7 @@ window.runIdReport = async function() {
       `<canvas id="idreportTrendChart" height="120"></canvas>`);
 
 
-    // ── 섹션J: 직급 승격 및 균형 매출 분석 ──
+    // ── 섹션J: 직급 승격 및 소실적 합 분석 ──
     let sectionJ = '';
     try {
       const promoSnap = await getDoc(doc(db, 'settings', 'rankPromotion'));
@@ -15403,7 +15830,7 @@ window.runIdReport = async function() {
 
       if (useBalancedVol) {
         rankPromoBody += `<div style="padding:12px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;margin-bottom:12px;">
-            <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px;"><i class="fas fa-balance-scale"></i> 균형 매출 (최상위 ${excludeTopLines}개 라인 제외)</div>`;
+            <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:8px;"><i class="fas fa-balance-scale"></i> 소실적 합 (최상위 ${excludeTopLines}개 라인 제외)</div>`;
         
         if (excludedLegs.length > 0) {
             rankPromoBody += `<div style="font-size:12px;color:#991b1b;margin-bottom:4px;">[제외된 라인]</div>`;
@@ -15428,10 +15855,10 @@ window.runIdReport = async function() {
         }
 
         rankPromoBody += `<div style="margin-top:10px;text-align:right;font-size:14px;">
-            최종 실적 인정 균형 매출: <b style="color:#dc2626;">${fmt2(balancedVolume)}</b>
+            최종 실적 인정 소실적 합: <b style="color:#dc2626;">${fmt2(balancedVolume)}</b>
         </div></div>`;
       } else {
-        rankPromoBody += `<div style="font-size:11px;color:#6b7280;padding:4px;">※ 균형 매출 조건 미사용 (전체 매출 인정)</div>`;
+        rankPromoBody += `<div style="font-size:11px;color:#6b7280;padding:4px;">※ 소실적 합 조건 미사용 (전체 매출 인정)</div>`;
       }
 
       if (nextCrit) {
@@ -15458,7 +15885,7 @@ window.runIdReport = async function() {
                   </tr>` : ''}
                   ${useBalancedVol && (nextCrit.minBalancedVolume||0) > 0 ? `
                   <tr>
-                      <td style="padding:4px 0;">균형 매출 (${nextCrit.minBalancedVolume||0} 이상)</td>
+                      <td style="padding:4px 0;">소실적 합 (${nextCrit.minBalancedVolume||0} 이상)</td>
                       <td style="text-align:right;font-weight:700;color:${meetsBV?'#10b981':'#ef4444'};"><span style="font-size:10px;font-weight:normal;color:#94a3b8;margin-right:6px;">(${fmt2(balancedVolume)})</span> ${meetsBV?'✅충족':'❌미달'}</td>
                   </tr>` : ''}
               </table>
@@ -15467,7 +15894,7 @@ window.runIdReport = async function() {
           rankPromoBody += `<div style="padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:12px;color:#6b7280;text-align:center;">최고 직급이거나 다음 직급 조건이 설정되지 않았습니다.</div>`;
       }
 
-      sectionJ = card('⚖️ 직급 승격 및 균형 매출 분석', rankPromoBody);
+      sectionJ = card('⚖️ 직급 승격 및 소실적 합 분석', rankPromoBody);
     } catch(e) {
       console.error(e);
     }
@@ -15725,7 +16152,7 @@ window.deletePodcast = async function(docId, fileKey) {
           <div id="walletsAlert" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:16px;"></div>
 
           <!-- 네트워크 안내 배너 -->
-          <div style="background:linear-gradient(135deg,#667eea15,#764ba215);border:1.5px solid #667eea30;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+          <div style="background:linear-gradient(135deg,#667eea15,#764ba215);border:1.5px solid #667eea30;border-radius:12px;padding:10px 12px;margin-bottom:20px;display:flex;align-items:center;gap:8px;">
             <div style="width:36px;height:36px;background:linear-gradient(135deg,#9945FF,#14F195);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">◎</div>
             <div>
               <div style="font-size:13px;font-weight:700;color:#1f2937;">Solana (SOL) 네트워크 전용</div>
@@ -15734,7 +16161,7 @@ window.deletePodcast = async function(docId, fileKey) {
           </div>
 
           <!-- 3개 지갑 주소 입력 그리드 -->
-          <div style="display:grid;gap:16px;">
+          <div style="display:grid;gap:6px;">
 
             <!-- 지갑 1 -->
             <div style="background:#f8faff;border:1.5px solid #eef2ff;border-radius:14px;padding:18px;">
@@ -15915,7 +16342,7 @@ async function loadSubAdminListPage() {
   const wrap2 = document.getElementById('subAdminListWrap2');
   if (!wrap2) return;
   // 보조계정으로 로그인한 경우 차단
-  if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) {
+  if ((typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin) || sessionStorage.getItem('subAdminSession')) {
     wrap2.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;font-size:15px;font-weight:700;">🚫 관리자 전용 기능입니다.<br><br>보조계정으로는 접근할 수 없습니다.</div>';
     return;
   }
@@ -15975,13 +16402,13 @@ async function loadSubAdminListPage() {
 window.loadSubAdminListPage = loadSubAdminListPage;
 
 window.toggleSubAdminPage = async function(id, active) {
-  if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) { showToast('🚫 관리자 전용 기능입니다.','error'); return; }
+  if ((typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin) || sessionStorage.getItem('subAdminSession')) { showToast('🚫 관리자 전용 기능입니다.','error'); return; }
   await updateDoc(doc(db,'subAdmins',id), { isActive: active });
   loadSubAdminListPage();
   showToast(`✅ 계정 ${active?'활성화':'비활성화'} 완료`,'success');
 };
 window.deleteSubAdminPage = async function(id) {
-  if (_currentSubAdmin || sessionStorage.getItem('subAdminSession')) { showToast('🚫 관리자 전용 기능입니다.','error'); return; }
+  if ((typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin) || sessionStorage.getItem('subAdminSession')) { showToast('🚫 관리자 전용 기능입니다.','error'); return; }
   if (!await _adminConfirm('이 보조계정을 삭제하시겠습니까?','🗑️')) return;
   await deleteDoc(doc(db,'subAdmins',id));
   loadSubAdminListPage();
@@ -16321,7 +16748,7 @@ window.analyzeWithdrawal = async function(userId, txId) {
     
     <div id="analyzeResult" style="display:none;">
       <!-- 상태 신호등 -->
-      <div id="analyzeSignal" style="display:flex; align-items:center; gap:16px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:16px;">
+      <div id="analyzeSignal" style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:16px;">
         <div id="signalLight" style="width:24px; height:24px; border-radius:50%; background:#94a3b8; box-shadow:0 0 10px rgba(0,0,0,0.1);"></div>
         <div>
           <div id="signalTitle" style="font-weight:700; font-size:16px; margin-bottom:2px;">분석 완료</div>

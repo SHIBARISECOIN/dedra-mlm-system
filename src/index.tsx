@@ -168,6 +168,15 @@ app.post('/api/admin/rollback-settlement', async (c) => {
       { fieldFilter: { field: { fieldPath: 'settlementDate' }, op: 'EQUAL', value: { stringValue: targetDate } } }
     ], 100000);
     
+
+    // --- 시스템 유지보수 모드 ON ---
+    try {
+      await fsPatch('settings/system', {
+        maintenanceMode: true,
+        maintenanceMessage: '정산 오류 보정 및 롤백 작업을 진행하고 있습니다.<br>잠시만 기다려주세요.'
+      }, adminToken);
+    } catch(e) {}
+
     console.log("Found bonuses to rollback:", bonuses.length);
     
     const allUsers = await fsQuery('users', adminToken, [], 100000);
@@ -193,13 +202,20 @@ app.post('/api/admin/rollback-settlement', async (c) => {
         const u = userMap.get(b.userId);
         const autoCompound = u?.autoCompound || false;
         
+        if (b.investmentId) {
+          if (!invReversals[b.investmentId]) {
+            invReversals[b.investmentId] = { subPrincipal: 0, subPaidRoi: 0 };
+          }
+          invReversals[b.investmentId].subPaidRoi += (b.amountUsdt || 0);
+          if (autoCompound) {
+            invReversals[b.investmentId].subPrincipal += (b.amountUsdt || 0);
+          }
+        }
+
         if (autoCompound) {
           d.totalInvest += (b.amountUsdt || 0);
         } else {
           d.bonusBalance += (b.amountUsdt || 0);
-        }
-        if (b.investmentId) {
-          invReversals[b.investmentId] = (invReversals[b.investmentId] || 0) + (b.amountUsdt || 0);
         }
       } else {
         d.bonusBalance += (b.amountUsdt || 0);
@@ -210,10 +226,10 @@ app.post('/api/admin/rollback-settlement', async (c) => {
     
     // 3. Prepare Investment reverts
     let invRevertedCount = 0;
-    for (const [invId, amountToSub] of Object.entries(invReversals)) {
+    for (const [invId, rev] of Object.entries(invReversals)) {
       const inv = invMap.get(invId);
       if (inv) {
-        const newAmount = Math.max(0, (inv.amountUsdt || 0) - amountToSub);
+        const newAmount = Math.max(0, (inv.amountUsdt || 0) - rev.subPrincipal);
         const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
         const newExpectedReturn = newAmount * (dailyRoiPct / 100);
         
@@ -228,7 +244,7 @@ app.post('/api/admin/rollback-settlement', async (c) => {
               amount: toFirestoreValue(newAmount),
               amountUsdt: toFirestoreValue(newAmount),
               expectedReturn: toFirestoreValue(newExpectedReturn),
-              paidRoi: toFirestoreValue(Math.max(0, (inv.paidRoi || 0) - amountToSub)),
+              paidRoi: toFirestoreValue(Math.max(0, (inv.paidRoi || 0) - rev.subPaidRoi)),
               lastSettledAt: toFirestoreValue(`${prevDate}T23:59:59.000Z`)
             }
           },
@@ -283,6 +299,12 @@ app.post('/api/admin/rollback-settlement', async (c) => {
       headers: { 'Authorization': `Bearer ${adminToken}` }
     });
 
+
+    // --- 시스템 유지보수 모드 OFF ---
+    try {
+      await fsPatch('settings/system', { maintenanceMode: false }, adminToken);
+    } catch(e) {}
+
     return c.json({ 
       success: true, 
       message: `${targetDate} 정산이 롤백되었습니다.`,
@@ -298,13 +320,16 @@ app.post('/api/admin/rollback-settlement', async (c) => {
 
 app.get('/api/admin/check-reconstruct', async (c) => {
   const adminToken = await getAdminToken();
-  const invs = await fsQuery('investments', adminToken, [], 100000);
-  const txs = await fsQuery('transactions', adminToken, [], 1000);
+  const allUsers = await fsQuery('users', adminToken, [
+    { fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: 'btc001' } } }
+  ]);
+  const u = allUsers[0];
+  const bonuses = await fsQuery('bonuses', adminToken, [
+    { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: u.id || u.uid } } },
+    { fieldFilter: { field: { fieldPath: 'settlementDate' }, op: 'EQUAL', value: { stringValue: '2026-03-26' } } }
+  ], 1000);
   
-  const deposits = txs.filter((t: any) => t.type === 'deposit' && t.status === 'approved');
-  const zeroInvs = invs.filter((i: any) => (i.amount === 0 || !i.amount) && i.status === 'active');
-  
-  return c.json({ zeroInvs: zeroInvs.slice(0, 5), deposits: deposits.slice(0, 5) });
+  return c.json({ uid: u.id, bonusCount: bonuses.length, bonuses: bonuses.map((b:any) => ({type: b.type, amt: b.amountUsdt, r: b.reason})) });
 });
 
 
@@ -700,8 +725,16 @@ let _forexCache: { rates: Record<string, number>; ts: number } | null = null
 
 
 // ─── Auto News Digest (소식통) API ───────────────────────────────────────────
+let _newsCache = null;
+
 app.get('/api/news-digest', async (c) => {
   try {
+    const now = Date.now();
+    if (c.req.query('nocache') === '1') _newsCache = null;
+    if (_newsCache && now - _newsCache.ts < 3600_000) {
+      return c.json({ items: _newsCache.items, cached: true });
+    }
+
     const rssUrl = 'https://kr.cointelegraph.com/rss';
     const resp = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -709,12 +742,11 @@ app.get('/api/news-digest', async (c) => {
     if (!resp.ok) return c.json({ items: [] });
     
     const xml = await resp.text();
-    // A simple regex-based XML parser for the items
     const items = [];
     const itemRegex = /<item>([\s\S]*?)<\/item>/g;
     let match;
     while ((match = itemRegex.exec(xml)) !== null) {
-      if (items.length >= 10) break; // Limit to 10
+      if (items.length >= 10) break; 
       const itemStr = match[1];
       
       const titleMatch = itemStr.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) || itemStr.match(/<title>([\s\S]*?)<\/title>/);
@@ -723,7 +755,6 @@ app.get('/api/news-digest', async (c) => {
       const dateMatch = itemStr.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
       
       if (titleMatch && linkMatch) {
-        // clean up description HTML tags
         let desc = descMatch ? descMatch[1].replace(/<[^>]*>?/gm, '').trim() : '';
         if (desc.length > 150) desc = desc.substring(0, 150) + '...';
         
@@ -735,6 +766,28 @@ app.get('/api/news-digest', async (c) => {
         });
       }
     }
+
+    // 병렬로 번역 수행 (속도 향상)
+    await Promise.all(items.map(async (item) => {
+       const [title_en, title_vi, title_th, desc_en, desc_vi, desc_th] = await Promise.all([
+         translateText(item.title, 'en'),
+         translateText(item.title, 'vi'),
+         translateText(item.title, 'th'),
+         translateText(item.description, 'en'),
+         translateText(item.description, 'vi'),
+         translateText(item.description, 'th')
+       ]);
+       
+       item.title_en = title_en || item.title;
+       item.title_vi = title_vi || item.title;
+       item.title_th = title_th || item.title;
+       
+       item.description_en = desc_en || item.description;
+       item.description_vi = desc_vi || item.description;
+       item.description_th = desc_th || item.description;
+    }));
+
+    _newsCache = { ts: now, items };
     return c.json({ items });
   } catch (err) {
     console.error('RSS Fetch error:', err);
@@ -3231,7 +3284,7 @@ app.get('/api/admin/sync-sales', async (c) => {
     
     const walletMap: Record<string, number> = {}
     wallets.forEach((w: any) => {
-      walletMap[w.id] = w.totalInvested || w.totalInvest || 0
+      walletMap[w.id] = (w.totalInvest !== undefined ? w.totalInvest : w.totalInvested) || 0
     })
     
     const childrenMap: Record<string, string[]> = {}
@@ -3399,6 +3452,15 @@ async function runSettle(c: any, overrideDate?: string | null) {
         return c.json({ success: true, message: '다른 프로세스가 lock 선점 (재확인)', date: today, skipped: true })
       }
     }
+
+
+    // --- 시스템 유지보수 모드 ON ---
+    try {
+      await fsPatch('settings/system', {
+        maintenanceMode: true,
+        maintenanceMessage: '현재 안정적인 서비스 제공과 정확한 수익 정산을 위해<br>시스템 동기화 작업을 진행하고 있습니다.<br><br><span style="color:#ef4444;font-size:13px;">작업 중에는 접속이 제한되오니 조금만 기다려주세요.</span>'
+      }, adminToken);
+    } catch(e) { console.error('Failed to set maintenance mode', e); }
 
     const investments = await fsQuery('investments', adminToken, [], 100000)
     const activeInvestments = investments.filter((inv: any) => inv.status === 'active')
@@ -3653,8 +3715,7 @@ async function runSettle(c: any, overrideDate?: string | null) {
           continue;
         }
 
-        // [수정됨] 1대 추천인 매칭 보너스: 하위 파트너와 동직급이거나 하위 파트너가 직급이 더 높을 때 1대 스폰서에게만 1% 지급
-        if (sponsor.id === member.parent_member_id && sponsor.rank_level <= member.rank_level && sponsor.rank_level > 0) {
+        if (sponsor.id === member.parent_member_id && sponsor.rank_level <= member.rank_level) {
           let matchingAmt = member.total_allowance * (config.override / 100);
           if (matchingAmt > 0) {
             sponsor.rank_bonus += matchingAmt;
@@ -3667,8 +3728,6 @@ async function runSettle(c: any, overrideDate?: string | null) {
             totalPaid += matchingAmt;
             bonusLogs.push({ userId: sponsor.id, fromUserId: member.id, type: 'rank_matching', amount: Math.round(matchingAmt / dedraRate * 1e8) / 1e8, amountUsdt: matchingAmt, reason: `1대 직급 매칭 수당 ${config.override}% (기준: ${member.name} 총수당)`, level: 0 });
           }
-          // 동급이거나 높으면 여기서 롤업 종료! (더 이상 상위로 안 올라감)
-          break;
         }
 
         if (config.rankGapMode === 'gap') {
@@ -3689,7 +3748,6 @@ async function runSettle(c: any, overrideDate?: string | null) {
             }
             pathMaxRank = sponsor.rank_level;
           }
-          // break 제거: 상위에 더 높은 직급이 있을 수 있으므로 계속 탐색
         } else {
           // 2. 중복 지급(Overlap) 방식 - 대표님 요청 룰
           if (sponsor.rank_level >= pathMaxRank) {
@@ -4029,18 +4087,45 @@ async function checkLowBalances(adminToken: string) {
 async function translateText(text: string, targetLang: string): Promise<string> {
   if (!text || !text.trim()) return ''
 
-  // Google Translate API (무료 엔드포인트, 약 5000자 제한, 개행유지)
   const langMap: Record<string, string> = { en: 'en', vi: 'vi', th: 'th' }
   const targetCode = langMap[targetLang] || targetLang
 
   try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${targetCode}&dt=t&q=${encodeURIComponent(text)}`
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
-    if (!res.ok) return ''
-    const data: any = await res.json()
-    if (data && data[0]) {
-      return data[0].map((item: any) => item[0]).join('')
+    // 텍스트가 너무 길면 나눠서 번역
+    const chunks = text.match(/.{1,1500}/gs) || [];
+    let translatedText = '';
+    
+    for (const chunk of chunks) {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${targetCode}&dt=t`;
+      const res = await fetch(url, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `q=${encodeURIComponent(chunk)}`,
+        signal: AbortSignal.timeout(10000) 
+      });
+      if (res.ok) {
+        const data: any = await res.json()
+        if (data && data[0]) {
+          translatedText += data[0].map((item: any) => item[0] || '').join('');
+        }
+      } else {
+        // Fallback to mymemory
+        const mmUrl = `https://api.mymemory.translated.net/get?langpair=ko|${targetCode}`;
+        const mmRes = await fetch(mmUrl, { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `q=${encodeURIComponent(chunk)}`,
+          signal: AbortSignal.timeout(10000) 
+        });
+        if (mmRes.ok) {
+          const mmData: any = await mmRes.json();
+          if (mmData && mmData.responseData && mmData.responseData.translatedText) {
+            translatedText += mmData.responseData.translatedText;
+          }
+        }
+      }
     }
+    return translatedText;
   } catch (err) {
     console.error('Translation error:', err)
   }

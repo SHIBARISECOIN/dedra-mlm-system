@@ -4,7 +4,7 @@
  */
 import {
   collection, doc, getDoc as _fsGetDoc, getDocs as _fsGetDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, writeBatch, increment
+  query, where, orderBy, limit, serverTimestamp, writeBatch, increment, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
 const ok  = data => ({ success: true, data });
@@ -279,19 +279,82 @@ export class DedraAPI {
       const txSnap = await getDoc(doc(db, 'transactions', txId));
       if (!txSnap.exists()) throw new Error('거래 없음');
       const tx = txSnap.data();
-      if (tx.status !== 'pending') throw new Error('이미 처리된 거래입니다');
+      if (tx.status !== 'pending' && tx.status !== 'processing') throw new Error('처리 가능한 상태가 아닙니다 (' + tx.status + ')');
 
       const batch = writeBatch(db);
-      batch.update(doc(db, 'transactions', txId), {
-        status: 'approved', approvedAt: serverTimestamp(), approvedBy: adminId
-      });
-      // 지갑 잔액 증가
+      
       const walletQ = query(collection(db, 'wallets'), where('userId', '==', tx.userId));
       const wSnap = await getDocs(walletQ);
+      
+      let bonusUsdt = 0;
+      let bonusPct = 0;
+      let originalAmount = parseFloat(tx.amount) || 0;
+      let isEligibleForBonus = true;
+
+      if (!wSnap.empty) {
+        const wData = wSnap.docs[0].data();
+        if ((wData.totalWithdrawal || 0) > 0) {
+          isEligibleForBonus = false; // 출금자는 제외
+        }
+      }
+
+      if (isEligibleForBonus) {
+        try {
+          const evSnap = await getDoc(doc(db, 'settings', 'bearMarketEvent'));
+          if (evSnap.exists()) {
+            const evData = evSnap.data();
+            const now = new Date();
+            let isWithinTime = false;
+            
+            if (evData.enabled) {
+              if (evData.startDate && evData.endDate) {
+                const sDate = new Date(evData.startDate);
+                const eDate = new Date(evData.endDate);
+                if (now >= sDate && now <= eDate) {
+                  isWithinTime = true;
+                }
+              } else if (evData.endDate) {
+                 const eDate = new Date(evData.endDate);
+                 if (now <= eDate) isWithinTime = true;
+              } else {
+                 isWithinTime = true; // No dates set, just enabled
+              }
+            }
+            
+            if (isWithinTime) {
+              const priceSnap = await getDoc(doc(db, 'settings', 'deedraPrice'));
+              if (priceSnap.exists()) {
+                const pData = priceSnap.data();
+                const drop = parseFloat(pData.priceChange24h || 0);
+                if (drop < 0) {
+                  // 하락장인 경우 (priceChange24h가 음수), 소수점 이하 버림
+                  bonusPct = Math.floor(Math.abs(drop));
+                  bonusUsdt = originalAmount * (bonusPct / 100);
+                }
+              }
+            }
+          }
+        } catch(err) {
+          console.error("Bear market event check failed:", err);
+        }
+      }
+
+      const totalAddUsdt = originalAmount + bonusUsdt;
+
+      batch.update(doc(db, 'transactions', txId), {
+        status: 'approved', 
+        approvedAt: serverTimestamp(), 
+        approvedBy: adminId,
+        bonusUsdt: bonusUsdt,
+        bonusPct: bonusPct,
+        totalCredited: totalAddUsdt
+      });
+      
+      // 지갑 잔액 증가
       if (!wSnap.empty) {
         batch.update(wSnap.docs[0].ref, {
-          usdtBalance: increment(parseFloat(tx.amount) || 0),
-          totalDeposit: increment(parseFloat(tx.amount) || 0),
+          usdtBalance: increment(totalAddUsdt),
+          totalDeposit: increment(totalAddUsdt),
         });
       }
       await batch.commit();
@@ -355,7 +418,12 @@ export class DedraAPI {
           amount: tx.amount || 0,
           rank:   depUser.rank || 'G0',
         }, adminId);
-      } catch(_) { /* 자동 규칙 실패 시 입금 승인에 영향 없음 */ }
+        
+        // [신규] 하부 회원이 입금했을 때 상위 추천인들에게 마스킹된 입금 알림 전송
+        if (depUserSnap.exists()) {
+          await this.fireReferralDepositNotification(tx.userId, depUser, tx.amount || 0);
+        }
+      } catch(e) { console.warn('deposit_complete noti error', e); }
 
       // ── 직급차 풀 보너스: 입금 승인 즉시 실시간 처리 ──────────────
       // enableRankGapBonus + realtimeOnDeposit 둘 다 true 일 때만 실행
@@ -543,13 +611,55 @@ export class DedraAPI {
   // 출금 처리
   // ─────────────────────────────────────────────────
 
+  
+  async markWithdrawalProcessing(txId, adminId) {
+    try {
+      const db = this.db;
+      // We do a transaction to ensure no double-processing
+      const txRef = doc(db, 'transactions', txId);
+      const res = await runTransaction(db, async (t) => {
+        const txSnap = await t.get(txRef);
+        if (!txSnap.exists()) throw new Error('거래 없음');
+        const tx = txSnap.data();
+        if (tx.status !== 'pending' && tx.status !== 'held' && tx.status !== 'failed') {
+          if (tx.status === 'processing') throw new Error('이미 다른 관리자가 처리 중(송금 진행 중)인 건입니다. 중복 송금 위험이 있어 차단되었습니다.');
+          throw new Error('이미 처리된 거래입니다. 상태: ' + tx.status);
+        }
+        // Mark as processing
+        t.update(txRef, {
+          status: 'processing',
+          processingAt: serverTimestamp(),
+          processingBy: adminId
+        });
+        return true;
+      });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  async failWithdrawalProcessing(txId, adminId, reason = '') {
+    try {
+      const db = this.db;
+      await updateDoc(doc(db, 'transactions', txId), {
+        status: 'failed',
+        processingFailedAt: serverTimestamp(),
+        adminMemo: reason || '송금 실패'
+      });
+      return { success: true };
+    } catch(e) {
+      return { success: false };
+    }
+  }
+
   async approveWithdrawal(txId, adminId, txid) {
     try {
       const db = this.db;
       const txSnap = await getDoc(doc(db, 'transactions', txId));
       if (!txSnap.exists()) throw new Error('거래 없음');
       const tx = txSnap.data();
-      if (tx.status !== 'pending') throw new Error('이미 처리된 거래입니다');
+      if (tx.status !== 'pending' && tx.status !== 'processing' && tx.status !== 'held' && tx.status !== 'failed') throw new Error('처리 가능한 상태가 아닙니다: ' + tx.status);
 
       await updateDoc(doc(db, 'transactions', txId), {
         status: 'approved', approvedAt: serverTimestamp(), approvedBy: adminId,
@@ -1013,8 +1123,45 @@ export class DedraAPI {
 
   async createNews(adminId, newsData) {
     try {
+      // 자동 번역 요청
+      let translations = {};
+      try {
+        const res = await fetch('/api/translate/news', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            title: newsData.title || '', 
+            summary: newsData.summary || '', 
+            content: newsData.content || '' 
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.translations) {
+            translations = data.translations;
+          }
+        }
+      } catch (err) {
+        console.error('News translation API error:', err);
+      }
+
       const ref = await addDoc(collection(this.db, 'news'), {
-        ...newsData, createdBy: adminId, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        ...newsData, 
+        // 번역 데이터 병합
+        title_en: translations.title_en || '',
+        title_vi: translations.title_vi || '',
+        title_th: translations.title_th || '',
+        summary_en: translations.summary_en || '',
+        summary_vi: translations.summary_vi || '',
+        summary_th: translations.summary_th || '',
+        content_en: translations.content_en || '',
+        content_vi: translations.content_vi || '',
+        content_th: translations.content_th || '',
+        translatedAt: (translations.title_en) ? serverTimestamp() : null,
+        
+        createdBy: adminId, 
+        createdAt: serverTimestamp(), 
+        updatedAt: serverTimestamp()
       });
       return ok({ id: ref.id });
     } catch(e) { return err(e); }
@@ -3484,8 +3631,142 @@ export class DedraAPI {
     }
   }
 
+
+  /**
+   * 하부 조직(다단계) 추천인 체인 전체에 '하부 입금 알림' 발송
+   */
+  async fireReferralDepositNotification(depositUserId, depositUser, depositAmount) {
+    try {
+      // 활성 대상 규칙이 없으면 조기 종료 (별도로 'deposit_complete' 트리거를 공유하거나, 하부 입금 전용 트리거가 없으므로 알림 직접 발송)
+      
+      // 전체 회원 맵 구성
+      const usersSnap = await getDocs(collection(this.db, 'users'));
+      const codeToUid = {};
+      const userMap   = {};
+      usersSnap.docs.forEach(d => {
+        const u = d.data();
+        userMap[d.id] = { id: d.id, ...u };
+        if (u.referralCode) codeToUid[u.referralCode] = d.id;
+      });
+
+      // 체인 구성 (1대 추천인까지만 보낼지, 체인 전체에 보낼지 - 요청에 따라 상위 스폰서에게 발송, 보통 1~2대 또는 전체)
+      const chain = [];
+      let cur = depositUser.referredBy ? (codeToUid[depositUser.referredBy] || depositUser.referredBy) : null;
+      const visited = new Set([depositUserId]);
+      let depth = 0;
+      while (cur && !visited.has(cur) && depth < 20) {
+        visited.add(cur);
+        if (userMap[cur]) chain.push(cur);
+        cur = userMap[cur]?.referredBy
+          ? (codeToUid[userMap[cur].referredBy] || userMap[cur].referredBy)
+          : null;
+        depth++;
+      }
+
+      if (!chain.length) return ok({ fired: 0 });
+
+      // 이름 마스킹 (예: 홍길동 -> 홍*동, kims@gmail.com -> ki***)
+      let maskedName = '익명';
+      if (depositUser.name && depositUser.name.length > 1) {
+        maskedName = depositUser.name.substring(0, 1) + '*'.repeat(depositUser.name.length - 1);
+      } else if (depositUser.email) {
+        maskedName = depositUser.email.split('@')[0].substring(0, 2) + '***';
+      }
+
+      const batch = writeBatch(this.db);
+      let fired = 0;
+      
+      for (const referrerId of chain) {
+        // 즉시 발송 - notifications 컬렉션에 직접 저장
+        const nRef = doc(collection(this.db, 'notifications'));
+        batch.set(nRef, {
+          userId: referrerId,
+          title: '💰 하부 파트너 입금 안내',
+          message: `[${maskedName}] 파트너님이 ${depositAmount} USDT를 입금하여 하부 매출이 증가했습니다!`,
+          type: 'push',
+          priority: 'normal',
+          icon: '💰',
+          color: '#10b981',
+          isRead: false,
+          triggerEvent: 'downline_deposit',
+          createdAt: serverTimestamp(),
+        });
+        fired++;
+      }
+      
+      await batch.commit();
+      return ok({ fired });
+    } catch(e) {
+      console.warn('[fireReferralDepositNotification] 오류:', e);
+      return err(e);
+    }
+  }
+
+  /**
+   * 하부 조직(다단계) 추천인 체인 전체에 '하부 투자 알림' 발송
+   * 하부 회원이 투자를 했을 때 referredBy 체인을 타고 올라가며 모두 알림
+   */
+  async fireReferralInvestmentNotification(investUserId, investUser, investAmount) {
+    try {
+      // 활성 investment_start 규칙이 없으면 조기 종료
+      const rulesSnap = await getDocs(collection(this.db, 'autoRules'));
+      const hasInvestRule = rulesSnap.docs.some(
+        d => d.data().isActive !== false && d.data().triggerEvent === 'investment_start'
+      );
+      if (!hasInvestRule) return ok({ fired: 0 });
+
+      // 전체 회원 맵 구성
+      const usersSnap = await getDocs(collection(this.db, 'users'));
+      const codeToUid = {};
+      const userMap   = {};
+      usersSnap.docs.forEach(d => {
+        const u = d.data();
+        userMap[d.id] = { id: d.id, ...u };
+        if (u.referralCode) codeToUid[u.referralCode] = d.id;
+      });
+
+      // 체인 구성
+      const chain = [];
+      let cur = investUser.referredBy ? (codeToUid[investUser.referredBy] || investUser.referredBy) : null;
+      const visited = new Set([investUserId]);
+      let depth = 0;
+      while (cur && !visited.has(cur) && depth < 20) {
+        visited.add(cur);
+        if (userMap[cur]) chain.push(cur);
+        cur = userMap[cur]?.referredBy
+          ? (codeToUid[userMap[cur].referredBy] || userMap[cur].referredBy)
+          : null;
+        depth++;
+      }
+
+      if (!chain.length) return ok({ fired: 0 });
+
+      // 이름 마스킹 (예: 홍길동 -> 홍*동, kims@gmail.com -> ki***)
+      let maskedName = '익명';
+      if (investUser.name && investUser.name.length > 1) {
+        maskedName = investUser.name.substring(0, 1) + '*'.repeat(investUser.name.length - 1);
+      } else if (investUser.email) {
+        maskedName = investUser.email.split('@')[0].substring(0, 2) + '***';
+      }
+
+      let fired = 0;
+      for (const referrerId of chain) {
+        const r = await this.fireAutoRules('investment_start', referrerId, {
+          investorName: maskedName,
+          amount: investAmount
+        });
+        if (r.success) fired += r.data.fired || 0;
+      }
+      return ok({ fired });
+    } catch(e) {
+      console.warn('[fireReferralInvestmentNotification] 오류:', e);
+      return err(e);
+    }
+  }
+
   // ─────────────────────────────────────────────────
   // 관리자 알림 저장
+
   // ─────────────────────────────────────────────────
   /**
    * Firestore adminNotifications 컬렉션에 관리자용 알림을 저장합니다.

@@ -32,6 +32,11 @@ service cloud.firestore {
     }
 
     // users: 본인 또는 관리자/보조계정
+    match /events/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn();
+    }
+
     match /users/{userId} {
       allow read: if isLoggedIn();
       allow create: if isLoggedIn() && request.auth.uid == userId;
@@ -48,7 +53,7 @@ service cloud.firestore {
       allow create: if isAdminOrSubAdmin() || (isLoggedIn() && isActiveUser() && 
                     request.resource.data.userId == request.auth.uid &&
                     (request.resource.data.type != 'withdrawal' || 
-                      (request.resource.data.amount > 0 && 
+                      (request.resource.data.amountUsdt >= 50 && 
                        get(/databases/$(database)/documents/wallets/$(request.auth.uid)).data.bonusBalance >= request.resource.data.amountUsdt)));
       allow update, delete: if isAdminOrSubAdmin();
     }
@@ -56,26 +61,26 @@ service cloud.firestore {
     // investments: 본인 또는 관리자/보조계정
     match /investments/{docId} {
       allow read: if isLoggedIn();
-      allow create: if isAdminOrSubAdmin() || (isLoggedIn() && 
-                    request.resource.data.userId == request.auth.uid &&
-                    request.resource.data.amount > 0 &&
-                    get(/databases/$(database)/documents/wallets/$(request.auth.uid)).data.usdtBalance >= request.resource.data.amount);
+      allow create: if isAdminOrSubAdmin() || (isLoggedIn() && isActiveUser() && request.resource.data.userId == request.auth.uid);
       allow update, delete: if isAdminOrSubAdmin();
     }
 
     // wallets: 본인 또는 관리자/보조계정
     match /wallets/{userId} {
       allow read: if isLoggedIn();
-      allow write: if (
-        (!request.resource.data.keys().hasAll(['bonusBalance']) || request.resource.data.bonusBalance >= 0) &&
-        (!request.resource.data.keys().hasAll(['usdtBalance']) || request.resource.data.usdtBalance >= 0) &&
-        (!request.resource.data.keys().hasAll(['dedraBalance']) || request.resource.data.dedraBalance >= 0)
-      ) && (
-        isAdminOrSubAdmin() || (
-          isLoggedIn() && isActiveUser() && 
-          request.auth.uid == userId
-        )
+      allow create: if isAdminOrSubAdmin() || (isLoggedIn() && request.auth.uid == userId);
+      allow update: if isAdminOrSubAdmin() || (
+        isLoggedIn() && isActiveUser() && request.auth.uid == userId &&
+        request.resource.data.get('bonusBalance', 0) >= 0 &&
+        request.resource.data.get('usdtBalance', 0) >= 0 &&
+        request.resource.data.get('dedraBalance', 0) >= 0 &&
+        request.resource.data.get('totalDeposit', 0) == resource.data.get('totalDeposit', 0) &&
+        request.resource.data.get('totalEarnings', 0) == resource.data.get('totalEarnings', 0) &&
+        (request.resource.data.get('usdtBalance', 0) - resource.data.get('usdtBalance', 0) <= resource.data.get('totalInvest', 0) - request.resource.data.get('totalInvest', 0)) &&
+        (request.resource.data.get('bonusBalance', 0) - resource.data.get('bonusBalance', 0) <= 200) &&
+        request.resource.data.get('totalWithdrawal', 0) >= resource.data.get('totalWithdrawal', 0)
       );
+      allow delete: if isAdminOrSubAdmin();
     }
 
     // gamelogs: 본인 쓰기, 관리자/보조계정 읽기/쓰기

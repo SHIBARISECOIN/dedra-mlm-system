@@ -1,23 +1,25 @@
 const admin = require('firebase-admin');
-
-const fs = require('fs');
-const content = fs.readFileSync('/home/user/webapp/check_true_downlines.cjs', 'utf-8');
-const match = content.match(/const SERVICE_ACCOUNT = ({[\s\S]*?});/);
-// This regex matches a JS object, let's eval it
-const SERVICE_ACCOUNT = eval('(' + match[1] + ')');
-
-if (!admin.apps.length) { admin.initializeApp({ credential: admin.credential.cert(SERVICE_ACCOUNT) }); }
+const sa = require('./service-account.json');
+if (!admin.apps.length) {
+  admin.initializeApp({ credential: admin.credential.cert(sa) });
+}
 const db = admin.firestore();
 
-async function run() {
-  const q = await db.collection('investments').where('userId', '==', 'qAdGKU772oVGZ0B5PwUEbL3UqSF3').get();
-  console.log(`CYJ0300 Investments: ${q.size}`);
-  let totalActive = 0;
-  q.forEach(doc => {
-      const d = doc.data();
-      console.log(`- Amount: ${d.amount}, Status: ${d.status}`);
-      if(d.status === 'active') totalActive += d.amount;
+async function checkInvest() {
+  const uid = 'KM7pKoYx4lM2gUt1wKPgT2rl57M2';
+  const snapshot = await db.collection('investments').where('userId', '==', uid).get();
+  
+  let txs = [];
+  snapshot.forEach(doc => {
+    let tx = doc.data();
+    txs.push({
+      amount: tx.amount,
+      status: tx.status,
+      date: tx.createdAt ? tx.createdAt.toDate().toISOString() : 'N/A'
+    });
   });
-  console.log(`Total Active Amount: ${totalActive}`);
+  
+  console.table(txs);
+  process.exit(0);
 }
-run().catch(console.error);
+checkInvest().catch(console.error);

@@ -3569,32 +3569,22 @@ async function initApp() {
     }
 
 
-    // 1. 핵심 UI 우선 로드 (즉시)
     updateHomeUI();
+    loadAnnouncements();
+    if (typeof loadNewsFeed === "function") loadNewsFeed();
+    loadRecentTransactions();
+    loadDDayCard();
     loadHomeEarn();
-    
-    // 2. 중요도 높은 정보 로드 (짧은 지연)
-    setTimeout(() => {
-      loadAnnouncements();
-      loadDDayCard();
-      loadTodayEarnCard();
-    }, 300);
-    
-    // 3. 서브 정보 로드 (중간 지연)
-    setTimeout(() => {
-      if (typeof loadNewsFeed === "function") loadNewsFeed();
-      loadRecentTransactions();
-      _loadNepSummary && _loadNepSummary();
-    }, 800);
-    
-    // 4. 백그라운드 / 부가 기능 로드 (긴 지연)
-    setTimeout(() => {
-      startNotificationListener();
-      if (window.chatManager && typeof window.chatManager.init === "function") {
-        window.chatManager.init();
-      }
-      checkAndTriggerDailyROI();
-    }, 1500);
+    startNotificationListener();
+    // 홈 네트워크 수익 미리보기 로드
+    setTimeout(() => _loadNepSummary && _loadNepSummary(), 800);
+    // ROI 당일 정산 미실행 시 큐 등록 (백그라운드, UX 무관)
+    setTimeout(() => checkAndTriggerDailyROI(), 3000);
+    if (window.chatManager && typeof window.chatManager.init === "function") {
+      window.chatManager.init();
+    }
+    // 홈 오늘 수익 카드 로드
+    setTimeout(() => loadTodayEarnCard(), 1500);
 
     // 테마 복원
     restoreTheme();
@@ -3769,9 +3759,6 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
 
 
 // ===== 홈 EARN 패널 - 상품 미리보기 로드 =====
-// --- EARN 캐시 변수 추가 ---
-window._cachedMyInvestments = null;
-
 async function loadHomeEarn() {
   setTimeout(window.initLiveTransactionMarquee, 500);
   const listEl = document.getElementById('homeEarnList');
@@ -3789,32 +3776,20 @@ async function loadHomeEarn() {
         .sort((a, b) => (a.sortOrder || a.minAmount || 0) - (b.sortOrder || b.minAmount || 0));
     }
 
-    // 내 활성 투자 로드 (캐시 활용)
-    let myInvestments = window._cachedMyInvestments || [];
-    
-    if (currentUser && !window._cachedMyInvestments) {
+    // 내 활성 투자 로드
+    let myInvestments = [];
+    if (currentUser) {
       try {
         const q = query(collection(db, 'investments'), where('userId', '==', currentUser.uid));
         const iSnap = await getDocs(q);
         myInvestments = iSnap.docs.map(d => ({ id: d.id, ...d.data() }))
           .filter(inv => inv.status === 'active');
-        window._cachedMyInvestments = myInvestments;
       } catch(e) { /* 조용히 */ }
     }
 
-    // 렌더링을 DOM 업데이트 최소화하여 실행
-    if (listEl.innerHTML.includes('earn-skeleton')) {
-      renderHomeEarn(productsCache, myInvestments);
-      renderHomeInvestCards(myInvestments, productsCache);
-      updateTodayEarnSummary(myInvestments);
-    } else {
-      // 이미 렌더링된 상태라면 백그라운드에서 조용히 데이터만 갱신 (리렌더링 깜빡임 방지)
-      setTimeout(() => {
-        renderHomeEarn(productsCache, myInvestments);
-        renderHomeInvestCards(myInvestments, productsCache);
-        updateTodayEarnSummary(myInvestments);
-      }, 500);
-    }
+    renderHomeEarn(productsCache, myInvestments);
+    renderHomeInvestCards(myInvestments, productsCache);
+    updateTodayEarnSummary(myInvestments);
   } catch (e) {
     console.error('[EARN] 상품 로드 오류:', e);
     if (e && e.code) { listEl.innerHTML = `<div style="font-size:11px;color:red;text-align:center;padding:12px 0;">Error: ${e.message}</div>`; return; }
@@ -4686,36 +4661,26 @@ async function loadDDayCard() {
 
 // ===== 공지사항 =====
 async function loadAnnouncements() {
-  const { collection, query, where, getDocs, db } = window.FB;
+  const { collection, query, orderBy, limit, getDocs, db } = window.FB;
   try {
-    // If already cached, just render first 3
-    if (window._cachedAnnouncements && window._cachedAnnouncements.length > 0) {
-      renderAnnouncements(window._cachedAnnouncements.slice(0, 3), 'announcementList');
-      renderAnnouncements(window._cachedAnnouncements.slice(0, 3), 'moreAnnouncementList');
-      return;
-    }
-    
-    const { orderBy, limit } = window.FB;
-    // 복합 인덱스 오류 방지를 위해 최근 10개만 가져와서 클라이언트에서 필터링
+    // 공지사항 전체 로딩 방지: 최근 15개만 가져와서 클라이언트에서 필터링
     const q = query(
       collection(db, 'announcements'),
       orderBy('createdAt', 'desc'),
-      limit(10)
+      limit(15)
     );
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(a => a.isActive !== false) // isActive가 명시적으로 false가 아닌 것만 (기본적으로 노출)
+      .filter(a => a.isActive !== false) // 클라이언트 필터링
       .sort((a, b) => {
+        // isPinned 내림차순 → createdAt 내림차순
         if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-      });
-      
-    window._cachedAnnouncements = items;
-    
-    // Main 화면에는 3개만 렌더링
-    renderAnnouncements(items.slice(0, 3), 'announcementList');
-    renderAnnouncements(items.slice(0, 3), 'moreAnnouncementList');
+      })
+      .slice(0, 3);
+    renderAnnouncements(items, 'announcementList');
+    renderAnnouncements(items, 'moreAnnouncementList');
   } catch (err) {
     console.error('[announcements] load error:', err);
     if (err && err.code) { document.getElementById('announcementList').innerHTML = `<div class="empty-state" style="color:red">${err.message}</div>`; return; }
@@ -4743,24 +4708,15 @@ function renderAnnouncements(items, containerId) {
 }
 
 window.showAnnouncementModal = async function() {
+  const { collection, query, where, getDocs, limit, db } = window.FB;
   const modal = document.getElementById('announcementModal');
   if (modal) modal.classList.remove('hidden');
   const listEl = document.getElementById('announcementFullList');
-  
-  if (window._cachedAnnouncements && window._cachedAnnouncements.length > 0) {
-    renderAnnouncements(window._cachedAnnouncements, 'announcementFullList');
-    return;
-  }
-  
   if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div>';
-  
-  const { collection, query, where, getDocs, db, orderBy, limit } = window.FB;
   try {
-    // 전체 보기를 누르면 최근 30개만 가져옵니다
     const q = query(
       collection(db, 'announcements'),
-      orderBy('createdAt', 'desc'),
-      limit(30)
+      where('isActive', '==', true)
     );
     const snap = await getDocs(q);
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -4770,8 +4726,6 @@ window.showAnnouncementModal = async function() {
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       });
-    
-    window._cachedAnnouncements = items;
     renderAnnouncements(items, 'announcementFullList');
   } catch {
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
@@ -5861,7 +5815,7 @@ window.submitReinvest = async function() {
 
     // Firestore onSnapshot이 실시간으로 잔액을 업데이트하므로 수동 차감을 제거합니다.
     
-    window._cachedMyInvestments = null; closeModal('reinvestModal');
+    closeModal('reinvestModal');
     showToast(t('toastReinvestDone') || '수익금 재투자가 완료되었습니다!', 'success');
     updateWalletUI();
     if (typeof loadRecentTransactions === 'function') loadRecentTransactions();
@@ -6550,7 +6504,7 @@ window.submitInvest = async function() {
       }
     } catch(_) { /* 자동 규칙 실패 시 투자 처리에 영향 없음 */ }
 
-    window._cachedMyInvestments = null; closeModal('investModal');
+    closeModal('investModal');
     showToast(t('toastInvestDone'), 'success');
     loadMyInvestments();
     // 지갑 UI 즉시 갱신

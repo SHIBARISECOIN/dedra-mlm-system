@@ -1,11 +1,26 @@
 const admin = require('firebase-admin');
-const fs = require('fs');
-const saContent = fs.readFileSync('/home/user/webapp/sa.js', 'utf8').replace('const SERVICE_ACCOUNT = ', '').replace(/};\s*$/, '}');
-const SERVICE_ACCOUNT = eval('(' + saContent + ')');
-admin.initializeApp({ credential: admin.credential.cert(SERVICE_ACCOUNT) });
-const db = admin.firestore();
-async function run() {
-  const q = await db.collection('settlements').get();
-  q.forEach(d => console.log(d.id, d.data().status));
+const serviceAccount = require('./service-account.json');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
 }
-run().catch(console.error);
+
+const db = admin.firestore();
+
+async function check() {
+  const bonusesSnapshot = await db.collection('bonuses')
+    .where('userId', '==', '2VF2A5O7hmM1H8IMJ9owvmcFWPF2')
+    .where('settlementDate', '==', '2026-03-26')
+    .get();
+    
+  console.log("Found bonuses:", bonusesSnapshot.size);
+  bonusesSnapshot.forEach(doc => {
+    const b = doc.data();
+    if (b.type === 'rank_bonus' && b.reason.includes('강영준')) {
+      console.log(`[${b.createdAt}]`, b.reason, b.amountUsdt);
+    }
+  });
+}
+check().catch(console.error).finally(() => process.exit(0));
