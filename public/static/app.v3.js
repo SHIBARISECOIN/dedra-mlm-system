@@ -4864,16 +4864,16 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
     if (['deposit', 'withdrawal', 'invest'].includes(typeFilter)) {
       let q;
       if (typeFilter === 'invest') {
-         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', 'invest'), limit(50));
+         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', 'invest'), limit(5000));
       } else {
-         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(50));
+         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(5000));
       }
       const snap = await getDocs(q);
       const fetchedTxs = snap.docs.map(d => ({ id: d.id, _collection: 'transactions', ...d.data() }));
       txs = txs.concat(fetchedTxs);
       
       if (typeFilter === 'invest') {
-        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(50));
+        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(5000));
         const invSnap = await getDocs(invQ);
         const fetchedInvs = invSnap.docs.map(d => ({
           id: d.id,
@@ -4890,18 +4890,18 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
     // Fetch Bonuses
     let qList = [];
     if (typeFilter === 'invest') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', 'in', ['daily_roi', 'roi', 'roi_income']), limit(50)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', 'in', ['daily_roi', 'roi', 'roi_income']), limit(5000)));
     } else if (typeFilter === 'direct_bonus') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(50)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(5000)));
     } else if (typeFilter === 'rank_bonus') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(50)));
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(50)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(5000)));
     } else if (typeFilter === 'rank_matching') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(50)));
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(50)));
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_matching'), limit(50)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_matching'), limit(5000)));
     } else if (typeFilter === 'center_fee') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(50)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(5000)));
     }
 
     for (const q of qList) {
