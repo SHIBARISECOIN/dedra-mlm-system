@@ -238,8 +238,10 @@ onAuthStateChanged(auth, (user) => {
         initFCMToken(session.uid).catch(() => {});
         if (typeof window.onAuthReady === 'function') {
           window.onAuthReady(session);
-          return;
+        } else {
+          window._pendingAuthUser = session;
         }
+        return;
       }
     } catch(e) { localStorage.removeItem('deedra_session'); }
   }
