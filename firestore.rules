@@ -76,7 +76,7 @@ service cloud.firestore {
         request.resource.data.get('dedraBalance', 0) >= 0 &&
         request.resource.data.get('totalDeposit', 0) == resource.data.get('totalDeposit', 0) &&
         request.resource.data.get('totalEarnings', 0) == resource.data.get('totalEarnings', 0) &&
-        (request.resource.data.get('usdtBalance', 0) - resource.data.get('usdtBalance', 0) <= resource.data.get('totalInvest', 0) - request.resource.data.get('totalInvest', 0)) &&
+        (request.resource.data.get('usdtBalance', 0) - resource.data.get('usdtBalance', 0)) + (request.resource.data.get('bonusBalance', 0) - resource.data.get('bonusBalance', 0)) <= resource.data.get('totalInvest', 0) - request.resource.data.get('totalInvest', 0) + 200 &&
         (request.resource.data.get('bonusBalance', 0) - resource.data.get('bonusBalance', 0) <= 200) &&
         request.resource.data.get('totalWithdrawal', 0) >= resource.data.get('totalWithdrawal', 0)
       );
