@@ -3849,14 +3849,23 @@ async function runSettle(c: any, overrideDate?: string | null) {
     const tgSettings = settingsData.telegram || {}
     if (tgSettings.botToken && tgSettings.chatId) {
       await sendTelegram(tgSettings.botToken, tgSettings.chatId,
-        `✅ <b>일일 ROI 정산 완료</b>\n📅 날짜: ${today}\n👥 처리: ${processedCount}명\n💰 지급: $${totalPaid.toFixed(4)} USDT`)
+        `✅ <b>일일 ROI 정산 완료</b>\n📅 날짜: ${today}\n👥 처리: ${processedCount}명\n💰 지급: ${totalPaid.toFixed(4)} USDT`)
     }
+
+    // --- 시스템 유지보수 모드 OFF ---
+    try {
+      await fsPatch('settings/system', { maintenanceMode: false }, adminToken);
+    } catch(e) {}
 
     return c.json({ success: true, date: today, totalPaid, processedCount, duration: Date.now() - startTime })
   } catch (e: any) {
     try {
       const adminToken2 = await getAdminToken()
       const today2 = overrideDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+      
+      // 정산 실패 시에도 유지보수 모드는 해제해야 함
+      await fsPatch('settings/system', { maintenanceMode: false }, adminToken2);
+      
       await fsPatch(`settlements/${today2}`, {
         status: 'error',
         error: e.message,
