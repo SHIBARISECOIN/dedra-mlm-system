@@ -553,6 +553,7 @@ app.get('/admin.html', (c) => c.html(ADMIN_HTML))
 // ─── DEEDRA 실시간 가격 프록시 API ─────────────────────────────────────────
 // CORS 문제 없이 클라이언트→백엔드→DexScreener/Jupiter 형태로 중계
 app.use('/api/price/*', cors())
+app.use('/api/podcast/*', cors())
 
 // DexScreener: 토큰 민트 주소로 가격 조회
 // GET /api/price/dexscreener?mint=<SOLANA_MINT_ADDRESS>
@@ -4330,7 +4331,9 @@ app.get('/api/podcast/audio/:key', async (c) => {
       return c.text('Not configured', 500);
     }
     
-    const object = await env.PODCAST_BUCKET.get(key);
+    const reqHeaders = new Headers(c.req.raw.headers);
+    const rangeHeader = reqHeaders.get('range');
+    const object = await env.PODCAST_BUCKET.get(key, rangeHeader ? { range: c.req.raw.headers } : undefined);
     
     if (!object) {
       return c.text('Not found', 404);
@@ -4340,10 +4343,23 @@ app.get('/api/podcast/audio/:key', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000'); // 캐싱 적용
+    headers.set('Accept-Ranges', 'bytes');
+    
+    // 강제 콘텐츠 타입 설정 (R2에 잘못 저장되어 있을 경우 대비)
+    if (!headers.has('Content-Type') || headers.get('Content-Type') === 'application/octet-stream') {
+       if (key.endsWith('.mp3')) headers.set('Content-Type', 'audio/mpeg');
+       else if (key.endsWith('.mp4')) headers.set('Content-Type', 'video/mp4');
+    }
     // range 헤더가 있으면 206 리턴 지원 여부는 CF R2가 어느정도 지원하는지...
     // 기본적으로 stream body 반환시 워커에서 통과됨
     
+    const status = object.range ? 206 : 200;
+    if (object.range) {
+       headers.set('Content-Range', `bytes ${object.range.offset}-${object.range.offset + object.range.length - 1}/${object.size}`);
+       headers.set('Content-Length', object.range.length.toString());
+    }
     return new Response(object.body, {
+      status,
       headers
     });
   } catch (error: any) {
