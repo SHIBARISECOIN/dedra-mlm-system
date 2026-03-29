@@ -2221,13 +2221,22 @@ app.post('/api/solana/check-deposits', async (c) => {
       const tx = txData.result
       if (!tx) continue
 
-      // SPL token transfer 파싱
+      // SPL token transfer 파싱 (outer & inner instructions 모두 검사)
       const instructions = tx.transaction?.message?.instructions || []
+      const innerInstructions = tx.meta?.innerInstructions || []
+      let allInstructions = [...instructions]
+      
+      for (const inner of innerInstructions) {
+        if (inner.instructions) {
+          allInstructions.push(...inner.instructions)
+        }
+      }
+      
       let amount = 0
       let fromAddress = ''
       let isToCompany = false;
       
-      for (const ix of instructions) {
+      for (const ix of allInstructions) {
         if (ix.program === 'spl-token' && (ix.parsed?.type === 'transfer' || ix.parsed?.type === 'transferChecked')) {
           const info = ix.parsed.info
           if (info.mint === USDT_SPL_MINT || (ix.parsed.type === 'transfer' && info.authority)) {
@@ -4384,6 +4393,25 @@ app.get('/api/podcast/audio/:key', async (c) => {
   } catch (error: any) {
     return c.text('Error', 500);
   }
+});
+
+
+app.get('/api/admin/debug-pending', async (c) => {
+  const adminToken = await getAdminToken();
+  const txs = await fsQuery('transactions', adminToken);
+  const pendingDeposits = txs.filter((t: any) => t.status === 'pending' && t.type === 'deposit');
+  
+  // Also fetch company wallet
+  const settingsDoc = await fsGet('settings/companyWallets', adminToken);
+  let depositAddress = '';
+  if (settingsDoc && settingsDoc.fields && settingsDoc.fields.wallets && settingsDoc.fields.wallets.arrayValue && settingsDoc.fields.wallets.arrayValue.values) {
+    const wallets = settingsDoc.fields.wallets.arrayValue.values;
+    if (wallets.length > 0 && wallets[0].mapValue && wallets[0].mapValue.fields && wallets[0].mapValue.fields.address) {
+      depositAddress = wallets[0].mapValue.fields.address.stringValue || '';
+    }
+  }
+
+  return c.json({ pendingDeposits, depositAddress });
 });
 
 export default {
