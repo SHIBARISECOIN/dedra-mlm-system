@@ -5946,8 +5946,16 @@ async function loadWithdrawals(status = 'pending') {
 
         const rateInfo = `<div style="font-size:11px;color:#6366f1;background:#ede9fe;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">💱 출금 = USDT 기준 신청 → DDRA 코인으로 지급</div>`;
 
-        wrap.innerHTML = rateInfo + `<div class="table-wrap"><table>
+        wrap.innerHTML = rateInfo + `
+          <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center;">
+            <button class="btn btn-sm" style="background:linear-gradient(135deg,#ab9ff2,#8b5cf6);color:#fff;" onclick="bulkPhantomWithdraw()">👻 선택 일괄 팬텀 송금</button>
+            <button class="btn btn-sm btn-primary" onclick="bulkApproveWithdraw()">✅ 선택 일괄 수동 승인</button>
+            <button class="btn btn-sm btn-danger" onclick="bulkRejectWithdraw()">❌ 선택 일괄 거부</button>
+            <span id="bulkActionStatus" style="font-size:12px; font-weight:600; color:#4f46e5; margin-left:10px;"></span>
+          </div>
+          <div class="table-wrap"><table>
           <thead><tr>
+            <th style="width:40px;"><input type="checkbox" id="selectAllWithdrawals" onchange="document.querySelectorAll('.withdrawal-cb:not(:disabled)').forEach(cb => cb.checked = this.checked)"></th>
             <th>회원 ID</th>
             <th>신청 (USDT)</th>
             <th>지급 (USDT)</th>
@@ -5964,7 +5972,9 @@ async function loadWithdrawals(status = 'pending') {
             const amtDedra = dAmt ? dAmt.toFixed(4) : '-';
             const rateText = r.dedraRateAtTime ? ` (${r.dedraRateAtTime})` : '';
             const hasMa = (window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit);
+            const canCheck = r.status === 'pending' || r.status === 'processing' || r.status === 'held' || r.status === 'failed';
             return `<tr style="${hasMa ? 'background:rgba(239,68,68,0.05);' : ''}">
+              <td><input type="checkbox" class="withdrawal-cb" value="${r.id}" data-amount="${dAmt || 0}" data-wallet="${r.walletAddress||''}" data-userid="${r.userId}" ${canCheck ? '' : 'disabled'}></td>
               <td><strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
               <td><strong style="color:var(--danger)">${amtUsdt}</strong></td>
               <td>${amtDedra !== '-' ? `<strong style="color:#6366f1;">${amtDedra}</strong><span style="font-size:10px;color:#94a3b8;">${rateText}</span>` : '-'}</td>
@@ -15993,7 +16003,234 @@ window.exportIdReportPDF = function() {
     <title>ID 분석 리포트</title>
     <style>body{font-family:-apple-system,sans-serif;padding:24px;color:#111827;font-size:13px;}
     table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #e5e7eb;}</style>
-    </head><body>${content.innerHTML}</body></html>`);
+    </head><body>${content.innerHTML}
+<script>
+window.getSelectedWithdrawals = function() {
+    const cbs = document.querySelectorAll('.withdrawal-cb:checked:not(:disabled)');
+    const items = [];
+    cbs.forEach(cb => {
+        items.push({
+            id: cb.value,
+            amount: parseFloat(cb.dataset.amount),
+            wallet: cb.dataset.wallet,
+            userId: cb.dataset.userid
+        });
+    });
+    return items;
+};
+
+window.bulkApproveWithdraw = async function() {
+    const items = getSelectedWithdrawals();
+    if (items.length === 0) return alert('선택된 항목이 없습니다.');
+    if (!await _adminConfirm('✅ 선택한 ' + items.length + '건을 일괄 승인하시겠습니까?')) return;
+    
+    const statusEl = document.getElementById('bulkActionStatus');
+    if(statusEl) statusEl.textContent = '처리 중... 0/' + items.length;
+    
+    let successCount = 0;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if(statusEl) statusEl.textContent = '승인 중... ' + (i+1) + '/' + items.length + ' (' + item.userId + ')';
+        try {
+            const r = await api.approveWithdrawal(item.id, currentAdmin.uid, 'Bulk manual approve', '일괄 수동 승인');
+            if (r.success) successCount++;
+        } catch(e) {
+            console.error(e);
+        }
+    }
+    
+    if(statusEl) statusEl.textContent = '완료! ' + successCount + '건 승인됨.';
+    setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 2000);
+};
+
+window.bulkRejectWithdraw = async function() {
+    const items = getSelectedWithdrawals();
+    if (items.length === 0) return alert('선택된 항목이 없습니다.');
+    
+    const reason = prompt('❌ 선택한 ' + items.length + '건을 일괄 거부하시겠습니까?\n거부 사유를 입력하세요:', '일괄 거부');
+    if (!reason) return;
+    
+    const statusEl = document.getElementById('bulkActionStatus');
+    if(statusEl) statusEl.textContent = '처리 중... 0/' + items.length;
+    
+    let successCount = 0;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if(statusEl) statusEl.textContent = '거부 중... ' + (i+1) + '/' + items.length + ' (' + item.userId + ')';
+        try {
+            const r = await api.rejectWithdrawal(item.id, currentAdmin.uid, reason);
+            if (r.success) successCount++;
+        } catch(e) {
+            console.error(e);
+        }
+    }
+    
+    if(statusEl) statusEl.textContent = '완료! ' + successCount + '건 거부됨.';
+    setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 2000);
+};
+
+window.bulkPhantomWithdraw = async function() {
+    const items = getSelectedWithdrawals();
+    if (items.length === 0) return alert('선택된 항목이 없습니다.');
+    
+    const validItems = items.filter(it => it.wallet && it.wallet.length > 20);
+    if (validItems.length < items.length) {
+        if (!confirm('지갑 주소가 없거나 유효하지 않은 ' + (items.length - validItems.length) + '건이 제외됩니다.\n진행하시겠습니까?')) return;
+    }
+    if (validItems.length === 0) return alert('전송 가능한 항목이 없습니다.');
+    
+    const totalAmount = validItems.reduce((s, it) => s + it.amount, 0).toFixed(4);
+    if (!await _adminConfirm('👻 총 ' + validItems.length + '건, ' + totalAmount + ' DDRA를 팬텀 지갑으로 일괄 송금하시겠습니까?')) return;
+    
+    const statusEl = document.getElementById('bulkActionStatus');
+    if(statusEl) statusEl.textContent = '팬텀 지갑 연결 중...';
+    
+    try {
+        const sw = window.SolanaWallet;
+        if (!sw) throw new Error('솔라나 지갑 모듈이 없습니다.');
+        
+        let provider = null;
+        if (window.phantom?.solana?.isPhantom) provider = window.phantom.solana;
+        else if (window.solana) provider = window.solana;
+        else throw new Error('팬텀 지갑이 설치되어 있지 않습니다.');
+        
+        await provider.connect();
+        const adminPubkey = provider.publicKey.toString();
+        
+        const solanaMint = (window._settingsCache && window._settingsCache.ddraSolanaMint) || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+        const solanaWeb3 = window.solanaWeb3;
+        if (!solanaWeb3) throw new Error('Solana Web3 라이브러리가 로드되지 않았습니다.');
+        
+        const { Connection, PublicKey, Transaction, TransactionInstruction } = solanaWeb3;
+        const connection = new Connection('https://solana-rpc.publicnode.com', 'confirmed');
+        const mintPubkey = new PublicKey(solanaMint);
+        const fromPubkey = new PublicKey(adminPubkey);
+        
+        const mintInfo = await connection.getAccountInfo(mintPubkey);
+        if (!mintInfo) throw new Error('설정된 DDRA 민트 주소가 존재하지 않습니다.');
+        const tokenProgramIdStr = mintInfo.owner.toString();
+        const TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr);
+        const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+        
+        const getATA = (walletKey, mintKey) => PublicKey.findProgramAddressSync(
+            [walletKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintKey.toBuffer()],
+            ASSOCIATED_TOKEN_PROGRAM_ID
+        )[0];
+        const fromATA = getATA(fromPubkey, mintPubkey);
+        const decimals = (window._settingsCache && window._settingsCache.ddraDecimals) || 6;
+        
+        const chunkSize = 5;
+        const txs = [];
+        const chunkGroups = [];
+        
+        for (let i=0; i<validItems.length; i+=chunkSize) {
+            if(statusEl) statusEl.textContent = '트랜잭션 구성 중... ' + (i+1) + '/' + validItems.length;
+            const chunk = validItems.slice(i, i+chunkSize);
+            chunkGroups.push(chunk);
+            const tx = new Transaction();
+            tx.feePayer = fromPubkey;
+            const { blockhash } = await connection.getLatestBlockhash('confirmed');
+            tx.recentBlockhash = blockhash;
+            
+            for (let j=0; j<chunk.length; j++) {
+                const item = chunk[j];
+                const toPubkey = new PublicKey(item.wallet);
+                const toATA = getATA(toPubkey, mintPubkey);
+                
+                const toAccountInfo = await connection.getAccountInfo(toATA);
+                if (!toAccountInfo) {
+                    const data = Buffer.alloc(0);
+                    tx.add(new TransactionInstruction({
+                        keys: [
+                            { pubkey: fromPubkey, isSigner: true, isWritable: true },
+                            { pubkey: toATA, isSigner: false, isWritable: true },
+                            { pubkey: toPubkey, isSigner: false, isWritable: false },
+                            { pubkey: mintPubkey, isSigner: false, isWritable: false },
+                            { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
+                            { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                        ],
+                        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+                        data
+                    }));
+                }
+                
+                const amountToSend = Math.floor(item.amount * Math.pow(10, decimals));
+                if (tokenProgramIdStr === 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb') {
+                    const data = Buffer.alloc(10);
+                    data.writeUInt8(12, 0); 
+                    data.writeBigUInt64LE(BigInt(amountToSend), 1);
+                    data.writeUInt8(decimals, 9);
+                    tx.add(new TransactionInstruction({
+                        keys: [
+                            { pubkey: fromATA, isSigner: false, isWritable: true },
+                            { pubkey: mintPubkey, isSigner: false, isWritable: false },
+                            { pubkey: toATA, isSigner: false, isWritable: true },
+                            { pubkey: fromPubkey, isSigner: true, isWritable: false },
+                        ],
+                        programId: TOKEN_PROGRAM_ID, data
+                    }));
+                } else {
+                    const data = Buffer.alloc(9);
+                    data.writeUInt8(3, 0);
+                    data.writeBigUInt64LE(BigInt(amountToSend), 1);
+                    tx.add(new TransactionInstruction({
+                        keys: [
+                            { pubkey: fromATA, isSigner: false, isWritable: true },
+                            { pubkey: toATA, isSigner: false, isWritable: true },
+                            { pubkey: fromPubkey, isSigner: true, isWritable: false },
+                        ],
+                        programId: TOKEN_PROGRAM_ID, data
+                    }));
+                }
+            }
+            txs.push(tx);
+        }
+        
+        if(statusEl) statusEl.textContent = 'DB 처리상태 잠금 중...';
+        for (const item of validItems) {
+            await api.markWithdrawalProcessing(item.id, currentAdmin.uid);
+        }
+        
+        if(statusEl) statusEl.textContent = '팬텀 지갑 서명 대기 중...';
+        const signedTxs = await provider.signAllTransactions(txs);
+        
+        let successCount = 0;
+        for (let i = 0; i < signedTxs.length; i++) {
+            if(statusEl) statusEl.textContent = '블록체인 전송 중... [' + (i+1) + '/' + signedTxs.length + ']';
+            const signedTx = signedTxs[i];
+            const signature = await connection.sendRawTransaction(signedTx.serialize());
+            
+            try {
+                const latestBlockHash = await connection.getLatestBlockhash();
+                await connection.confirmTransaction({
+                    blockhash: latestBlockHash.blockhash,
+                    lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+                    signature: signature
+                }, 'confirmed');
+            } catch(e) {}
+            
+            const group = chunkGroups[i];
+            for (const item of group) {
+                try {
+                    await api.approveWithdrawal(item.id, currentAdmin.uid, signature, 'Phantom 일괄 송금 완료');
+                    successCount++;
+                } catch(e) {}
+            }
+        }
+        
+        if(statusEl) statusEl.textContent = '완료! 총 ' + successCount + '건 일괄 송금됨.';
+        setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 3000);
+        
+    } catch(err) {
+        console.error(err);
+        if(statusEl) statusEl.textContent = '오류: ' + err.message;
+        alert('오류 발생: ' + err.message);
+        loadWithdrawals(currentWithdrawalStatus);
+    }
+};
+</script>
+</body>
+</html>`);
   printWin.document.close();
   setTimeout(()=>{ printWin.print(); printWin.close(); }, 400);
 };
