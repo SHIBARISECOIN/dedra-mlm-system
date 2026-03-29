@@ -2222,27 +2222,32 @@ app.post('/api/solana/check-deposits', async (c) => {
       const instructions = tx.transaction?.message?.instructions || []
       let amount = 0
       let fromAddress = ''
+      let isToCompany = false;
+      
       for (const ix of instructions) {
-        if (ix.program === 'spl-token' && ix.parsed?.type === 'transfer') {
+        if (ix.program === 'spl-token' && (ix.parsed?.type === 'transfer' || ix.parsed?.type === 'transferChecked')) {
           const info = ix.parsed.info
-          // USDT SPL mint 확인
-          if (info.mint === USDT_SPL_MINT || info.authority) {
-            amount = parseFloat(info.amount || '0') / 1_000_000 // USDT = 6 decimals
-            fromAddress = info.authority || info.source || ''
-          }
-        }
-        // transferChecked 타입도 처리
-        if (ix.program === 'spl-token' && ix.parsed?.type === 'transferChecked') {
-          const info = ix.parsed.info
-          if (info.mint === USDT_SPL_MINT) {
-            amount = parseFloat(info.tokenAmount?.uiAmount || info.tokenAmount?.amount || '0')
-            if (info.tokenAmount?.decimals) amount = parseFloat(info.tokenAmount.amount) / Math.pow(10, info.tokenAmount.decimals)
-            fromAddress = info.authority || info.multisigAuthority || ''
+          if (info.mint === USDT_SPL_MINT || (ix.parsed.type === 'transfer' && info.authority)) {
+            let tempAmount = 0;
+            if (ix.parsed.type === 'transferChecked') {
+              tempAmount = parseFloat(info.tokenAmount?.uiAmount || info.tokenAmount?.amount || '0')
+              if (info.tokenAmount?.decimals) tempAmount = parseFloat(info.tokenAmount.amount) / Math.pow(10, info.tokenAmount.decimals)
+            } else {
+              tempAmount = parseFloat(info.amount || '0') / 1_000_000
+            }
+            
+            // Check if destination matches company ATA or depositAddress
+            const dest = info.destination || '';
+            if (addressesToCheck.includes(dest)) {
+              amount = tempAmount;
+              fromAddress = info.authority || info.multisigAuthority || info.source || '';
+              isToCompany = true;
+            }
           }
         }
       }
 
-            if (amount < 1) continue
+      if (amount < 1 || !isToCompany) continue
 
       // 해당 지갑으로 등록된 회원 찾기
       const users = await fsQuery('users', adminToken)
@@ -2252,6 +2257,7 @@ app.post('/api/solana/check-deposits', async (c) => {
       
       let matchedUser = null;
       let isUpdate = false;
+      let targetTxId = `auto_${Date.now()}_${Math.random().toString(36).substring(2,7)}`;
       
       if (pendingTx) {
           matchedUser = users.find((u: any) => u.id === pendingTx.userId);
