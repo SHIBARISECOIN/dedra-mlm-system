@@ -1272,6 +1272,13 @@ canvas{width:100% !important;}
 
       <!-- ── 입금 신청 목록 ── -->
       <div class="card">
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom: 12px; background:#f8fafc; padding:10px; border-radius:8px;">
+          <span style="font-size:13px; font-weight:600; color:#475569;">📅 기간 필터:</span>
+          <input type="date" id="depositFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadDeposits(currentDepositStatus)">
+          <span style="color:#94a3b8;">~</span>
+          <input type="date" id="depositFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadDeposits(currentDepositStatus)">
+          <button class="btn btn-sm" style="background:#e2e8f0; color:#475569; padding:6px 12px;" onclick="document.getElementById('depositFilterStart').value=''; document.getElementById('depositFilterEnd').value=''; loadDeposits(currentDepositStatus);">초기화</button>
+        </div>
         <div class="tabs" id="depositTabs">
           <div class="tab active" data-status="pending">⏳ 대기중</div>
           <div class="tab" data-status="held">⏸ 보류됨</div>
@@ -1563,6 +1570,13 @@ canvas{width:100% !important;}
 
       <!-- ── 출금 목록 카드 ── -->
       <div class="card">
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom: 12px; background:#f8fafc; padding:10px; border-radius:8px;">
+          <span style="font-size:13px; font-weight:600; color:#475569;">📅 기간 필터:</span>
+          <input type="date" id="withdrawalFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadWithdrawals(currentWithdrawalStatus)">
+          <span style="color:#94a3b8;">~</span>
+          <input type="date" id="withdrawalFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadWithdrawals(currentWithdrawalStatus)">
+          <button class="btn btn-sm" style="background:#e2e8f0; color:#475569; padding:6px 12px;" onclick="document.getElementById('withdrawalFilterStart').value=''; document.getElementById('withdrawalFilterEnd').value=''; loadWithdrawals(currentWithdrawalStatus);">초기화</button>
+        </div>
         <div class="tabs" id="withdrawalTabs">
           <div class="tab active" data-status="pending">대기중</div>
           <div class="tab" data-status="held">보류됨</div>
@@ -5872,7 +5886,18 @@ async function loadDeposits(status = 'pending') {
     const renderRows = async (snap) => {
         const uids = snap.docs.map(d => d.data().userId);
         await prefetchUserLabels(uids);
-        const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+        let rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+        
+        const fStart = document.getElementById('depositFilterStart')?.value;
+        const fEnd = document.getElementById('depositFilterEnd')?.value;
+        if (fStart) {
+            const startD = new Date(fStart); startD.setHours(0,0,0,0);
+            rows = rows.filter(r => (r.createdAt?.seconds*1000) >= startD.getTime());
+        }
+        if (fEnd) {
+            const endD = new Date(fEnd); endD.setHours(23,59,59,999);
+            rows = rows.filter(r => (r.createdAt?.seconds*1000) <= endD.getTime());
+        }
         if (!rows.length) { wrap.innerHTML = emptyState('입금 내역이 없습니다'); return; }
         wrap.innerHTML = `<div class="table-wrap"><table>
           <thead><tr><th>회원 ID</th><th>금액 (USDT)</th><th>TXID</th><th>신청일</th><th>상태</th><th>작업</th></tr></thead>
@@ -5945,7 +5970,18 @@ async function loadWithdrawals(status = 'pending') {
     const renderRows = async (snap) => {
         const uids = snap.docs.map(d => d.data().userId);
         await prefetchUserLabels(uids);
-        const rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+        let rows = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+        
+        const wStart = document.getElementById('withdrawalFilterStart')?.value;
+        const wEnd = document.getElementById('withdrawalFilterEnd')?.value;
+        if (wStart) {
+            const startD = new Date(wStart); startD.setHours(0,0,0,0);
+            rows = rows.filter(r => (r.createdAt?.seconds*1000) >= startD.getTime());
+        }
+        if (wEnd) {
+            const endD = new Date(wEnd); endD.setHours(23,59,59,999);
+            rows = rows.filter(r => (r.createdAt?.seconds*1000) <= endD.getTime());
+        }
         if (!rows.length) { wrap.innerHTML = emptyState('출금 내역이 없습니다'); return; }
 
         const rateInfo = `<div style="font-size:11px;color:#6366f1;background:#ede9fe;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">💱 출금 = USDT 기준 신청 → DDRA 코인으로 지급</div>`;
