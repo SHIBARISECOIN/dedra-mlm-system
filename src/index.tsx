@@ -2122,6 +2122,7 @@ app.post('/api/solana/check-deposits', async (c) => {
     let successUrl = '';
     let lastError = '';
     let signatures = [];
+    let globalAddressesToCheck = [depositAddress];
     
     const existing = await fsQuery('transactions', adminToken);
     const pendingDeposits = existing.filter((t: any) => t.status === 'pending' && t.type === 'deposit');
@@ -2146,7 +2147,9 @@ app.post('/api/solana/check-deposits', async (c) => {
         if (ataRes.ok) {
           const ataData = await ataRes.json();
           if (ataData.result && ataData.result.value) {
-            addressesToCheck.push(...ataData.result.value.map((v:any) => v.pubkey));
+            const ataPubkeys = ataData.result.value.map((v:any) => v.pubkey);
+            addressesToCheck.push(...ataPubkeys);
+            globalAddressesToCheck.push(...ataPubkeys);
           }
         }
         
@@ -2238,7 +2241,7 @@ app.post('/api/solana/check-deposits', async (c) => {
             
             // Check if destination matches company ATA or depositAddress
             const dest = info.destination || '';
-            if (addressesToCheck.includes(dest)) {
+            if (globalAddressesToCheck.includes(dest)) {
               amount = tempAmount;
               fromAddress = info.authority || info.multisigAuthority || info.source || '';
               isToCompany = true;
