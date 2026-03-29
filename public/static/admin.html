@@ -5947,15 +5947,26 @@ async function loadWithdrawals(status = 'pending') {
         const rateInfo = `<div style="font-size:11px;color:#6366f1;background:#ede9fe;padding:4px 10px;border-radius:6px;display:inline-block;margin-bottom:8px;">💱 출금 = USDT 기준 신청 → DDRA 코인으로 지급</div>`;
 
         wrap.innerHTML = rateInfo + `
-          <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center;">
+          <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-sm" style="background:linear-gradient(135deg,#ab9ff2,#8b5cf6);color:#fff;" onclick="bulkPhantomWithdraw()">👻 선택 일괄 팬텀 송금</button>
             <button class="btn btn-sm btn-primary" onclick="bulkApproveWithdraw()">✅ 선택 일괄 수동 승인</button>
             <button class="btn btn-sm btn-danger" onclick="bulkRejectWithdraw()">❌ 선택 일괄 거부</button>
             <span id="bulkActionStatus" style="font-size:12px; font-weight:600; color:#4f46e5; margin-left:10px;"></span>
           </div>
+          <!-- Selection Summary -->
+          <div id="withdrawalSummaryBox" style="display:none; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-bottom:12px; align-items:center; justify-content:space-between;">
+            <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+              <div><span style="font-size:12px; color:#64748b;">선택 건수</span><br><strong id="wsCount" style="font-size:16px; color:#334155;">0</strong><span style="font-size:12px; color:#64748b;"> 건</span></div>
+              <div><span style="font-size:12px; color:#64748b;">총 출금액(USDT)</span><br><strong id="wsUsdt" style="font-size:16px; color:#ef4444;">0.00</strong></div>
+              <div><span style="font-size:12px; color:#64748b;">예상 지급액(DDRA)</span><br><strong id="wsDedra" style="font-size:16px; color:#6366f1;">0.0000</strong> <span style="font-size:11px; color:#94a3b8;" id="wsRate"></span></div>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline" onclick="downloadWithdrawalSummary()" style="font-size:11px; padding:4px 8px; border-color:#cbd5e1;"><i class="fas fa-download"></i> 집계표 다운로드</button>
+            </div>
+          </div>
           <div class="table-wrap"><table>
           <thead><tr>
-            <th style="width:40px;"><input type="checkbox" id="selectAllWithdrawals" onchange="document.querySelectorAll('.withdrawal-cb:not(:disabled)').forEach(cb => cb.checked = this.checked)"></th>
+            <th style="width:40px;"><input type="checkbox" id="selectAllWithdrawals" onchange="document.querySelectorAll('.withdrawal-cb:not(:disabled)').forEach(cb => cb.checked = this.checked); if(window.updateWithdrawalSummary) window.updateWithdrawalSummary();"></th>
             <th>회원 ID</th>
             <th>신청 (USDT)</th>
             <th>지급 (USDT)</th>
@@ -5974,7 +5985,7 @@ async function loadWithdrawals(status = 'pending') {
             const hasMa = (window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit);
             const canCheck = r.status === 'pending' || r.status === 'processing' || r.status === 'held' || r.status === 'failed';
             return `<tr style="${hasMa ? 'background:rgba(239,68,68,0.05);' : ''}">
-              <td><input type="checkbox" class="withdrawal-cb" value="${r.id}" data-amount="${dAmt || 0}" data-wallet="${r.walletAddress||''}" data-userid="${r.userId}" ${canCheck ? '' : 'disabled'}></td>
+              <td><input type="checkbox" class="withdrawal-cb" value="${r.id}" data-amount="${dAmt || 0}" data-usdt="${amtUsdt}" data-wallet="${r.walletAddress||''}" data-userid="${r.userId}" ${canCheck ? '' : 'disabled'} onchange="if(window.updateWithdrawalSummary) window.updateWithdrawalSummary()"></td>
               <td><strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
               <td><strong style="color:var(--danger)">${amtUsdt}</strong></td>
               <td>${amtDedra !== '-' ? `<strong style="color:#6366f1;">${amtDedra}</strong><span style="font-size:10px;color:#94a3b8;">${rateText}</span>` : '-'}</td>
@@ -17040,6 +17051,150 @@ window.bulkPhantomWithdraw = async function() {
         if(statusEl) statusEl.textContent = '오류: ' + err.message;
         alert('오류 발생: ' + err.message);
         loadWithdrawals(currentWithdrawalStatus);
+    }
+};
+</script>
+
+<script>
+// ─── 선택된 출금 내역 집계 로직 ──────────────────────────────
+window.updateWithdrawalSummary = function() {
+    const cbs = document.querySelectorAll('.withdrawal-cb:checked');
+    const box = document.getElementById('withdrawalSummaryBox');
+    if (!box) return;
+    
+    if (cbs.length === 0) {
+        box.style.display = 'none';
+        return;
+    }
+    
+    let totalUsdt = 0;
+    let totalDedra = 0;
+    
+    cbs.forEach(cb => {
+        const usdtVal = parseFloat(cb.getAttribute('data-usdt')) || 0;
+        const dedraVal = parseFloat(cb.getAttribute('data-amount')) || 0;
+        totalUsdt += usdtVal;
+        totalDedra += dedraVal;
+    });
+    
+    document.getElementById('wsCount').innerText = cbs.length;
+    document.getElementById('wsUsdt').innerText = '
+ + totalUsdt.toFixed(2);
+    document.getElementById('wsDedra').innerText = totalDedra.toFixed(4) + ' DDRA';
+    
+    const rate = window._cachedDedraRate || 0;
+    if (rate) {
+        document.getElementById('wsRate').innerText = '(시세: 
+ + rate + ')';
+    } else {
+        document.getElementById('wsRate').innerText = '';
+    }
+    
+    box.style.display = 'flex';
+};
+
+window.downloadWithdrawalSummary = function() {
+    const cbs = document.querySelectorAll('.withdrawal-cb:checked');
+    if (cbs.length === 0) return alert('선택된 항목이 없습니다.');
+    
+    let totalUsdt = 0;
+    let totalDedra = 0;
+    let rowsHtml = '';
+    
+    cbs.forEach((cb, idx) => {
+        const tr = cb.closest('tr');
+        const userIdElem = tr.querySelector('td:nth-child(2)');
+        const userIdText = userIdElem ? userIdElem.innerText.trim() : '';
+        const usdtElem = tr.querySelector('td:nth-child(3)');
+        const usdtText = usdtElem ? usdtElem.innerText.trim() : '';
+        
+        let dedraText = '0';
+        const ddraCell = tr.querySelector('td:nth-child(4)');
+        if (ddraCell) {
+            const strongTag = ddraCell.querySelector('strong');
+            dedraText = strongTag ? strongTag.innerText.trim() : ddraCell.innerText.trim();
+        }
+        
+        const walletElem = tr.querySelector('td:nth-child(5)');
+        const walletText = walletElem ? walletElem.innerText.trim() : '';
+        
+        totalUsdt += parseFloat(cb.getAttribute('data-usdt')) || 0;
+        totalDedra += parseFloat(cb.getAttribute('data-amount')) || 0;
+        
+        rowsHtml += `
+            <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${idx + 1}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${userIdText}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${usdtText}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">${dedraText}</td>
+                <td style="border: 1px solid #ddd; padding: 8px; font-family: monospace;">${cb.getAttribute('data-wallet')}</td>
+            </tr>
+        `;
+    });
+    
+    const rate = window._cachedDedraRate || 0;
+    const today = new Date().toLocaleString('ko-KR');
+    
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <title>출금 요청 집계표</title>
+        <style>
+            body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 20px; color: #333; }
+            h2 { color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 10px; }
+            .summary { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            .summary p { margin: 5px 0; font-size: 16px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 10px; text-align: center; }
+            td { border: 1px solid #cbd5e1; padding: 10px; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .print-btn { display: block; margin-bottom: 20px; padding: 10px 20px; background: #6366f1; color: white; text-decoration: none; text-align: center; border-radius: 5px; cursor: pointer; border: none; font-size: 16px; }
+            @media print { .print-btn { display: none; } }
+        </style>
+    </head>
+    <body>
+        <button class="print-btn" onclick="window.print()">🖨️ 인쇄 / PDF 저장</button>
+        <h2>출금 요청 승인 예정 집계표</h2>
+        <div class="summary">
+            <p><strong>출력 일시:</strong> ${today}</p>
+            <p><strong>현재 적용 시세:</strong> ${rate ? '
+ + rate : '알 수 없음'}</p>
+            <p><strong>총 선택 건수:</strong> <span style="color:#2563eb; font-weight:bold;">${cbs.length}건</span></p>
+            <p><strong>총 출금액 합계:</strong> <span style="color:#ef4444; font-weight:bold;">${totalUsdt.toFixed(2)} USDT</span></p>
+            <p><strong>총 지급 예정액:</strong> <span style="color:#8b5cf6; font-weight:bold;">${totalDedra.toFixed(4)} DDRA</span></p>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th width="50">No.</th>
+                    <th>회원 ID</th>
+                    <th>신청 (USDT)</th>
+                    <th>지급 (DDRA)</th>
+                    <th>지갑 주소</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rowsHtml}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    `;
+    
+    const blob = new Blob([htmlContent], {type: 'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    
+    const newWindow = window.open(url, '_blank');
+    if (!newWindow) {
+        alert('팝업 차단이 설정되어 있습니다. 팝업 차단을 해제해주세요.');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `출금_집계표_${new Date().toISOString().slice(0,10)}.html`;
+        a.click();
     }
 };
 </script>
