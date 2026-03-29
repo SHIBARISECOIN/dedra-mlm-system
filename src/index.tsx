@@ -2313,7 +2313,8 @@ app.post('/api/solana/check-deposits', async (c) => {
         }, adminToken)
         // Sync Network Sales Immediately
         try {
-          await fetch(`${c.req.url.split('/api')[0]}/api/admin/sync-sales`, {
+          const origin = new URL(c.req.url).origin;
+          await fetch(`${origin}/api/admin/sync-sales`, {
             headers: { 'Authorization': `Bearer ${adminToken}` }
           }).catch(() => {});
         } catch(e) { console.error('Auto sync error:', e); }
