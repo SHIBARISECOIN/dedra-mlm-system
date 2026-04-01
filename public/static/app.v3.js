@@ -12138,18 +12138,3 @@ window.submitCenterWithdraw = async function() {
     if (btn) { btn.disabled = false; btn.textContent = '출금 신청'; }
   }
 };
-
-    const res = await api.createTransaction(currentUser.uid, payload);
-    if (res && res.success) {
-      showToast('출금 신청이 완료되었습니다.', 'success');
-      closeModal('centerWithdrawModal');
-      await initUserData();
-    } else {
-      throw new Error(res.error || '알 수 없는 오류');
-    }
-  } catch(e) {
-    console.error(e);
-    showToast('출금 신청 실패: ' + e.message, 'error');
-  }
-};
-
