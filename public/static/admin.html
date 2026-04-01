@@ -5938,7 +5938,8 @@ window.updateDailyFinanceStats = async function() {
         const snapW = await getDocs(qW);
         snapW.forEach(doc => {
             const data = doc.data();
-            if (data.status === 'approved') {
+            // 출금의 경우 status가 'completed' 또는 'approved' 일 수 있으므로 둘 다 허용
+            if (data.status === 'approved' || data.status === 'completed') {
                 const time = data.createdAt?.seconds * 1000;
                 if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
                     totalWithdrawal += Number(data.amount || 0);
