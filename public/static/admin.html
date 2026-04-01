@@ -6093,6 +6093,7 @@ async function loadWithdrawals(status = 'pending') {
         wrap.innerHTML = rateInfo + `
           <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-sm" style="background:linear-gradient(135deg,#ab9ff2,#8b5cf6);color:#fff;" onclick="bulkPhantomWithdraw()">👻 선택 일괄 팬텀 송금</button>
+            <button class="btn btn-sm" style="background:#0ea5e9;color:#fff;" onclick="selectYesterdayWithdrawals()">📅 어제 신청건 전체선택</button>
             <button class="btn btn-sm btn-primary" onclick="bulkApproveWithdraw()">✅ 선택 일괄 수동 승인</button>
             <button class="btn btn-sm btn-danger" onclick="bulkRejectWithdraw()">❌ 선택 일괄 거부</button>
             <button class="btn btn-sm" style="background:#eab308;color:#fff;" onclick="resetProcessingWithdrawals()">🔄 선택 처리중 초기화</button>
@@ -17080,6 +17081,41 @@ window.resetProcessingWithdrawals = async function() {
     
     if(statusEl) statusEl.textContent = '초기화 완료! ' + successCount + '건.';
     setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 2000);
+};
+
+window.selectYesterdayWithdrawals = function() {
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const now = new Date();
+    const utcNow = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const kstNow = new Date(utcNow + kstOffset);
+    
+    // 어제 날짜 구하기 (KST 기준)
+    const yesterdayKst = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate() - 1);
+    
+    // 어제 시작/끝 타임스탬프 (UTC 변환)
+    const startKst = new Date(yesterdayKst.getFullYear(), yesterdayKst.getMonth(), yesterdayKst.getDate(), 0, 0, 0);
+    const endKst = new Date(yesterdayKst.getFullYear(), yesterdayKst.getMonth(), yesterdayKst.getDate(), 23, 59, 59, 999);
+    
+    const startUtc = startKst.getTime() - kstOffset;
+    const endUtc = endKst.getTime() - kstOffset;
+    
+    let count = 0;
+    document.querySelectorAll('.withdrawal-checkbox').forEach(cb => {
+        try {
+            const rowStr = decodeURIComponent(cb.dataset.row);
+            const r = JSON.parse(rowStr);
+            const time = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : (typeof r.createdAt === 'number' ? r.createdAt : 0);
+            
+            if (time >= startUtc && time <= endUtc) {
+                cb.checked = true;
+                count++;
+            } else {
+                cb.checked = false;
+            }
+        } catch(e) {}
+    });
+    
+    showToast(`어제 신청된 출금건 ${count}개를 선택했습니다.`, 'success');
 };
 
 window.bulkApproveWithdraw = async function() {
