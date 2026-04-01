@@ -17222,16 +17222,20 @@ window.bulkPhantomWithdraw = async function() {
         const decimals = (window._settingsCache && window._settingsCache.ddraDecimals) || 6;
         
         let successCount = 0;
+        const BATCH_SIZE = 10;
         
-        // 🚀 순차적 개별 처리 시작 (매크로 방식)
-        for (let i = 0; i < validItems.length; i++) {
-            const item = validItems[i];
-            try {
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 님 송금 준비 중...';
-                
+        // 🚀 순차적 개별 처리 시작 (매크로 방식 -> signAllTransactions 10건 단위 일괄 서명 방식)
+        for (let b = 0; b < validItems.length; b += BATCH_SIZE) {
+            const batch = validItems.slice(b, b + BATCH_SIZE);
+            const txs = [];
+            
+            if(statusEl) statusEl.textContent = `[${b+1}~${b+batch.length}/${validItems.length}] 트랜잭션 구성 중...`;
+            const { blockhash } = await connection.getLatestBlockhash('confirmed');
+            
+            for (let i = 0; i < batch.length; i++) {
+                const item = batch[i];
                 const tx = new Transaction();
                 tx.feePayer = fromPubkey;
-                const { blockhash } = await connection.getLatestBlockhash('confirmed');
                 tx.recentBlockhash = blockhash;
                 
                 const toPubkey = new PublicKey(item.wallet);
@@ -17298,57 +17302,80 @@ window.bulkPhantomWithdraw = async function() {
                         programId: TOKEN_PROGRAM_ID, data
                     }));
                 }
-
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 팬텀 지갑 서명 대기 중...';
-                
-                // DB 상태 잠금 (개별)
+                txs.push(tx);
+            }
+            
+            if(statusEl) statusEl.textContent = `[${b+1}~${b+batch.length}/${validItems.length}] 팬텀 지갑 일괄 서명 대기 중 (한 번만 승인)...`;
+            
+            // DB 상태 잠금 (개별)
+            for (const item of batch) {
                 await api.markWithdrawalProcessing(item.id, currentAdmin.uid);
-                
-                // 서명 요청 (1건씩 팝업)
-                const signedTx = await provider.signTransaction(tx);
-                
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 블록체인 전송 중...';
-                const signature = await connection.sendRawTransaction(signedTx.serialize());
-                
-                try {
-                    const latestBlockHash = await connection.getLatestBlockhash();
-                    await connection.confirmTransaction({
-                        blockhash: latestBlockHash.blockhash,
-                        lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-                        signature: signature
-                    }, 'confirmed');
-                } catch(e) {
-                    console.log("Confirm timeout, but tx may have succeeded", e);
-                }
-                
-                // DB 최종 승인 처리
-                await api.approveWithdrawal(item.id, currentAdmin.uid, signature, 'Phantom 순차 송금 완료');
-                successCount++;
-                
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 완료! (잠시 대기)';
-                
-                // 짧은 대기 후 다음으로 (매크로 딜레이)
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
+            }
+            
+            let signedTxs;
+            try {
+                // 서명 요청 (최대 10건씩 묶어서 1번만 팝업)
+                signedTxs = await provider.signAllTransactions(txs);
             } catch (err) {
-                console.error("Error on item " + item.userId + ": ", err);
-                // 에러 발생시 처리중 상태를 풀기 (대기중으로 원복)
-                try {
-                    const token = window.currentAdmin?.getIdToken ? await window.currentAdmin.getIdToken() : '';
-                    await fetch('/api/admin/raw-update', {
-                       method: 'POST',
-                       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                       body: JSON.stringify({
-                           collection: 'transactions',
-                           docId: item.id,
-                           data: { status: 'pending' } // 원복
-                       })
-                    });
-                } catch(rollbackErr) {}
+                console.error("서명 취소 또는 에러", err);
+                // 에러 발생시 처리중 상태 풀기
+                for (const item of batch) {
+                    try {
+                        const token = window.currentAdmin?.getIdToken ? await window.currentAdmin.getIdToken() : '';
+                        await fetch('/api/admin/raw-update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                            body: JSON.stringify({ collection: 'transactions', docId: item.id, data: { status: 'pending' } })
+                        });
+                    } catch(e) {}
+                }
+                throw new Error('사용자가 서명을 취소했거나 서명 중 오류가 발생했습니다.');
+            }
+            
+            // 순차적 블록체인 전송
+            for (let i = 0; i < signedTxs.length; i++) {
+                const signedTx = signedTxs[i];
+                const item = batch[i];
+                const globalIndex = b + i + 1;
                 
-                const continueNext = confirm('유저 ' + item.userId + ' 전송 실패: ' + err.message + '\n\n이 유저를 건너뛰고 다음 항목 송금을 계속하시겠습니까?');
-                if (!continueNext) {
-                    throw new Error('사용자가 송금을 중단했습니다.');
+                try {
+                    if(statusEl) statusEl.textContent = `[${globalIndex}/${validItems.length}] ${item.userId} 블록체인 전송 중...`;
+                    const signature = await connection.sendRawTransaction(signedTx.serialize());
+                    
+                    try {
+                        const latestBlockHash = await connection.getLatestBlockhash();
+                        await connection.confirmTransaction({
+                            blockhash: latestBlockHash.blockhash,
+                            lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+                            signature: signature
+                        }, 'confirmed');
+                    } catch(e) {
+                        console.log("Confirm timeout, but tx may have succeeded", e);
+                    }
+                    
+                    // DB 최종 승인 처리
+                    await api.approveWithdrawal(item.id, currentAdmin.uid, signature, 'Phantom 일괄 묶음 송금 완료');
+                    successCount++;
+                    
+                    if(statusEl) statusEl.textContent = `[${globalIndex}/${validItems.length}] ${item.userId} 완료! (잠시 대기)`;
+                    await new Promise(resolve => setTimeout(resolve, 1500)); // 짧은 대기
+                    
+                } catch (err) {
+                    console.error("Error on item " + item.userId + ": ", err);
+                    try {
+                        const token = window.currentAdmin?.getIdToken ? await window.currentAdmin.getIdToken() : '';
+                        await fetch('/api/admin/raw-update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                            body: JSON.stringify({ collection: 'transactions', docId: item.id, data: { status: 'pending' } })
+                        });
+                    } catch(rollbackErr) {}
+                    
+                    const continueNext = confirm('유저 ' + item.userId + ' 전송 실패: ' + err.message + '\n\n이 유저를 건너뛰고 다음 항목 송금을 계속하시겠습니까?');
+                    if (!continueNext) {
+                        b = validItems.length; // break outer loop
+                        break;
+                    }
                 }
             }
         }
