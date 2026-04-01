@@ -5910,14 +5910,12 @@ window.updateDailyFinanceStats = async function() {
     try {
         const kstOffset = 9 * 60 * 60 * 1000;
         const now = new Date();
-        const utcNow = now.getTime() + (now.getTimezoneOffset() * 60000);
-        const kstNow = new Date(utcNow + kstOffset);
+        const utcTime = now.getTime();
+        const kstTime = utcTime + kstOffset;
+        const kstDate = new Date(kstTime);
         
-        const startKst = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate(), 0, 0, 0);
-        const endKst = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate(), 23, 59, 59, 999);
-        
-        const startUtc = new Date(startKst.getTime() - kstOffset);
-        const endUtc = new Date(endKst.getTime() - kstOffset);
+        const startUtcTime = Date.UTC(kstDate.getUTCFullYear(), kstDate.getUTCMonth(), kstDate.getUTCDate(), 0, 0, 0) - kstOffset;
+        const endUtcTime = Date.UTC(kstDate.getUTCFullYear(), kstDate.getUTCMonth(), kstDate.getUTCDate(), 23, 59, 59, 999) - kstOffset;
         
         if (!db) return;
         
@@ -5934,16 +5932,16 @@ window.updateDailyFinanceStats = async function() {
                 const timestamp = data.createdAt || data.completedAt || data.updatedAt;
                 if (timestamp && timestamp.seconds) {
                     const time = timestamp.seconds * 1000;
-                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                    if (time >= startUtcTime && time <= endUtcTime) {
                         totalDeposit += Number(data.amount || 0);
                     }
                 } else if (typeof timestamp === 'number') {
-                    if (timestamp >= startUtc.getTime() && timestamp <= endUtc.getTime()) {
+                    if (timestamp >= startUtcTime && timestamp <= endUtcTime) {
                         totalDeposit += Number(data.amount || 0);
                     }
                 } else if (typeof timestamp === 'string') {
                     const time = new Date(timestamp).getTime();
-                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                    if (time >= startUtcTime && time <= endUtcTime) {
                         totalDeposit += Number(data.amount || 0);
                     }
                 }
@@ -5963,16 +5961,16 @@ window.updateDailyFinanceStats = async function() {
                 const timestamp = data.createdAt || data.completedAt || data.updatedAt;
                 if (timestamp && timestamp.seconds) {
                     const time = timestamp.seconds * 1000;
-                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                    if (time >= startUtcTime && time <= endUtcTime) {
                         totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
                     }
                 } else if (typeof timestamp === 'number') {
-                    if (timestamp >= startUtc.getTime() && timestamp <= endUtc.getTime()) {
+                    if (timestamp >= startUtcTime && timestamp <= endUtcTime) {
                         totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
                     }
                 } else if (typeof timestamp === 'string') {
                     const time = new Date(timestamp).getTime();
-                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                    if (time >= startUtcTime && time <= endUtcTime) {
                         totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
                     }
                 }

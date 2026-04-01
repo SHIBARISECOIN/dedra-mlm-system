@@ -4541,7 +4541,8 @@ function updateWalletUI() {
     
     const probEl = document.getElementById('myWeeklyProb');
     if (probEl) {
-        const total = Math.max(window._currentWeeklyJackpotTotalTickets || 0, myTix);
+        const dbTotal = window._currentWeeklyJackpotTotalTickets || 0;
+        const total = Math.max(dbTotal, myTix);
         let prob = '0.00';
         if (myTix > 0 && total > 0) prob = ((myTix / total) * 100).toFixed(2);
         probEl.textContent = prob + '%';
@@ -11585,8 +11586,13 @@ function renderWeeklyJackpotBanner(data) {
   }
   
   const amountStr = Number(data.amount || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  // get real total tickets from global cache if needed, but we should use data.totalTickets directly
+  const dbTotalTickets = data.totalTickets || 0;
   const myTickets = window.walletData ? (window.walletData.weeklyTickets || 0) : 0;
-  const totalTickets = Math.max(data.totalTickets || 0, myTickets); // Ensure total >= my
+  
+  // UI fix: ensure totalTickets is at least myTickets
+  const totalTickets = Math.max(dbTotalTickets, myTickets);
   
   let winProb = '0.00';
   if (myTickets > 0 && totalTickets > 0) {
