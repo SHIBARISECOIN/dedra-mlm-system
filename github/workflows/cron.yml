@@ -1,0 +1,22 @@
+name: DEEDRA CRON Jobs
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '0 3 * * 6'
+  workflow_dispatch:
+
+jobs:
+  run-crons:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Solana 입금 자동 확인
+        run: |
+          curl -s -m 30 -X POST "https://deedra.pages.dev/api/solana/check-deposits" \
+            -H "x-cron-secret: deedra-cron-2026" \
+            -H "Content-Type: application/json"
+
+      - name: 주간 잭팟 추첨 실행
+        run: |
+          curl -s -m 30 -X GET "https://deedra.pages.dev/api/cron/draw-weekly-jackpot" \
+            -H "x-cron-secret: deedra-cron-2026"
