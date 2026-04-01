@@ -5171,7 +5171,9 @@ window.prefetchUserLabels = async function(uids) {
     for (const chunk of chunks) {
         try {
             const { collection, query, where, getDocs, documentId } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
-            const q = query(collection(window.db, 'users'), where(documentId(), 'in', chunk));
+            const dbInstance = window.db || window.FB?.db;
+            if (!dbInstance) throw new Error("Firebase DB not initialized yet");
+            const q = query(collection(dbInstance, 'users'), where(documentId(), 'in', chunk));
             const snap = await getDocs(q);
             snap.forEach(d => {
                 window.globalUserCache[d.id] = d.data();
