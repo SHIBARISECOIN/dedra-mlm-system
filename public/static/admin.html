@@ -5914,28 +5914,35 @@ window.updateDailyFinanceStats = async function() {
         const startUtc = new Date(startKst.getTime() - kstOffset);
         const endUtc = new Date(endKst.getTime() - kstOffset);
         
-        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
-        const dbInstance = window.db || window.FB?.db;
+        if (!db) return;
         
         let totalDeposit = 0;
-        const qD = query(collection(dbInstance, 'transactions'), where('type', '==', 'deposit'), where('status', '==', 'approved'));
+        let totalWithdrawal = 0;
+        
+        // We do single-field equality queries to avoid missing composite index errors
+        // 1. Fetch Deposits
+        const qD = query(collection(db, 'transactions'), where('type', '==', 'deposit'));
         const snapD = await getDocs(qD);
         snapD.forEach(doc => {
             const data = doc.data();
-            const time = data.createdAt?.seconds * 1000;
-            if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
-                totalDeposit += Number(data.amount || 0);
+            if (data.status === 'approved') {
+                const time = data.createdAt?.seconds * 1000;
+                if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                    totalDeposit += Number(data.amount || 0);
+                }
             }
         });
         
-        let totalWithdrawal = 0;
-        const qW = query(collection(dbInstance, 'transactions'), where('type', '==', 'withdrawal'), where('status', '==', 'approved'));
+        // 2. Fetch Withdrawals
+        const qW = query(collection(db, 'transactions'), where('type', '==', 'withdrawal'));
         const snapW = await getDocs(qW);
         snapW.forEach(doc => {
             const data = doc.data();
-            const time = data.createdAt?.seconds * 1000;
-            if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
-                totalWithdrawal += Number(data.amount || 0);
+            if (data.status === 'approved') {
+                const time = data.createdAt?.seconds * 1000;
+                if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                    totalWithdrawal += Number(data.amount || 0);
+                }
             }
         });
         
@@ -5946,6 +5953,10 @@ window.updateDailyFinanceStats = async function() {
         wEls.forEach(el => el.textContent = `$${totalWithdrawal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
     } catch(e) {
         console.error("Daily stats error:", e);
+        const dEls = document.querySelectorAll('.dailyDepositAmount');
+        dEls.forEach(el => el.textContent = `계산 실패`);
+        const wEls = document.querySelectorAll('.dailyWithdrawalAmount');
+        wEls.forEach(el => el.textContent = `계산 실패`);
     }
 };
 
