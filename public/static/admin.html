@@ -5938,11 +5938,20 @@ window.updateDailyFinanceStats = async function() {
         const snapW = await getDocs(qW);
         snapW.forEach(doc => {
             const data = doc.data();
-            // 출금의 경우 status가 'completed' 또는 'approved' 일 수 있으므로 둘 다 허용
-            if (data.status === 'approved' || data.status === 'completed') {
-                const time = data.createdAt?.seconds * 1000;
-                if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
-                    totalWithdrawal += Number(data.amount || 0);
+            // 출금의 경우 status가 다양할 수 있으므로, 거부(rejected)/실패(failed)/보류(pending)/진행중(processing)이 아닌 것들을 합산
+            const isValidStatus = data.status === 'approved' || data.status === 'completed' || data.status === 'success' || data.status === 'paid';
+            if (isValidStatus) {
+                // created_at 필드명이 다를 수 있음을 대비
+                const timestamp = data.createdAt || data.completedAt || data.updatedAt;
+                if (timestamp && timestamp.seconds) {
+                    const time = timestamp.seconds * 1000;
+                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                        totalWithdrawal += Number(data.amount || 0);
+                    }
+                } else if (typeof timestamp === 'number') {
+                    if (timestamp >= startUtc.getTime() && timestamp <= endUtc.getTime()) {
+                        totalWithdrawal += Number(data.amount || 0);
+                    }
                 }
             }
         });
