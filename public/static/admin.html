@@ -5946,11 +5946,11 @@ window.updateDailyFinanceStats = async function() {
                 if (timestamp && timestamp.seconds) {
                     const time = timestamp.seconds * 1000;
                     if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
-                        totalWithdrawal += Number(data.amount || 0);
+                        totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
                     }
                 } else if (typeof timestamp === 'number') {
                     if (timestamp >= startUtc.getTime() && timestamp <= endUtc.getTime()) {
-                        totalWithdrawal += Number(data.amount || 0);
+                        totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
                     }
                 }
             }
