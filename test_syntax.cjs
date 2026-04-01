@@ -1,9 +1,17 @@
 const fs = require('fs');
-try {
-  eval(fs.readFileSync('public/static/app.js', 'utf8'));
-} catch (e) {
-  console.log(e.name, e.message, e.lineNumber, e.lineNumber || 'Unknown line');
-  // Log the lines around the error
-  const stack = e.stack.split('\n');
-  console.log(stack.slice(0, 5).join('\n'));
+const html = fs.readFileSync('/home/user/webapp/public/static/admin.html', 'utf8');
+
+const regex = /<script>([\s\S]*?)<\/script>/g;
+let match;
+while ((match = regex.exec(html)) !== null) {
+  try {
+    new Function(match[1]);
+  } catch (e) {
+    console.log("Syntax error found in a script tag!");
+    // Find the approximate line number
+    const upToError = html.substring(0, match.index);
+    const lineNum = upToError.split('\n').length;
+    console.log("Approx line number: ", lineNum);
+    console.log(e);
+  }
 }

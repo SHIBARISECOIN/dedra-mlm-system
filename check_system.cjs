@@ -1,29 +1,17 @@
 const admin = require('firebase-admin');
-const fs = require('fs');
+const serviceAccount = require('/home/user/webapp/serviceAccountKey.json');
 
-const content = fs.readFileSync('./sa.js', 'utf8');
-const match = content.match(/const serviceAccount = ({[\s\S]*?});/);
-if (match) {
-  let saObjStr = match[1];
-  // evaluate it safely to get the object
-  let sa = eval('(' + saObjStr + ')');
-  // replace any double backslashes that might have been literal with single backslash newlines
-  sa.private_key = sa.private_key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
-  
+if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(sa)
-  });
-  
-  const db = admin.firestore();
-  db.collection('settings').doc('system').get().then(doc => {
-    if (doc.exists) {
-      console.log('MAINTENANCE_DATA:', doc.data());
-    } else {
-      console.log('MAINTENANCE_DATA: none');
-    }
-    process.exit(0);
-  }).catch(err => {
-    console.error('Error fetching doc:', err);
-    process.exit(1);
+    credential: admin.credential.cert(serviceAccount)
   });
 }
+const db = admin.firestore();
+
+async function checkSystem() {
+  const doc = await db.collection('settings').doc('system').get();
+  console.log(doc.data());
+  process.exit(0);
+}
+
+checkSystem().catch(console.error);

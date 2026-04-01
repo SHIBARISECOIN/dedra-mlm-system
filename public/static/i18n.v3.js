@@ -13,6 +13,14 @@ window.I18N = {
     /* ======= 한국어 ======= */
     ko: {
 
+    jackpot_transparency: '🔗 100% 투명한 블록체인 해시 추첨 방식',
+    jackpot_prize_desc: '이번 주 누적 잭팟 상금 (출금 수수료 100% 적립)',
+    jackpot_draw_time: '이번 주 토요일 낮 12시, 단 1명 독식 추첨!',
+    jackpot_my_tickets: '나의 추첨권:',
+    jackpot_tickets_unit: '장',
+    jackpot_win_prob: '당첨 확률:',
+
+
     diceHint: '숫자를 선택하여 베팅하세요',
     earnSeeAll: '수익 전체보기',
     freezingNow: '❄️ 진행중',
@@ -361,6 +369,14 @@ window.I18N = {
     /* ======= English ======= */
     en: {
 
+    jackpot_transparency: '🔗 100% Transparent Blockchain Hash Draw',
+    jackpot_prize_desc: 'This week accumulated jackpot prize (100% withdrawal fee accumulated)',
+    jackpot_draw_time: 'Draw for 1 sole winner this Saturday at 12 PM!',
+    jackpot_my_tickets: 'My Tickets:',
+    jackpot_tickets_unit: 'tickets',
+    jackpot_win_prob: 'Win Prob:',
+
+
     diceHint: 'Select a number to bet',
     earnSeeAll: 'See All Earnings',
     freezingNow: '❄️ Freezing',
@@ -695,6 +711,14 @@ window.I18N = {
     /* ======= Tiếng Việt ======= */
     vi: {
 
+    jackpot_transparency: '🔗 100% Xổ số Băm Chuỗi khối Minh bạch',
+    jackpot_prize_desc: 'Giải độc đắc tích lũy tuần này (Tích lũy 100% phí rút tiền)',
+    jackpot_draw_time: 'Rút thăm cho 1 người chiến thắng duy nhất vào 12h trưa thứ Bảy tuần này!',
+    jackpot_my_tickets: 'Vé của tôi:',
+    jackpot_tickets_unit: 'vé',
+    jackpot_win_prob: 'Tỷ lệ thắng:',
+
+
     diceHint: 'Chọn một số để cược',
     earnSeeAll: 'Xem tất cả',
     freezingNow: '❄️ Đang đóng băng',
@@ -1028,6 +1052,14 @@ window.I18N = {
 
     /* ======= ภาษาไทย ======= */
     th: {
+
+    jackpot_transparency: '🔗 การจับรางวัลแฮชบล็อกเชนที่โปร่งใส 100%',
+    jackpot_prize_desc: 'รางวัลแจ็คพอตสะสมสัปดาห์นี้ (สะสมค่าธรรมเนียมการถอน 100%)',
+    jackpot_draw_time: 'จับรางวัลผู้ชนะเพียง 1 คนในวันเสาร์นี้ เวลา 12:00 น.!',
+    jackpot_my_tickets: 'ตั๋วของฉัน:',
+    jackpot_tickets_unit: 'ใบ',
+    jackpot_win_prob: 'โอกาสชนะ:',
+
 
     diceHint: 'เลือกหมายเลขเพื่อเดิมพัน',
     earnSeeAll: 'ดูรายได้ทั้งหมด',

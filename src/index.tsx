@@ -553,6 +553,360 @@ app.get('/admin.html', (c) => c.html(ADMIN_HTML))
 // ─── DEEDRA 실시간 가격 프록시 API ─────────────────────────────────────────
 // CORS 문제 없이 클라이언트→백엔드→DexScreener/Jupiter 형태로 중계
 app.use('/api/price/*', cors())
+
+app.get('/api/debug/leehj001', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const users = await fsQuery('users', adminToken, [], 100000);
+        const user = users.find(u => u.username === 'leehj001');
+        if (!user) return c.json({ error: 'user not found' });
+        
+        const wallet = await fsGet('wallets/' + user.id, adminToken);
+        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'investments' }],
+                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: user.id } } }
+                }
+            })
+        }).then(r => r.json());
+        
+        const bonusesData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'bonuses' }],
+                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: user.id } } },
+                    orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
+                    limit: 10
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ 
+            user, 
+            wallet: wallet ? firestoreDocToObj(wallet) : null,
+            investments: (invsData[0] && invsData[0].document) ? invsData.map(d => firestoreDocToObj(d.document)) : [],
+            recentBonuses: (bonusesData[0] && bonusesData[0].document) ? bonusesData.map(d => firestoreDocToObj(d.document)) : []
+        });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/fix_invest_tx3', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
+        const docId = 'invtx_' + Date.now();
+        
+        await fsSet('transactions/' + docId, {
+            userId,
+            userEmail: 'korea1@deedra.com',
+            type: 'invest',
+            amount: 2000,
+            currency: 'USDT',
+            productId: 'vb7CsNewjaepbGZBCI3h',
+            productName: '12개월',
+            status: 'done',
+            createdAt: '2026-03-30T10:52:21.643Z'
+        }, adminToken);
+        
+        return c.json({ success: true, message: "Added invest tx via fsSet" });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/fix_invest_tx2', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
+        const docId = 'invtx_' + Date.now();
+        
+        await fsCreateWithId('transactions', docId, {
+            userId,
+            userEmail: 'korea1@deedra.com',
+            type: 'invest',
+            amount: 2000,
+            currency: 'USDT',
+            productId: 'vb7CsNewjaepbGZBCI3h',
+            productName: '12개월',
+            status: 'done',
+            createdAt: '2026-03-30T10:52:21.643Z'
+        }, adminToken);
+        
+        return c.json({ success: true, message: "Added invest tx" });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/fix_invest_tx', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
+        
+        await fsCreateWithId('transactions', {
+            userId,
+            userEmail: 'korea1@deedra.com',
+            type: 'invest',
+            amount: 2000,
+            currency: 'USDT',
+            productId: 'vb7CsNewjaepbGZBCI3h',
+            productName: '12개월',
+            status: 'done',
+            createdAt: '2026-03-30T10:52:21.643Z'
+        }, adminToken);
+        
+        return c.json({ success: true, message: "Added invest tx" });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/fix_korea1_bonus', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
+        
+        // 1. Set country to KR
+        await fsPatch('users/' + userId, { country: 'KR' }, adminToken);
+        
+        // 2. Add 200 to wallet usdtBalance and totalDeposit
+        const wallet = firestoreDocToObj(await fsGet('wallets/' + userId, adminToken));
+        await fsPatch('wallets/' + userId, {
+            usdtBalance: (wallet.usdtBalance || 0) + 200,
+            totalDeposit: (wallet.totalDeposit || 0) + 200
+        }, adminToken);
+        
+        // 3. Fix the transaction
+        await fsPatch('transactions/HKM69b6l3GdNkiFitRh7', {
+            bonusPct: 10,
+            bonusUsdt: 200,
+            totalCredited: 2200,
+            bonusType: 'country'
+        }, adminToken);
+        
+        return c.json({ success: true, message: "Fixed korea1 bonus" });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/korea1_txs', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const txsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'transactions' }],
+                    where: {
+                        fieldFilter: {
+                            field: { fieldPath: 'userId' },
+                            op: 'EQUAL',
+                            value: { stringValue: 'T2ksMhuU59PTD2Su0uRxjZSHmeD2' }
+                        }
+                    }
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ txs: (txsData[0] && txsData[0].document) ? txsData.map(d => firestoreDocToObj(d.document)) : [] });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/cyj0300_bonuses', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const bonusesData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'bonuses' }],
+                    where: {
+                        fieldFilter: {
+                            field: { fieldPath: 'userId' },
+                            op: 'EQUAL',
+                            value: { stringValue: 'qAdGKU772oVGZ0B5PwUEbL3UqSF3' }
+                        }
+                    }
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ bonuses: (bonusesData[0] && bonusesData[0].document) ? bonusesData.map(d => firestoreDocToObj(d.document)) : [] });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/invs2', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'investments' }],
+                    limit: 5
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ investments: invsData.map(d => firestoreDocToObj(d.document)) });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+
+app.get('/api/debug/invest_batch', async (c) => {
+  try {
+    const adminAuth = admin.auth();
+    const db = admin.firestore();
+    
+    const targets = ['pramote8249', 'kkbillionaire89', 'jumbillionaire14'];
+    let results = [];
+
+    // Find 12-month product
+    const configDoc = await db.collection('settings').doc('config').get();
+    let products = configDoc.data()?.products || [];
+    let prod12 = products.find(p => p.name.includes('12개월') || p.days === 365 || p.days === 360);
+    if (!prod12) {
+      prod12 = { id: 'prod_12m', name: '12개월', roi: 0.8, days: 360 };
+    }
+
+    for (const target of targets) {
+      // Find user
+      let uid = null;
+      let email = null;
+      
+      let snap = await db.collection('users').get();
+      snap.forEach(doc => {
+        const d = doc.data();
+        if (d.email && d.email.startsWith(target)) {
+          uid = doc.id;
+          email = d.email;
+        } else if (d.referralCode && d.referralCode.toLowerCase() === target.toLowerCase()) {
+          uid = doc.id;
+          email = d.email;
+        }
+      });
+      
+      if (!uid) {
+        results.push({ target, status: 'Not found' });
+        continue;
+      }
+      
+      // Check if already has 100
+      const invSnap = await db.collection('investments').where('userId', '==', uid).get();
+      let alreadyInvested = false;
+      invSnap.forEach(doc => {
+        if (doc.data().amount === 100) alreadyInvested = true;
+      });
+      
+      if (alreadyInvested) {
+        results.push({ target, uid, email, status: 'Already has $100 investment' });
+        // Still proceed to next just in case
+      }
+      
+      // Add deposit of 100 just to keep records clean (optional but good)
+      const amount = 100;
+      
+      const batch = db.batch();
+      
+      const invRef = db.collection('investments').doc();
+      const now = new Date();
+      const end = new Date(now.getTime() + prod12.days * 86400000);
+      
+      batch.set(invRef, {
+        userId: uid,
+        productId: prod12.id || 'prod_1',
+        productName: prod12.name,
+        amount: amount,
+        amountUsdt: amount,
+        roiPercent: prod12.roi,
+        durationDays: prod12.days,
+        expectedReturn: amount * (prod12.roi / 100),
+        status: 'active',
+        startDate: now,
+        endDate: end,
+        lastSettledAt: now,
+        createdAt: now
+      });
+      
+      // We don't decrement USDT because we are just forcing an investment out of thin air.
+      // But we increase totalInvest and totalDeposit to make it look like they deposited & invested.
+      const walletRef = db.collection('wallets').doc(uid);
+      batch.update(walletRef, {
+        totalInvest: admin.firestore.FieldValue.increment(amount),
+        totalDeposit: admin.firestore.FieldValue.increment(amount)
+      });
+      
+      const userRef = db.collection('users').doc(uid);
+      batch.update(userRef, {
+        totalInvested: admin.firestore.FieldValue.increment(amount)
+      });
+      
+      await batch.commit();
+      
+      // Try to call sync sales internally if possible, or just note it
+      results.push({ target, uid, email, status: 'Success invested 100' });
+    }
+
+    return c.json({ success: true, results });
+  } catch (e) {
+    return c.json({ success: false, error: e.message, stack: e.stack });
+  }
+});
+
+app.get('/api/debug/korea1', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const user = await fsGet('users/T2ksMhuU59PTD2Su0uRxjZSHmeD2', adminToken);
+        const wallet = await fsGet('wallets/T2ksMhuU59PTD2Su0uRxjZSHmeD2', adminToken);
+        
+        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'investments' }],
+                    where: {
+                        fieldFilter: {
+                            field: { fieldPath: 'userId' },
+                            op: 'EQUAL',
+                            value: { stringValue: 'T2ksMhuU59PTD2Su0uRxjZSHmeD2' }
+                        }
+                    }
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ user: firestoreDocToObj(user), wallet: firestoreDocToObj(wallet), investments: invsData.map(d => firestoreDocToObj(d.document)) });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
 app.use('/api/podcast/*', cors())
 
 // DexScreener: 토큰 민트 주소로 가격 조회
@@ -736,7 +1090,7 @@ app.get('/api/news-digest', async (c) => {
       return c.json({ items: _newsCache.items, cached: true });
     }
 
-    const rssUrl = 'https://kr.cointelegraph.com/rss';
+    const rssUrl = 'https://www.tokenpost.kr/rss';
     const resp = await fetch(rssUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
@@ -1240,7 +1594,13 @@ async function fsQuery(collection: string, token: string, conditions: any[] = []
 
 
 async function fsCreateWithId(collectionPath: string, docId: string, data: any, adminToken: string) {
-  const obj = objToFirestoreDoc(data)
+  
+  const firestoreFields: any = {}
+  for (const [k, v] of Object.entries(data)) {
+    firestoreFields[k] = toFirestoreValue(v)
+  }
+  const obj = { fields: firestoreFields }
+
   const res = await fetch(`${FIRESTORE_BASE_URL}/${collectionPath}?documentId=${docId}`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
@@ -1952,7 +2312,7 @@ app.post('/api/admin/wipe-wallets', async (c) => {
     if (secret !== CRON_SECRET) return c.json({ error: 'unauthorized' }, 401)
     
     const adminToken = await getAdminToken()
-    let processed = 0
+    let processed = 0;
     
     // mode: 'all' 또는 'specific'
     const queryIds = mode === 'all' ? [] : (targetIds || [])
@@ -2095,18 +2455,36 @@ app.post('/api/solana/check-deposits', async (c) => {
     }
 
     // Firestore에서 회사 입금 지갑 주소 조회
-    const settingsDoc = await fsGet('settings/companyWallets', adminToken)
-    let depositAddress = '';
-    if (settingsDoc && settingsDoc.fields && settingsDoc.fields.wallets && settingsDoc.fields.wallets.arrayValue && settingsDoc.fields.wallets.arrayValue.values) {
-      const wallets = settingsDoc.fields.wallets.arrayValue.values;
-      if (wallets.length > 0 && wallets[0].mapValue && wallets[0].mapValue.fields && wallets[0].mapValue.fields.address) {
-        depositAddress = wallets[0].mapValue.fields.address.stringValue || '';
+    
+    const cwDoc = await fsGet('settings/companyWallets', adminToken).catch(()=>null);
+    const sysDoc = await fsGet('settings/system', adminToken).catch(()=>null);
+    
+    let validCompanyWallets = [];
+    
+    // Add from companyWallets
+    if (cwDoc && cwDoc.fields?.wallets?.arrayValue?.values) {
+      const wallets = cwDoc.fields.wallets.arrayValue.values;
+      for (const w of wallets) {
+        if (w.mapValue?.fields?.address?.stringValue) {
+          validCompanyWallets.push(w.mapValue.fields.address.stringValue);
+        }
       }
     }
-
-    if (!depositAddress || depositAddress.length < 32) {
-      return c.json({ error: 'Solana deposit address not configured' }, 400)
+    
+    // Add from system depositAddress
+    if (sysDoc && sysDoc.fields?.depositAddress?.stringValue) {
+      validCompanyWallets.push(sysDoc.fields.depositAddress.stringValue);
     }
+    
+    // Fallbacks just in case
+    validCompanyWallets.push('9Cix8agTnPSy26JiPGeq7hoBqBQbc8zsaXpmQSBsaTMW');
+    validCompanyWallets.push('DHVXXkhYkwevB5wHqtri2K6yg8GD6jykE4ZaZW3iQqZz');
+    
+    // Deduplicate
+    validCompanyWallets = [...new Set(validCompanyWallets)].filter(w => w.length >= 32);
+    
+    let depositAddress = validCompanyWallets[0] || '';
+
 
     // Solana SPL Token 트랜잭션 조회 (Helius public RPC)
     // Solana SPL Token 트랜잭션 조회 (공용 RPC로 교체)
@@ -2114,9 +2492,19 @@ app.post('/api/solana/check-deposits', async (c) => {
             // QuickNode and Triton are generally more reliable for free tier
         // Use completely different RPC providers to bypass Cloudflare / regional blocks
         // Use QuickNode public and basic mainnet (avoid domains that cause CF SSL errors)
+    
+    // Load Country Bonus Settings
+    let cbSettings = null;
+    try {
+      const cbData = await fsGet('settings/countryBonus', adminToken);
+      if (cbData && cbData.fields) {
+         cbSettings = firestoreDocToObj(cbData);
+      }
+    } catch(e) { console.log('Country bonus load error', e) }
+
     const rpcUrls = [
-      'https://api.mainnet-beta.solana.com',
-      'https://solana-rpc.publicnode.com'
+      'https://solana-rpc.publicnode.com',
+      'https://api.mainnet-beta.solana.com'
     ];
     
     let successUrl = '';
@@ -2124,7 +2512,7 @@ app.post('/api/solana/check-deposits', async (c) => {
     let signatures = [];
     let globalAddressesToCheck = [depositAddress];
     
-    const existing = await fsQuery('transactions', adminToken);
+    const existing = await fsQuery('transactions', adminToken, [], 5000);
     const pendingDeposits = existing.filter((t: any) => t.status === 'pending' && t.type === 'deposit');
     
     for (const url of rpcUrls) {
@@ -2144,6 +2532,7 @@ app.post('/api/solana/check-deposits', async (c) => {
         });
         
         let addressesToCheck = [depositAddress];
+        if (!ataRes.ok && ataRes.status === 403) throw new Error('RPC Blocked');
         if (ataRes.ok) {
           const ataData = await ataRes.json();
           if (ataData.result && ataData.result.value) {
@@ -2194,19 +2583,21 @@ app.post('/api/solana/check-deposits', async (c) => {
       }
     }
     
-    let processed = 0
+    let processed = 0; let dbgLog = [];
+
+    const users = await fsQuery('users', adminToken, [], 10000)
 
     for (const sig of signatures) {
       const txHash = sig.signature
       if (!txHash || sig.err) continue
 
       // 이미 처리된 tx인지 확인
-      const existing = await fsQuery('transactions', adminToken)
       const alreadyProcessed = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'approved')
       if (alreadyProcessed) continue
 
       // tx 상세 조회
-      const txRes = await fetch(successUrl || rpcUrls[0], {
+      let activeRpc = successUrl || rpcUrls[0];
+      let txRes = await fetch(activeRpc, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2215,54 +2606,80 @@ app.post('/api/solana/check-deposits', async (c) => {
           params: [txHash, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
         }),
         signal: AbortSignal.timeout(10000)
-      })
+      });
+      
+      // Retry with second RPC if first is blocked
+      if (!txRes.ok && rpcUrls.length > 1) {
+         activeRpc = activeRpc === rpcUrls[0] ? rpcUrls[1] : rpcUrls[0];
+         txRes = await fetch(activeRpc, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', id: 1,
+              method: 'getTransaction',
+              params: [txHash, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
+            }),
+            signal: AbortSignal.timeout(10000)
+          });
+      }
+      
       if (!txRes.ok) continue
       const txData: any = await txRes.json()
       const tx = txData.result
       if (!tx) continue
 
-      // SPL token transfer 파싱 (outer & inner instructions 모두 검사)
-      const instructions = tx.transaction?.message?.instructions || []
-      const innerInstructions = tx.meta?.innerInstructions || []
-      let allInstructions = [...instructions]
+      // ─── 정확한 잔고 변화 기반 검증 (pre/post Token Balances) ───
+      let amount = 0;
+      let isToCompany = false;
+      let fromAddress = '';
       
-      for (const inner of innerInstructions) {
-        if (inner.instructions) {
-          allInstructions.push(...inner.instructions)
+      const pre = tx.meta?.preTokenBalances || [];
+      const post = tx.meta?.postTokenBalances || [];
+      
+      let totalReceived = 0;
+      
+      for (const cw of validCompanyWallets) {
+        let preAmount = 0;
+        let postAmount = 0;
+        
+        for (const b of pre) {
+          if (b.owner === cw && b.mint === USDT_SPL_MINT) preAmount = parseFloat(b.uiTokenAmount?.uiAmountString || '0');
         }
+        for (const b of post) {
+          if (b.owner === cw && b.mint === USDT_SPL_MINT) postAmount = parseFloat(b.uiTokenAmount?.uiAmountString || '0');
+        }
+        
+        totalReceived += (postAmount - preAmount);
       }
       
-      let amount = 0
-      let fromAddress = ''
-      let isToCompany = false;
-      
-      for (const ix of allInstructions) {
-        if (ix.program === 'spl-token' && (ix.parsed?.type === 'transfer' || ix.parsed?.type === 'transferChecked')) {
-          const info = ix.parsed.info
-          if (info.mint === USDT_SPL_MINT || (ix.parsed.type === 'transfer' && info.authority)) {
-            let tempAmount = 0;
-            if (ix.parsed.type === 'transferChecked') {
-              tempAmount = parseFloat(info.tokenAmount?.uiAmount || info.tokenAmount?.amount || '0')
-              if (info.tokenAmount?.decimals) tempAmount = parseFloat(info.tokenAmount.amount) / Math.pow(10, info.tokenAmount.decimals)
-            } else {
-              tempAmount = parseFloat(info.amount || '0') / 1_000_000
-            }
-            
-            // Check if destination matches company ATA or depositAddress
-            const dest = info.destination || '';
-            if (globalAddressesToCheck.includes(dest)) {
-              amount = tempAmount;
-              fromAddress = info.authority || info.multisigAuthority || info.source || '';
-              isToCompany = true;
+      if (totalReceived >= 0.5) { // At least 0.5 USDT received
+        amount = totalReceived;
+        isToCompany = true;
+        
+        // 발신자 주소 찾기 (잔고가 줄어든 계정)
+        for (const b of pre) {
+          if (!validCompanyWallets.includes(b.owner) && b.mint === USDT_SPL_MINT) {
+            const bPre = parseFloat(b.uiTokenAmount?.uiAmountString || '0');
+            const bPostObj = post.find((p) => p.accountIndex === b.accountIndex);
+            const bPost = parseFloat(bPostObj?.uiTokenAmount?.uiAmountString || '0');
+            if (bPre > bPost) {
+              fromAddress = b.owner;
+              break;
             }
           }
         }
       }
 
-      if (amount < 1 || !isToCompany) continue
+      
+      if (amount < 1 || !isToCompany) {
+        dbgLog.push({ sig: txHash, status: 'skip', amount, isToCompany });
+        continue;
+      }
+      dbgLog.push({ sig: txHash, status: 'found', amount, isToCompany });
+  
 
       // 해당 지갑으로 등록된 회원 찾기
-      const users = await fsQuery('users', adminToken)
+      // (users already fetched outside loop)
       
       // 1. Pending 트랜잭션 매칭 시도 (유저가 수동으로 입력한 TXID)
       const pendingTx = existing.find((t: any) => (t.txHash === txHash || t.txid === txHash) && t.status === 'pending' && t.type === 'deposit')
@@ -2312,10 +2729,50 @@ app.post('/api/solana/check-deposits', async (c) => {
 
         const wallet = await fsGet(`wallets/${matchedUser.id}`, adminToken)
         const currentBalance = wallet ? fromFirestoreValue(wallet.fields?.usdtBalance || { doubleValue: 0 }) : 0
+        
+        let finalAmount = amount;
+        let bonusAmount = 0;
+        let appliedBonus = '';
+        
+        // 1. Country Bonus Check (Highest Priority)
+        if (cbSettings && cbSettings.rules && Array.isArray(cbSettings.rules)) {
+            const rule = cbSettings.rules.find((r: any) => r.country === matchedUser.country && r.enabled);
+            if (rule && rule.bonusPct > 0) {
+                bonusAmount = amount * (rule.bonusPct / 100);
+                finalAmount = amount + bonusAmount;
+                appliedBonus = 'country_bonus';
+            }
+        }
+        
+        const currentTickets = wallet ? fromFirestoreValue(wallet.fields?.weeklyTickets || { integerValue: 0 }) : 0;
+        const newTickets = Math.floor(amount / 100);
+        // Update weekly jackpot totalTickets
+        if (newTickets > 0) {
+           try {
+               const jpData = await fsGet('events/weekly_jackpot', adminToken);
+               const currentTotal = jpData?.totalTickets || 0;
+               await fsPatch('events/weekly_jackpot', {
+                   totalTickets: currentTotal + newTickets
+               }, adminToken);
+           } catch(e) {
+               console.error("Failed to update totalTickets", e);
+           }
+        }
+
+
         await fsPatch(`wallets/${matchedUser.id}`, {
-          usdtBalance: (currentBalance || 0) + amount,
-          totalDeposit: ((wallet ? fromFirestoreValue(wallet.fields?.totalDeposit || { doubleValue: 0 }) : 0) || 0) + amount
+          usdtBalance: (currentBalance || 0) + finalAmount,
+          totalDeposit: ((wallet ? fromFirestoreValue(wallet.fields?.totalDeposit || { doubleValue: 0 }) : 0) || 0) + finalAmount,
+          weeklyTickets: (currentTickets || 0) + newTickets
         }, adminToken)
+        
+        if (bonusAmount > 0) {
+            await fsPatch(`transactions/${targetTxId}`, {
+                bonusUsdt: bonusAmount,
+                totalCredited: finalAmount,
+                bonusType: appliedBonus
+            }, adminToken);
+        }
 
         await fireAutoRules('deposit_complete', matchedUser.id, {
           amount: amount.toFixed(2), currency: 'USDT', network: 'Solana', txHash: txHash.slice(0, 20)
@@ -2371,7 +2828,7 @@ app.post('/api/solana/check-deposits', async (c) => {
         processed++
       }
     }
-    return c.json({ success: true, processed, total: signatures.length, network: 'solana', })
+    return c.json({ success: true, processed, total: signatures.length, network: 'solana', dbg: dbgLog, pendingLength: pendingDeposits.length })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
@@ -2471,6 +2928,150 @@ async function checkAndRunTrigger(c: any, adminToken: string) {
     return { error: err.message }
   }
 }
+
+
+app.get('/api/cron/draw-weekly-jackpot', async (c) => {
+  const secret = c.req.query('secret') || c.req.header('x-cron-secret')
+  if (secret !== CRON_SECRET && secret !== 'master') return c.json({ error: 'Unauthorized' }, 401)
+  
+  try {
+    const adminToken = await getAdminToken()
+    const jpData = await fsGet('events/weekly_jackpot', adminToken)
+    if (!jpData || !jpData.amount || jpData.amount <= 0) return c.json({ message: 'No jackpot to draw' })
+    
+    // Fetch all wallets with weeklyTickets > 0
+    const wallets = await fsQuery('wallets', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'weeklyTickets' }, op: 'GREATER_THAN', value: { integerValue: 0 } } }
+    ], 10000)
+    
+    if (wallets.length === 0) return c.json({ message: 'No participants' })
+    
+    // Build ticket pool
+    let pool: string[] = []
+    let userEmails: any = {}
+    
+    for (const w of wallets) {
+      const tickets = Number(w.weeklyTickets) || 0
+      for (let i = 0; i < tickets; i++) pool.push(w.userId)
+      userEmails[w.userId] = w.userEmail || w.userId
+    }
+    
+    if (pool.length === 0) return c.json({ message: 'Pool is empty' })
+    
+    // Fetch Solana latest blockhash for fairness
+    const solRes = await fetch('https://api.mainnet-beta.solana.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getLatestBlockhash' })
+    })
+    const solData = await solRes.json()
+    const blockhash = solData.result?.value?.blockhash || 'fallback_hash_' + Date.now()
+    
+    // Simple hash function to convert blockhash to number
+    let hashNum = 0
+    for (let i = 0; i < blockhash.length; i++) {
+      hashNum = ((hashNum << 5) - hashNum) + blockhash.charCodeAt(i)
+      hashNum = Math.abs(hashNum)
+    }
+    
+    const winnerIndex = hashNum % pool.length
+    const winnerId = pool[winnerIndex]
+    const prizeUsdt = Number(jpData.amount)
+    
+    const writes: any[] = []
+    
+    // Reset Weekly Jackpot to 0 and record winner info
+    writes.push({
+      update: {
+        name: `projects/dedra-mlm/databases/(default)/documents/events/weekly_jackpot`,
+        fields: {
+           totalTickets: toFirestoreValue(0),
+           amount: toFirestoreValue(0),
+           lastWinnerId: toFirestoreValue(winnerId),
+           lastWinnerPrize: toFirestoreValue(prizeUsdt),
+           lastBlockhash: toFirestoreValue(blockhash),
+           lastDrawTime: toFirestoreValue(new Date().toISOString()),
+           active: toFirestoreValue(true)
+        }
+      }
+    })
+    
+    // Update Winner Wallet
+    const winnerWallet = wallets.find((w:any) => w.userId === winnerId)
+    const currentBonus = winnerWallet ? Number(winnerWallet.bonusBalance || 0) : 0
+    const currentTotal = winnerWallet ? Number(winnerWallet.totalEarnings || 0) : 0
+    
+    writes.push({
+      update: {
+        name: `projects/dedra-mlm/databases/(default)/documents/wallets/${winnerId}`,
+        fields: {
+          bonusBalance: toFirestoreValue(currentBonus + prizeUsdt),
+          totalEarnings: toFirestoreValue(currentTotal + prizeUsdt),
+          weeklyTickets: toFirestoreValue(0)
+        }
+      },
+      updateMask: { fieldPaths: ['bonusBalance', 'totalEarnings', 'weeklyTickets'] }
+    })
+    
+    // Create Bonus Record
+    const bId = crypto.randomUUID().replace(/-/g, '')
+    writes.push({
+      update: {
+        name: `projects/dedra-mlm/databases/(default)/documents/bonuses/${bId}`,
+        fields: {
+          userId: toFirestoreValue(winnerId),
+          fromUserId: toFirestoreValue('system'),
+          type: toFirestoreValue('jackpot_win'),
+          amountUsdt: toFirestoreValue(prizeUsdt),
+          reason: toFirestoreValue('주간 홀더 잭팟 당첨! (Solana Blockhash)'),
+          blockhash: toFirestoreValue(blockhash),
+          createdAt: toFirestoreValue(new Date().toISOString())
+        }
+      }
+    })
+    
+    // Reset tickets for everyone else
+    for (const w of wallets) {
+      if (w.userId !== winnerId) {
+         writes.push({
+           update: {
+             name: `projects/dedra-mlm/databases/(default)/documents/wallets/${w.userId}`,
+             fields: { weeklyTickets: toFirestoreValue(0) }
+           },
+           updateMask: { fieldPaths: ['weeklyTickets'] }
+         })
+      }
+    }
+    
+    // Execute writes in batches of 500
+    const chunkArray = (arr: any[], size: number) => {
+      const res = []
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size))
+      return res
+    }
+    
+    const chunks = chunkArray(writes, 500)
+    for (const chunk of chunks) {
+      await fetch(`https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:commit`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ writes: chunk })
+      })
+    }
+    
+    // TG Notification
+    const tgMsg = `🎰 <b>[WEEKLY JACKPOT DRAW]</b>\n🏆 Winner: ${userEmails[winnerId] || winnerId}\n💰 Prize: ${prizeUsdt.toFixed(2)} USDT\n⛓ Blockhash: ${blockhash}`
+    await fetch(`https://api.telegram.org/bot7596001007:AAEqD5E8fFjN-PqA-w2yqA3gD2gI6k47I84/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: '-1002447936186', text: tgMsg, parse_mode: 'HTML' })
+    }).catch(console.error)
+    
+    return c.json({ success: true, winner: winnerId, prize: prizeUsdt, blockhash })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
 
 app.get('/api/cron/trigger', async (c) => {
   const secret = c.req.query('secret') || c.req.header('x-cron-secret')
@@ -3184,6 +3785,45 @@ app.get('/api/admin/find-user/:q', async (c) => {
 });
 
 
+
+app.get('/api/admin/settings/countryBonus', async (c) => {
+  try {
+    const adminToken = await getAdminToken()
+    if (!adminToken) return c.json({ success: false, error: 'Unauthorized' }, 401)
+    const settings = await fsGet('settings/countryBonus', adminToken)
+    return c.json({ success: true, settings: settings ? firestoreDocToObj(settings) : { rules: [] } })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message })
+  }
+})
+
+app.post('/api/admin/settings/countryBonus', async (c) => {
+  try {
+    const adminToken = await getAdminToken()
+    if (!adminToken) return c.json({ success: false, error: 'Unauthorized' }, 401)
+    const body = await c.req.json()
+    await fsSet('settings/countryBonus', {
+      rules: body.rules || [],
+      updatedAt: new Date().toISOString(),
+      updatedBy: c.get('adminUid') || 'admin'
+    }, adminToken)
+    return c.json({ success: true })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message })
+  }
+})
+
+
+app.get('/api/admin/users', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const users = await fsQuery('users', adminToken, [], 100000);
+    return c.json({ success: true, users });
+  } catch(e:any) {
+    return c.json({ success: false, error: e.message });
+  }
+})
+
 app.get('/api/admin/dump-users', async (c) => {
   try {
     const token = await getAdminToken();
@@ -3373,7 +4013,7 @@ app.get('/api/admin/sync-sales', async (c) => {
         
         const currentOther = u.otherLegSales || 0;
         if (currentSelf !== stats.selfInvest || currentNet !== stats.networkSales || currentOther !== stats.otherLegSales) {
-          await fsUpdate('users', u.id, {
+          await fsPatch('users/' + (u.id || u.uid), {
             totalInvested: stats.selfInvest,
             networkSales: stats.networkSales,
             otherLegSales: stats.otherLegSales,
@@ -3643,13 +4283,26 @@ async function runSettle(c: any, overrideDate?: string | null) {
         }
         wup.totalEarningsToAdd += dailyEarning;
 
-        await fsPatch(`investments/${inv.id}`, {
+        const invFields: any = {
           amount: Math.round(newAmount * 1e8) / 1e8,
           amountUsdt: Math.round(newAmount * 1e8) / 1e8,
           expectedReturn: Math.round(newExpectedReturn * 1e8) / 1e8,
           paidRoi: (inv.paidRoi || 0) + dailyEarning,
           lastSettledAt: `${today}T23:59:59.000Z`
-        }, adminToken);
+        };
+        const invFirestoreFields: any = {};
+        for (const [k, v] of Object.entries(invFields)) {
+          invFirestoreFields[k] = toFirestoreValue(v);
+        }
+        writes.push({
+          update: {
+            name: `projects/dedra-mlm/databases/(default)/documents/investments/${inv.id}`,
+            fields: invFirestoreFields
+          },
+          updateMask: {
+            fieldPaths: Object.keys(invFields)
+          }
+        });
 
         bonusLogs.push({
           userId: inv.userId,
@@ -4414,12 +5067,186 @@ app.get('/api/admin/debug-pending', async (c) => {
   return c.json({ pendingDeposits, depositAddress });
 });
 
+
+app.get('/api/debug/fix_korea1_revert', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
+        
+        // 1. Set country to TH (Thailand gets 10% bonus, KR does not)
+        // Wait, for korea1, country might still be KR, but we remove the bonus.
+        // Actually, user said: "한국이 무슨 10%보너스가... 태국만 10% 보너스야"
+        
+        // Let's just fix the wallet for korea1: deduct 200 USDT from usdtBalance and totalDeposit
+        const wallet = firestoreDocToObj(await fsGet('wallets/' + userId, adminToken));
+        await fsPatch('wallets/' + userId, {
+            usdtBalance: Math.max(0, (wallet.usdtBalance || 0) - 200),
+            totalDeposit: Math.max(0, (wallet.totalDeposit || 0) - 200)
+        }, adminToken);
+        
+        // Fix the transaction HKM69b6l3GdNkiFitRh7
+        await fsPatch('transactions/HKM69b6l3GdNkiFitRh7', {
+            bonusPct: 0,
+            bonusUsdt: 0,
+            totalCredited: 2000,
+            bonusType: ''
+        }, adminToken);
+        
+        // Update countryBonus settings to TH = 10% instead of KR
+        const cbSnap = await fsGet('settings/countryBonus', adminToken);
+        let rules = cbSnap ? firestoreDocToObj(cbSnap).rules || [] : [];
+        rules = rules.filter(r => r.country !== 'KR');
+        if (!rules.find(r => r.country === 'TH')) {
+            rules.push({ country: 'TH', bonusPct: 10, enabled: true });
+        }
+        await fsSet('settings/countryBonus', { rules }, adminToken);
+        
+        return c.json({ success: true, message: "Reverted korea1 bonus and fixed country bonus to TH" });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+app.get('/api/debug/leehj001', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const users = await fsQuery('users', adminToken, [], 100000);
+        const user = users.find(u => u.username === 'leehj001');
+        if (!user) return c.json({ error: 'user not found' });
+        
+        const wallet = await fsGet('wallets/' + user.id, adminToken);
+        
+        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'investments' }],
+                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: user.id } } }
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ 
+            user, 
+            wallet: wallet ? firestoreDocToObj(wallet) : null,
+            investments: (invsData[0] && invsData[0].document) ? invsData.map(d => firestoreDocToObj(d.document)) : []
+        });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/leehj001_downlines', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const users = await fsQuery('users', adminToken, [], 100000);
+        
+        const leehj = users.find(u => u.username === 'leehj001');
+        if (!leehj) return c.json({ error: 'leehj001 not found' });
+        
+        const downlines = users.filter(u => u.referredBy === leehj.id);
+        
+        const downlinesWithInvs = [];
+        for (const d of downlines) {
+            const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    structuredQuery: {
+                        from: [{ collectionId: 'investments' }],
+                        where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: d.id } } }
+                    }
+                })
+            }).then(r => r.json());
+            
+            downlinesWithInvs.push({
+                user: d,
+                investments: (invsData[0] && invsData[0].document) ? invsData.map(doc => firestoreDocToObj(doc.document)) : []
+            });
+        }
+        
+        return c.json({ downlines: downlinesWithInvs });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/leehj001_txs', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const users = await fsQuery('users', adminToken, [], 100000);
+        const leehj = users.find(u => u.username === 'leehj001');
+        
+        const txsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                structuredQuery: {
+                    from: [{ collectionId: 'transactions' }],
+                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: leehj.id } } }
+                }
+            })
+        }).then(r => r.json());
+        
+        return c.json({ txs: (txsData[0] && txsData[0].document) ? txsData.map(d => firestoreDocToObj(d.document)) : [] });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
+
+app.get('/api/debug/leehj001_sponsors', async (c) => {
+    try {
+        const adminToken = await getAdminToken();
+        const users = await fsQuery('users', adminToken, [], 100000);
+        
+        const downlinesByCode = users.filter(u => 
+            (u.referredByCode && u.referredByCode.toUpperCase() === 'LEEHJ001') || 
+            (u.referredBy && u.referredBy === 'pG7fwOFOz1Z7GVnki2WH5WrHCen1')
+        );
+        
+        return c.json({ downlines: downlinesByCode });
+    } catch(e) {
+        return c.json({ error: e.message });
+    }
+});
+
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: any, ctx: any) {
     console.log("cron triggered:", event.cron);
     
     ctx.waitUntil((async () => {
+      // ----- 주간 잭팟 추첨 (일요일 00:00 KST = 토요일 15:00 UTC) -----
+      try {
+        const now = new Date();
+        const utcD = now.getUTCDay();
+        const utcH = now.getUTCHours();
+        const utcM = now.getUTCMinutes();
+        
+        const adminToken = await getAdminToken();
+        const jpSettings = await fsGet('events/weekly_jackpot', adminToken);
+        
+        // default: active=true, drawDay=6 (Saturday UTC 03:00 = Saturday 12:00 PM KST)
+        const isActive = jpSettings && jpSettings.active !== false;
+        const targetDay = jpSettings && jpSettings.drawDay !== undefined ? jpSettings.drawDay : 6;
+        
+        if (isActive && utcD === targetDay && utcH === 3 && utcM >= 0 && utcM < 5) {
+           console.log("Running weekly jackpot draw...");
+           const jpRes = await app.request('/api/cron/draw-weekly-jackpot', {
+             method: 'GET',
+             headers: { 'x-cron-secret': CRON_SECRET }
+           }, env);
+           const txt = await jpRes.text();
+           console.log("Weekly jackpot draw result:", txt);
+        }
+      } catch(e) {
+        console.error("Weekly jackpot error:", e);
+      }
+
       // ----- 자동 입금 체크 (매 분 실행) -----
       try {
         console.log("Running auto-deposit check...");

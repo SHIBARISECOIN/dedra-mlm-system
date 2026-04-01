@@ -294,48 +294,81 @@ export class DedraAPI {
       if (!wSnap.empty) {
         const wData = wSnap.docs[0].data();
         if ((wData.totalWithdrawal || 0) > 0) {
-          isEligibleForBonus = false; // 출금자는 제외
+          // 출금 이력이 있으면 15일 이내인지 체크
+          const txQ = query(collection(db, 'transactions'), where('userId', '==', tx.userId), where('type', '==', 'withdrawal'));
+          const txSnap = await getDocs(txQ);
+          let latestWithdrawalTime = 0;
+          txSnap.forEach(d => {
+            const data = d.data();
+            const time = data.createdAt?.toMillis?.() || (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : 0);
+            if (time > latestWithdrawalTime) latestWithdrawalTime = time;
+          });
+          const days15 = 10 * 24 * 60 * 60 * 1000;
+          if (latestWithdrawalTime > 0 && (Date.now() - latestWithdrawalTime) < days15) {
+            isEligibleForBonus = false; // 30일 이내 출금자는 제외
+          }
         }
       }
 
-      if (isEligibleForBonus) {
+            if (isEligibleForBonus) {
         try {
-          const evSnap = await getDoc(doc(db, 'settings', 'bearMarketEvent'));
-          if (evSnap.exists()) {
-            const evData = evSnap.data();
-            const now = new Date();
-            let isWithinTime = false;
-            
-            if (evData.enabled) {
-              if (evData.startDate && evData.endDate) {
-                const sDate = new Date(evData.startDate);
-                const eDate = new Date(evData.endDate);
-                if (now >= sDate && now <= eDate) {
-                  isWithinTime = true;
+          // 1. Country Bonus Check (Highest Priority)
+          const userSnap = await getDoc(doc(db, 'users', tx.userId));
+          const userData = userSnap.exists() ? userSnap.data() : {};
+          
+          const cbSnap = await getDoc(doc(db, 'settings', 'countryBonus'));
+          let countryBonusApplied = false;
+          
+          if (cbSnap.exists()) {
+             const cbData = cbSnap.data();
+             if (cbData.rules && Array.isArray(cbData.rules)) {
+                 const rule = cbData.rules.find(r => r.country === userData.country && r.enabled);
+                 if (rule && rule.bonusPct > 0) {
+                     bonusPct = rule.bonusPct;
+                     bonusUsdt = originalAmount * (bonusPct / 100);
+                     countryBonusApplied = true;
+                 }
+             }
+          }
+          
+          // 2. Bear Market Event Check (Only if Country Bonus was NOT applied)
+          if (!countryBonusApplied) {
+              const evSnap = await getDoc(doc(db, 'settings', 'bearMarketEvent'));
+              if (evSnap.exists()) {
+                const evData = evSnap.data();
+                const now = new Date();
+                let isWithinTime = false;
+                
+                if (evData.enabled) {
+                  if (evData.startDate && evData.endDate) {
+                    const sDate = new Date(evData.startDate);
+                    const eDate = new Date(evData.endDate);
+                    if (now >= sDate && now <= eDate) {
+                      isWithinTime = true;
+                    }
+                  } else if (evData.endDate) {
+                     const eDate = new Date(evData.endDate);
+                     if (now <= eDate) isWithinTime = true;
+                  } else {
+                     isWithinTime = true;
+                  }
                 }
-              } else if (evData.endDate) {
-                 const eDate = new Date(evData.endDate);
-                 if (now <= eDate) isWithinTime = true;
-              } else {
-                 isWithinTime = true; // No dates set, just enabled
-              }
-            }
-            
-            if (isWithinTime) {
-              const priceSnap = await getDoc(doc(db, 'settings', 'deedraPrice'));
-              if (priceSnap.exists()) {
-                const pData = priceSnap.data();
-                const drop = parseFloat(pData.priceChange24h || 0);
-                if (drop < 0) {
-                  // 하락장인 경우 (priceChange24h가 음수), 소수점 이하 버림
-                  bonusPct = Math.floor(Math.abs(drop));
-                  bonusUsdt = originalAmount * (bonusPct / 100);
+                
+                if (isWithinTime) {
+                  const priceSnap = await getDoc(doc(db, 'settings', 'deedraPrice'));
+                  if (priceSnap.exists()) {
+                    const pData = priceSnap.data();
+                    const drop = parseFloat(pData.priceChange24h || 0);
+                    if (drop < 0) {
+                      bonusPct = Math.floor(Math.abs(drop));
+                      bonusUsdt = originalAmount * (bonusPct / 100);
+                    }
+                  }
                 }
               }
-            }
           }
         } catch(err) {
-          console.error("Bear market event check failed:", err);
+          console.error("Bonus check failed:", err);
         }
       }
 
@@ -558,17 +591,48 @@ export class DedraAPI {
           // 에러 확인
           if (tx.meta?.err) { verifyError = 'TX_ON_CHAIN_ERROR'; break; }
 
-          // SPL Transfer 검증
-          const instructions = tx?.transaction?.message?.instructions || [];
-          let found = false;
-          for (const ix of instructions) {
-            if (ix.program === 'spl-token' && ix.parsed?.type === 'transfer') {
-              const info = ix.parsed.info;
-              const actualAmt = parseFloat(info.tokenAmount?.uiAmount || (parseInt(info.amount || 0) / 1_000_000));
-              if (actualAmt >= amount * 0.999) { found = true; break; }
+          // 회사 지갑들 가져오기
+          let companyWallets = [];
+          try {
+            const cwSnap = await getDoc(doc(db, 'settings', 'companyWallets'));
+            if (cwSnap.exists() && cwSnap.data().wallets) {
+              companyWallets = cwSnap.data().wallets
+                .filter(w => w.network.includes('Solana') && w.address)
+                .map(w => w.address);
             }
+          } catch(e) {}
+          // 기본 지갑 폴백
+          if (companyWallets.length === 0) companyWallets.push('9Cix8agTnPSy26JiPGeq7hoBqBQbc8zsaXpmQSBsaTMW');
+          
+          const usdtMint = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+          
+          // 잔고 변화 기반 검증 (가장 정확함)
+          const pre = tx.meta?.preTokenBalances || [];
+          const post = tx.meta?.postTokenBalances || [];
+          
+          let totalReceivedByCompany = 0;
+          
+          for (const cw of companyWallets) {
+            let preAmount = 0;
+            let postAmount = 0;
+            
+            for (const b of pre) {
+              if (b.owner === cw && b.mint === usdtMint) {
+                preAmount = parseFloat(b.uiTokenAmount?.uiAmountString || '0');
+              }
+            }
+            for (const b of post) {
+              if (b.owner === cw && b.mint === usdtMint) {
+                postAmount = parseFloat(b.uiTokenAmount?.uiAmountString || '0');
+              }
+            }
+            totalReceivedByCompany += (postAmount - preAmount);
           }
-          if (found) { verified = true; break; }
+          
+          if (totalReceivedByCompany >= amount * 0.99) {
+            verified = true;
+            break;
+          }
           await new Promise(r => setTimeout(r, 2000));
         }
       } catch(verErr) {

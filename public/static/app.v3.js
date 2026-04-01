@@ -63,6 +63,13 @@ const SFX = (() => {
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+
+    jackpot_transparency: '🔗 100% 투명한 블록체인 해시 추첨 방식',
+    jackpot_prize_desc: '이번 주 누적 잭팟 상금 (출금 수수료 100% 적립)',
+    jackpot_draw_time: '이번 주 토요일 낮 12시, 단 1명 독식 추첨!',
+    jackpot_my_tickets: '나의 추첨권:',
+    jackpot_tickets_unit: '장',
+    jackpot_win_prob: '당첨 확률:',
     vipBadgeTitle: 'VIP 수익률 부스터 뱃지',
     vipBadgeDesc: '매일 수익률 +0.5% 추가 혜택!<br>누군가 구매할 때마다 가격이 상승합니다.<br>선착순 한정 수량!',
     vipBadgePriceLabel: '현재 가격',
@@ -457,6 +464,11 @@ const TRANSLATIONS = {
     labelPhone: '연락처',
     placeholderPhone: '010-0000-0000',
     modalTicket: '💬 1:1 문의',
+    faqTitle: '자주 묻는 질문 (FAQ)',
+    faqPhantomQ: '모바일에서 팬텀(Phantom) 지갑 연동이 안 돼요.',
+    faqPhantomA1: '모바일 일반 브라우저(크롬, 사파리 등)에서는 지갑 앱만 열리고 연동 승인이 되지 않을 수 있습니다.',
+    faqPhantomA2: '반드시 팬텀 지갑 앱을 열고 하단의 브라우저(🌐 아이콘) 메뉴로 들어가서 저희 사이트 주소를 접속해 주세요.',
+    faqPhantomA3: '지갑 내 브라우저에서 [지갑 연동]을 누르시면 정상적으로 연결됩니다.',
     ticketTitleLabel: '제목',
     ticketTitlePlaceholder: '문의 제목',
     ticketContentLabel: '내용',
@@ -793,6 +805,13 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+
+    jackpot_transparency: '🔗 100% Transparent Blockchain Hash Draw',
+    jackpot_prize_desc: 'This week accumulated jackpot prize (100% withdrawal fee accumulated)',
+    jackpot_draw_time: 'Draw for 1 sole winner this Saturday at 12 PM!',
+    jackpot_my_tickets: 'My Tickets:',
+    jackpot_tickets_unit: 'tickets',
+    jackpot_win_prob: 'Win Prob:',
     vipBadgeTitle: 'VIP Yield Booster Badge',
     vipBadgeDesc: '+0.5% Daily ROI Bonus!<br>Price increases after every purchase.<br>First come, first served!',
     vipBadgePriceLabel: 'Current Price',
@@ -1180,6 +1199,11 @@ const TRANSLATIONS = {
     labelPhone: 'Phone',
     placeholderPhone: '000-0000-0000',
     modalTicket: '💬 Support',
+    faqTitle: 'Frequently Asked Questions (FAQ)',
+    faqPhantomQ: 'Cannot connect Phantom wallet on mobile.',
+    faqPhantomA1: 'On mobile browsers (Chrome, Safari), the wallet app might open without triggering the connection prompt.',
+    faqPhantomA2: 'You must open the Phantom app, tap the Browser icon (🌐) at the bottom right, and enter our website URL there.',
+    faqPhantomA3: 'Then, click [Connect Wallet] from inside the Phantom browser to connect successfully.',
     ticketTitleLabel: 'Title',
     ticketTitlePlaceholder: 'Inquiry title',
     ticketContentLabel: 'Content',
@@ -1512,6 +1536,13 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+
+    jackpot_transparency: '🔗 100% Xổ số Băm Chuỗi khối Minh bạch',
+    jackpot_prize_desc: 'Giải độc đắc tích lũy tuần này (Tích lũy 100% phí rút tiền)',
+    jackpot_draw_time: 'Rút thăm cho 1 người chiến thắng duy nhất vào 12h trưa thứ Bảy tuần này!',
+    jackpot_my_tickets: 'Vé của tôi:',
+    jackpot_tickets_unit: 'vé',
+    jackpot_win_prob: 'Tỷ lệ thắng:',
     vipBadgeTitle: 'Huy hiệu Tăng Cường VIP',
     vipBadgeDesc: '+0.5% Lợi nhuận Hàng ngày!<br>Giá tăng sau mỗi lần mua.<br>Số lượng có hạn!',
     vipBadgePriceLabel: 'Giá hiện tại',
@@ -1897,6 +1928,11 @@ const TRANSLATIONS = {
     labelPhone: 'Điện thoại',
     placeholderPhone: '000-0000-0000',
     modalTicket: '💬 Hỗ trợ',
+    faqTitle: 'Câu hỏi thường gặp (FAQ)',
+    faqPhantomQ: 'Không thể kết nối ví Phantom trên điện thoại.',
+    faqPhantomA1: 'Trên trình duyệt di động (Chrome, Safari), ứng dụng ví có thể mở nhưng không hiển thị yêu cầu kết nối.',
+    faqPhantomA2: 'Bạn phải mở ứng dụng Phantom, nhấn vào biểu tượng Trình duyệt (🌐) ở góc dưới bên phải, và nhập địa chỉ trang web của chúng tôi vào đó.',
+    faqPhantomA3: 'Sau đó, nhấn [Kết nối Ví] từ bên trong trình duyệt Phantom để kết nối thành công.',
     ticketTitleLabel: 'Tiêu đề',
     ticketTitlePlaceholder: 'Tiêu đề câu hỏi',
     ticketContentLabel: 'Nội dung',
@@ -2232,6 +2268,13 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+
+    jackpot_transparency: '🔗 การจับรางวัลแฮชบล็อกเชนที่โปร่งใส 100%',
+    jackpot_prize_desc: 'รางวัลแจ็คพอตสะสมสัปดาห์นี้ (สะสมค่าธรรมเนียมการถอน 100%)',
+    jackpot_draw_time: 'จับรางวัลผู้ชนะเพียง 1 คนในวันเสาร์นี้ เวลา 12:00 น.!',
+    jackpot_my_tickets: 'ตั๋วของฉัน:',
+    jackpot_tickets_unit: 'ใบ',
+    jackpot_win_prob: 'โอกาสชนะ:',
     vipBadgeTitle: 'ป้าย VIP เพิ่มผลตอบแทน',
     vipBadgeDesc: 'โบนัส ROI รายวัน +0.5%!<br>ราคาจะเพิ่มขึ้นหลังจากการซื้อทุกครั้ง<br>มีจำนวนจำกัด!',
     vipBadgePriceLabel: 'ราคาปัจจุบัน',
@@ -2616,6 +2659,11 @@ const TRANSLATIONS = {
     labelPhone: 'โทรศัพท์',
     placeholderPhone: '000-000-0000',
     modalTicket: '💬 ติดต่อสนับสนุน',
+    faqTitle: 'คำถามที่พบบ่อย (FAQ)',
+    faqPhantomQ: 'ไม่สามารถเชื่อมต่อ Phantom wallet บนมือถือได้',
+    faqPhantomA1: 'บนเบราว์เซอร์มือถือ (Chrome, Safari) แอปวอลเล็ตอาจเปิดขึ้นแต่ไม่มีการแจ้งเตือนให้เชื่อมต่อ',
+    faqPhantomA2: 'คุณต้องเปิดแอป Phantom แตะที่ไอคอนเบราว์เซอร์ (🌐) ที่มุมขวาล่าง และพิมพ์ URL เว็บไซต์ของเราที่นั่น',
+    faqPhantomA3: 'จากนั้นคลิก [เชื่อมต่อวอลเล็ต] จากภายในเบราว์เซอร์ Phantom เพื่อเชื่อมต่อสำเร็จ',
     ticketTitleLabel: 'หัวข้อ',
     ticketTitlePlaceholder: 'หัวข้อคำถาม',
     ticketContentLabel: 'เนื้อหา',
@@ -3432,6 +3480,7 @@ window.onAuthReady = async (user) => {
 
 async function initApp() {
   setTimeout(listenToJackpot, 1500);
+  setTimeout(listenToWeeklyJackpot, 1500);
   setTimeout(listenToBearMarket, 2000);
     
 
@@ -3469,13 +3518,18 @@ async function initApp() {
     
     // --- 시스템 유지보수(정산) 감지 리스너 ---
     if (!window._systemUnsubscribe) {
+      window._wasInMaintenance = false;
       window._systemUnsubscribe = window.FB.onSnapshot(doc(db, 'settings', 'system'), (docSnap) => {
         if (docSnap.exists()) {
           const sys = docSnap.data();
           if (sys.maintenanceMode) {
+            window._wasInMaintenance = true;
             showMaintenanceModal(sys.maintenanceMessage);
           } else {
             hideMaintenanceModal();
+            if (window._wasInMaintenance) {
+              window.location.reload(); // 점검이 끝났으면 페이지를 강제 새로고침하여 최신 데이터 반영
+            }
           }
         }
       });
@@ -3639,7 +3693,33 @@ async function createUserData(user) {
   });
 }
 
+
+async function check15DayWithdrawal() {
+  if (!window.currentUser) return;
+  const { query, collection, where, getDocs, db } = window.FB;
+  try {
+    const q = query(collection(db, 'transactions'), where('userId', '==', window.currentUser.uid), where('type', '==', 'withdrawal'));
+    const snap = await getDocs(q);
+    let latest = 0;
+    snap.forEach(d => {
+      const time = d.data().createdAt?.toMillis?.() || (d.data().createdAt?.seconds ? d.data().createdAt.seconds * 1000 : 0);
+      if (time > latest) latest = time;
+    });
+    if (latest > 0) {
+      const days15 = 10 * 24 * 60 * 60 * 1000;
+      if ((Date.now() - latest) < days15) {
+        window._isEligibleForEvents = false;
+      } else {
+        window._isEligibleForEvents = true;
+      }
+    } else {
+      window._isEligibleForEvents = true;
+    }
+  } catch(e) { console.error(e); }
+}
+
 async function loadWalletData() {
+  check15DayWithdrawal();
   const { doc, getDoc, db, onSnapshot } = window.FB;
   const ref = doc(db, 'wallets', currentUser.uid);
   
@@ -4454,6 +4534,20 @@ function updateWalletUI() {
   console.log("updateWalletUI called, walletData:", walletData);
   updateHomeUI();
   // more 페이지가 열려있으면 해당 잔액도 갱신
+  const weeklyTicketEl = document.getElementById('myWeeklyTickets');
+  if (weeklyTicketEl && walletData) {
+    const myTix = walletData.weeklyTickets || 0;
+    weeklyTicketEl.textContent = myTix;
+    
+    const probEl = document.getElementById('myWeeklyProb');
+    if (probEl) {
+        const total = Math.max(window._currentWeeklyJackpotTotalTickets || 0, myTix);
+        let prob = '0.00';
+        if (myTix > 0 && total > 0) prob = ((myTix / total) * 100).toFixed(2);
+        probEl.textContent = prob + '%';
+    }
+  }
+  
   if (currentPage === 'more' && walletData) {
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     const bonus = walletData.bonusBalance || 0;
@@ -5468,7 +5562,7 @@ window.showDepositModal = async function() {
   try {
     const { doc, getDoc, db } = window.FB;
     let isEligibleForBonus = true;
-    if (walletData && (walletData.totalWithdrawal || 0) > 0) {
+    if (window._isEligibleForEvents === false) {
       isEligibleForBonus = false;
     }
     
@@ -5577,6 +5671,12 @@ window.submitDeposit = async function() {
 
   if (!amount || amount <= 0) { showToast('입금 금액을 입력하세요.', 'warning'); return; }
   if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
+  
+  // 솔라나 TXID 길이 검증 (일반적으로 88자 주변)
+  if (txid.length < 80) {
+    showToast('TXID 영수증 번호가 너무 짧습니다. 잘리지 않았는지 확인 후 다시 복사해주세요 (보통 88자입니다).', 'error');
+    return;
+  }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
   const origTxt = btn ? btn.textContent : '';
@@ -5584,13 +5684,29 @@ window.submitDeposit = async function() {
 
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
+    
+    if (btn) btn.textContent = '영수증 검증 중...';
+    
+    // 1. 기존처럼 Firestore에 pending 상태로 저장 (유저 권한으로 가능)
     await addDoc(collection(db, 'transactions'), {
       userId: currentUser.uid, userEmail: currentUser.email || null,
       type: 'deposit', amount, currency: 'USDT', txid, memo,
       status: 'pending', createdAt: serverTimestamp(),
     });
+    
+    // 2. 백엔드(Worker)에 강제로 즉시 검증하라고 핑(Ping) 전송
+    try {
+      await fetch('/api/solana/check-deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'deedra-cron-2026' }
+      });
+    } catch (e) {
+      console.log('Auto-verify ping failed, will be verified later:', e);
+    }
+
     closeModal('depositModal');
-    showToast(t('toastDepositDone') || '입금 신청 완료! 관리자 승인을 기다려주세요.', 'success');
+    showToast(t('toastDepositDone') || '입금 신청 완료! 확인 후 즉시 승인됩니다.', 'success');
+    
     document.getElementById('depositAmount').value = '';
     document.getElementById('depositTxid').value = '';
   } catch (err) {
@@ -5601,9 +5717,120 @@ window.submitDeposit = async function() {
 };
 
 // ===== 출금 신청 =====
+// 경고 모달을 띄우지 않고 바로 출금 모달로 직행하도록 함수 덮어쓰기
+window.showWithdrawWarningModal = function() {
+  window.showWithdrawModal();
+};
+
+window._old_showWithdrawWarningModal = function() {
+  if (userData && userData.withdrawSuspended) {
+    showToast('일정기간 출금금지 계정입니다', 'error');
+    return;
+  }
+  
+  let wm = document.getElementById('withdrawWarningOverlay');
+  if (!wm) {
+    wm = document.createElement('div');
+    wm.id = 'withdrawWarningOverlay';
+    wm.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.95);backdrop-filter:blur(8px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;animation:fadeIn 0.2s ease;';
+
+    const lang = typeof currentLang !== 'undefined' ? currentLang : 'ko';
+    
+    let titleStr, descStr, agreeStr, cancelStr, checkboxStr;
+    if (lang === 'en') {
+      titleStr = '⚠️ WARNING';
+      descStr = 'If you withdraw now, you will be <strong style="color:#ef4444;font-size:18px;display:inline-block;margin-top:5px;text-decoration:underline;">excluded for 10 days</strong><br><br>from all special events and <strong style="color:#ef4444;font-size:16px;">additional bonus opportunities</strong>.<br><br><span style="color:#94a3b8;font-size:14px;">Furthermore, the bonus benefits you forfeit will be <strong>redistributed as dividends to other members</strong> who are waiting to deposit.</span>';
+      checkboxStr = 'Yes, I agree that my benefits will be redistributed to other members.';
+      agreeStr = 'I Agree & Proceed';
+      cancelStr = 'Cancel (Keep Benefits)';
+    } else if (lang === 'vi') {
+      titleStr = '⚠️ CẢNH BÁO';
+      descStr = 'Nếu bạn rút tiền bây giờ, bạn sẽ bị <strong style="color:#ef4444;font-size:18px;display:inline-block;margin-top:5px;text-decoration:underline;">loại trừ trong 10 ngày</strong><br><br>khỏi tất cả các sự kiện đặc biệt và <strong style="color:#ef4444;font-size:16px;">cơ hội nhận thêm tiền thưởng</strong>.<br><br><span style="color:#94a3b8;font-size:14px;">Hơn nữa, các quyền lợi tiền thưởng mà bạn từ bỏ sẽ được <strong>phân phối lại dưới dạng cổ tức cho các thành viên khác</strong> đang chờ nạp tiền.</span>';
+      checkboxStr = 'Vâng, tôi đồng ý rằng quyền lợi của tôi sẽ được phân phối lại cho các thành viên khác.';
+      agreeStr = 'Đồng ý & Tiếp tục';
+      cancelStr = 'Hủy (Giữ Lợi ích)';
+    } else if (lang === 'th') {
+      titleStr = '⚠️ คำเตือน';
+      descStr = 'หากคุณถอนเงินตอนนี้ คุณจะ <strong style="color:#ef4444;font-size:18px;display:inline-block;margin-top:5px;text-decoration:underline;">ถูกยกเว้นเป็นเวลา 10 วัน</strong><br><br>จากกิจกรรมพิเศษทั้งหมดและ <strong style="color:#ef4444;font-size:16px;">โอกาสรับโบนัสเพิ่มเติม</strong>.<br><br><span style="color:#94a3b8;font-size:14px;">นอกจากนี้ สิทธิประโยชน์โบนัสที่คุณสละจะถูก <strong>แจกจ่ายเป็นเงินปันผลให้กับสมาชิกคนอื่นๆ</strong> ที่กำลังรอฝากเงิน</span>';
+      checkboxStr = 'ใช่ ฉันยอมรับว่าสิทธิประโยชน์ของฉันจะถูกแจกจ่ายให้กับสมาชิกคนอื่นๆ';
+      agreeStr = 'ฉันตกลงดำเนินการ';
+      cancelStr = 'ยกเลิก (รักษาสิทธิ)';
+    } else {
+      titleStr = '⚠️ 출금 주의사항';
+      descStr = '지금 출금을 진행하시면 <strong style="color:#ef4444;font-size:18px;display:inline-block;margin-top:5px;text-decoration:underline;">향후 10일 동안</strong><br><br>진행되는 모든 특별 이벤트 혜택 및<br>입금 시 추가 보너스 기회에서<br><strong style="color:#ef4444;font-size:16px;">완전히 제외</strong>됩니다.<br><br><div style="background:rgba(239,68,68,0.1);padding:12px;border-radius:8px;margin-top:10px;"><span style="color:#cbd5e1;font-size:14px;">또한 회원님이 포기하신 특별 보너스 혜택은 현재 입금을 대기 중인 <strong style="color:#facc15;">다른 회원들에게 배당금으로 전액 재분배</strong>됩니다.</span></div>';
+      checkboxStr = '네, 본인의 모든 혜택이 다른 회원에게 재분배되는 것에 동의합니다.';
+      agreeStr = '동의하고 출금하기';
+      cancelStr = '취소 (혜택 유지)';
+    }
+
+    wm.innerHTML = `
+      <div style="background:#1e293b;border:2px solid #ef4444;border-radius:24px;padding:30px 24px;text-align:center;width:100%;max-width:360px;box-shadow:0 0 40px rgba(239,68,68,0.4);position:relative;animation:pulseBorder 2s infinite;">
+        <h2 style="color:#ef4444;font-size:24px;font-weight:900;margin-bottom:15px;text-shadow:0 2px 4px rgba(0,0,0,0.5);">${titleStr}</h2>
+        <div style="color:#f8fafc;font-size:15px;line-height:1.6;margin-bottom:20px;word-break:keep-all;">
+          ${descStr}
+        </div>
+        
+        <label style="display:flex;align-items:flex-start;gap:10px;text-align:left;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;margin-bottom:20px;cursor:pointer;border:1px solid #334155;">
+          <input type="checkbox" id="cbWithdrawRedistribute" style="margin-top:4px;width:18px;height:18px;accent-color:#ef4444;cursor:pointer;">
+          <span style="color:#94a3b8;font-size:13px;line-height:1.4;">${checkboxStr}</span>
+        </label>
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button id="btnWithdrawAgree" disabled style="background:#64748b;color:#cbd5e1;border:none;padding:14px;border-radius:12px;font-size:16px;font-weight:bold;cursor:not-allowed;transition:all 0.3s;">
+            ${agreeStr}
+          </button>
+          <button id="btnWithdrawCancel" style="background:#334155;color:#f8fafc;border:none;padding:14px;border-radius:12px;font-size:15px;font-weight:bold;cursor:pointer;">
+            ${cancelStr}
+          </button>
+        </div>
+      </div>
+      <style>
+        @keyframes pulseBorder {
+          0% { box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+          50% { box-shadow: 0 0 50px rgba(239,68,68,0.7); }
+          100% { box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+        }
+      </style>
+    `;
+    document.body.appendChild(wm);
+    
+    const cb = document.getElementById('cbWithdrawRedistribute');
+    const btnAgree = document.getElementById('btnWithdrawAgree');
+    
+    cb.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        btnAgree.disabled = false;
+        btnAgree.style.background = '#ef4444';
+        btnAgree.style.color = '#fff';
+        btnAgree.style.cursor = 'pointer';
+        btnAgree.style.boxShadow = '0 4px 10px rgba(239,68,68,0.4)';
+      } else {
+        btnAgree.disabled = true;
+        btnAgree.style.background = '#64748b';
+        btnAgree.style.color = '#cbd5e1';
+        btnAgree.style.cursor = 'not-allowed';
+        btnAgree.style.boxShadow = 'none';
+      }
+    });
+
+    document.getElementById('btnWithdrawAgree').onclick = function() {
+      if (!cb.checked) return;
+      wm.style.display = 'none';
+      window.showWithdrawModal();
+    };
+    
+    document.getElementById('btnWithdrawCancel').onclick = function() {
+      wm.style.display = 'none';
+    };
+  } else {
+    // 텍스트 재적용 로직 (언어 변경 대비)
+    wm.style.display = 'flex';
+  }
+};
+
 window.showWithdrawModal = function() {
   if (userData && userData.withdrawSuspended) {
-    showToast(t('withdrawSuspendedMsg') || '출금정지 상태입니다. 관리자에게 문의하세요.', 'error');
+    showToast('일정기간 출금금지 계정입니다', 'error');
     return;
   }
   const bonus = walletData?.bonusBalance || 0;
@@ -5787,7 +6014,7 @@ window.submitReinvest = async function() {
     await batch.commit();
 
     // 🔄 산하 매출 즉시 동기화
-    fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
+    await fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
 
 
     // --- 잭팟 로직 추가 ---
@@ -5799,7 +6026,7 @@ window.submitReinvest = async function() {
         const jpData = jpSnap.data();
         if (jpData.active && jpData.endTime > Date.now()) {
           const duration = jpData.durationHours || 24;
-          const maskedName = currentUser.email ? currentUser.email.split('@')[0].substring(0, 3) + '***' : 'user***';
+          const maskedName = currentUser.email ? currentUser.email.split('@')[0].substring(0, 1) + '***' : 'u***';
           const uidOrEmail = currentUser.email || currentUser.uid;
           
           let updatePayload = {
@@ -5906,15 +6133,13 @@ function checkWithdrawTime(settings) {
 }
 
 window.submitWithdraw = async function() {
+
   if (userData && userData.withdrawSuspended) {
-    showToast(t('withdrawSuspendedMsg') || '출금정지 상태입니다. 관리자에게 문의하세요.', 'error');
+    showToast('일정기간 출금금지 계정입니다', 'error');
     return;
   }
   
-  // 하락장 이벤트 출금 경고 (재차 확인)
-  if (!confirm('⚠️ 출금 이력이 발생하면 현재 진행 중이거나 향후 진행될 [하락장 보상 이벤트(입금 보너스)] 대상에서 일정기간 제외됩니다.\n\n정말로 출금을 진행하시겠습니까?')) {
-    return;
-  }
+  // 출금 경고 제거 (대표님 지시사항: 출금시 부담없게 팝업 삭제)
 
   const { doc, getDoc, db } = window.FB;
   let settings = {};
@@ -6006,7 +6231,10 @@ window.submitWithdraw = async function() {
       const ratesSnap = await getDoc(doc(db, 'settings', 'rates'));
       if (ratesSnap.exists()) {
         const rates = ratesSnap.data();
-        const baseWithdrawFee = rates.withdrawFeeRate || 0;
+        let baseWithdrawFee = 5; // 수수료 5% 기본 적용
+        if (rates.withdrawalFeeRate !== undefined && rates.withdrawalFeeRate > 0) baseWithdrawFee = rates.withdrawalFeeRate;
+        else if (rates.withdrawFeeRate !== undefined && rates.withdrawFeeRate > 0) baseWithdrawFee = rates.withdrawFeeRate;
+        else if (settings.withdrawalFeeRate !== undefined && settings.withdrawalFeeRate > 0) baseWithdrawFee = settings.withdrawalFeeRate * 100;
         const vipDiscounts = rates.vipDiscounts || {};
         const vipLevel = userData?.vipLevel || 'bronze';
         const discount = vipDiscounts[vipLevel] || 0;
@@ -6035,12 +6263,46 @@ window.submitWithdraw = async function() {
       status: 'pending', createdAt: serverTimestamp(),
     });
 
-    // bonusBalance 차감 (USDT 기준으로 차감)
+    // bonusBalance 차감 (USDT 기준으로 차감) + 주간 잭팟 티켓 전액 소각(0으로 초기화)
     const walletRef = doc(db, 'wallets', currentUser.uid);
     batch.update(walletRef, {
       bonusBalance: increment(-amountUsdt),
       totalWithdrawal: increment(amountUsdt),
+      weeklyTickets: 0
     });
+
+    // 출금 수수료를 주간 잭팟으로 적립 + 잭팟 풀의 totalTickets 차감 로직
+    const feeUsdt = amountUsdt * (feeRate / 100);
+    const ticketsToBurn = walletData ? (walletData.weeklyTickets || 0) : 0;
+    
+    if (feeUsdt > 0 || ticketsToBurn > 0) {
+      try {
+        const jpSnap = await getDoc(doc(db, 'events', 'weekly_jackpot'));
+        let finalAmountToAdd = 0;
+        
+        if (jpSnap.exists()) {
+          const jpData = jpSnap.data();
+          if (jpData.active !== false) {
+            const accumRate = jpData.feeAccumulationRate !== undefined ? Number(jpData.feeAccumulationRate) : 100;
+            finalAmountToAdd = feeUsdt * (accumRate / 100);
+          }
+        } else {
+          finalAmountToAdd = feeUsdt;
+        }
+
+        const jpUpdates = { lastUpdate: serverTimestamp() };
+        if (finalAmountToAdd > 0) jpUpdates.amount = increment(finalAmountToAdd);
+        if (ticketsToBurn > 0) jpUpdates.totalTickets = increment(-ticketsToBurn);
+        
+        if (finalAmountToAdd > 0 || ticketsToBurn > 0) {
+            const jpRef = doc(db, 'events', 'weekly_jackpot');
+            batch.set(jpRef, jpUpdates, { merge: true });
+        }
+      } catch(e) {
+        console.warn('Jackpot update error:', e);
+      }
+    }
+
 
     await batch.commit();
 
@@ -6259,7 +6521,7 @@ async function autoCompleteExpiredInvestments(investDocs) {
       });
       await batch.commit();
       // 🔄 산하 매출 즉시 동기화
-      fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
+      await fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
 
       // 만기 알림 생성
       await addDoc(collection(db, 'notifications'), {
@@ -6416,6 +6678,7 @@ window.updateInvestPreview = function() {
 };
 
 window.submitInvest = async function() {
+
   if (!selectedProduct) return;
   const amount = parseFloat(document.getElementById('investAmount').value);
 
@@ -6461,7 +6724,7 @@ window.submitInvest = async function() {
     await batch.commit();
 
     // 🔄 산하 매출 즉시 동기화
-    fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
+    await fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
 
     
 
@@ -6474,7 +6737,7 @@ window.submitInvest = async function() {
         const jpData = jpSnap.data();
         if (jpData.active && jpData.endTime > Date.now()) {
           const duration = jpData.durationHours || 24;
-          const maskedName = currentUser.email ? currentUser.email.split('@')[0].substring(0, 3) + '***' : 'user***';
+          const maskedName = currentUser.email ? currentUser.email.split('@')[0].substring(0, 1) + '***' : 'u***';
           const uidOrEmail = currentUser.email || currentUser.uid;
           
           let updatePayload = {
@@ -6575,7 +6838,7 @@ function updateRankUI() {
 
     if (crit) {
       // 보유 데이터 파싱
-      const curSelf     = walletData?.totalDeposit || 0;
+      const curSelf     = walletData?.totalInvest || walletData?.totalDeposit || 0;
       const curMembers  = userData?.totalReferrals || userData?.referralCount || 0;
       // 매출 정보 (없으면 0)
       const curSales    = userData?.networkSales || 0; 
@@ -7130,7 +7393,17 @@ function updateGameUI() {
 window.chargeGameWallet = function() { /* 충전 시스템 제거됨 */ };
 window.submitCharge = function() { /* 충전 시스템 제거됨 */ };
 
-window.startGame = function(type) {
+window.startGame = async function(type) {
+  if (userData && userData.gameSuspended) {
+    showToast('게임불가 계정입니다', 'error');
+    return;
+  }
+  
+  if (type === 'baccarat') {
+    showToast('점검중입니다.', 'error');
+    return;
+  }
+  
   if (gameBalanceVal < 0.1) {
     showToast('게임을 플레이하려면 최소 0.1 DDRA 이상의 수익 잔액이 필요합니다.', 'warning');
     return;
@@ -7249,7 +7522,8 @@ window.setBetGameHalf = function(type) {
   setBetAmount(type, Math.max(0.1, maxDdra / 2));
 };
 
-window.playOddEven = function(choice) {
+window.playOddEven = async function(choice) {
+
   const _lockedBet = oeBetVal;
 
   SFX.play('coin');
@@ -7320,7 +7594,8 @@ window.playOddEven = function(choice) {
   }, 900);
 };
 
-window.playDice = function(chosenNum) {
+window.playDice = async function(chosenNum) {
+
   const _lockedBet = diceBetVal;
 
   SFX.play('dice_roll');
@@ -7389,7 +7664,8 @@ window.playDice = function(chosenNum) {
   }, 1000);
 };
 
-window.playSpin = function() {
+window.playSpin = async function() {
+
   const _lockedBet = slotBetVal;
 
   SFX.play('slot_spin');
@@ -7665,7 +7941,8 @@ window.selectRlBet = function(type) {
 };
 
 /* 스핀 실행 */
-window.playRoulette = function() {
+window.playRoulette = async function() {
+
   const _lockedBet = rlBetVal;
 
   SFX.play('roulette_spin');
@@ -7936,6 +8213,7 @@ function initBaccarat() {
 }
 
 window.playBaccarat = async function(betSide) {
+
   const _lockedBet = bacBetVal;
 
   SFX.play('card_deal');
@@ -8160,6 +8438,7 @@ function initPoker() {
 }
 
 window.dealPoker = async function() {
+
   const _lockedBet = pkBetVal;
 
   SFX.play('card_deal');
@@ -11137,6 +11416,208 @@ window._jackpotUnsubscribe = null;
 let currentJackpotEndTime = 0;
 let jackpotTimerInterval = null;
 
+
+let weeklyJackpotTimerInterval = null;
+
+function listenToWeeklyJackpot() {
+  if (window._weeklyJackpotUnsubscribe) return;
+  const { doc, onSnapshot, db } = window.FB;
+  if (!db) return;
+  
+  window._weeklyJackpotUnsubscribe = onSnapshot(doc(db, 'events', 'weekly_jackpot'), (snap) => {
+    if (!snap.exists()) {
+      renderWeeklyJackpotBanner(null);
+      return;
+    }
+    const data = snap.data();
+    
+    // 당첨자 축하 연출 체크 로직 (모든 유저에게 노출, 본인일 경우 문구 다름)
+    if (data.lastWinnerId && data.lastBlockhash) {
+      const lastSeenWinnerBlock = localStorage.getItem('seenWeeklyWinnerHash');
+      if (lastSeenWinnerBlock !== data.lastBlockhash) {
+        localStorage.setItem('seenWeeklyWinnerHash', data.lastBlockhash);
+        const isMe = (window.FB._currentUser && data.lastWinnerId === window.FB._currentUser.uid);
+        showWeeklyWinnerCelebration(data, isMe);
+      }
+    }
+    
+    renderWeeklyJackpotBanner(data);
+  });
+}
+
+function showWeeklyWinnerCelebration(data, isMe) {
+  const amountStr = Number(data.lastWinnerPrize || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  const blockhashTrunc = data.lastBlockhash ? (data.lastBlockhash.substring(0, 6) + '...' + data.lastBlockhash.substring(data.lastBlockhash.length - 6)) : '';
+  const winnerMasked = data.lastWinnerId ? (data.lastWinnerId.substring(0,4) + '***' + data.lastWinnerId.substring(data.lastWinnerId.length-3)) : '알수없음';
+  
+  const title1 = isMe ? "축하합니다!" : "이번 주 잭팟 당첨자 발표!";
+  const title2 = isMe ? "이번 주 잭팟의 주인공!" : "누군가 거액의 잭팟을 독식했습니다!";
+  const btnText = isMe ? "상금 수령하기" : "닫기 (다음 기회에...)";
+  const winnerDisplay = isMe ? "나 (본인)" : winnerMasked;
+  
+  // 1. 추첨 진행 중 애니메이션 UI
+  const drawHtml = `
+    <div id="weeklyDrawModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s;">
+      <h2 style="color:#fbcfe8;font-size:26px;font-weight:900;margin-bottom:40px;text-shadow:0 0 15px #f472b6;animation:pulse 0.8s infinite;">🎰 솔라나 블록해시 추첨 중...</h2>
+      
+      <div style="background:linear-gradient(to bottom, #1e1b4b, #312e81);border:2px solid #6d28d9;border-radius:20px;padding:30px;width:320px;text-align:center;margin-bottom:20px;box-shadow:inset 0 0 30px rgba(0,0,0,0.8), 0 0 20px rgba(109,40,217,0.5);">
+        <div style="color:#a5b4fc;font-size:13px;margin-bottom:10px;font-weight:bold;">대상자 탐색 중</div>
+        <div id="drawUid" style="color:#fbbf24;font-size:28px;font-family:monospace;font-weight:bold;letter-spacing:4px;text-shadow:0 0 10px #fbbf24;">SEARCHING</div>
+      </div>
+      
+      <div style="background:#0f172a;border:1px solid #334155;border-radius:15px;padding:15px;width:320px;text-align:center;">
+        <div style="color:#94a3b8;font-size:11px;margin-bottom:5px;">솔라나 메인넷 해시 연동 중</div>
+        <div id="drawHash" style="color:#34d399;font-size:14px;font-family:monospace;word-break:break-all;opacity:0.8;">CONNECTING...</div>
+      </div>
+      
+      <style>
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes pulse { 0% { opacity: 0.8; transform: scale(0.98); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 0.8; transform: scale(0.98); } }
+      </style>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', drawHtml);
+  
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const getRnd = (len) => Array.from({length:len}).map(()=>chars.charAt(Math.floor(Math.random()*chars.length))).join('');
+  
+  const drawUidEl = document.getElementById('drawUid');
+  const drawHashEl = document.getElementById('drawHash');
+  
+  let ticks = 0;
+  const maxTicks = 45; // 4.5초 (100ms 간격)
+  
+  const drawInterval = setInterval(() => {
+    ticks++;
+    if (drawUidEl) drawUidEl.textContent = getRnd(4) + '***' + getRnd(3);
+    if (drawHashEl) drawHashEl.textContent = getRnd(10) + '...' + getRnd(10);
+    
+    // 틱 소리 재생 시도 (가벼운 소리)
+    if (ticks % 3 === 0 && window.SFX && window.SFX.play) {
+        // SFX.play('click')이 없다면 에러 무시
+        try { window.SFX.play('click'); } catch(e){}
+    }
+    
+    // 서서히 멈추는 효과 연출 (마지막 10틱은 최종값에 근접하게)
+    if (ticks === maxTicks - 5) {
+        if (drawHashEl) drawHashEl.textContent = blockhashTrunc;
+    }
+    if (ticks === maxTicks - 2) {
+        if (drawUidEl) drawUidEl.textContent = winnerDisplay;
+    }
+    
+    if (ticks >= maxTicks) {
+      clearInterval(drawInterval);
+      
+      // 추첨 모달 제거
+      const dModal = document.getElementById('weeklyDrawModal');
+      if (dModal) dModal.remove();
+      
+      // 2. 최종 당첨자 결과 모달 렌더링
+      const modalHtml = `
+        <div id="weeklyWinnerModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.5s;">
+          <div style="text-align:center;animation:bounceIn 1s cubic-bezier(0.68, -0.55, 0.27, 1.55);">
+            <div style="font-size:80px;margin-bottom:20px;text-shadow:0 0 30px rgba(244,114,182,0.8);animation:pulse2 1s infinite;">🏆</div>
+            <h1 style="color:#fbcfe8;font-size:24px;font-weight:900;margin-bottom:10px;text-shadow:0 2px 10px rgba(244,114,182,0.5);">${title1}</h1>
+            <h2 style="color:#fff;font-size:32px;font-weight:900;margin-bottom:20px;">${title2}</h2>
+            
+            <div style="background:linear-gradient(135deg, #4c1d95, #be185d);border:2px solid #f472b6;border-radius:20px;padding:30px;box-shadow:0 10px 30px rgba(244,114,182,0.3);margin-bottom:30px;">
+              <div style="color:#fbcfe8;font-size:14px;margin-bottom:10px;">당첨 상금 (USDT)</div>
+              <div style="color:#fff;font-size:48px;font-weight:900;text-shadow:0 0 20px #f472b6;">$ ${amountStr}</div>
+              
+              <div style="margin-top:20px;padding-top:20px;border-top:1px dashed rgba(255,255,255,0.2);">
+                <div style="color:#f9a8d4;font-size:12px;margin-bottom:5px;">당첨자 UID</div>
+                <div style="color:#fbbf24;font-size:16px;font-weight:bold;margin-bottom:15px;">${winnerDisplay}</div>
+                
+                <div style="color:#f9a8d4;font-size:12px;margin-bottom:5px;">검증된 솔라나 추첨 블록해시</div>
+                <div style="color:#cbd5e1;font-size:13px;font-family:monospace;background:rgba(0,0,0,0.3);padding:8px;border-radius:8px;word-break:break-all;">${blockhashTrunc}</div>
+              </div>
+            </div>
+            
+            <button onclick="document.getElementById('weeklyWinnerModal').remove()" style="background:#f472b6;color:#fff;border:none;border-radius:30px;padding:15px 40px;font-size:18px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(244,114,182,0.4);transition:transform 0.2s;">
+              ${btnText}
+            </button>
+          </div>
+          
+          <style>
+            @keyframes bounceIn { 
+              0% { transform: scale(0.1); opacity: 0; } 
+              60% { transform: scale(1.2); opacity: 1; } 
+              100% { transform: scale(1); opacity: 1; } 
+            }
+            @keyframes pulse2 { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+          </style>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // 사운드 이펙트가 있다면 실행 (잭팟 소리)
+      if (window.SFX && window.SFX.play) {
+        setTimeout(() => window.SFX.play('jackpot'), 100);
+      }
+    }
+  }, 100);
+    }
+  }, 100);
+}
+
+function renderWeeklyJackpotBanner(data) {
+  const container = document.getElementById('weeklyJackpotBannerContainer');
+  if (!container) return;
+  
+  if (!data || data.active === false) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  const amountStr = Number(data.amount || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  const myTickets = window.walletData ? (window.walletData.weeklyTickets || 0) : 0;
+  const totalTickets = Math.max(data.totalTickets || 0, myTickets); // Ensure total >= my
+  
+  let winProb = '0.00';
+  if (myTickets > 0 && totalTickets > 0) {
+      winProb = ((myTickets / totalTickets) * 100).toFixed(2);
+  }
+  
+  window._currentWeeklyJackpotTotalTickets = totalTickets; // cache for UI updates
+  
+  container.innerHTML = `
+    <div style="background: linear-gradient(135deg, #4c1d95, #be185d); border: 2px solid #f472b6; border-radius: 16px; margin-bottom: 16px; padding: 16px; position: relative; overflow: hidden; box-shadow: 0 4px 15px rgba(244,114,182,0.15);">
+      <div style="position: absolute; top: -10px; right: -10px; font-size: 70px; opacity: 0.15; transform: rotate(15deg);">🎰</div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; position: relative; z-index: 1;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">💣</span>
+          <span style="color: #fbcfe8; font-weight: 800; font-size: 15px; letter-spacing: 1px;">WEEKLY HOLDER JACKPOT</span>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 12px; position: relative; z-index: 1;">
+          <span style="display: inline-block; background: rgba(52, 211, 153, 0.2); color: #6ee7b7; border: 1px solid #34d399; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">
+            ${t('jackpot_transparency')}
+          </span>
+      </div>
+      
+      <div style="text-align: center; position: relative; z-index: 1;">
+        <div style="color: #fbcfe8; font-size: 12px; margin-bottom: 4px;">${t('jackpot_prize_desc')}</div>
+        <div style="color: #fff; font-size: 28px; font-weight: 900; text-shadow: 0 2px 10px rgba(244,114,182,0.5);">
+          <span style="color: #fbcfe8;">${amountStr}</span> USDT
+        </div>
+        <div style="margin-top:8px; font-size: 13px; color: #f9a8d4; font-weight: bold;">
+          ${t('jackpot_draw_time')}
+        </div>
+        <div style="margin-top:12px; display:inline-block; background:rgba(0,0,0,0.3); border-radius:20px; padding:8px 16px; font-size:14px; font-weight:bold; color:#fff; border:1px solid rgba(255,255,255,0.2);">
+          🎟 ${t('jackpot_my_tickets')} <span id="myWeeklyTickets" style="color:#fbbf24; font-size:16px;">${myTickets}</span> ${t('jackpot_tickets_unit')} 
+          <span style="opacity:0.5; margin:0 6px;">|</span>
+          ${t('jackpot_win_prob')} <span id="myWeeklyProb" style="color:#34d399; font-size:16px;">${winProb}%</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function listenToJackpot() {
   if (window._jackpotUnsubscribe) return;
   const { doc, onSnapshot, db } = window.FB;
@@ -11197,7 +11678,7 @@ function renderJackpotBanner(data) {
             (typeof currentLang !== 'undefined' && currentLang === 'th') ? 'ผู้ชนะที่คาดหวัง: ' : 
             '현재 예비 당첨자: '} 
           <span id="jpLastInvestorSpan" style="${!data.lastInvestorMasked ? 'color:#fbbf24;' : ''}">
-            ${data.lastInvestorMasked || (
+            ${(data.lastInvestorMasked ? data.lastInvestorMasked.charAt(0) + '***' : null) || (
               (typeof currentLang !== 'undefined' && currentLang === 'en') ? 'It could be YOU!!' :
               (typeof currentLang !== 'undefined' && currentLang === 'vi') ? 'Cơ hội dành cho BẠN!!' :
               (typeof currentLang !== 'undefined' && currentLang === 'th') ? 'อาจเป็นคุณ!!' :
@@ -11206,12 +11687,6 @@ function renderJackpotBanner(data) {
           </span>
         </div>
         
-        <div style="margin-top:8px; font-size: 11px; color: #facc15; font-weight: 600; display: inline-block; background: rgba(250, 204, 21, 0.15); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(250, 204, 21, 0.3);">
-          ${(typeof currentLang !== 'undefined' && currentLang === 'en') ? 'Target changed ' + (data.changeCount||0) + ' times!' : 
-            (typeof currentLang !== 'undefined' && currentLang === 'vi') ? 'Mục tiêu đã thay đổi ' + (data.changeCount||0) + ' lần!' : 
-            (typeof currentLang !== 'undefined' && currentLang === 'th') ? 'เป้าหมายเปลี่ยนไป ' + (data.changeCount||0) + ' ครั้ง!' : 
-            '예비 당첨자 ' + (data.changeCount||0) + '번 변경됨!'}
-        </div>
       </div>
       
       <div style="margin-top: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px; text-align: center; font-size: 12px; color: #cbd5e1; position: relative; z-index: 1;">
@@ -11344,14 +11819,15 @@ function listenToBearMarket() {
     const btn = document.getElementById('mainDepositBtn');
     if (!btn) return;
     
-    // Check if user is eligible
-    const isEligible = walletData && walletData.totalWithdrawal === 0;
+    // Check if user is eligible (10 days rule)
+    const isEligible = window._isEligibleForEvents !== false;
 
     let existingBubble = document.getElementById('bearMarketBubble');
 
     if (eventActive && currentDrop < 0 && isEligible) {
       const bonusPct = Math.floor(Math.abs(currentDrop));
-      btn.classList.add('deposit-boost');
+      if (bonusPct >= 1) {
+        btn.classList.add('deposit-boost');
       
       if (!existingBubble) {
         existingBubble = document.createElement('div');
@@ -11359,8 +11835,26 @@ function listenToBearMarket() {
         existingBubble.className = 'bear-market-bubble';
         btn.appendChild(existingBubble);
       }
-      existingBubble.innerHTML = `${bonusPct}${t('bearMarketBubble')}`;
+      
+      const bubbleText = (typeof currentLang !== 'undefined' && currentLang === 'en') ? `Deposit Now +${bonusPct}% UP!` :
+                         (typeof currentLang !== 'undefined' && currentLang === 'vi') ? `Nạp ngay +${bonusPct}% UP!` :
+                         (typeof currentLang !== 'undefined' && currentLang === 'th') ? `ฝากตอนนี้ +${bonusPct}% UP!` :
+                         `지금 입금하면 +${bonusPct}% UP!`;
+      existingBubble.innerHTML = bubbleText;
+      
+      // SHOW PROMO MODAL ONCE PER SESSION
+      if (!sessionStorage.getItem('loginPromoShown_' + (window.currentUser ? window.currentUser.uid : 'guest'))) {
+        sessionStorage.setItem('loginPromoShown_' + (window.currentUser ? window.currentUser.uid : 'guest'), '1');
+        if (typeof showLoginPromoModal === 'function') {
+          setTimeout(() => showLoginPromoModal(bonusPct), 1000); // 1초 뒤 자연스럽게 팝업
+        }
+      }
+
       existingBubble.style.display = 'block';
+      } else {
+        btn.classList.remove('deposit-boost');
+        if (existingBubble) existingBubble.style.display = 'none';
+      }
     } else {
       btn.classList.remove('deposit-boost');
       if (existingBubble) {
@@ -11402,3 +11896,108 @@ function listenToBearMarket() {
   // Update periodically to handle eligibility changes
   setInterval(updateDepositButtonUI, 5000);
 }
+
+
+window.showLoginPromoModal = function(bonusPct) {
+  if (document.getElementById('loginPromoOverlay')) return;
+  
+  let pm = document.createElement('div');
+  pm.id = 'loginPromoOverlay';
+  pm.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;animation:fadeIn 0.3s ease;';
+
+  const lang = typeof currentLang !== 'undefined' ? currentLang : 'ko';
+  let titleStr, descStr, btn1, btn2;
+  
+  if (lang === 'en') {
+    titleStr = '🚀 PERFECT TIMING!';
+    descStr = 'Deposit now and get an instant <strong style="color:#facc15;font-size:32px;display:inline-block;margin:10px 0;text-shadow:0 0 10px rgba(250,204,21,0.5);">+<span id="promoBonusSpan" style="display:inline-block;transition:all 0.2s ease;">0</span>%</strong> bonus!<br><br><span style="color:#ef4444;font-size:13px;font-weight:bold;">⏳ This rate is changing in real-time!</span><br>Secure this rate before others deposit and the bonus drops. Don\'t miss out!';
+    btn1 = '⚡ Deposit Now ⚡';
+    btn2 = 'Maybe Later';
+  } else if (lang === 'vi') {
+    titleStr = '🚀 THỜI ĐIỂM HOÀN HẢO!';
+    descStr = 'Nạp tiền ngay và nhận ngay <strong style="color:#facc15;font-size:32px;display:inline-block;margin:10px 0;text-shadow:0 0 10px rgba(250,204,21,0.5);">+<span id="promoBonusSpan" style="display:inline-block;transition:all 0.2s ease;">0</span>%</strong> tiền thưởng!<br><br><span style="color:#ef4444;font-size:13px;font-weight:bold;">⏳ Tỷ lệ này thay đổi theo thời gian thực!</span><br>Hãy đảm bảo tỷ lệ này trước khi người khác nạp và tiền thưởng giảm xuống. Đừng bỏ lỡ!';
+    btn1 = '⚡ Nạp ngay ⚡';
+    btn2 = 'Để sau';
+  } else if (lang === 'th') {
+    titleStr = '🚀 จังหวะเวลาที่สมบูรณ์แบบ!';
+    descStr = 'ฝากตอนนี้และรับโบนัสทันที <strong style="color:#facc15;font-size:32px;display:inline-block;margin:10px 0;text-shadow:0 0 10px rgba(250,204,21,0.5);">+<span id="promoBonusSpan" style="display:inline-block;transition:all 0.2s ease;">0</span>%</strong>!<br><br><span style="color:#ef4444;font-size:13px;font-weight:bold;">⏳ อัตรานี้เปลี่ยนแปลงตามเวลาจริง!</span><br>รักษาสิทธิ์นี้ไว้ก่อนที่คนอื่นจะฝากและโบนัสจะลดลง ห้ามพลาด!';
+    btn1 = '⚡ ฝากตอนนี้ ⚡';
+    btn2 = 'ไว้คราวหลัง';
+  } else {
+    titleStr = '🚀 기가막힌 로그인 타이밍!';
+    descStr = '지금 입금하시면 원금에 <strong style="color:#facc15;font-size:32px;display:inline-block;margin:10px 0;text-shadow:0 0 10px rgba(250,204,21,0.5);">+<span id="promoBonusSpan" style="display:inline-block;transition:all 0.2s ease;">0</span>%</strong> 보너스가 즉시 추가 지급됩니다!<br><br><span style="color:#ef4444;font-size:14px;font-weight:bold;animation:pulseText 1s infinite alternate;">⏳ 보너스 요율은 실시간으로 변동됩니다!</span><br>다른 회원이 먼저 입금하여 <span style="color:#38bdf8;font-weight:bold;">요율이 떨어지기 전에</span><br>지금 바로 선점하세요!';
+    btn1 = '⚡ 지금 혜택받고 입금하기 ⚡';
+    btn2 = '다음에 하기';
+  }
+
+  pm.innerHTML = `
+    <div style="background:linear-gradient(145deg, #0f172a, #1e3a8a);border:2px solid #38bdf8;border-radius:24px;padding:35px 24px;text-align:center;width:100%;max-width:380px;box-shadow:0 0 40px rgba(56,189,248,0.4);position:relative;animation:promoPulseBorder 2s infinite alternate;">
+      <div style="font-size:50px;margin-bottom:10px;animation:bounce 2s infinite;">🎁</div>
+      <h2 style="color:#38bdf8;font-size:24px;font-weight:900;margin-bottom:15px;text-shadow:0 2px 5px rgba(0,0,0,0.8);">${titleStr}</h2>
+      <div style="color:#f8fafc;font-size:16px;line-height:1.6;margin-bottom:30px;word-break:keep-all;">
+        ${descStr}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button id="btnPromoDeposit" style="background:linear-gradient(90deg, #00c6ff, #0072ff);color:#fff;border:none;padding:16px;border-radius:14px;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 5px 15px rgba(0,114,255,0.5);animation:promoBtnPulse 1s infinite alternate;">
+          ${btn1}
+        </button>
+        <button id="btnPromoClose" style="background:transparent;color:#94a3b8;border:none;padding:12px;font-size:14px;cursor:pointer;text-decoration:underline;">
+          ${btn2}
+        </button>
+      </div>
+    </div>
+    <style>
+      @keyframes promoPulseBorder {
+        0% { box-shadow: 0 0 20px rgba(56,189,248,0.3); transform: scale(1); }
+        100% { box-shadow: 0 0 60px rgba(56,189,248,0.8); transform: scale(1.02); }
+      }
+      @keyframes promoBtnPulse {
+        0% { transform: scale(1); filter: brightness(1); }
+        100% { transform: scale(1.05); filter: brightness(1.3); box-shadow:0 10px 25px rgba(0,114,255,0.8); }
+      }
+    </style>
+  `;
+  document.body.appendChild(pm);
+  
+  // Animate count up from 0 to bonusPct
+  setTimeout(() => {
+    const span = document.getElementById('promoBonusSpan');
+    if (span) {
+      const target = parseInt(bonusPct, 10);
+      let current = 0;
+      
+      const interval = setInterval(() => {
+        if (!document.getElementById('loginPromoOverlay')) {
+          clearInterval(interval);
+          return;
+        }
+        
+        current += 1;
+        span.innerText = current.toString();
+        
+        if (current >= target) {
+          clearInterval(interval);
+          span.style.transform = 'scale(1.3)';
+          span.style.color = '#facc15';
+          span.style.textShadow = '0 0 20px rgba(250,204,21,0.8)';
+          
+          setTimeout(() => {
+            if (span) {
+              span.style.transform = 'scale(1)';
+              span.style.textShadow = '0 0 10px rgba(250,204,21,0.5)';
+            }
+          }, 200);
+        }
+      }, 40); // Fast spin effect
+    }
+  }, 300);
+  
+  document.getElementById('btnPromoDeposit').onclick = function() {
+    pm.remove();
+    if (typeof switchPage === 'function') switchPage('wallet');
+    setTimeout(() => { if(typeof showDepositModal === 'function') showDepositModal(); }, 400);
+  };
+  document.getElementById('btnPromoClose').onclick = function() {
+    pm.remove();
+  };
+};

@@ -1,19 +1,46 @@
 const admin = require('firebase-admin');
-const fs = require('fs');
-const saContent = fs.readFileSync('/home/user/webapp/sa.js', 'utf8').replace('const SERVICE_ACCOUNT = ', '').replace(/};\s*$/, '}');
-const SERVICE_ACCOUNT = eval('(' + saContent + ')');
-admin.initializeApp({ credential: admin.credential.cert(SERVICE_ACCOUNT) });
+const serviceAccount = require('./serviceAccountKey.json');
+
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+}
+
 const db = admin.firestore();
 
-async function run() {
-  const uid = 'rlSK0MotrUT1AbEXlSAmolfKpZ42'; // tiffany01
-  const invs = await db.collection('investments').where('userId', '==', uid).get();
-  invs.forEach(d => {
-    const data = d.data();
-    console.log(`Inv: amt=${data.amount}, earned=${data.earned || 0}, created=${data.createdAt?.toDate()}`);
-  });
-  
-  const user = await db.collection('users').doc(uid).get();
-  console.log("User balances:", user.data().usdtBalance, user.data().bonusBalance, user.data().totalRevenue);
+async function checkTiff() {
+    const tiffId = 'rlSK0MotrUT1AbEXlSAmolfKpZ42'; // tiffany01@deedra.com
+    
+    const countDocs = async (collection, conditions) => {
+        let q = db.collection(collection);
+        for(let cond of conditions) q = q.where(cond[0], cond[1], cond[2]);
+        const snap = await q.get();
+        return snap.size;
+    };
+
+    const dates = ['2026-03-29', '2026-03-30', '2026-03-31'];
+    
+    console.log("tiffany01@deedra.com (G10) Rank Bonus Details");
+    for (const d of dates) {
+        const snap = await db.collection('bonuses')
+            .where('userId', '==', tiffId)
+            .where('type', '==', 'rank_bonus')
+            .where('settlementDate', '==', d)
+            .get();
+            
+        let totalAmt = 0;
+        let reasons = {};
+        snap.forEach(doc => {
+            totalAmt += doc.data().amountUsdt || 0;
+            const r = doc.data().reason || 'unknown';
+            reasons[r] = (reasons[r] || 0) + 1;
+        });
+        
+        console.log(`[${d}] Count: ${snap.size}, Total: $${totalAmt.toFixed(2)}`);
+        // console.log(reasons);
+    }
+    
+    process.exit(0);
 }
-run().catch(console.error);
+checkTiff().catch(console.error);

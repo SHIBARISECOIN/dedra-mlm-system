@@ -1,19 +1,23 @@
-const admin = require('firebase-admin');
-const serviceAccount = require('./service-account.json');
-if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-const db = admin.firestore();
+const fs = require('fs');
+let code = fs.readFileSync('/home/user/webapp/src/index.tsx', 'utf8');
 
-async function run() {
-  const txSnap = await db.collection('transactions')
-    .orderBy('createdAt', 'desc')
-    .limit(200)
-    .get();
+const endp = `
+app.get('/api/admin/dump-tx-types', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const txs = await fsQuery('transactions', adminToken, [], 100000);
+    const types = {};
+    txs.forEach(t => {
+      types[t.type] = (types[t.type] || 0) + 1;
+    });
+    return c.json({success: true, types});
+  } catch (e) {
+    return c.json({success: false, error: e.message});
+  }
+});
+`;
 
-  const types = {};
-  txSnap.forEach(doc => {
-      const t = doc.data().type || 'undefined';
-      types[t] = (types[t] || 0) + 1;
-  });
-  console.log(types);
+if (!code.includes('/api/admin/dump-tx-types')) {
+  code = code.replace("app.get('/api/admin/sync-sales'", endp + "\napp.get('/api/admin/sync-sales'");
+  fs.writeFileSync('/home/user/webapp/src/index.tsx', code);
 }
-run().catch(console.error).finally(() => process.exit(0));

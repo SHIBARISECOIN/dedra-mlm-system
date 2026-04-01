@@ -4375,3 +4375,81 @@ body {
 .dex-sell-btn:active {
   transform: scale(0.96);
 }
+
+
+/* ===== Bear Market Bonus Effect ===== */
+@keyframes superDepositPulse {
+  0% { 
+    box-shadow: 0 0 10px #0052d4; 
+    transform: scale(1); 
+    filter: brightness(0.8);
+  }
+  15% { 
+    box-shadow: 0 0 50px #00f2fe, 0 0 100px #00f2fe, inset 0 0 20px rgba(255,255,255,0.9); 
+    transform: scale(1.25); 
+    filter: brightness(1.5);
+  }
+  30% { 
+    box-shadow: 0 0 20px #00c6ff; 
+    transform: scale(1.05); 
+    filter: brightness(1.1);
+  }
+  45% { 
+    box-shadow: 0 0 50px #00f2fe, 0 0 100px #00f2fe, inset 0 0 20px rgba(255,255,255,0.9); 
+    transform: scale(1.25); 
+    filter: brightness(1.5);
+  }
+  100% { 
+    box-shadow: 0 0 10px #0052d4; 
+    transform: scale(1); 
+    filter: brightness(0.8);
+  }
+}
+
+.deposit-boost {
+  animation: superDepositPulse 1.8s infinite ease-in-out !important;
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  background: linear-gradient(90deg, #0052d4, #4364f7, #6fb1fc) !important;
+  background-size: 200% 200% !important;
+  text-shadow: 0 0 10px rgba(255,255,255,0.9) !important;
+  font-weight: 900 !important;
+  position: relative;
+  overflow: visible !important;
+  z-index: 20;
+
+  transition: none !important;
+}
+
+.bear-market-bubble {
+  position: absolute;
+  top: -25px;
+  right: -20px;
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: 0 0 20px rgba(0,198,255,0.9), 0 4px 6px rgba(0,0,0,0.5);
+  border: 2px solid #fff;
+  z-index: 30;
+  animation: bounceBubbleFlash 1.8s infinite ease-in-out;
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  transform-origin: bottom center;
+}
+
+@keyframes bounceBubbleFlash {
+  0%, 100% { transform: translateY(0) scale(1) rotate(-3deg); filter: brightness(0.9); }
+  15%, 45% { transform: translateY(-15px) scale(1.35) rotate(5deg); filter: brightness(1.3); }
+  30% { transform: translateY(-5px) scale(1.1) rotate(0deg); filter: brightness(1.1); }
+}
+  100% { transform: translateY(-10px) scale(1.15); filter: brightness(1.3); }
+}
+  50% { transform: translateY(-8px) scale(1.1); }
+}
+  50% { transform: translateY(-8px) scale(1.1); }
+}
+  50% { transform: translateY(-5px); }
+}

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
-  <link rel="stylesheet" href="/static/style.v3.css?v=1774627115571" />
+  <link rel="stylesheet" href="/static/style.v3.css?v=1774913498404" />
 
 
 
@@ -261,6 +261,7 @@
           <!-- 이벤트 배너 컨테이너 (하락장 / 잭팟) - 최상단 배치 -->
           <div id="bearMarketBannerContainer"></div>
           <div id="jackpotBannerContainer"></div>
+          <div id="weeklyJackpotBannerContainer"></div>
 
           <!-- 인사 -->
           <div class="greeting-section" style="display:flex;justify-content:space-between;align-items:center;">
@@ -356,7 +357,7 @@
               <button id="mainDepositBtn" class="asset-action-btn deposit" onclick="showDepositModal()">
                 <i class="fas fa-arrow-down"></i> <span data-i18n="btnDeposit">USDT 입금</span>
               </button>
-              <button class="asset-action-btn withdraw" onclick="showWithdrawModal()">
+              <button class="asset-action-btn withdraw" onclick="showWithdrawWarningModal()">
                 <i class="fas fa-arrow-up"></i> <span data-i18n="btnWithdraw">USDT 출금</span>
               </button>
             </div>
@@ -1886,6 +1887,25 @@
     <div class="modal-handle"></div>
     <div class="modal-title" data-i18n="modalTicket">💬 1:1 문의</div>
     <div class="modal-body">
+      
+      <!-- FAQ Section -->
+      <div style="background: rgba(153, 69, 255, 0.1); border: 1px solid rgba(153, 69, 255, 0.3); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+        <h3 style="font-size: 14px; color: #fff; margin-bottom: 12px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+          <span>💡</span> <span data-i18n="faqTitle">자주 묻는 질문 (FAQ)</span>
+        </h3>
+        <details style="margin-bottom: 0;">
+          <summary style="font-size: 13px; color: #e2e8f0; cursor: pointer; outline: none; font-weight: 500; list-style: none; display: flex; align-items: flex-start; gap: 6px;">
+            <span style="color:#c084fc;">Q.</span> 
+            <span data-i18n="faqPhantomQ">모바일에서 팬텀(Phantom) 지갑 연동이 안 돼요.</span>
+          </summary>
+          <div style="font-size: 12px; color: #cbd5e1; margin-top: 10px; line-height: 1.6; padding-left: 14px; border-left: 2px solid rgba(153, 69, 255, 0.5);">
+            <div data-i18n="faqPhantomA1">모바일 환경(크롬, 사파리 등)에서는 지갑 앱만 열리고 연동 승인이 되지 않을 수 있습니다.</div>
+            <strong style="color: #c084fc; display: block; margin-top: 6px;" data-i18n="faqPhantomA2">반드시 팬텀 지갑 앱 내부의 브라우저(우측 하단 🌐 아이콘)를 실행한 뒤, 사이트 주소를 직접 입력하여 접속해 주세요.</strong>
+            <div style="margin-top: 6px;" data-i18n="faqPhantomA3">그 상태에서 [지갑 연동]을 누르시면 정상적으로 연결 승인 창이 표시됩니다.</div>
+          </div>
+        </details>
+      </div>
+
       <div id="ticketList" class="ticket-list"></div>
       <div class="divider"></div>
       <div class="form-group">
@@ -2089,7 +2109,7 @@
 <!-- Solana 지갑 연동 모듈 -->
 <script src="/static/js/solana-wallet.js?v=1774617642731"></script>
 <script src="/static/js/chat.js?v=1774627115571"></script>
-<script src="/static/app.v3.js?v=1774627095414"></script>
+<script src="/static/app.v3.js?v=1775029112005"></script>
 
 <!-- ══════════════════════════════════════════════
      🌐 네트워크 수익 슬라이드업 패널

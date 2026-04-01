@@ -1,22 +1,19 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('./service-account.json');
+const serviceAccount = require('/home/user/webapp/serviceAccountKey.json');
 
 if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
 }
 const db = admin.firestore();
 
-async function fix() {
-    try {
-        await db.collection('settings').doc('system').set({
-            maintenanceMode: false,
-            isSettling: false
-        }, { merge: true });
-        console.log('Maintenance mode turned OFF successfully.');
-    } catch(e) {
-        console.error('Fix failed:', e);
-    }
+async function turnOffMaintenance() {
+  await db.collection('settings').doc('system').update({
+    maintenanceMode: false
+  });
+  console.log('Maintenance mode turned OFF successfully.');
+  process.exit(0);
 }
-fix();
+
+turnOffMaintenance().catch(console.error);

@@ -1,148 +1,92 @@
 const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
 
-const SERVICE_ACCOUNT = {
-  project_id: "dedra-mlm",
-  private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDHDCXJD5NzOPky\nFXAvvKNIDLfXKMGN1D1uQNhkkSt7kJpRUTbwCgy2tWwMATiynGegHk4MTjYUbZNG\nPQJ3vTt615ngAafyJnmV0JYRP5XWnSyOO1zTrJgtdksFphTOboOvnUIbXVkslK81\nBDjcvLu2/h8+Tkay7p4SEMHLr7Z5Esyj2wjIJ7k+ym1Yu7cvSUk1lwvFLvzij2mg\nZhtTH0axM+HZbxJhBkuVS1iGh6n4uoiWv9xGvzdbO9GSLzTutP2qqzLlXbnZUGG3\nOQ4XiArjTtKAEptNXdeq64CGUdFKjky3nU5RiZg5/b4eSV+j3I2giexEtKDdVIat\novieZ5o/AgMBAAECggEABlkC03ilsST9/XTlkQApDOEq87efBJDiLKPwwrRGeLhR\n04oNgHYxlZoPigp37mpCe767qnTMELa13aWQcJUeUnqRs60Z2AUWF4sBXidy9dcp\nVpfaC/4TFFATcGitfS/VD0KqmwjNETjkpYIu9gsmyV0tTeVdJ9OoQtc59u7xmMbM\nOPhW9CM4TRxVHHsZCgO+BH7jmW2guidEcLoBxjfNftt6euanvKhytTDQRZiuKFvp\nBOwZpm1s+moWDvnoKu36JWw8oXuWI3SDLX/eyIO/NwnSpQE9wnXiyyOYxnTN8eHz\nJW2214Xk5LjkHEbEvbWQbCq9hxXnW7vZxLt6ynI4QQKBgQD7N4IV1NP3qp3zMzPy\nCkABSWtn5iYFCkTp27mIj2y4/3Fhm/bnVJjFeLUvpK2xirqq7ZeBQXp3hxG2LLqz\nmTXwMC0zUvLrZam7Zu1ReYaWgMxTgfsH1uQ5jsGEsDyGwRxCt8o0nlvHfunmotlf\nePipGuRkpcAZCw4pnLFUHihAsQKBgQDK1lptoAOYYeBDLB59Ov0HOD86ALEAsNm8\nxJ6MXhWPFViB6JGRSaYw53xCEIZ2tcTnHOTqwcSzHA6cnRGjxewuIkD+Iu0uHB1i\nsuSRNZS35uoo55F7AHClFroKSInZw4SH/j/WLhEaJenZTIoWpZX5YMH8AYFWYXAS\nCDeE6HvF7wKBgQCX7N/c+BMgyqwvMh4OGKjQnmg4M3V2wtkeXOV9cs+bqdAV6c6N\n5BloAzIAGCV7I5z0Vi+z2beIpcTOWYqnptZ55YjQay/BsH/Pd9W52jbMuiPXtNnt\nycXIEU9zQWm5TPwcVS4SWFrE8TnfY0j2diBblInfXGYqPwdXnw2XA43wYQKBgAXV\nhoJSsOfIIOgts67MbIyxnHfxnyWy8IBSc3D8H8iex43s/4rbQHF1pwhLa2Kstb4k\nAZ2S9zJjozPz/JbmUXW+PHpSzNmfq2S0WoimruFfPerxRijwiUzmS3GSRozB5+T1\ndiaV6p4C6yf54JroJlkm5E14SZ0PbmbGX7pt6Wl3AoGAMFPzfuIOGOZB33VFlB5A\n2ZtzoAvHTrR1Bp0akIrlWTY/kfk/7Qdd12SBjSGojuUzn3y94eQNTi+ii2N3V3iI\nTK3jMrCYCsfP2hle9yefv/3uRezf7B7oS4HgtsXSEf9/UUGZkxJQWuxcbv7kqkuv\n/8sWFeugmhHf2e0McHKYqvs=\n-----END PRIVATE KEY-----\n",
-  client_email: "firebase-adminsdk-fbsvc@dedra-mlm.iam.gserviceaccount.com",
-  token_uri: "https://oauth2.googleapis.com/token"
-};
-
-const jwt = require('jsonwebtoken');
-
-async function getAdminToken() {
-  const payload = {
-    iss: SERVICE_ACCOUNT.client_email,
-    sub: SERVICE_ACCOUNT.client_email,
-    aud: SERVICE_ACCOUNT.token_uri,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 3600,
-    scope: 'https://www.googleapis.com/auth/datastore'
-  };
-  const token = jwt.sign(payload, SERVICE_ACCOUNT.private_key, { algorithm: 'RS256' });
-  const res = await fetch(SERVICE_ACCOUNT.token_uri, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`
-  });
-  return (await res.json()).access_token;
-}
-
-function fromFirestoreValue(val) {
-  if (!val) return null;
-  if ('stringValue' in val) return val.stringValue;
-  if ('doubleValue' in val) return val.doubleValue;
-  if ('integerValue' in val) return parseInt(val.integerValue,10);
-  if ('timestampValue' in val) return new Date(val.timestampValue);
-  return val;
-}
-
-async function fsQueryAll(collection, token, filters = []) {
-  let query = {
-    from: [{ collectionId: collection }],
-    limit: 5000
-  };
-  if (filters.length > 0) {
-    query.where = {
-      compositeFilter: {
-        op: "AND",
-        filters: filters.map(f => ({
-          fieldFilter: { field: { fieldPath: f.field }, op: f.op, value: { stringValue: f.value } }
-        }))
-      }
-    };
-  }
-  
-  const res = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ structuredQuery: query })
-  });
-  const data = await res.json();
-  if (!Array.isArray(data)) return [];
-  return data.filter(d => d.document).map(d => {
-    const obj = { id: d.document.name.split('/').pop() };
-    for (const k in d.document.fields) {
-      obj[k] = fromFirestoreValue(d.document.fields[k]);
-    }
-    return obj;
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
   });
 }
+const db = admin.firestore();
 
 async function run() {
   try {
-    const token = await getAdminToken();
-    
-    // 1. Find user cyj0300
-    console.log("Finding user cyj0300...");
-    const users = await fsQueryAll("users", token, [{ field: "username", op: "EQUAL", value: "cyj0300" }]);
-    if (users.length === 0) {
-      console.log("User cyj0300 not found!");
+    console.log("=== User Search: cyj0300 ===");
+    const usersSnap = await db.collection('users').where('email', '>=', 'cyj0300').where('email', '<=', 'cyj0300\uf8ff').get();
+    let user = null;
+    if (usersSnap.empty) {
+      console.log("User not found by email, trying by name...");
+      const nameSnap = await db.collection('users').where('name', '==', '신영재').get();
+      if (!nameSnap.empty) {
+        user = nameSnap.docs[0];
+      }
+    } else {
+      user = usersSnap.docs[0];
+    }
+
+    if (!user) {
+      console.log("Could not find user.");
       return;
     }
-    const user = users[0];
-    const uid = user.id;
-    console.log(`Found UID: ${uid}`);
-    
-    // 2. Fetch Wallet
-    const walletRes = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/wallets/${uid}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const walletData = await walletRes.json();
-    const wallet = {};
-    if (walletData.fields) {
-      for (const k in walletData.fields) wallet[k] = fromFirestoreValue(walletData.fields[k]);
-      console.log("\n--- Wallet Info ---");
-      console.log(`Total Earnings: $${wallet.totalEarnings}`);
-      console.log(`Bonus Balance: $${wallet.bonusBalance}`);
-      console.log(`Total Invested: $${wallet.totalInvest}`);
+
+    const userData = user.data();
+    console.log(`Found User: ID=${user.id}, Name=${userData.name}, Email=${userData.email}`);
+
+    const walletSnap = await db.collection('wallets').doc(user.id).get();
+    if (walletSnap.exists) {
+      const w = walletSnap.data();
+      console.log(`Wallet: USDT=${w.usdtBalance}, TotalDeposit=${w.totalDeposit}, TotalEarnings=${w.totalEarnings}`);
     }
-    
-    // 3. Fetch Investments
-    const invs = await fsQueryAll("investments", token, [{ field: "userId", op: "EQUAL", value: uid }]);
-    console.log(`\n--- Investments (${invs.length}) ---`);
-    let totalPrin = 0;
-    invs.forEach(inv => {
-      console.log(`- Amount: $${inv.amountUsdt || inv.amount}, Status: ${inv.status}, ROI: ${inv.roiPercent}%`);
-      if (inv.status === 'active') totalPrin += (inv.amountUsdt || inv.amount || 0);
+
+    console.log("\n=== Recent Deposits ===");
+    const txSnap = await db.collection('transactions')
+      .where('userId', '==', user.id)
+      .where('type', '==', 'deposit')
+      .orderBy('createdAt', 'desc').limit(5).get();
+    txSnap.forEach(d => {
+      const t = d.data();
+      console.log(`Deposit: Date=${t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : t.createdAt}, Amount=${t.amount}, Status=${t.status}`);
     });
-    console.log(`Total Active Principal: $${totalPrin}`);
+
+    console.log("\n=== ROI for last 3 days ===");
+    const roiSnap = await db.collection('bonuses')
+      .where('userId', '==', user.id)
+      .where('type', '==', 'roi')
+      .orderBy('createdAt', 'desc').limit(10).get();
+    roiSnap.forEach(d => {
+      const b = d.data();
+      console.log(`ROI: Date=${b.createdAt?.toDate ? b.createdAt.toDate().toISOString() : b.createdAt}, Amount=${b.amount}`);
+    });
+
+    console.log("\n=== Rank Bonuses for last 3 days ===");
+    const rankSnap = await db.collection('bonuses')
+      .where('userId', '==', user.id)
+      .where('type', 'in', ['rank_bonus', 'rank_rollup', 'rank_matching'])
+      .orderBy('createdAt', 'desc').get();
     
-    // 4. Fetch Bonuses
-    const bonuses = await fsQueryAll("bonuses", token, [{ field: "userId", op: "EQUAL", value: uid }]);
-    console.log(`\n--- Bonuses Breakdown (${bonuses.length} records) ---`);
-    
-    const summary = {};
-    let totalBonusUsdt = 0;
-    
-    bonuses.forEach(b => {
-      const type = b.type || 'unknown';
-      if (!summary[type]) summary[type] = { usdt: 0, count: 0, details: [] };
-      const amountUsdt = b.amountUsdt || b.amount || 0;
-      summary[type].usdt += amountUsdt;
-      summary[type].count += 1;
-      totalBonusUsdt += amountUsdt;
+    let count0331 = 0;
+    let count0401 = 0;
+    let rankTypes = {};
+
+    rankSnap.forEach(d => {
+      const b = d.data();
+      const dateStr = b.createdAt?.toDate ? b.createdAt.toDate().toISOString() : String(b.createdAt);
+      if (dateStr.includes('2026-03-31')) count0331++;
+      if (dateStr.includes('2026-04-01')) count0401++;
       
-      // Store some details for specific checks
-      if (type !== 'roi') {
-         summary[type].details.push({ from: b.fromUserId, amt: amountUsdt, reason: b.reason, date: b.createdAt });
-      }
+      if (!rankTypes[dateStr.split('T')[0]]) rankTypes[dateStr.split('T')[0]] = 0;
+      rankTypes[dateStr.split('T')[0]]++;
     });
-    
-    for (const [type, data] of Object.entries(summary)) {
-      console.log(`[${type}] Count: ${data.count}, Total USDT: $${data.usdt.toFixed(2)}`);
-      if (type !== 'roi') {
-         // show top 5 details
-         data.details.slice(0, 5).forEach(d => {
-            console.log(`   -> from ${d.from}: $${d.amt.toFixed(2)} (${d.reason}) [${d.date}]`);
-         });
-         if (data.details.length > 5) console.log(`   ...and ${data.details.length - 5} more`);
-      }
-    }
-    
-    console.log(`\nTotal Bonuses Calculated: $${totalBonusUsdt.toFixed(2)}`);
-    
+
+    console.log(`Rank Bonus Count (All Types):`);
+    console.log(`- 2026-03-31: ${count0331}`);
+    console.log(`- 2026-04-01: ${count0401}`);
+    console.log("Daily breakdown:", rankTypes);
+
   } catch (e) {
     console.error(e);
+  } finally {
+    process.exit(0);
   }
 }
+
 run();

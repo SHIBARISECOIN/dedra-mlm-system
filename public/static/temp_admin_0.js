@@ -627,6 +627,18 @@ window.renderWithdrawalsPage = function() {
 
 async function loadWithdrawals(status = 'pending') {
     currentWithdrawalStatus = status;
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'rates'));
+      if (snap.exists() && snap.data().withdrawalFeeRate !== undefined) {
+        document.getElementById('quick_withdrawalFeeRate').value = snap.data().withdrawalFeeRate;
+      } else {
+        const sysSnap = await getDoc(doc(db, 'settings', 'system'));
+        if (sysSnap.exists() && sysSnap.data().withdrawalFeeRate !== undefined) {
+          document.getElementById('quick_withdrawalFeeRate').value = sysSnap.data().withdrawalFeeRate * 100;
+        }
+      }
+    } catch(e) {}
+
     const wrap = document.getElementById('withdrawalsTableWrap');
     wrap.innerHTML = loading();
     try {
@@ -9849,3 +9861,58 @@ window.deleteSubAdminPage = async function(id) {
 const _origApplyPerms = window._applySubAdminMenuPerms;
 
 
+
+window.saveQuickWithdrawalFee = async function() {
+  const el = document.getElementById('quick_withdrawalFeeRate');
+  if (!el) return;
+  const val = parseFloat(el.value);
+  if (isNaN(val) || val < 0 || val > 100) {
+    if (window.showToast) window.showToast("올바른 수수료율(0~100)을 입력하세요.", "error");
+    else alert("올바른 수수료율(0~100)을 입력하세요.");
+    return;
+  }
+  
+  const btn = window.event ? (window.event.currentTarget || window.event.target) : document.querySelector('button[onclick="saveQuickWithdrawalFee()"]');
+  const origText = btn ? btn.innerText : '수수료 저장';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '저장중...';
+  }
+
+  try {
+    const { doc, setDoc, db } = window.FB;
+    await setDoc(doc(db, 'settings', 'rates'), { 
+      withdrawalFeeRate: val, 
+      withdrawFeeRate: val 
+    }, { merge: true });
+    
+    await setDoc(doc(db, 'settings', 'system'), { 
+      withdrawalFeeRate: val / 100 
+    }, { merge: true });
+    
+    if (window.showToast) {
+      window.showToast("✅ 출금 수수료가 " + val + "%로 저장되었습니다.", "success");
+    } else {
+      alert("✅ 출금 수수료가 " + val + "%로 저장되었습니다.");
+    }
+
+    // 동기화
+    const sysEl = document.getElementById('cfg_withdrawalFeeRate');
+    if (sysEl) sysEl.value = val;
+    const rateEl = document.getElementById('rate_withdrawalFee');
+    if (rateEl) rateEl.value = val;
+    
+  } catch (e) {
+    console.error(e);
+    if (window.showToast) window.showToast("저장 실패: " + e.message, "error");
+    else alert("저장 실패: " + e.message);
+  } finally {
+    if (btn) {
+      btn.innerText = '✅ 저장 완료';
+      setTimeout(() => {
+        btn.innerText = origText;
+        btn.disabled = false;
+      }, 2000);
+    }
+  }
+};

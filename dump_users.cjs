@@ -1,31 +1,19 @@
+const admin = require('firebase-admin');
 const fs = require('fs');
-let code = fs.readFileSync('/home/user/webapp/src/index.tsx', 'utf8');
-let match = code.match(/app\.get\('\/api\/admin\/check-user\/:username'/);
-if (match) {
-  const inject = `
-app.get('/api/admin/dump-users', async (c) => {
-  try {
-    const token = await getAdminToken();
-    const headers = { 'Authorization': \`Bearer \${token}\` };
-    const req = await fetch(\`\${FIRESTORE_BASE}/projects/\${SERVICE_ACCOUNT.project_id}/databases/(default)/documents:runQuery\`, {
-      method: 'POST', headers,
-      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'users' }] } })
-    });
-    const data = await req.json();
-    const results = [];
-    for (const d of data) {
-      if (d.document) {
-        const fields = d.document.fields;
-        results.push({
-          email: fields.email?.stringValue,
-          name: fields.name?.stringValue,
-          loginId: fields.loginId?.stringValue
-        });
-      }
-    }
-    return c.json(results);
-  } catch (e) { return c.json({ error: e.message }); }
-});
-`;
-  fs.writeFileSync('/home/user/webapp/src/index.tsx', code.replace("app.get('/api/admin/check-user/:username'", inject + "\napp.get('/api/admin/check-user/:username'"));
+
+if (!admin.apps.length) {
+    const serviceAccount = JSON.parse(fs.readFileSync('/home/user/webapp/serviceAccountKey.json', 'utf8'));
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
+
+const db = admin.firestore();
+
+async function run() {
+    const uids = ['AZXEcOvrSATvDXdlFtJIitWEU3q1', 'T22NSRBNSwbXivSF26JLChgWw0G3', 'loSNb9m5qKTQsVqie2AtqWKChmx1'];
+    for (let uid of uids) {
+        const doc = await db.collection('users').doc(uid).get();
+        console.log(`\nUID: ${uid}`);
+        console.log(doc.data());
+    }
+}
+run().catch(console.error).finally(() => process.exit(0));
