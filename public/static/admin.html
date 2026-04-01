@@ -17115,7 +17115,11 @@ window.selectYesterdayWithdrawals = function() {
         } catch(e) {}
     });
     
-    showToast(`어제 신청된 출금건 ${count}개를 선택했습니다.`, 'success');
+    if (typeof showToast === 'function') {
+        showToast(`어제 신청된 출금건 ${count}개를 선택했습니다.`, 'success');
+    } else {
+        alert(`어제 신청된 출금건 ${count}개를 선택했습니다.`);
+    }
 };
 
 window.bulkApproveWithdraw = async function() {
