@@ -11592,7 +11592,7 @@ function renderWeeklyJackpotBanner(data) {
         </div>
       </div>
       
-      <div style="margin-bottom: 12px; position: relative; z-index: 1;">
+      <div style="text-align: center; margin-bottom: 12px; position: relative; z-index: 1;">
           <span style="display: inline-block; background: rgba(52, 211, 153, 0.2); color: #6ee7b7; border: 1px solid #34d399; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">
             ${t('jackpot_transparency')}
           </span>
