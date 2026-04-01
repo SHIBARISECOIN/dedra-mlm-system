@@ -24,21 +24,12 @@ async function run() {
     const projectId = sa.project_id;
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     
-    const uid = 'znfJO2miIfN8JIkJBExeOZ3fmPU2';
-    
-    const uQuery = {
-      structuredQuery: {
-        from: [{ collectionId: 'users' }],
-        where: { fieldFilter: { field: { fieldPath: '__name__' }, op: 'EQUAL', value: { referenceValue: `projects/${projectId}/databases/(default)/documents/users/${uid}` } } },
-        limit: 1
-      }
-    };
-    
-    const uRes = await fetch(`${baseUrl}:runQuery`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(uQuery) });
-    const usr = await uRes.json();
-    if (usr && usr[0] && usr[0].document) {
-      console.log(JSON.stringify(usr[0].document.fields, null, 2));
-    }
+    // get ONE bonus
+    const bRes = await fetch(`${baseUrl}/bonuses?pageSize=5`, { 
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const bonuses = await bRes.json();
+    console.log(JSON.stringify(bonuses, null, 2));
 
   } catch(e) {
     console.error(e);

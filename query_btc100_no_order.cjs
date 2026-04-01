@@ -29,11 +29,7 @@ async function run() {
       structuredQuery: {
         from: [{ collectionId: 'users' }],
         where: {
-          fieldFilter: {
-            field: { fieldPath: 'username' },
-            op: 'EQUAL',
-            value: { stringValue: 'btc100' }
-          }
+          fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: 'btc100' } }
         },
         limit: 1
       }
@@ -45,42 +41,18 @@ async function run() {
       body: JSON.stringify(query)
     });
     const userResult = await userRes.json();
-    if (!userResult || !userResult[0] || !userResult[0].document) {
-      console.log("btc100 not found");
-      return;
-    }
     const docPath = userResult[0].document.name;
     const userId = docPath.split('/').pop();
-    console.log(`btc100 found. User ID: ${userId}, Rank: ${userResult[0].document.fields.rank.stringValue}`);
+    console.log(`btc100 ID: ${userId}`);
     
-    // Now get bonuses for btc100
-    // Query where userId == btc100, sort by createdAt desc
+    // Now get ALL bonuses for btc100
     const bQuery = {
       structuredQuery: {
         from: [{ collectionId: 'bonuses' }],
         where: {
-          compositeFilter: {
-            op: 'AND',
-            filters: [
-              {
-                fieldFilter: {
-                  field: { fieldPath: 'userId' },
-                  op: 'EQUAL',
-                  value: { stringValue: userId }
-                }
-              },
-              {
-                fieldFilter: {
-                  field: { fieldPath: 'type' },
-                  op: 'EQUAL',
-                  value: { stringValue: 'rank_bonus' }
-                }
-              }
-            ]
-          }
+          fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } }
         },
-        orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
-        limit: 100
+        limit: 10000
       }
     };
     
@@ -90,56 +62,69 @@ async function run() {
       body: JSON.stringify(bQuery)
     });
     const bonuses = await bRes.json();
+    console.log(`Received ${bonuses.length} items from runQuery (bonuses)`);
     
-    let countByDate = {};
+    if (bonuses.length > 0 && bonuses[0].error) {
+       console.error("Error from runQuery:", JSON.stringify(bonuses[0].error));
+       return;
+    }
+    
+    let stats = {};
+    let rankData = {};
     for (const b of bonuses) {
       if (!b.document) continue;
       const fields = b.document.fields;
       let date = "Unknown";
       if (fields.createdAt && fields.createdAt.timestampValue) {
-         // Convert UTC timestamp to KST Date String YYYY-MM-DD
          const d = new Date(fields.createdAt.timestampValue);
          const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
          date = kst.toISOString().split('T')[0];
       }
-      if (!countByDate[date]) countByDate[date] = [];
-      countByDate[date].push({
-        amount: fields.amount?.doubleValue || fields.amount?.integerValue,
-        reason: fields.reason?.stringValue,
-        fromUserId: fields.fromUserId?.stringValue
-      });
-    }
-    
-    console.log("=== Rank Bonuses grouped by Date (KST) ===");
-    for (const [date, list] of Object.entries(countByDate)) {
-      console.log(`[${date}]: ${list.length} 건`);
-      // console.log(list.map(x => x.reason).join(', '));
-    }
-    
-    // Output full lists for yesterday and today
-    const keys = Object.keys(countByDate).sort().reverse();
-    if (keys.length >= 2) {
-      const today = keys[0];
-      const yesterday = keys[1];
-      console.log(`\nDiff analysis: ${today} (${countByDate[today].length}) vs ${yesterday} (${countByDate[yesterday].length})`);
+      const type = fields.type?.stringValue || 'unknown';
+      if (!stats[date]) stats[date] = {};
+      if (!stats[date][type]) stats[date][type] = 0;
+      stats[date][type]++;
       
-      const tIds = countByDate[today].map(x => x.fromUserId);
-      const yIds = countByDate[yesterday].map(x => x.fromUserId);
+      if (type === 'rank_bonus' || type === 'rank_matching') {
+         if (!rankData[date]) rankData[date] = [];
+         rankData[date].push({
+           fromUserId: fields.fromUserId?.stringValue,
+           reason: fields.reason?.stringValue
+         });
+      }
+    }
+    
+    console.log("\n=== Bonuses grouped by Date (KST) ===");
+    const dates = Object.keys(stats).sort().reverse();
+    for (const date of dates) {
+      console.log(`[${date}]:`, stats[date]);
+    }
+    
+    // Detailed analysis for the last two days (probably 04-02 vs 04-01)
+    if (dates.length >= 2) {
+      const today = dates[0];
+      const yesterday = dates[1];
+      
+      const tIds = (rankData[today] || []).map(x => x.fromUserId);
+      const yIds = (rankData[yesterday] || []).map(x => x.fromUserId);
       
       const onlyYesterday = yIds.filter(id => !tIds.includes(id));
       const onlyToday = tIds.filter(id => !yIds.includes(id));
       
-      console.log(`\nIn ${yesterday} but not in ${today}: ${onlyYesterday.length} users`);
-      for (const uid of onlyYesterday) {
-         const entry = countByDate[yesterday].find(x => x.fromUserId === uid);
-         console.log(` - User ${uid}: ${entry.reason}`);
-      }
+      console.log(`\n=== Difference in Rank Bonuses ==`);
+      console.log(`Lost users (${onlyYesterday.length}) - Present on ${yesterday} but missing on ${today}:`);
+      onlyYesterday.slice(0, 20).forEach(uid => {
+         const entry = rankData[yesterday].find(x => x.fromUserId === uid);
+         console.log(` - ${uid}: ${entry.reason}`);
+      });
+      if(onlyYesterday.length > 20) console.log('   ...and more');
       
-      console.log(`\nIn ${today} but not in ${yesterday}: ${onlyToday.length} users`);
-      for (const uid of onlyToday) {
-         const entry = countByDate[today].find(x => x.fromUserId === uid);
-         console.log(` - User ${uid}: ${entry.reason}`);
-      }
+      console.log(`\nGained users (${onlyToday.length}) - Present on ${today} but missing on ${yesterday}:`);
+      onlyToday.slice(0, 20).forEach(uid => {
+         const entry = rankData[today].find(x => x.fromUserId === uid);
+         console.log(` - ${uid}: ${entry.reason}`);
+      });
+      if(onlyToday.length > 20) console.log('   ...and more');
     }
 
   } catch(e) {

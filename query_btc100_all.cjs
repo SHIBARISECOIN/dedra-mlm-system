@@ -45,42 +45,19 @@ async function run() {
       body: JSON.stringify(query)
     });
     const userResult = await userRes.json();
-    if (!userResult || !userResult[0] || !userResult[0].document) {
-      console.log("btc100 not found");
-      return;
-    }
     const docPath = userResult[0].document.name;
     const userId = docPath.split('/').pop();
-    console.log(`btc100 found. User ID: ${userId}, Rank: ${userResult[0].document.fields.rank.stringValue}`);
+    console.log(`btc100 ID: ${userId}`);
     
-    // Now get bonuses for btc100
-    // Query where userId == btc100, sort by createdAt desc
+    // Now get ALL bonuses for btc100
     const bQuery = {
       structuredQuery: {
         from: [{ collectionId: 'bonuses' }],
         where: {
-          compositeFilter: {
-            op: 'AND',
-            filters: [
-              {
-                fieldFilter: {
-                  field: { fieldPath: 'userId' },
-                  op: 'EQUAL',
-                  value: { stringValue: userId }
-                }
-              },
-              {
-                fieldFilter: {
-                  field: { fieldPath: 'type' },
-                  op: 'EQUAL',
-                  value: { stringValue: 'rank_bonus' }
-                }
-              }
-            ]
-          }
+          fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: userId } }
         },
         orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
-        limit: 100
+        limit: 2000
       }
     };
     
@@ -91,55 +68,63 @@ async function run() {
     });
     const bonuses = await bRes.json();
     
-    let countByDate = {};
+    let stats = {};
+    let latestTypeData = {};
     for (const b of bonuses) {
       if (!b.document) continue;
       const fields = b.document.fields;
       let date = "Unknown";
       if (fields.createdAt && fields.createdAt.timestampValue) {
-         // Convert UTC timestamp to KST Date String YYYY-MM-DD
          const d = new Date(fields.createdAt.timestampValue);
          const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
          date = kst.toISOString().split('T')[0];
       }
-      if (!countByDate[date]) countByDate[date] = [];
-      countByDate[date].push({
-        amount: fields.amount?.doubleValue || fields.amount?.integerValue,
-        reason: fields.reason?.stringValue,
-        fromUserId: fields.fromUserId?.stringValue
-      });
+      const type = fields.type?.stringValue || 'unknown';
+      if (!stats[date]) stats[date] = {};
+      if (!stats[date][type]) stats[date][type] = 0;
+      stats[date][type]++;
+      
+      if (!latestTypeData[date]) latestTypeData[date] = [];
+      if (type === 'rank_bonus' || type.includes('rank')) {
+         latestTypeData[date].push({
+           type: type,
+           fromUserId: fields.fromUserId?.stringValue,
+           reason: fields.reason?.stringValue
+         });
+      }
     }
     
-    console.log("=== Rank Bonuses grouped by Date (KST) ===");
-    for (const [date, list] of Object.entries(countByDate)) {
-      console.log(`[${date}]: ${list.length} 건`);
-      // console.log(list.map(x => x.reason).join(', '));
+    console.log("=== Bonuses grouped by Date (KST) ===");
+    for (const [date, types] of Object.entries(stats)) {
+      console.log(`[${date}]:`, types);
     }
     
-    // Output full lists for yesterday and today
-    const keys = Object.keys(countByDate).sort().reverse();
-    if (keys.length >= 2) {
-      const today = keys[0];
-      const yesterday = keys[1];
-      console.log(`\nDiff analysis: ${today} (${countByDate[today].length}) vs ${yesterday} (${countByDate[yesterday].length})`);
-      
-      const tIds = countByDate[today].map(x => x.fromUserId);
-      const yIds = countByDate[yesterday].map(x => x.fromUserId);
-      
-      const onlyYesterday = yIds.filter(id => !tIds.includes(id));
-      const onlyToday = tIds.filter(id => !yIds.includes(id));
-      
-      console.log(`\nIn ${yesterday} but not in ${today}: ${onlyYesterday.length} users`);
-      for (const uid of onlyYesterday) {
-         const entry = countByDate[yesterday].find(x => x.fromUserId === uid);
-         console.log(` - User ${uid}: ${entry.reason}`);
-      }
-      
-      console.log(`\nIn ${today} but not in ${yesterday}: ${onlyToday.length} users`);
-      for (const uid of onlyToday) {
-         const entry = countByDate[today].find(x => x.fromUserId === uid);
-         console.log(` - User ${uid}: ${entry.reason}`);
-      }
+    // Analyze rank related differences between the top 2 dates
+    const dates = Object.keys(stats).sort().reverse();
+    if (dates.length >= 2) {
+       const d1 = dates[0];
+       const d2 = dates[1];
+       console.log(`\nAnalyzing Rank difference between ${d1} and ${d2}`);
+       const d1Ranks = latestTypeData[d1] || [];
+       const d2Ranks = latestTypeData[d2] || [];
+       
+       const d1Ids = d1Ranks.map(x => x.fromUserId);
+       const d2Ids = d2Ranks.map(x => x.fromUserId);
+       
+       const lost = d2Ids.filter(id => !d1Ids.includes(id));
+       const gained = d1Ids.filter(id => !d2Ids.includes(id));
+       
+       console.log(`\nUsers contributing to rank bonus on ${d2} but NOT on ${d1}: ${lost.length}`);
+       lost.slice(0, 10).forEach(uid => {
+          const entry = d2Ranks.find(x => x.fromUserId === uid);
+          console.log(` - ${uid}: ${entry.reason}`);
+       });
+       
+       console.log(`\nUsers contributing to rank bonus on ${d1} but NOT on ${d2}: ${gained.length}`);
+       gained.slice(0, 10).forEach(uid => {
+          const entry = d1Ranks.find(x => x.fromUserId === uid);
+          console.log(` - ${uid}: ${entry.reason}`);
+       });
     }
 
   } catch(e) {

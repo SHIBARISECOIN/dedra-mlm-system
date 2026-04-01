@@ -5931,9 +5931,21 @@ window.updateDailyFinanceStats = async function() {
         snapD.forEach(doc => {
             const data = doc.data();
             if (data.status === 'approved') {
-                const time = data.createdAt?.seconds * 1000;
-                if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
-                    totalDeposit += Number(data.amount || 0);
+                const timestamp = data.createdAt || data.completedAt || data.updatedAt;
+                if (timestamp && timestamp.seconds) {
+                    const time = timestamp.seconds * 1000;
+                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                        totalDeposit += Number(data.amount || 0);
+                    }
+                } else if (typeof timestamp === 'number') {
+                    if (timestamp >= startUtc.getTime() && timestamp <= endUtc.getTime()) {
+                        totalDeposit += Number(data.amount || 0);
+                    }
+                } else if (typeof timestamp === 'string') {
+                    const time = new Date(timestamp).getTime();
+                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                        totalDeposit += Number(data.amount || 0);
+                    }
                 }
             }
         });
@@ -5956,6 +5968,11 @@ window.updateDailyFinanceStats = async function() {
                     }
                 } else if (typeof timestamp === 'number') {
                     if (timestamp >= startUtc.getTime() && timestamp <= endUtc.getTime()) {
+                        totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
+                    }
+                } else if (typeof timestamp === 'string') {
+                    const time = new Date(timestamp).getTime();
+                    if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
                         totalWithdrawal += Number(data.amountUsdt !== undefined ? data.amountUsdt : (data.amount || 0));
                     }
                 }

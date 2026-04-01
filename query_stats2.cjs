@@ -24,20 +24,32 @@ async function run() {
     const projectId = sa.project_id;
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     
-    const uid = 'znfJO2miIfN8JIkJBExeOZ3fmPU2';
-    
-    const uQuery = {
+    // Fetch all approved deposits
+    const qD = {
       structuredQuery: {
-        from: [{ collectionId: 'users' }],
-        where: { fieldFilter: { field: { fieldPath: '__name__' }, op: 'EQUAL', value: { referenceValue: `projects/${projectId}/databases/(default)/documents/users/${uid}` } } },
-        limit: 1
+        from: [{ collectionId: 'transactions' }],
+        where: {
+          compositeFilter: {
+            op: 'AND',
+            filters: [
+              { fieldFilter: { field: { fieldPath: 'type' }, op: 'EQUAL', value: { stringValue: 'deposit' } } },
+              { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'approved' } } }
+            ]
+          }
+        },
+        orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
+        limit: 10
       }
     };
     
-    const uRes = await fetch(`${baseUrl}:runQuery`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(uQuery) });
-    const usr = await uRes.json();
-    if (usr && usr[0] && usr[0].document) {
-      console.log(JSON.stringify(usr[0].document.fields, null, 2));
+    const dRes = await fetch(`${baseUrl}:runQuery`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(qD) });
+    const docs = await dRes.json();
+    
+    console.log("Details for the first 3 (which had N/A timestamp string earlier):");
+    for(let i=0; i<3; i++) {
+       if(!docs[i].document) continue;
+       const fields = docs[i].document.fields;
+       console.log(JSON.stringify(fields.createdAt, null, 2));
     }
 
   } catch(e) {
