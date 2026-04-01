@@ -1270,6 +1270,24 @@ canvas{width:100% !important;}
         </button>
       </div>
 
+      <!-- 일일 입출금 통계 (금일 KST 기준) -->
+      <div style="display:flex; gap:16px; margin-bottom: 24px;">
+        <div style="flex:1; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(16,185,129,0.3);">
+          <div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💰 금일 누적 입금액 (KST)</div>
+            <div class="dailyDepositAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
+          </div>
+          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📥</div>
+        </div>
+        <div style="flex:1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(244,63,94,0.3);">
+          <div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금액 (KST)</div>
+            <div class="dailyWithdrawalAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
+          </div>
+          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📤</div>
+        </div>
+      </div>
+
       <!-- ── 입금 신청 목록 ── -->
       <div class="card">
                 <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom: 12px; background:#f8fafc; padding:10px; border-radius:8px;">
@@ -1353,7 +1371,25 @@ canvas{width:100% !important;}
     ══════════════════════════════ -->
     <div id="withdrawalsPage" class="page">
       <div class="page-title">출금 관리</div>
-      <div class="page-desc">회원 출금 신청을 확인하고 승인/거부하세요</div>
+      <div class="page-desc" style="margin-bottom:20px;">회원 출금 신청을 확인하고 승인/거부하세요</div>
+
+      <!-- 일일 입출금 통계 (금일 KST 기준) -->
+      <div style="display:flex; gap:16px; margin-bottom: 24px;">
+        <div style="flex:1; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(16,185,129,0.3);">
+          <div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💰 금일 누적 입금액 (KST)</div>
+            <div class="dailyDepositAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
+          </div>
+          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📥</div>
+        </div>
+        <div style="flex:1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(244,63,94,0.3);">
+          <div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금액 (KST)</div>
+            <div class="dailyWithdrawalAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
+          </div>
+          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📤</div>
+        </div>
+      </div>
 
       <!-- ── 출금 수수료 설정 카드 ── -->
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;margin-bottom:16px;">
@@ -5862,10 +5898,62 @@ function showWalletsAlert(type, msg) {
 // ══════════════════════════════════════════════════
 // 입금/출금 목록
 // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// 입금/출금 일일 누계 통계 표시
+// ══════════════════════════════════════════════════
+window.updateDailyFinanceStats = async function() {
+    try {
+        const kstOffset = 9 * 60 * 60 * 1000;
+        const now = new Date();
+        const utcNow = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const kstNow = new Date(utcNow + kstOffset);
+        
+        const startKst = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate(), 0, 0, 0);
+        const endKst = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate(), 23, 59, 59, 999);
+        
+        const startUtc = new Date(startKst.getTime() - kstOffset);
+        const endUtc = new Date(endKst.getTime() - kstOffset);
+        
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+        const dbInstance = window.db || window.FB?.db;
+        
+        let totalDeposit = 0;
+        const qD = query(collection(dbInstance, 'transactions'), where('type', '==', 'deposit'), where('status', '==', 'approved'));
+        const snapD = await getDocs(qD);
+        snapD.forEach(doc => {
+            const data = doc.data();
+            const time = data.createdAt?.seconds * 1000;
+            if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                totalDeposit += Number(data.amount || 0);
+            }
+        });
+        
+        let totalWithdrawal = 0;
+        const qW = query(collection(dbInstance, 'transactions'), where('type', '==', 'withdrawal'), where('status', '==', 'approved'));
+        const snapW = await getDocs(qW);
+        snapW.forEach(doc => {
+            const data = doc.data();
+            const time = data.createdAt?.seconds * 1000;
+            if (time >= startUtc.getTime() && time <= endUtc.getTime()) {
+                totalWithdrawal += Number(data.amount || 0);
+            }
+        });
+        
+        const dEls = document.querySelectorAll('.dailyDepositAmount');
+        dEls.forEach(el => el.textContent = `$${totalDeposit.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
+        
+        const wEls = document.querySelectorAll('.dailyWithdrawalAmount');
+        wEls.forEach(el => el.textContent = `$${totalWithdrawal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`);
+    } catch(e) {
+        console.error("Daily stats error:", e);
+    }
+};
+
 let _unsubDeposits = null;
 let _pollDeposits = null;
 
 async function loadDeposits(status = 'pending') {
+    if (window.updateDailyFinanceStats) window.updateDailyFinanceStats();
     currentDepositStatus = status;
     const wrap = document.getElementById('depositsTableWrap');
     
@@ -5933,6 +6021,7 @@ let _unsubWithdrawals = null;
 let _pollWithdrawals = null;
 
 async function loadWithdrawals(status = 'pending') {
+    if (window.updateDailyFinanceStats) window.updateDailyFinanceStats();
     currentWithdrawalStatus = status;
     const wrap = document.getElementById('withdrawalsTableWrap');
     
