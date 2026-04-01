@@ -2785,7 +2785,7 @@ app.post('/api/solana/check-deposits', async (c) => {
           }).catch(() => {});
         } catch(e) { console.error('Auto sync error:', e); }
 
-        // 4. [센터피] (Center Fee) - 입금액의 5% 지급
+        // 4. [센터/부센터피] (Center & Sub-Center Fee) - 별도 지갑 누적
         if (matchedUser.centerId) {
           try {
             const ratesDoc = await fsGet('settings/rates', adminToken)
@@ -2794,18 +2794,19 @@ app.post('/api/solana/check-deposits', async (c) => {
             const priceDoc = await fsGet('settings/deedraPrice', adminToken)
             const dedraRate = priceDoc?.fields?.price ? Number(priceDoc.fields.price.doubleValue || priceDoc.fields.price.integerValue || 0.5) : 0.5;
 
-            if (centerFeePct > 0) {
-              const centerDoc = await fsGet(`centers/${matchedUser.centerId}`, adminToken)
-              const centerData = centerDoc?.fields ? firestoreDocToObj(centerDoc) : null
-              if (centerData && centerData.managerId) {
+            const centerDoc = await fsGet(`centers/${matchedUser.centerId}`, adminToken)
+            const centerData = centerDoc?.fields ? firestoreDocToObj(centerDoc) : null
+            
+            if (centerData) {
+              // 4-1. 센터장 수수료 지급
+              if (centerData.managerId && centerFeePct > 0) {
                 const feeUsdt = amount * (centerFeePct / 100)
-                
                 const mWalletDoc = await fsGet(`wallets/${centerData.managerId}`, adminToken)
                 const mwData = mWalletDoc?.fields ? firestoreDocToObj(mWalletDoc) : null
                 if (mwData) {
                   await fsPatch(`wallets/${centerData.managerId}`, {
-                    bonusBalance: Math.round(((mwData.bonusBalance || 0) + feeUsdt) * 1e8) / 1e8,
-                    totalEarnings: Math.round(((mwData.totalEarnings || 0) + feeUsdt) * 1e8) / 1e8
+                    centerBalance: Math.round(((mwData.centerBalance || 0) + feeUsdt) * 1e8) / 1e8,
+                    totalCenterEarnings: Math.round(((mwData.totalCenterEarnings || 0) + feeUsdt) * 1e8) / 1e8
                   }, adminToken)
                   
                   await fsCreate('bonuses', {
@@ -2819,9 +2820,37 @@ app.post('/api/solana/check-deposits', async (c) => {
                   }, adminToken)
                 }
               }
+
+              // 4-2. 부센터장 수수료 지급
+              if (centerData.subCenters && Array.isArray(centerData.subCenters)) {
+                for (const sub of centerData.subCenters) {
+                  if (sub.userId && sub.rate && Number(sub.rate) > 0) {
+                    const subRate = Number(sub.rate);
+                    const subFeeUsdt = amount * (subRate / 100);
+                    const subWalletDoc = await fsGet(`wallets/${sub.userId}`, adminToken);
+                    const subWData = subWalletDoc?.fields ? firestoreDocToObj(subWalletDoc) : null;
+                    if (subWData) {
+                      await fsPatch(`wallets/${sub.userId}`, {
+                        subCenterBalance: Math.round(((subWData.subCenterBalance || 0) + subFeeUsdt) * 1e8) / 1e8,
+                        totalSubCenterEarnings: Math.round(((subWData.totalSubCenterEarnings || 0) + subFeeUsdt) * 1e8) / 1e8
+                      }, adminToken);
+
+                      await fsCreate('bonuses', {
+                        userId: sub.userId,
+                        fromUserId: matchedUser.id,
+                        type: 'sub_center_fee',
+                        amount: Math.round(subFeeUsdt / dedraRate * 1e8) / 1e8,
+                        amountUsdt: subFeeUsdt,
+                        reason: `부센터피 ${subRate}% (기준: ${matchedUser.name}, 입금: ${amount} USDT)`,
+                        createdAt: new Date().toISOString()
+                      }, adminToken);
+                    }
+                  }
+                }
+              }
             }
           } catch(e) {
-            console.error("Center fee error:", e);
+            console.error("Center/Sub-center fee error:", e);
           }
         }
 

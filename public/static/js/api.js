@@ -393,7 +393,7 @@ export class DedraAPI {
       await batch.commit();
       await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
 
-      // 4. [센터피] (Center Fee) - 입금액의 5% 지급
+      // 4. [센터/부센터피] (Center & Sub-Center Fee) - 별도 지갑(centerBalance, subCenterBalance) 누적
       try {
         const uSnap = await getDoc(doc(db, 'users', tx.userId));
         if (uSnap.exists()) {
@@ -402,33 +402,69 @@ export class DedraAPI {
             const cSnap = await getDoc(doc(db, 'centers', uData.centerId));
             if (cSnap.exists()) {
               const cData = cSnap.data();
-              if (cData.managerId) {
-                const feeUsdt = (tx.amount || 0) * 0.05;
+              const ratesSnap = await getDoc(doc(db, 'settings', 'rates'));
+              const centerFeePct = ratesSnap.exists() ? (Number(ratesSnap.data().rate_centerFee) || 5) : 5;
+              const priceSnap = await getDoc(doc(db, 'settings', 'deedraPrice'));
+              const dedraRate = priceSnap.exists() ? (Number(priceSnap.data().price) || 0.5) : 0.5;
+              const amount = parseFloat(tx.amount) || 0;
+
+              // 4-1. 센터장 수수료 (centerBalance)
+              if (cData.managerId && centerFeePct > 0) {
+                const feeUsdt = amount * (centerFeePct / 100);
                 const mWalletQ = query(collection(db, 'wallets'), where('userId', '==', cData.managerId));
                 const mWSnap = await getDocs(mWalletQ);
                 if (!mWSnap.empty) {
                   const mWalletRef = mWSnap.docs[0].ref;
                   await updateDoc(mWalletRef, {
-                    bonusBalance: increment(feeUsdt),
-                    totalEarnings: increment(feeUsdt)
+                    centerBalance: increment(feeUsdt),
+                    totalCenterEarnings: increment(feeUsdt)
                   });
                   await addDoc(collection(db, 'bonuses'), {
                     userId: cData.managerId,
                     fromUserId: tx.userId,
                     type: 'center_fee',
-                    amount: parseFloat((feeUsdt / 0.5).toFixed(8)), // DEDRA rate assumed 0.5
+                    amount: parseFloat((feeUsdt / dedraRate).toFixed(8)),
                     amountUsdt: parseFloat(feeUsdt.toFixed(8)),
-                    reason: `센터피 5% (기준: ${uData.name || tx.userId}, 입금: ${tx.amount} USDT)`,
+                    reason: `센터피 ${centerFeePct}% (기준: ${uData.name || tx.userId}, 입금: ${amount} USDT)`,
                     grantedBy: adminId || 'system',
                     createdAt: serverTimestamp()
                   });
+                }
+              }
+
+              // 4-2. 부센터장 수수료 (subCenterBalance)
+              if (cData.subCenters && Array.isArray(cData.subCenters)) {
+                for (const sub of cData.subCenters) {
+                  if (sub.userId && sub.rate && Number(sub.rate) > 0) {
+                    const subRate = Number(sub.rate);
+                    const subFeeUsdt = amount * (subRate / 100);
+                    const subQ = query(collection(db, 'wallets'), where('userId', '==', sub.userId));
+                    const subSnap = await getDocs(subQ);
+                    if (!subSnap.empty) {
+                      const subWalletRef = subSnap.docs[0].ref;
+                      await updateDoc(subWalletRef, {
+                        subCenterBalance: increment(subFeeUsdt),
+                        totalSubCenterEarnings: increment(subFeeUsdt)
+                      });
+                      await addDoc(collection(db, 'bonuses'), {
+                        userId: sub.userId,
+                        fromUserId: tx.userId,
+                        type: 'sub_center_fee',
+                        amount: parseFloat((subFeeUsdt / dedraRate).toFixed(8)),
+                        amountUsdt: parseFloat(subFeeUsdt.toFixed(8)),
+                        reason: `부센터피 ${subRate}% (기준: ${uData.name || tx.userId}, 입금: ${amount} USDT)`,
+                        grantedBy: adminId || 'system',
+                        createdAt: serverTimestamp()
+                      });
+                    }
+                  }
                 }
               }
             }
           }
         }
       } catch (e) {
-        console.error("Center fee error during manual approve:", e);
+        console.error("Center/Sub-center fee error during manual approve:", e);
       }
 
 
