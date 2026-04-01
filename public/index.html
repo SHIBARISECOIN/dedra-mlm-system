@@ -1282,7 +1282,8 @@
               <button class="tx-tab" onclick="switchTxTab('direct_bonus', this)" data-i18n="txDirectBonus">추천 수당</button>
               <button class="tx-tab" onclick="switchTxTab('rank_bonus', this)" data-i18n="txRankBonus">직급 수당</button>
               <button class="tx-tab" onclick="switchTxTab('rank_matching', this)" data-i18n="txRankMatching">직급 매칭</button>
-              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('center_fee', this)" style="display: none;" data-i18n="txCenterFee">센터</button>
+              <button class="tx-tab" id="txTabCenterFee" onclick="switchTxTab('center_fee', this)" style="display: none;">센터장 정산</button>
+              <button class="tx-tab" id="txTabSubCenterFee" onclick="switchTxTab('sub_center_fee', this)" style="display: none;">부센터장 정산</button>
             </div>
             
             
@@ -1357,6 +1358,29 @@
               <div class="menu-item" onclick="switchPage('podcast')">
                 <div class="menu-item-icon" style="color:#8b5cf6;"><i class="fas fa-podcast"></i></div>
                 <span class="menu-item-text" data-i18n="podcastMenu">🎙️ DEEDRA 팟캐스트</span>
+                <i class="fas fa-chevron-right menu-item-arrow"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- 센터 / 부센터 정산 메뉴 -->
+          <div class="menu-section" id="centerManagerSection" style="display:none;">
+            <div class="menu-section-title" style="color:#6366f1;">🏢 센터 관리</div>
+            <div class="menu-list">
+              <div class="menu-item" onclick="showCenterSettlement()">
+                <div class="menu-item-icon" style="color:#4f46e5; background:rgba(79,70,229,0.1);"><i class="fas fa-building"></i></div>
+                <span class="menu-item-text">센터 정산 관리</span>
+                <i class="fas fa-chevron-right menu-item-arrow"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="menu-section" id="subCenterManagerSection" style="display:none;">
+            <div class="menu-section-title" style="color:#ec4899;">👔 부센터 관리</div>
+            <div class="menu-list">
+              <div class="menu-item" onclick="showSubCenterSettlement()">
+                <div class="menu-item-icon" style="color:#db2777; background:rgba(219,39,119,0.1);"><i class="fas fa-briefcase"></i></div>
+                <span class="menu-item-text">부센터장 정산 관리</span>
                 <i class="fas fa-chevron-right menu-item-arrow"></i>
               </div>
             </div>
@@ -1606,6 +1630,48 @@
       <button class="btn btn-ghost" onclick="closeModal('depositModal')" style="flex:1"><span data-i18n="depCancelBtn">Cancel</span></button>
       <!-- 수동 탭일 때만 표시 -->
       <button class="btn btn-primary" id="depManualSubmitBtn" onclick="submitDeposit()" style="flex:2;display:none;"><span data-i18n="depManualSubmitBtn">입금 신청</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- 센터/부센터 정산 출금 모달 -->
+<div id="centerWithdrawModal" class="modal hidden">
+  <div class="modal-overlay" onclick="closeModal('centerWithdrawModal')"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="centerWithdrawModalTitle">🏢 센터 수당 출금 신청</div>
+    <div class="modal-body">
+      <!-- 출금 가능 수당 -->
+      <div class="info-box" style="margin-bottom:14px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:14px 16px;">
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">출금 가능 수당 (USDT)</div>
+        <div style="font-size:26px;font-weight:800;color:#6366f1;letter-spacing:-0.5px;">
+          <span id="centerWithdrawAvailable">0.00</span> USDT
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;" id="centerWithdrawAvailableDdra">≈ 0.00 DDRA</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">출금 금액 (USDT)</label>
+        <input type="number" id="centerWithdrawAmount" class="form-input" placeholder="0.00" min="0" step="0.01"
+               oninput="updateCenterWithdrawDdraEstimation()" onblur="updateCenterWithdrawDdraEstimation()">
+        <div class="form-help">
+          💡 최소 출금: <strong>5 USDT</strong><br>
+        </div>
+      </div>
+      <div class="info-box" style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.2);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;margin-bottom:6px;">
+          <span>지급 토큰</span>
+          <span style="color:#8b5cf6;font-weight:700;">DEEDRA (DDRA)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;color:var(--text2);font-weight:600;">예상 수령액</span>
+          <span style="font-size:18px;font-weight:800;color:#8b5cf6;"><span id="centerWithdrawEstimatedDdra">0.00</span> <span style="font-size:13px;">DDRA</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <input type="hidden" id="centerWithdrawType" value="center_fee">
+      <button class="btn btn-ghost" onclick="closeModal('centerWithdrawModal')" style="flex:1">취소</button>
+      <button class="btn btn-primary" onclick="submitCenterWithdraw()" style="flex:2">출금 신청</button>
     </div>
   </div>
 </div>

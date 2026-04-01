@@ -3384,13 +3384,42 @@ export class DedraAPI {
       const ref = await addDoc(collection(this.db, 'centers'), {
         ...data, createdBy: adminId, createdAt: serverTimestamp()
       });
+      // 부센터장 권한 부여
+      if (data.subCenters && Array.isArray(data.subCenters)) {
+        for (const sub of data.subCenters) {
+          if (sub.userId) {
+            await updateDoc(doc(this.db, 'users', sub.userId), { isSubCenterManager: true, managingSubCenterId: ref.id }).catch(() => {});
+          }
+        }
+      }
       return ok({ id: ref.id });
     } catch(e) { return err(e); }
   }
 
   async updateCenter(adminId, centerId, updates) {
     try {
+      const centerDoc = await getDoc(doc(this.db, 'centers', centerId));
+      if (centerDoc.exists()) {
+        const oldData = centerDoc.data();
+        if (oldData.subCenters && Array.isArray(oldData.subCenters)) {
+          for (const oldSub of oldData.subCenters) {
+            if (oldSub.userId) {
+              await updateDoc(doc(this.db, 'users', oldSub.userId), { isSubCenterManager: false, managingSubCenterId: null }).catch(() => {});
+            }
+          }
+        }
+      }
+
       await updateDoc(doc(this.db, 'centers', centerId), { ...updates, updatedAt: serverTimestamp() });
+      
+      // 새 부센터장 권한 부여
+      if (updates.subCenters && Array.isArray(updates.subCenters)) {
+        for (const sub of updates.subCenters) {
+          if (sub.userId) {
+            await updateDoc(doc(this.db, 'users', sub.userId), { isSubCenterManager: true, managingSubCenterId: centerId }).catch(() => {});
+          }
+        }
+      }
       return ok(true);
     } catch(e) { return err(e); }
   }

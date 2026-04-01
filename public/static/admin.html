@@ -1548,12 +1548,17 @@ canvas{width:100% !important;}
 
       <!-- ── 출금 목록 카드 ── -->
       <div class="card">
-                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom: 12px; background:#f8fafc; padding:10px; border-radius:8px;">
-          <span style="font-size:13px; font-weight:600; color:#475569;">📅 기간 필터:</span>
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom: 12px; background:#f8fafc; padding:10px; border-radius:8px;">
+          <select id="withdrawalTypeFilter" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none; background:#fff;" onchange="loadWithdrawals(currentWithdrawalStatus)">
+            <option value="withdrawal">일반 출금 (수익)</option>
+            <option value="center_fee">센터 수당 출금</option>
+            <option value="sub_center_fee">부센터장 수당 출금</option>
+          </select>
+          <span style="font-size:13px; font-weight:600; color:#475569; margin-left:10px;">📅 기간 필터:</span>
           <input type="date" id="withdrawalFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadWithdrawals(currentWithdrawalStatus)">
           <span style="color:#94a3b8;">~</span>
           <input type="date" id="withdrawalFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadWithdrawals(currentWithdrawalStatus)">
-          <button class="btn btn-sm" style="background:#e2e8f0; color:#475569; padding:6px 12px;" onclick="document.getElementById('withdrawalFilterStart').value=''; document.getElementById('withdrawalFilterEnd').value=''; loadWithdrawals(currentWithdrawalStatus);">초기화</button>
+          <button class="btn btn-sm" style="background:#e2e8f0; color:#475569; padding:6px 12px;" onclick="document.getElementById('withdrawalFilterStart').value=''; document.getElementById('withdrawalFilterEnd').value=''; document.getElementById('withdrawalTypeFilter').value='withdrawal'; loadWithdrawals(currentWithdrawalStatus);">초기화</button>
         </div>
         <div class="tabs" id="withdrawalTabs">
           <div class="tab active" data-status="pending">대기중</div>
@@ -6065,10 +6070,11 @@ async function loadWithdrawals(status = 'pending') {
     }
 
     let q;
+    const filterType = document.getElementById('withdrawalTypeFilter')?.value || 'withdrawal';
     if (status === 'pending') {
-        q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','in',['pending', 'processing']));
+        q = query(collection(db,'transactions'), where('type','==',filterType), where('status','in',['pending', 'processing']));
     } else {
-        q = query(collection(db,'transactions'), where('type','==','withdrawal'), where('status','==',status));
+        q = query(collection(db,'transactions'), where('type','==',filterType), where('status','==',status));
     }
     
     const renderRows = async (snap) => {
@@ -12898,6 +12904,10 @@ function openAddCenter() {
     document.getElementById('saveCenterBtnIcon').textContent = '💾';
     ['cm_name','cm_region','cm_managerName','cm_managerEmail','cm_managerPhone','cm_address','cm_description']
         .forEach(id => { document.getElementById(id).value = ''; });
+    for(let i=1; i<=3; i++) {
+        document.getElementById(`cm_subCenter_${i}_id`).value = '';
+        document.getElementById(`cm_subCenter_${i}_rate`).value = '';
+    }
     document.getElementById('centerModalAlert').innerHTML = '';
     document.getElementById('centerModal').style.display = 'flex';
     setTimeout(() => document.getElementById('cm_name').focus(), 100);
@@ -12917,6 +12927,18 @@ async function editCenter(id) {
     document.getElementById('cm_managerPhone').value = center.managerPhone || '';
     document.getElementById('cm_address').value = center.address || '';
     document.getElementById('cm_description').value = center.description || '';
+    for(let i=1; i<=3; i++) {
+        document.getElementById(`cm_subCenter_${i}_id`).value = '';
+        document.getElementById(`cm_subCenter_${i}_rate`).value = '';
+    }
+    if (center.subCenters && Array.isArray(center.subCenters)) {
+        center.subCenters.forEach((sub, idx) => {
+            if(idx < 3) {
+                document.getElementById(`cm_subCenter_${idx+1}_id`).value = sub.userId || '';
+                document.getElementById(`cm_subCenter_${idx+1}_rate`).value = sub.rate || '';
+            }
+        });
+    }
     document.getElementById('centerModalAlert').innerHTML = '';
     document.getElementById('centerModal').style.display = 'flex';
 }
