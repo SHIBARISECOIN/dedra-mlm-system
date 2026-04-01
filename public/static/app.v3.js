@@ -11559,8 +11559,6 @@ function showWeeklyWinnerCelebration(data, isMe) {
       }
     }
   }, 100);
-    }
-  }, 100);
 }
 
 function renderWeeklyJackpotBanner(data) {
