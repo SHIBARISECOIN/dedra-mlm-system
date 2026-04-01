@@ -1281,7 +1281,7 @@ canvas{width:100% !important;}
         </div>
         <div style="flex:1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(244,63,94,0.3);">
           <div>
-            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금액 (KST)</div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금(요청)액 (KST)</div>
             <div class="dailyWithdrawalAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
           </div>
           <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📤</div>
@@ -1384,7 +1384,7 @@ canvas{width:100% !important;}
         </div>
         <div style="flex:1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(244,63,94,0.3);">
           <div>
-            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금액 (KST)</div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금(요청)액 (KST)</div>
             <div class="dailyWithdrawalAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
           </div>
           <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📤</div>
@@ -5939,7 +5939,8 @@ window.updateDailyFinanceStats = async function() {
         snapW.forEach(doc => {
             const data = doc.data();
             // 출금의 경우 status가 다양할 수 있으므로, 거부(rejected)/실패(failed)/보류(pending)/진행중(processing)이 아닌 것들을 합산
-            const isValidStatus = data.status === 'approved' || data.status === 'completed' || data.status === 'success' || data.status === 'paid';
+            // (요청에 따라 'pending' 등 대기/처리중 상태인 것도 누적액에 포함시키도록 설정)
+            const isValidStatus = data.status === 'approved' || data.status === 'completed' || data.status === 'success' || data.status === 'paid' || data.status === 'pending' || data.status === 'processing';
             if (isValidStatus) {
                 // created_at 필드명이 다를 수 있음을 대비
                 const timestamp = data.createdAt || data.completedAt || data.updatedAt;
