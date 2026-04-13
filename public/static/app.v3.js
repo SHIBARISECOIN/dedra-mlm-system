@@ -6004,6 +6004,7 @@ window.submitReinvest = async function() {
       productId: selectedProduct.id,
       productName: selectedProduct.name, 
       amount: inputAmt, amountUsdt: inputAmt,
+      originalPrincipal: inputAmt, // 자동복리 수당 분리용 순수 원금 (재투자)
       roiPercent: roi, 
       durationDays: days,
       expectedReturn, 
@@ -6719,6 +6720,7 @@ window.submitInvest = async function() {
     batch.set(invRef, {
       userId: currentUser.uid, productId: selectedProduct.id,
       productName: selectedProduct.name, amount, amountUsdt: amount,
+      originalPrincipal: amount, // 자동복리 수당 분리용 순수 원금
       roiPercent: selectedProduct.roi, durationDays: selectedProduct.days,
       expectedReturn, status: 'active',
       startDate: serverTimestamp(), endDate,

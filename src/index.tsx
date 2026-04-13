@@ -4286,14 +4286,25 @@ async function runSettle(c: any, overrideDate?: string | null) {
         if (daysPassed <= 0) { skippedCount++; continue; }
 
         const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
+        
+        // --- 복리 컷오프 (Cut-off) 로직 적용 ---
+        // principal (현재 누적된 총 금액), originalPrincipal (최초 투자 순수 원금)
         const principal = inv.amount || inv.amountUsdt || 0;
+        const originalPrincipal = inv.originalPrincipal || inv.amountUsdt || inv.amount || 0;
+        
+        // 본인이 받는 이자는 '누적된 복리 원금(principal)' 기준
         const oneDayEarning = Math.round(principal * (dailyRoiPct / 100) * 1e8) / 1e8;
         const dailyEarning = Math.round(oneDayEarning * daysPassed * 1e8) / 1e8;
+        
+        // 상위 추천인/롤업/매칭 스폰서들에게 올려주는 이자는 오직 '최초 순수 원금(originalPrincipal)' 기준!
+        const oneDaySponsorEarning = Math.round(originalPrincipal * (dailyRoiPct / 100) * 1e8) / 1e8;
+        const dailySponsorEarning = Math.round(oneDaySponsorEarning * daysPassed * 1e8) / 1e8;
         
         if (dailyEarning <= 0) continue;
 
         const member = memberMap.get(inv.userId);
-        if (member) member.daily_dividend += dailyEarning;
+        // 상위 지급을 위한 기초 배당금은 '순수 원금 기준 이자'만 누적시킴
+        if (member) member.daily_dividend += dailySponsorEarning;
 
         let wup = walletUpdates.get(inv.userId);
         if (!wup) {
@@ -4319,6 +4330,10 @@ async function runSettle(c: any, overrideDate?: string | null) {
           paidRoi: (inv.paidRoi || 0) + dailyEarning,
           lastSettledAt: `${today}T23:59:59.000Z`
         };
+        // originalPrincipal이 없었으면 최초 저장
+        if (inv.originalPrincipal === undefined) {
+          invFields.originalPrincipal = Math.round(originalPrincipal * 1e8) / 1e8;
+        }
         const invFirestoreFields: any = {};
         for (const [k, v] of Object.entries(invFields)) {
           invFirestoreFields[k] = toFirestoreValue(v);
