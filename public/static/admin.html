@@ -18732,8 +18732,15 @@ async function showDailyDetails(type) {
     bodyEl.innerHTML = '<div class="loading" style="padding:40px;"><div class="spinner"></div><div style="text-align:center; margin-top:10px;">데이터를 불러오는 중...</div></div>';
     
     try {
+        let idToken = '';
+        if (window._currentSubAdmin && window._currentSubAdmin.token) {
+            idToken = window._currentSubAdmin.token;
+        } else if (window.currentAdmin && window.currentAdmin.getIdToken) {
+            idToken = await window.currentAdmin.getIdToken();
+        }
+        
         const res = await fetch(`/api/admin/daily-stats?type=${type}`, {
-            headers: { 'Authorization': 'Bearer ' + getCookie('admin_token') }
+            headers: { 'Authorization': 'Bearer ' + idToken }
         });
         const data = await res.json();
         
