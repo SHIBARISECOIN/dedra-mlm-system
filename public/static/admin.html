@@ -6143,18 +6143,20 @@ async function loadWithdrawals(status = 'pending') {
             <th>작업</th>
           </tr></thead>
           <tbody>${rows.map(r => {
-            const amtUsdt = (r.amountUsdt || r.amount || 0).toFixed(2);
-            let dAmt = r.amountDedra;
-            let dRate = r.dedraRateAtTime;
+            const reqUsdt = r.amountUsdt || 0;
+            const feeRate = r.feeRate || 0;
+            const amtUsdt = (reqUsdt || r.amount || 0).toFixed(2);
             
-            // If amountDedra is missing, calculate it using current rate
-            if (!dAmt && r.amountUsdt) {
-                if (dRate > 0) {
-                    dAmt = r.amountUsdt / dRate; // Assuming rate is USDT per DDRA
-                } else if ((window._cachedDedraRate || _cachedDedraRate || 0) > 0) {
-                    dAmt = r.amountUsdt / _cachedDedraRate;
-                    dRate = _cachedDedraRate;
-                }
+            // --- 실시간 가격 반영 로직 ---
+            let dRate = (window._cachedDedraRate || _cachedDedraRate || r.ddraPrice || r.dedraRateAtTime || 0.5);
+            let grossDdra = reqUsdt / dRate;
+            let dFee = grossDdra * (feeRate / 100);
+            let dAmt = grossDdra - dFee; // 실 지급 DDRA
+            
+            // 만약 승인된 건이라면 기존 저장된 실 지급액 표시
+            if (r.status === 'approved' && r.amount) {
+                dAmt = r.amount;
+                dRate = r.ddraPrice || dRate;
             }
             
             const amtDedra = dAmt ? parseFloat(dAmt).toFixed(4) : '-';
@@ -8370,7 +8372,13 @@ function setupEvents() {
     const phantomBtn = document.getElementById('phantomWithdrawalBtn');
     if (phantomBtn) {
         phantomBtn.addEventListener('click', async () => {
-            const dedraAmt = parseFloat((currentTx.amount||0).toFixed(4));
+            // --- 실시간 가격 재계산 ---
+            const reqUsdt = currentTx.amountUsdt || 0;
+            const feeRate = currentTx.feeRate || 0;
+            const dRate = (window._cachedDedraRate || _cachedDedraRate || currentTx.ddraPrice || 0.5);
+            let grossDdra = reqUsdt / dRate;
+            let dAmt = grossDdra - (grossDdra * (feeRate / 100));
+            const dedraAmt = parseFloat((dAmt || currentTx.amount || 0).toFixed(4));
             const wallet  = currentTx.walletAddress || '';
             
             if (!wallet || wallet.length < 20) {

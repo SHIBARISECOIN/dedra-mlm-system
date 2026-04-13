@@ -753,7 +753,7 @@ export class DedraAPI {
     }
   }
 
-  async approveWithdrawal(txId, adminId, txid) {
+  async approveWithdrawal(txId, adminId, txid, memo) {
     try {
       const db = this.db;
       const txSnap = await getDoc(doc(db, 'transactions', txId));
@@ -761,11 +761,43 @@ export class DedraAPI {
       const tx = txSnap.data();
       if (tx.status !== 'pending' && tx.status !== 'processing' && tx.status !== 'held' && tx.status !== 'failed') throw new Error('처리 가능한 상태가 아닙니다: ' + tx.status);
 
+      // --- 실시간 가격 반영 로직 추가 ---
+      let realTimePrice = tx.ddraPrice || 0.5;
+      try {
+        const priceSnap = await getDoc(doc(db, 'settings', 'deedraPrice'));
+        if (priceSnap.exists()) {
+          const pData = priceSnap.data();
+          realTimePrice = pData.price || pData.dedraPerUsd || 0.5;
+        }
+      } catch(e) { console.warn('가격 조회 실패', e); }
+      
+      const amountUsdt = tx.amountUsdt || 0;
+      const feeRate = tx.feeRate || 0;
+      
+      let newAmountDdra = tx.amountDdra;
+      let newFeeAmount = tx.feeAmount;
+      let newAmount = tx.amount;
+      
+      if (amountUsdt > 0) {
+        newAmountDdra = amountUsdt / realTimePrice;
+        newFeeAmount = newAmountDdra * (feeRate / 100);
+        newAmount = newAmountDdra - newFeeAmount;
+      }
+
       await updateDoc(doc(db, 'transactions', txId), {
-        status: 'approved', approvedAt: serverTimestamp(), approvedBy: adminId,
-        txid: txid || ''
+        status: 'approved', 
+        approvedAt: serverTimestamp(), 
+        approvedBy: adminId,
+        txid: txid || '',
+        memo: memo || tx.memo || '',
+        ddraPrice: realTimePrice,
+        amountDdra: newAmountDdra,
+        feeAmount: newFeeAmount,
+        amount: newAmount
       });
-      await this._auditLog(adminId, 'withdrawal', `출금 승인 ${tx.amountUsdt || tx.amount} USDT → ${tx.amount} DDRA (TXID: ${txid})`, { txId, userId: tx.userId });
+      
+      const finalDdraString = newAmount ? newAmount.toFixed(4) : tx.amount;
+      await this._auditLog(adminId, 'withdrawal', `출금 승인 ${amountUsdt} USDT → ${finalDdraString} DDRA (적용시세: ${realTimePrice}, TXID: ${txid})`, { txId, userId: tx.userId });
       // ── 관리자 알림: 출금 승인 ────────────────────────────────
       await this._sendAdminNotification(
         'withdrawal',
