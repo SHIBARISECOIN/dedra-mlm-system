@@ -3739,6 +3739,105 @@ app.get('/api/admin/ai-review', async (c) => {
   }
 });
 
+app.get('/api/admin/daily-stats', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const type = c.req.query('type');
+    
+    // Get KST today
+    const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
+    const todayStr = kstNow.toISOString().slice(0, 10);
+    const todayStart = `${todayStr}T00:00:00.000Z`;
+    const todayEnd = `${todayStr}T23:59:59.999Z`;
+    
+    let results = [];
+    let total = 0;
+    
+    if (type === 'signup') {
+      const users = await fsQuery('users', adminToken, [], 100000);
+      const todayUsers = users.filter(u => {
+        if (!u.createdAt) return false;
+        const ts = typeof u.createdAt === 'string' ? u.createdAt : 
+                  (u.createdAt.value ? u.createdAt.value : 
+                  (u.createdAt._seconds ? new Date(u.createdAt._seconds*1000).toISOString() : 
+                  (u.createdAt.seconds ? new Date(u.createdAt.seconds*1000).toISOString() : '')));
+        return String(ts).startsWith(todayStr) || (ts >= todayStart && ts <= todayEnd);
+      });
+      total = todayUsers.length;
+      results = todayUsers.map(u => ({
+        id: u.uid || u.id,
+        email: u.email,
+        name: u.name,
+        rank: u.rank || 'G0',
+        referrer: u.referredBy || '-',
+        createdAt: u.createdAt
+      })).sort((a,b) => (a.createdAt > b.createdAt ? -1 : 1));
+    } 
+    else if (type === 'deposit') {
+      const txs = await fsQuery('transactions', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'type' }, op: 'EQUAL', value: { stringValue: 'deposit' } } }
+      ], 5000);
+      const todayDeposits = txs.filter(t => {
+        if (t.status !== 'approved' && t.status !== 'completed') return false;
+        const ts = typeof t.approvedAt === 'string' ? t.approvedAt : 
+                  (typeof t.createdAt === 'string' ? t.createdAt : 
+                  (t.createdAt?._seconds ? new Date(t.createdAt._seconds*1000).toISOString() : 
+                  (t.createdAt?.seconds ? new Date(t.createdAt.seconds*1000).toISOString() : '')));
+        return String(ts).startsWith(todayStr) || (ts >= todayStart && ts <= todayEnd);
+      });
+      results = todayDeposits.map(t => {
+        total += (t.amountUsdt || t.amount || 0);
+        return {
+          id: t.userId || t.userEmail,
+          email: t.userEmail,
+          amount: t.amountUsdt || t.amount,
+          status: t.status,
+          createdAt: t.createdAt
+        };
+      }).sort((a,b) => (a.createdAt > b.createdAt ? -1 : 1));
+    }
+    else if (type === 'withdrawal') {
+      const txs = await fsQuery('transactions', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'type' }, op: 'EQUAL', value: { stringValue: 'withdrawal' } } }
+      ], 5000);
+      const todayWd = txs.filter(t => {
+        const ts = typeof t.createdAt === 'string' ? t.createdAt : 
+                  (t.createdAt?._seconds ? new Date(t.createdAt._seconds*1000).toISOString() : 
+                  (t.createdAt?.seconds ? new Date(t.createdAt.seconds*1000).toISOString() : ''));
+        return String(ts).startsWith(todayStr) || (ts >= todayStart && ts <= todayEnd);
+      });
+      results = todayWd.map(t => {
+        total += (t.amountUsdt || t.amount || 0);
+        return {
+          id: t.userId || t.userEmail,
+          email: t.userEmail,
+          amount: t.amountUsdt || t.amount,
+          status: t.status,
+          createdAt: t.createdAt
+        };
+      }).sort((a,b) => (a.createdAt > b.createdAt ? -1 : 1));
+    }
+    
+    // 프론트엔드가 요구하는 byCountry, totalCount, totalAmount, details 포맷에 맞춰 리턴
+    let byCountry = {};
+    if (type === 'signup') {
+        results.forEach(r => { 
+            const c = r.country || 'KR'; 
+            byCountry[c] = (byCountry[c]||0) + 1; 
+        });
+        return c.json({ success: true, type, totalCount: total, byCountry, details: results });
+    } else {
+        results.forEach(r => { 
+            const c = r.country || 'KR'; 
+            byCountry[c] = (byCountry[c]||0) + (r.amount || 0); 
+        });
+        return c.json({ success: true, type, totalAmount: total, byCountry, details: results });
+    }
+  } catch (e) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
 app.get('/api/admin/temp-report', async (c) => {
   try {
     const adminToken = await getAdminToken();
