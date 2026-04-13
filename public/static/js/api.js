@@ -742,14 +742,36 @@ export class DedraAPI {
   async failWithdrawalProcessing(txId, adminId, reason = '') {
     try {
       const db = this.db;
-      await updateDoc(doc(db, 'transactions', txId), {
+      const txSnap = await getDoc(doc(db, 'transactions', txId));
+      if (!txSnap.exists()) throw new Error('거래 없음');
+      const tx = txSnap.data();
+
+      const batch = writeBatch(db);
+      
+      batch.update(doc(db, 'transactions', txId), {
         status: 'failed',
         processingFailedAt: serverTimestamp(),
         adminMemo: reason || '송금 실패'
       });
+
+      // Failed withdrawals must refund the user's bonusBalance!
+      const usdtAmt = tx.amountUsdt || tx.amount || 0;
+      if (usdtAmt > 0 && tx.userId) {
+        const walletRef = doc(db, 'wallets', tx.userId);
+        const wSnap = await getDoc(walletRef);
+        if (wSnap.exists()) {
+          batch.update(walletRef, {
+            bonusBalance: increment(usdtAmt),
+            totalWithdrawal: increment(-usdtAmt),
+          });
+        }
+      }
+
+      await batch.commit();
       return { success: true };
     } catch(e) {
-      return { success: false };
+      console.error('[failWithdrawalProcessing] error:', e);
+      return { success: false, error: e.message };
     }
   }
 
@@ -2466,6 +2488,26 @@ export class DedraAPI {
       const usersSnap = await getDocs(collection(db, 'users'));
       const allUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+      // -- referredBy 정규화 (cyj0300 버그 수정) --
+      const uidSetMap = new Map();
+      const usernameMap = new Map();
+      const refCodeMap = new Map();
+      for (const u of allUsers) {
+        uidSetMap.set(u.id, u.id);
+        if (u.username) usernameMap.set(String(u.username).trim().toLowerCase(), u.id);
+        if (u.referralCode) refCodeMap.set(String(u.referralCode).trim().toLowerCase(), u.id);
+      }
+      for (const u of allUsers) {
+        let r = u.referredBy;
+        if (!r || typeof r !== 'string' || r.trim() === '') { u.referredBy = null; continue; }
+        r = r.trim();
+        if (uidSetMap.has(r)) { u.referredBy = r; continue; }
+        const rLower = r.toLowerCase();
+        if (usernameMap.has(rLower)) { u.referredBy = usernameMap.get(rLower); continue; }
+        if (refCodeMap.has(rLower)) { u.referredBy = refCodeMap.get(rLower); continue; }
+        u.referredBy = null;
+      }
+
       // BFS로 userId의 산하 depth단계까지 구성원 수집
       const downline = [];
       let currentLevel = [userId];
@@ -2704,6 +2746,26 @@ export class DedraAPI {
       const depth = countOnlyDirect ? 1 : (settings.networkDepth || 3);
       // BFS 전체 조직도
       const allUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      // -- referredBy 정규화 (cyj0300 버그 수정) --
+      const uidSetMap = new Map();
+      const usernameMap = new Map();
+      const refCodeMap = new Map();
+      for (const u of allUsers) {
+        uidSetMap.set(u.id, u.id);
+        if (u.username) usernameMap.set(String(u.username).trim().toLowerCase(), u.id);
+        if (u.referralCode) refCodeMap.set(String(u.referralCode).trim().toLowerCase(), u.id);
+      }
+      for (const u of allUsers) {
+        let r = u.referredBy;
+        if (!r || typeof r !== 'string' || r.trim() === '') { u.referredBy = null; continue; }
+        r = r.trim();
+        if (uidSetMap.has(r)) { u.referredBy = r; continue; }
+        const rLower = r.toLowerCase();
+        if (usernameMap.has(rLower)) { u.referredBy = usernameMap.get(rLower); continue; }
+        if (refCodeMap.has(rLower)) { u.referredBy = refCodeMap.get(rLower); continue; }
+        u.referredBy = null;
+      }
 
       const upgraded   = [];
       const downgraded = [];
@@ -3205,10 +3267,32 @@ export class DedraAPI {
       // _uid 집합
       const uidSet = new Set(users.map(u => u._uid));
 
+      // UID 및 Code 사전 구축
+      const uidSetMap = new Map(); // uid -> uid
+      const usernameMap = new Map(); // username -> uid
+      const refCodeMap = new Map(); // referralCode -> uid
+      
+      for (const u of users) {
+        uidSetMap.set(u._uid, u._uid);
+        if (u.username) usernameMap.set(u.username.trim().toLowerCase(), u._uid);
+        if (u.referralCode) refCodeMap.set(u.referralCode.trim().toLowerCase(), u._uid);
+      }
+
       // referredBy 정규화
       const getRef = (u) => {
-        const r = u.referredBy;
-        return (r && r !== '') ? r : null;
+        let r = u.referredBy;
+        if (!r || typeof r !== 'string' || r.trim() === '') return null;
+        r = r.trim();
+        
+        // 1. Exact UID match
+        if (uidSetMap.has(r)) return r;
+        
+        // 2. Fallback to username or referralCode match (case-insensitive)
+        const rLower = r.toLowerCase();
+        if (usernameMap.has(rLower)) return usernameMap.get(rLower);
+        if (refCodeMap.has(rLower)) return refCodeMap.get(rLower);
+        
+        return null;
       };
 
       // 자식 맵 사전 구축
