@@ -7,7 +7,9 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <title>DEEDRA - 관리자</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+</script>
+
 <script>
 window.makeDraggableMap = function(ele) {
     if (!ele) return;
@@ -1277,14 +1279,20 @@ canvas{width:100% !important;}
             <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💰 금일 누적 입금액 (KST)</div>
             <div class="dailyDepositAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
           </div>
-          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📥</div>
+          <div style="font-size:36px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); text-align:right; cursor:pointer;" onclick="showDailyDetails('deposit')">
+       <i class="fas fa-chart-pie" style="font-size:20px; display:block; margin-bottom:4px;"></i>
+       상세
+     </div>
         </div>
         <div style="flex:1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(244,63,94,0.3);">
           <div>
             <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금(요청)액 (KST)</div>
             <div class="dailyWithdrawalAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
           </div>
-          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📤</div>
+          <div style="font-size:36px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); text-align:right; cursor:pointer;" onclick="showDailyDetails('withdrawal')">
+       <i class="fas fa-chart-pie" style="font-size:20px; display:block; margin-bottom:4px;"></i>
+       상세
+     </div>
         </div>
       </div>
 
@@ -1292,9 +1300,10 @@ canvas{width:100% !important;}
       <div class="card">
                 <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom: 12px; background:#f8fafc; padding:10px; border-radius:8px;">
           <span style="font-size:13px; font-weight:600; color:#475569;">📅 기간 필터:</span>
-          <input type="date" id="depositFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadDeposits(currentDepositStatus)">
+          <input type="date" id="depositFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;">
           <span style="color:#94a3b8;">~</span>
-          <input type="date" id="depositFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadDeposits(currentDepositStatus)">
+          <input type="date" id="depositFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;">
+          <button class="btn btn-sm btn-primary" style="padding:6px 12px; margin-left:4px;" onclick="loadDeposits(currentDepositStatus)">조회</button>
           <button class="btn btn-sm" style="background:#e2e8f0; color:#475569; padding:6px 12px;" onclick="document.getElementById('depositFilterStart').value=''; document.getElementById('depositFilterEnd').value=''; loadDeposits(currentDepositStatus);">초기화</button>
         </div>
         <div class="tabs" id="depositTabs">
@@ -1342,8 +1351,8 @@ canvas{width:100% !important;}
       <div style="background:linear-gradient(135deg,#0f3460,#533483);border-radius:14px;padding:18px 22px;max-width:960px;margin-bottom:20px;box-shadow:0 4px 16px rgba(0,0,0,.15);">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <div>
-            <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:3px;">🔍 Solana USDT 입금 자동 감지</div>
-            <div style="font-size:12px;color:#a5b4fc;">Solana RPC를 통해 입금 주소로 들어온 USDT(SPL)를 자동으로 감지합니다</div>
+            <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:3px;">🔍 Multi-Chain USDT 입금 자동 감지</div>
+            <div style="font-size:12px;color:#a5b4fc;">BSC, TRON, Solana 네트워크의 입금(USDT) 트랜잭션을 자동으로 감지하고 승인합니다.</div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <div id="trc20LastCheck" style="font-size:11px;color:#a5b4fc;">마지막 확인: -</div>
@@ -1380,14 +1389,20 @@ canvas{width:100% !important;}
             <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💰 금일 누적 입금액 (KST)</div>
             <div class="dailyDepositAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
           </div>
-          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📥</div>
+          <div style="font-size:36px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); text-align:right; cursor:pointer;" onclick="showDailyDetails('deposit')">
+       <i class="fas fa-chart-pie" style="font-size:20px; display:block; margin-bottom:4px;"></i>
+       상세
+     </div>
         </div>
         <div style="flex:1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(244,63,94,0.3);">
           <div>
             <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">💸 금일 누적 출금(요청)액 (KST)</div>
             <div class="dailyWithdrawalAmount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
           </div>
-          <div style="font-size:42px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));">📤</div>
+          <div style="font-size:36px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); text-align:right; cursor:pointer;" onclick="showDailyDetails('withdrawal')">
+       <i class="fas fa-chart-pie" style="font-size:20px; display:block; margin-bottom:4px;"></i>
+       상세
+     </div>
         </div>
       </div>
 
@@ -1555,9 +1570,10 @@ canvas{width:100% !important;}
             <option value="sub_center_fee">부센터장 수당 출금</option>
           </select>
           <span style="font-size:13px; font-weight:600; color:#475569; margin-left:10px;">📅 기간 필터:</span>
-          <input type="date" id="withdrawalFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadWithdrawals(currentWithdrawalStatus)">
+          <input type="date" id="withdrawalFilterStart" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;">
           <span style="color:#94a3b8;">~</span>
-          <input type="date" id="withdrawalFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;" onchange="loadWithdrawals(currentWithdrawalStatus)">
+          <input type="date" id="withdrawalFilterEnd" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; outline:none;">
+          <button class="btn btn-sm btn-primary" style="padding:6px 12px; margin-left:4px;" onclick="loadWithdrawals(currentWithdrawalStatus)">조회</button>
           <button class="btn btn-sm" style="background:#e2e8f0; color:#475569; padding:6px 12px;" onclick="document.getElementById('withdrawalFilterStart').value=''; document.getElementById('withdrawalFilterEnd').value=''; document.getElementById('withdrawalTypeFilter').value='withdrawal'; loadWithdrawals(currentWithdrawalStatus);">초기화</button>
         </div>
         <div class="tabs" id="withdrawalTabs">
@@ -1577,6 +1593,18 @@ canvas{width:100% !important;}
     <div id="membersPage" class="page">
       <div class="page-title">회원 관리</div>
       <div class="page-desc">전체 회원 목록 조회 및 상태/직급/잔액 관리</div>
+      <div style="display:flex; gap:16px; margin-bottom: 24px;">
+        <div style="flex:1; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color:white; border-radius:16px; padding:20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 10px 25px -5px rgba(59,130,246,0.3); cursor:pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" onclick="showDailyDetails('signup')">
+          <div>
+            <div style="font-size:13px; font-weight:600; opacity:0.9; margin-bottom:6px; letter-spacing:0.5px;">👥 금일 가입회원 (KST)</div>
+            <div id="dailySignupCount" style="font-size:28px; font-weight:800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">로딩중...</div>
+          </div>
+          <div style="font-size:36px; opacity:0.8; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); text-align:right;">
+             <i class="fas fa-chart-pie" style="font-size:20px; display:block; margin-bottom:4px;"></i>
+             상세
+          </div>
+        </div>
+      </div>
       <div class="card">
         <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
           <input class="search-input" id="memberSearch" placeholder="🔍 이름, 이메일, 아이디로 검색..." style="min-width:180px;">
@@ -1626,15 +1654,26 @@ canvas{width:100% !important;}
         <div class="card-header"><span class="card-title">🎁 수동 보너스 지급</span></div>
         <div style="padding:24px;">
           <div id="bonusAlert" class="inline-alert"></div>
+          <div class="form-group">
+            <label class="form-label">회원 검색 (아이디, 이메일, 지갑주소, UID)</label>
+            <input class="form-input" id="bonusUserId" placeholder="회원 정보 입력">
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
             <div class="form-group">
-              <label class="form-label">회원 회원 ID</label>
-              <input class="form-input" id="bonusUserId" placeholder="회원 ID 입력">
+              <label class="form-label">지급 방식</label>
+              <select class="form-input" id="bonusType" onchange="document.getElementById('bonusProductGroup').style.display = this.value === 'freeze' ? 'block' : 'none'">
+                <option value="freeze">보너스 프리즈 직접 지급 (롤업 불가)</option>
+                <option value="balance">수익 잔액(USDT) 지급 (자유 사용)</option>
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label">지급 금액 (USDT)</label>
               <input type="number" class="form-input" id="bonusAmount" placeholder="0.00" min="0.01">
             </div>
+          </div>
+          <div class="form-group" id="bonusProductGroup">
+            <label class="form-label">보너스 상품 선택</label>
+            <select class="form-input" id="bonusProductId"></select>
           </div>
           <div class="form-group">
             <label class="form-label">지급 사유</label>
@@ -1830,6 +1869,12 @@ canvas{width:100% !important;}
           </thead>
           <tbody>
             <tr>
+              <td>🚀 크래시</td>
+              <td><input type="number" class="odds-input" id="oddsInputCrash" min="0" max="100" value="96" oninput="calcOdds('crash',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserCrash">96%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseCrash">4%</span></td>
+            </tr>
+            <tr>
               <td>🪙 홀짝</td>
               <td><input type="number" class="odds-input" id="oddsInputOddeven" min="0" max="100" value="96" oninput="calcOdds('oddeven',this.value)"></td>
               <td><span class="odds-calc user" id="oddsUserOddeven">96%</span></td>
@@ -1837,33 +1882,15 @@ canvas{width:100% !important;}
             </tr>
             <tr>
               <td>🎲 주사위</td>
-              <td><input type="number" class="odds-input" id="oddsInputDice" min="0" max="100" value="94" oninput="calcOdds('dice',this.value)"></td>
-              <td><span class="odds-calc user" id="oddsUserDice">94%</span></td>
-              <td><span class="odds-calc house" id="oddsHouseDice">6%</span></td>
+              <td><input type="number" class="odds-input" id="oddsInputDice" min="0" max="100" value="96" oninput="calcOdds('dice',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserDice">96%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseDice">4%</span></td>
             </tr>
             <tr>
               <td>🎰 슬롯</td>
-              <td><input type="number" class="odds-input" id="oddsInputSlot" min="0" max="100" value="92" oninput="calcOdds('slot',this.value)"></td>
-              <td><span class="odds-calc user" id="oddsUserSlot">92%</span></td>
-              <td><span class="odds-calc house" id="oddsHouseSlot">8%</span></td>
-            </tr>
-            <tr>
-              <td>🎡 룰렛</td>
-              <td><input type="number" class="odds-input" id="oddsInputRoulette" min="0" max="100" value="97" oninput="calcOdds('roulette',this.value)"></td>
-              <td><span class="odds-calc user" id="oddsUserRoulette">97%</span></td>
-              <td><span class="odds-calc house" id="oddsHouseRoulette">3%</span></td>
-            </tr>
-            <tr>
-              <td>🃏 바카라</td>
-              <td><input type="number" class="odds-input" id="oddsInputBaccarat" min="0" max="100" value="99" oninput="calcOdds('baccarat',this.value)"></td>
-              <td><span class="odds-calc user" id="oddsUserBaccarat">99%</span></td>
-              <td><span class="odds-calc house" id="oddsHouseBaccarat">1%</span></td>
-            </tr>
-            <tr>
-              <td>♠️ 포커</td>
-              <td><input type="number" class="odds-input" id="oddsInputPoker" min="0" max="100" value="99" oninput="calcOdds('poker',this.value)"></td>
-              <td><span class="odds-calc user" id="oddsUserPoker">99%</span></td>
-              <td><span class="odds-calc house" id="oddsHousePoker">1%</span></td>
+              <td><input type="number" class="odds-input" id="oddsInputSlot" min="0" max="100" value="96" oninput="calcOdds('slot',this.value)"></td>
+              <td><span class="odds-calc user" id="oddsUserSlot">96%</span></td>
+              <td><span class="odds-calc house" id="oddsHouseSlot">4%</span></td>
             </tr>
           </tbody>
         </table>
@@ -1874,12 +1901,10 @@ canvas{width:100% !important;}
         <div class="toolbar">
           <select class="select-filter" id="gameTypeFilter">
             <option value="">전체 게임</option>
+            <option value="crash">크래시</option>
             <option value="oddeven">홀짝</option>
             <option value="dice">주사위</option>
             <option value="slot">슬롯</option>
-            <option value="roulette">룰렛</option>
-            <option value="baccarat">바카라</option>
-            <option value="poker">포커</option>
           </select>
           <select class="select-filter" id="gameResultFilter">
             <option value="">전체 결과</option>
@@ -3674,7 +3699,7 @@ canvas{width:100% !important;}
           </div>
         </div>
         <div style="margin-top:10px;font-size:11px;color:#9ca3af;">
-          예) world1 · khubank888 · abc@email.com · REF12345 &nbsp;|&nbsp; 날짜를 지정하면 해당 날짜 기준 시뮬레이션
+          예) world1 · khubank888 · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="59383b3a193c34383035773a3634">[email&#160;protected]</a> · REF12345 &nbsp;|&nbsp; 날짜를 지정하면 해당 날짜 기준 시뮬레이션
         </div>
       </div>
 
@@ -3743,7 +3768,11 @@ canvas{width:100% !important;}
       </div>
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
-          <span style="font-size:16px;font-weight:700;color:#1e293b;">주간 잭팟 이벤트 설정 (Weekly Holder Jackpot)</span>
+          <div style="display:flex; align-items:center; gap: 10px;">
+            <span style="font-size:16px;font-weight:700;color:#1e293b;">주간 잭팟 이벤트 설정 (Weekly Holder Jackpot)</span>
+            <button onclick="revertJackpotManually()" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;">강제 상금 차감</button>
+            <button onclick="drawWeeklyJackpot()" style="background:#eab308;color:white;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;margin-left:8px;box-shadow:0 2px 4px rgba(234,179,8,0.3);"><i class="fas fa-gift"></i> 주간 잭팟 수동 추첨</button>
+          </div>
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <span style="font-size:14px;font-weight:bold;color:#ef4444;" id="weeklyJackpotStatusText">OFF</span>
             <div style="position:relative;width:48px;height:26px;">
@@ -3760,10 +3789,18 @@ canvas{width:100% !important;}
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
           <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">현재 상금 (USDT)</label>
+            <input type="number" step="0.01" id="weeklyJackpotAmount" placeholder="예: 100" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:bold;color:#ef4444;">
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">※ 현재 쌓여있는 잭팟 상금입니다. (복구 시 직접 입력)</div>
+          </div>
+          <div>
             <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">출금 수수료 적립 비율 (%)</label>
             <input type="number" id="weeklyJackpotFeeRate" placeholder="예: 100" value="100" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:bold;">
             <div style="font-size:11px;color:#94a3b8;margin-top:4px;">※ 출금 수수료 중 잭팟으로 적립될 비율입니다. (기본 100%)</div>
           </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px;">
           <div>
             <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">매주 추첨 요일</label>
             <select id="weeklyJackpotDrawDay" style="width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-weight:bold;appearance:none;background:#fff url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23475569" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>') no-repeat right 10px center;">
@@ -3816,6 +3853,16 @@ canvas{width:100% !important;}
           <button onclick="saveBearMarketSettings()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer;">💾 하락장 보상 설정 저장</button>
         </div>
       </div>
+
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;margin-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:12px;">
+          <span style="font-size:16px;font-weight:700;color:#1e293b;">🏆 역대 주간 잭팟 당첨자 내역</span>
+          <button onclick="loadPastJackpotWinners()" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">🔄 내역 새로고침</button>
+        </div>
+        <div id="pastJackpotWinnersWrap">
+          <div style="text-align:center;padding:20px;color:#94a3b8;">로딩 중...</div>
+        </div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════
@@ -3851,6 +3898,47 @@ canvas{width:100% !important;}
               <label class="form-label">출금 수수료율 (%)</label>
               <input type="number" class="form-input" id="cfg_withdrawalFeeRate" placeholder="2" min="0" max="100" step="0.1">
               <div style="font-size:11px;color:var(--gray);margin-top:4px;">예: 2 입력 시 2% 수수료</div>
+            </div>
+            <div class="form-group" style="margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
+              <label class="form-label" style="color:#d97706;">🔥 최대 수익 상한선 (Max Payout Cap) 설정</label>
+              <div style="display:flex; gap:10px; margin-bottom:8px; align-items:center;">
+                <select class="form-input" id="cfg_enableMaxPayoutCap" style="width:120px;font-weight:bold;color:#b91c1c;">
+                  <option value="true">✅ 활성화</option>
+                  <option value="false">❌ 제한없음</option>
+                </select>
+                <input type="number" class="form-input" id="cfg_maxPayoutRatio" placeholder="300" min="0" step="10" style="width:100px;">
+                <span style="font-size:13px;color:#64748b;">% (기본: 300%)</span>
+              </div>
+              <div style="font-size:11px;color:var(--gray);margin-bottom:12px;">이 비율에 도달하면 더 이상 데일리 ROI 및 보너스가 지급되지 않습니다. (비활성화 시 무제한 지급)</div>
+              
+              <label style="font-size:12px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">🏆 직급별 우대(예외) 상한선 (선택사항)</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="width:30px;font-size:12px;font-weight:bold;">G5:</span>
+                  <input type="number" id="cfg_maxPayout_G5" class="form-input" placeholder="무제한은 0" style="padding:6px;font-size:12px;"> <span style="font-size:11px;">%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="width:30px;font-size:12px;font-weight:bold;">G6:</span>
+                  <input type="number" id="cfg_maxPayout_G6" class="form-input" placeholder="무제한은 0" style="padding:6px;font-size:12px;"> <span style="font-size:11px;">%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="width:30px;font-size:12px;font-weight:bold;">G7:</span>
+                  <input type="number" id="cfg_maxPayout_G7" class="form-input" placeholder="무제한은 0" style="padding:6px;font-size:12px;"> <span style="font-size:11px;">%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="width:30px;font-size:12px;font-weight:bold;">G8:</span>
+                  <input type="number" id="cfg_maxPayout_G8" class="form-input" placeholder="무제한은 0" style="padding:6px;font-size:12px;"> <span style="font-size:11px;">%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="width:30px;font-size:12px;font-weight:bold;">G9:</span>
+                  <input type="number" id="cfg_maxPayout_G9" class="form-input" placeholder="무제한은 0" style="padding:6px;font-size:12px;"> <span style="font-size:11px;">%</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="width:30px;font-size:12px;font-weight:bold;">G10:</span>
+                  <input type="number" id="cfg_maxPayout_G10" class="form-input" placeholder="무제한은 0" style="padding:6px;font-size:12px;"> <span style="font-size:11px;">%</span>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#d97706;margin-top:6px;">* 비워두면 기본 상한선 적용, 0을 입력하면 해당 직급부터 <b>상한선 무제한(제한 없음)</b>으로 적용됩니다.</div>
             </div>
             <div class="form-group" style="margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
               <label class="form-label">출금 가능 시간 (로컬 시간 기준)</label>
@@ -4111,32 +4199,18 @@ canvas{width:100% !important;}
             입금/출금 신청, 정산 완료 등 주요 이벤트 발생 시 텔레그램으로 알림을 보냅니다.<br>
             <strong>봇 토큰</strong>: @BotFather에서 발급 · <strong>Chat ID</strong>: @userinfobot에서 확인
           </div>
-          <div class="settings-grid">
-            <div class="form-group">
-              <label class="form-label">텔레그램 봇 토큰</label>
-              <input class="form-input" id="cfg_tgBotToken" type="text" placeholder="8715210409:AAESdiHAIsa_cvpMymot2...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Chat ID (관리자)</label>
-              <input class="form-input" id="cfg_tgChatId" type="text" placeholder="123456789">
-            </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">텔레그램 봇 토큰</label>
+            <input class="form-input" id="cfg_tgBotToken" type="text" placeholder="8715210409:AAESdiHAIsa_cvpMymot2...">
           </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="cfg_tgOnDeposit" style="width:16px;height:16px;"> 입금 신청 알림
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="cfg_tgOnWithdrawal" style="width:16px;height:16px;"> 출금 신청 알림
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="cfg_tgOnSettlement" style="width:16px;height:16px;"> 정산 완료 알림
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="cfg_tgOnJoin" style="width:16px;height:16px;"> 신규 회원 가입 알림
-            </label>
+          <div id="tgRecipientsWrap" style="display:flex;flex-direction:column;gap:12px;">
+            <!-- 수신자 목록 렌더링 공간 -->
           </div>
-          <button class="btn btn-gray btn-sm" id="tgTestBtn" style="margin-top:12px;">📤 테스트 메시지 전송</button>
-          <span id="tgTestResult" style="font-size:12px;margin-left:10px;"></span>
+          <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="btn btn-gray btn-sm" onclick="addTgRecipient()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;">➕ 수신자(Chat ID) 추가</button>
+            <button class="btn btn-primary btn-sm" id="tgTestBtn">📤 전체 테스트 메시지 전송</button>
+            <span id="tgTestResult" style="font-size:12px;margin-left:10px;align-self:center;"></span>
+          </div>
         </div>
 
         <div style="display:flex;gap:10px;">
@@ -4326,6 +4400,7 @@ canvas{width:100% !important;}
             <div class="member-profile-badges">
               <span class="mpbadge mpbadge-rank" id="me_headerRank">G0</span>
               <span class="mpbadge" id="me_headerStatus">활성</span>
+              <button onclick="impersonateMember()" style="background:#10b981;cursor:pointer;border:none;color:white;margin-left:8px;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:bold;transition:0.2s;">회원 로그인 링크 복사 🔗</button>
             </div>
           </div>
         </div>
@@ -5182,7 +5257,7 @@ canvas{width:100% !important;}
   </div>
 </div>
 
-<script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://unpkg.com/@solana/web3.js@1.95.4/lib/index.iife.min.js"></script>
 <script src="/static/js/solana-wallet.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
@@ -5192,7 +5267,7 @@ import {
     query, where, orderBy, limit, onSnapshot,
     addDoc, updateDoc, deleteDoc, setDoc, serverTimestamp, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-import { DedraAPI } from '/static/js/api.js?v=1776112868';
+import { DedraAPI } from '/static/js/api.js';
 
 // ==========================================
 // 사용자 캐시 및 라벨링 헬퍼 함수
@@ -5412,7 +5487,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getFirestore(app); window.db = db; window.auth = auth;
 let api, currentAdmin, currentTx, currentMember;
 // EXPORT MODULE VARS TO WINDOW FOR GLOBAL SCRIPTS (BULK ACTIONS, ETC)
 Object.defineProperty(window, 'api', { get: () => api, set: (v) => api = v });
@@ -5928,6 +6003,13 @@ window.updateDailyFinanceStats = async function() {
         const snapD = await getDocs(qD);
         snapD.forEach(doc => {
             const data = doc.data();
+            
+            // 추첨권 미발행 입금액 제외 (설명에 no ticket 또는 추첨권 미발급이 포함된 경우)
+            const desc = (data.description || '').toLowerCase();
+            const memo = (data.memo || '').toLowerCase();
+            if (desc.includes('no ticket') || desc.includes('추첨권 미발급')) return;
+            if (memo.includes('no ticket') || memo.includes('추첨권 미발급')) return;
+            
             if (data.status === 'approved') {
                 const timestamp = data.createdAt || data.completedAt || data.updatedAt;
                 if (timestamp && timestamp.seconds) {
@@ -6029,8 +6111,12 @@ async function loadDeposits(status = 'pending') {
                 <strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong>
                 ${(window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit) ? '<div style="margin-top:4px;"><span style="background:#ef4444;color:#fff;font-size:10px;padding:2px 5px;border-radius:4px;box-shadow:0 2px 4px rgba(239,68,68,0.3);"><i class="fas fa-exclamation-triangle"></i> 임의입금 이력</span></div>' : ''}
               </td>
-            <td><strong style="color:var(--success)">${r.amount?.toFixed(2)}</strong></td>
-            <td title="${r.txid||''}"><code style="font-size:11px;">${r.txid ? `<a href="https://solscan.io/tx/${r.txid}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${r.txid.substring(0,16)}${r.txid.length>16?"...":""}</a>` : "없음"}</code></td>
+            <td>
+              <strong style="color:var(--success)">${r.amount?.toFixed(2)}</strong>
+              ${r.currency === 'DDRA' ? '<img src="/static/img/ddra-coin.png" style="height:12px;vertical-align:text-bottom;margin-left:2px;" alt="DDRA">' : ''}
+              ${(r.currency||'').toUpperCase() === 'C3' ? '<img src="/static/img/c3-coin.png" style="height:14px;vertical-align:text-bottom;margin-left:2px;" alt="C3">' : ''}
+            </td>
+            <td title="${r.txid||r.txHash||''}"><code style="font-size:11px;">${(r.txid||r.txHash) ? `<a href="${(r.network === 'BSC' ? 'https://bscscan.com/tx/' : (r.network === 'TRON' ? 'https://tronscan.org/#/transaction/' : 'https://solscan.io/tx/'))}${r.txid||r.txHash}" target="_blank" style="color:${r.txValidation==='valid' ? '#10b981' : (r.txValidation==='invalid' ? '#ef4444' : '#3b82f6')};text-decoration:underline;font-weight:${r.txValidation?'bold':'normal'};"><i class="fas ${r.txValidation==='valid' ? 'fa-check-circle' : (r.txValidation==='invalid' ? 'fa-exclamation-triangle' : 'fa-link')}" style="margin-right:3px;"></i>${(r.txid||r.txHash).substring(0,16)}${(r.txid||r.txHash).length>16?"...":""}</a>` : "없음"}</code></td>
             <td>${fmtDate(r.createdAt)}</td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
             <td><button class="btn btn-primary btn-sm" onclick="showDepositDetail('${r.id}')">상세</button></td>
@@ -6114,7 +6200,7 @@ async function loadWithdrawals(status = 'pending') {
         wrap.innerHTML = rateInfo + `
           <div style="margin-bottom:10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button class="btn btn-sm" style="background:linear-gradient(135deg,#ab9ff2,#8b5cf6);color:#fff;" onclick="bulkPhantomWithdraw()">👻 선택 일괄 팬텀 송금</button>
-            <button class="btn btn-sm" style="background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#fff;" onclick="bulkPhantomWithdrawSingle()">👻 선택 일괄 팬텀 (단건 처리)</button>
+            <button class="btn btn-sm" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;" onclick="bulkPhantomWithdrawSingle()">👻 선택 일괄 팬텀 송금 (단건 처리)</button>
             <button class="btn btn-sm" style="background:#0ea5e9;color:#fff;" onclick="selectYesterdayWithdrawals()">📅 어제 신청건 전체선택</button>
             <button class="btn btn-sm btn-primary" onclick="bulkApproveWithdraw()">✅ 선택 일괄 수동 승인</button>
             <button class="btn btn-sm btn-danger" onclick="bulkRejectWithdraw()">❌ 선택 일괄 거부</button>
@@ -6127,7 +6213,8 @@ async function loadWithdrawals(status = 'pending') {
             <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
               <div><span style="font-size:12px; color:#64748b;">선택 건수</span><br><strong id="wsCount" style="font-size:16px; color:#334155;">0</strong><span style="font-size:12px; color:#64748b;"> 건</span></div>
               <div><span style="font-size:12px; color:#64748b;">총 출금액(USDT)</span><br><strong id="wsUsdt" style="font-size:16px; color:#ef4444;">0.00</strong></div>
-              <div><span style="font-size:12px; color:#64748b;">예상 지급액(DDRA)</span><br><strong id="wsDedra" style="font-size:16px; color:#6366f1;">0.0000</strong> <span style="font-size:11px; color:#94a3b8;" id="wsRate"></span></div>
+              <div><span style="font-size:12px; color:#64748b;">총 차감 수수료(USDT)</span><br><strong id="wsFee" style="font-size:16px; color:#f59e0b;">0.0000</strong></div>
+              <div><span style="font-size:12px; color:#64748b;">실 송금 예정(USDT)</span><br><strong id="wsDedra" style="font-size:16px; color:#6366f1;">0.0000</strong> <span style="font-size:11px; color:#94a3b8;" id="wsRate"></span></div>
             </div>
             
           </div>
@@ -6136,7 +6223,8 @@ async function loadWithdrawals(status = 'pending') {
             <th style="width:40px;"><input type="checkbox" id="selectAllWithdrawals" onchange="document.querySelectorAll('.withdrawal-cb:not(:disabled)').forEach(cb => cb.checked = this.checked); if(window.updateWithdrawalSummary) window.updateWithdrawalSummary();"></th>
             <th>회원 ID</th>
             <th>신청 (USDT)</th>
-            <th>지급 (DDRA)</th>
+            <th>수수료 (USDT)</th>
+            <th>실 지급 (USDT)</th>
             <th>지갑 주소</th>
             <th>신청일</th>
             <th>상태</th>
@@ -6144,35 +6232,40 @@ async function loadWithdrawals(status = 'pending') {
             <th>작업</th>
           </tr></thead>
           <tbody>${rows.map(r => {
-            const reqUsdt = r.amountUsdt || 0;
-            const feeRate = r.feeRate || 0;
-            const amtUsdt = (reqUsdt || r.amount || 0).toFixed(2);
+            let amtUsdtVal = 0;
+            let dAmt = 0;
+            let feeDdra = 0;
+            let feeRt = r.feePct || r.feeRate || 0;
+            let dRate = r.ddraPrice || r.dedraRateAtTime;
             
-            // --- 실시간 가격 반영 로직 ---
-            let dRate = (window._cachedDedraRate || _cachedDedraRate || r.ddraPrice || r.dedraRateAtTime || 0.5);
-            let grossDdra = reqUsdt / dRate;
-            let dFee = grossDdra * (feeRate / 100);
-            let dAmt = grossDdra - dFee; // 실 지급 DDRA
+            // 통일된 USDT 표시 시스템
+            amtUsdtVal = r.amountUsdt || r.amount || 0;
+            let feeUsdt = r.feeUsdt || (amtUsdtVal * (feeRt / 100)) || 0;
+            let realUsdt = amtUsdtVal - feeUsdt;
             
-            // 만약 승인된 건이라면 기존 저장된 실 지급액 표시
-            if (r.status === 'approved' && r.amount) {
-                dAmt = r.amount;
-                dRate = r.ddraPrice || dRate;
-            }
+            // UI에 보여줄 텍스트들
+            const amtUsdt = parseFloat(amtUsdtVal).toFixed(2);
+            const feeDedraStr = feeUsdt > 0 ? `<span style="color:#f59e0b;">${feeRt}%<br>(${parseFloat(feeUsdt).toFixed(2)})</span>` : '-';
+            const amtDedra = realUsdt ? parseFloat(realUsdt).toFixed(2) : '-';
             
-            const amtDedra = dAmt ? parseFloat(dAmt).toFixed(4) : '-';
+            // 데이터셋용 (USDT 기준으로 계산)
+            feeDdra = feeUsdt; // feeDdra 변수명을 재활용 (값은 USDT)
+            dAmt = realUsdt;   // dAmt 변수명도 재활용 (값은 USDT)
+            
             const rateText = dRate ? ` (${dRate})` : '';
             const hasMa = (window.globalUserCache[r.userId] && window.globalUserCache[r.userId].hasManualDeposit);
             const canCheck = r.status === 'pending' || r.status === 'processing' || r.status === 'held' || r.status === 'failed';
+            const timeMs = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : (typeof r.createdAt === 'number' ? r.createdAt : (typeof r.createdAt === 'string' ? new Date(r.createdAt).getTime() : 0));
             return `<tr style="${hasMa ? 'background:rgba(239,68,68,0.05);' : ''}">
-              <td><input type="checkbox" class="withdrawal-cb" value="${r.id}" data-amount="${dAmt || 0}" data-usdt="${amtUsdt}" data-wallet="${r.walletAddress||''}" data-userid="${r.userId}" ${canCheck ? '' : 'disabled'} onchange="if(window.updateWithdrawalSummary) window.updateWithdrawalSummary()"></td>
+              <td><input type="checkbox" class="withdrawal-cb" value="${r.id}" data-amount="${dAmt || 0}" data-fee="${feeDdra || 0}" data-usdt="${amtUsdt}" data-wallet="${r.walletAddress||''}" data-userid="${r.userId}" data-time="${timeMs}" ${canCheck ? '' : 'disabled'} onchange="if(window.updateWithdrawalSummary) window.updateWithdrawalSummary()"></td>
               <td><strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
               <td><strong style="color:var(--danger)">${amtUsdt}</strong></td>
+              <td style="font-size:12px;">${feeDedraStr}</td>
               <td>${amtDedra !== '-' ? `<strong style="color:#6366f1;">${amtDedra}</strong><span style="font-size:10px;color:#94a3b8;">${rateText}</span>` : '-'}</td>
               <td title="${r.walletAddress||''}"><code style="font-size:11px;">${(r.walletAddress||'없음').substring(0,12)}...</code></td>
               <td>${fmtDate(r.createdAt)}</td>
               <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
-              <td title="${r.txid||''}"><code style="font-size:11px;">${r.txid ? `<a href="https://solscan.io/tx/${r.txid}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${r.txid.substring(0,8)}...</a>` : "-"}</code></td>
+              <td title="${r.txid||r.txHash||''}"><code style="font-size:11px;">${(r.txid||r.txHash) ? `<a href="${(r.network === 'BSC' ? 'https://bscscan.com/tx/' : (r.network === 'TRON' ? 'https://tronscan.org/#/transaction/' : 'https://solscan.io/tx/'))}${r.txid||r.txHash}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${(r.txid||r.txHash).substring(0,8)}...</a>` : "-"}</code></td>
               <td style="display:flex; gap:4px;"><button class="btn btn-primary btn-sm" onclick="showWithdrawalDetail('${r.id}')">상세</button><button class="btn btn-sm" style="background:#8b5cf6; color:white; border:none;" onclick="analyzeWithdrawal('${r.userId}', '${r.id}')">🔍 심사</button></td>
             </tr>`;
           }).join('')}</tbody>
@@ -7021,6 +7114,7 @@ async function loadGameLogs(gameType='', resultFilter='') {
         // gameType key: 한글 게임명 → key 변환, 이미 key인 경우도 지원
         _gameKey:  l.gameType || (() => {
             const n = (l.game||'').toLowerCase();
+            if (n.includes('크래시') || n.includes('crash')) return 'crash';
             if (n.includes('홀짝') || n.includes('odd')) return 'oddeven';
             if (n.includes('주사위') || n.includes('dice')) return 'dice';
             if (n.includes('슬롯') || n.includes('slot')) return 'slot';
@@ -7070,8 +7164,7 @@ async function loadGameLogs(gameType='', resultFilter='') {
     if (!logs.length) { wrap.innerHTML = emptyState('게임 로그 없음'); return; }
 
     const gtLabel = {
-        oddeven:'홀짝', dice:'주사위', slot:'슬롯',
-        roulette:'룰렛', baccarat:'바카라', poker:'포커', randombox:'랜덤박스'
+        crash:'크래시', oddeven:'홀짝', dice:'주사위', slot:'슬롯', randombox:'랜덤박스'
     };
 
     wrap.innerHTML = `<div class="table-wrap"><table>
@@ -7559,7 +7652,7 @@ async function loadAuditLog() {
 
 // 모달: 입금 상세
 // ══════════════════════════════════════════════════
-window.showDepositDetail = async (txId) => {
+window.showDepositDetail = async (txId) => { try {
     const snap = await getDoc(doc(db,'transactions',txId));
     if (!snap.exists()) return alert('데이터 없음');
     currentTx = {id:txId,...snap.data()};
@@ -7587,13 +7680,22 @@ window.showDepositDetail = async (txId) => {
     // 상태 배지 색상
     const statusColor = { pending:'#f59e0b', processing:'#3b82f6', approved:'#10b981', rejected:'#ef4444', held:'#6366f1', failed:'#ea580c' };
     const sColor = statusColor[currentTx.status] || '#94a3b8';
+    
+    let displayCurrencyHtml = `<span style="font-size:16px;font-weight:600;">USDT</span>`;
+    if (currentTx.currency === 'DDRA') {
+        displayCurrencyHtml = `<img src="/static/img/ddra-coin.png" style="height:20px;vertical-align:text-bottom;margin-right:2px;" alt="DDRA"> <span style="font-size:16px;font-weight:600;">DDRA</span>`;
+    } else if (currentTx.currency && currentTx.currency.toUpperCase() === 'C3') {
+        displayCurrencyHtml = `<img src="/static/img/c3-coin.png" style="height:22px;vertical-align:text-bottom;margin-right:2px;" alt="C3"> <span style="font-size:16px;font-weight:600;">C3</span>`;
+    } else if (currentTx.currency && currentTx.currency !== 'USDT') {
+        displayCurrencyHtml = `<span style="font-size:16px;font-weight:600;">${currentTx.currency}</span>`;
+    }
 
     document.getElementById('depositModalBody').innerHTML = `
       <!-- 금액 하이라이트 -->
       <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:14px;padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-size:11px;color:#16a34a;font-weight:600;margin-bottom:2px;">입금 신청 금액</div>
-          <div style="font-size:28px;font-weight:900;color:#065f46;letter-spacing:-1px;">${(currentTx.amount||0).toFixed(2)} <span style="font-size:16px;font-weight:600;">USDT</span></div>
+          <div style="font-size:28px;font-weight:900;color:#065f46;letter-spacing:-1px;">${parseFloat(currentTx.amount||0).toFixed(2)} ${displayCurrencyHtml}</div>
         </div>
         <div style="text-align:right;">
           <div style="display:inline-flex;align-items:center;gap:5px;background:${sColor}22;border:1.5px solid ${sColor}66;border-radius:20px;padding:5px 12px;">
@@ -7607,7 +7709,8 @@ window.showDepositDetail = async (txId) => {
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
         ${infoRow2('👤 회원', `<strong>${memberName}</strong>${memberPhone ? ` · <span style="color:#64748b;font-size:12px;">${memberPhone}</span>` : ''}`)}
         ${infoRow2('📧 이메일', `<span style="font-size:12px;">${memberEmail||currentTx.userId}</span>`)}
-        ${infoRow2('🔗 TXID', currentTx.txid ? `<a href="https://solscan.io/tx/${currentTx.txid}" target="_blank" style="font-family:monospace;font-size:11px;word-break:break-all;color:#3b82f6;text-decoration:underline;">${currentTx.txid}</a>` : `<span style="font-family:monospace;font-size:11px;word-break:break-all;color:#1d4ed8;">-</span>`)}
+        ${infoRow2('🔗 TXID', (currentTx.txid||currentTx.txHash) ? `<a href="${currentTx.network === 'BSC' ? 'https://bscscan.com/tx/' : (currentTx.network === 'TRON' ? 'https://tronscan.org/#/transaction/' : 'https://solscan.io/tx/')}${currentTx.txid||currentTx.txHash}" target="_blank" style="font-family:monospace;font-size:11px;word-break:break-all;color:${currentTx.txValidation==='valid'?'#10b981':(currentTx.txValidation==='invalid'?'#ef4444':'#3b82f6')};text-decoration:underline;font-weight:${currentTx.txValidation?'bold':'normal'};"><i class="fas ${currentTx.txValidation==='valid'?'fa-check-circle':(currentTx.txValidation==='invalid'?'fa-exclamation-triangle':'fa-link')}" style="margin-right:3px;"></i>${(currentTx.txid||currentTx.txHash)}</a>` : `<span style="font-family:monospace;font-size:11px;word-break:break-all;color:#1d4ed8;">-</span>`)}
+${currentTx.verifiedMsg ? infoRow2('🤖 검증 결과', `<span style="font-size:11px;color:${currentTx.txValidation==='valid'?'#10b981':'#ef4444'};">${String(currentTx.verifiedMsg).replace(/<[^>]*>?/gm, '')}</span>`) : ''}
         ${currentTx.memo ? infoRow2('📝 메모', currentTx.memo) : ''}
         ${infoRow2('📅 신청일', fmtDate(currentTx.createdAt))}
         ${currentTx.processedAt ? infoRow2('✅ 처리일', fmtDate(currentTx.processedAt)) : ''}
@@ -7616,7 +7719,7 @@ window.showDepositDetail = async (txId) => {
       </div>
 
       ${canAct ? `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:11px 14px;font-size:12px;color:#92400e;">
-        <strong>⚡ 승인 즉시</strong> <strong>${memberName}</strong>의 USDT 잔액에 <strong>${(currentTx.amount||0).toFixed(2)} USDT</strong>가 충전됩니다
+        <strong>⚡ 승인 즉시</strong> <strong>${memberName}</strong>의 USDT 잔액에 <strong>${parseFloat(currentTx.amount||0).toFixed(2)} USDT</strong>가 충전됩니다
       </div>` : ''}
     `;
 
@@ -7631,13 +7734,13 @@ window.showDepositDetail = async (txId) => {
     const holdBtn = document.getElementById('holdDepositBtn');
     if (holdBtn) holdBtn.style.display = isPending ? '' : 'none';
 
-    document.getElementById('depositModal').classList.add('show');
+    document.getElementById('depositModal').classList.add('show'); } catch(e) { alert("Deposit Error: " + e.message); console.error(e); }
 };
 
 // ══════════════════════════════════════════════════
 // 모달: 출금 상세
 // ══════════════════════════════════════════════════
-window.showWithdrawalDetail = async (txId) => {
+window.showWithdrawalDetail = async (txId) => { try {
     const snap = await getDoc(doc(db,'transactions',txId));
     if (!snap.exists()) return alert('데이터 없음');
     currentTx = {id:txId,...snap.data()};
@@ -7671,9 +7774,22 @@ window.showWithdrawalDetail = async (txId) => {
             (hasMa ? ' <span style="background:#ef4444;color:#fff;font-size:10px;padding:2px 4px;border-radius:4px;margin-left:4px;">⚠️ 임의입금 주의</span>' : '');
     }
 
-    const amountUsdt = currentTx.amountUsdt || currentTx.amount || 0;
-    const amountDdra = currentTx.amount || 0;
+    let amountUsdt = 0;
+    let netDdra = 0;
+    let preFeeDdra = 0;
+    let feeRateVal = currentTx.feeRate || 0;
     const ddraPrice  = currentTx.ddraPrice || dedraRate || 0;
+
+    if (currentTx.currency === 'DDRA') {
+        amountUsdt = currentTx.amountUsdt || 0;
+        netDdra = currentTx.amount || 0;
+        preFeeDdra = currentTx.amountDdra || (ddraPrice > 0 ? amountUsdt / ddraPrice : 0);
+    } else {
+        amountUsdt = currentTx.amountUsdt || currentTx.amount || 0;
+        preFeeDdra = currentTx.amountDedra || currentTx.amountDdra || (ddraPrice > 0 ? amountUsdt / ddraPrice : 0);
+        netDdra = preFeeDdra;
+    }
+    
     const wallet     = currentTx.walletAddress || '-';
 
     const statusColor = { pending:'#f59e0b', approved:'#10b981', rejected:'#ef4444', held:'#6366f1' };
@@ -7690,9 +7806,9 @@ window.showWithdrawalDetail = async (txId) => {
       <!-- 금액 하이라이트 -->
       <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:2px solid #fca5a5;border-radius:14px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:11px;color:#dc2626;font-weight:600;margin-bottom:2px;">출금 신청 금액</div>
-          <div style="font-size:28px;font-weight:900;color:#7f1d1d;letter-spacing:-1px;">${amountUsdt.toFixed(2)} <span style="font-size:16px;font-weight:600;">USDT</span></div>
-          ${ddraPrice > 0 ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px;">≈ ${amountDdra.toFixed(4)} DDRA (1 DDRA=$${ddraPrice.toFixed(4)})</div>` : ''}
+          <div style="font-size:11px;color:#dc2626;font-weight:600;margin-bottom:2px;">출금 신청 금액 (USDT)</div>
+          <div style="font-size:28px;font-weight:900;color:#7f1d1d;letter-spacing:-1px;">${parseFloat(amountUsdt||0).toFixed(2)} <span style="font-size:16px;font-weight:600;">USDT</span></div>
+          ${ddraPrice > 0 ? `<div style="font-size:12px;color:#9ca3af;margin-top:2px;">≈ ${parseFloat(preFeeDdra||0).toFixed(4)} DDRA (1 DDRA=$${parseFloat(ddraPrice||0).toFixed(4)})</div>` : ''}
         </div>
         <div style="text-align:right;">
           <div style="display:inline-flex;align-items:center;gap:5px;background:${sColor}22;border:1.5px solid ${sColor}66;border-radius:20px;padding:5px 12px;">
@@ -7712,10 +7828,11 @@ window.showWithdrawalDetail = async (txId) => {
       <!-- 상세 정보 -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:12px;">
         ${infoRow2('👤 회원', `<strong>${memberName}</strong>${memberPhone ? ` · <span style="color:#64748b;font-size:12px;">${memberPhone}</span>` : ''}`)}
-        ${infoRow2('💰 신청(USDT)', `<strong style="color:#dc2626;">${amountUsdt.toFixed(2)} USDT</strong>`)}
-        ${infoRow2('💎 지급(DDRA)', `<strong style="color:#6d28d9;">${amountDdra.toFixed(4)} DDRA</strong>`)}
+        ${infoRow2('💰 신청(USDT)', `<strong style="color:#dc2626;">${parseFloat(amountUsdt||0).toFixed(2)} USDT</strong>`)}
+        ${infoRow2('🏦 차감 수수료', `<span style="color:#f59e0b;">${feeRateVal}% (≈ ${parseFloat((preFeeDdra||0) - (netDdra||0)).toFixed(4)} DDRA)</span>`)}
+        ${infoRow2('💎 실 지급(DDRA)', `<strong style="color:#6d28d9;">${parseFloat(netDdra||0).toFixed(4)} DDRA</strong>`)}
         ${infoRow2('📅 신청일', fmtDate(currentTx.createdAt))}
-        ${currentTx.txid ? infoRow2('🔗 처리 TXID', `<a href="https://solscan.io/tx/${currentTx.txid}" target="_blank" style="font-size:11px;word-break:break-all;color:#3b82f6;text-decoration:underline;">${currentTx.txid}</a>`) : ''}
+        ${(currentTx.txid||currentTx.txHash) ? infoRow2('🔗 처리 TXID', `<a href="${currentTx.network === 'BSC' ? 'https://bscscan.com/tx/' : (currentTx.network === 'TRON' ? 'https://tronscan.org/#/transaction/' : 'https://solscan.io/tx/')}${currentTx.txid||currentTx.txHash}" target="_blank" style="font-size:11px;word-break:break-all;color:#3b82f6;text-decoration:underline;">${(currentTx.txid||currentTx.txHash)}</a>`) : ''}
         ${currentTx.processedAt ? infoRow2('✅ 처리일', fmtDate(currentTx.processedAt)) : ''}
         ${currentTx.adminMemo ? infoRow2('💬 관리자 메모', `<span style="color:#7c3aed;">${currentTx.adminMemo}</span>`) : ''}
         ${currentTx.rejectionReason ? infoRow2('❌ 거부 사유', `<span style="color:#dc2626;">${currentTx.rejectionReason}</span>`) : ''}
@@ -7735,7 +7852,7 @@ window.showWithdrawalDetail = async (txId) => {
     const holdWdBtn = document.getElementById('holdWithdrawalBtn');
     if (holdWdBtn) holdWdBtn.style.display = (isPending || isFailed) ? '' : 'none';
 
-    document.getElementById('withdrawalModal').classList.add('show');
+    document.getElementById('withdrawalModal').classList.add('show'); } catch(e) { alert("Withdraw Error: " + e.message); console.error(e); }
 };
 
 
@@ -7743,6 +7860,61 @@ window.showWithdrawalDetail = async (txId) => {
 // ══════════════════════════════════════════════════
 // 모달: 회원 상세
 // ══════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════
+// 이 회원으로 로그인 (Impersonation)
+// ══════════════════════════════════════════════════
+window.impersonateMember = async () => {
+    const uid = document.getElementById('me_uid').textContent;
+    if(!uid || uid === '–') return alert('UID를 확인할 수 없습니다.');
+    if(!confirm('이 회원으로 로그인하시겠습니까? (새 창이 열립니다)')) return;
+    
+    const btn = event.currentTarget;
+    const oldText = btn.textContent;
+    btn.textContent = '발급중...';
+    btn.disabled = true;
+    
+    try {
+        
+        let idToken = '';
+        if (window.currentAdmin && window.currentAdmin.getIdToken) {
+            idToken = await window.currentAdmin.getIdToken();
+        } else if (window.FB && window.FB.auth && window.FB.auth.currentUser) {
+            idToken = await window.FB.auth.currentUser.getIdToken();
+        } else {
+            throw new Error('인증 정보를 찾을 수 없습니다.');
+        }
+
+        const res = await fetch('/api/admin/impersonate', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ uid })
+        });
+        const data = await res.json();
+        if(data.success && data.customToken) {
+            
+            const impUrl = window.location.origin + '?impersonate=' + data.customToken;
+            try {
+                await navigator.clipboard.writeText(impUrl);
+                alert('🔗 회원 접속용 특수 링크가 복사되었습니다!\n\n[주의] 현재 창에서 열면 관리자 로그아웃이 발생합니다.\n\n반드시 크롬의 [새 시크릿 창]을 열고 주소창에 붙여넣기 하세요.\n(단축키: Ctrl + Shift + N 또는 맥: Cmd + Shift + N)');
+            } catch(err) {
+                prompt('아래 링크를 복사하여 [새 시크릿 창]에서 열어주세요:', impUrl);
+            }
+
+        } else {
+            alert('로그인 토큰 발급 실패: ' + (data.error || '알 수 없는 오류'));
+        }
+    } catch(e) {
+        alert('요청 중 오류 발생: ' + e.message);
+    } finally {
+        btn.textContent = oldText;
+        btn.disabled = false;
+    }
+};
+
 window.showMemberDetail = async (userId) => {
     console.log('[showMemberDetail] 시작 userId=', userId);
     let snap;
@@ -7783,7 +7955,7 @@ window.showMemberDetail = async (userId) => {
         uid: uid,
         // wallets 컬렉션 필드명 기준
         usdtBalance:     walletData.usdtBalance     ?? 0,
-        totalInvested:   walletData.totalInvested   ?? 0,
+        totalInvested:   walletData.totalInvest   ?? 0,
         bonusBalance:    walletData.bonusBalance    ?? 0,
         totalEarnings:   walletData.totalEarnings   ?? 0,
         totalDeposit:    walletData.totalDeposit    ?? 0,
@@ -8126,7 +8298,7 @@ async function loadMemberTxHistory(userId) {
             <td><span class="badge ${r.type==='deposit'?'badge-approved':'badge-pending'}">${r.type==='deposit'?'입금':'출금'}</span></td>
             <td><strong>${(r.type==='deposit' ? (r.amount||0) : (r.amountUsdt !== undefined ? r.amountUsdt : (r.amount||0))).toFixed(2)} USDT${r.type==='withdrawal' && r.amount ? ` (≈${(r.amount||0).toFixed(4)} DDRA)` : ''}</strong></td>
             <td><span class="badge badge-${r.status}">${fmtStatus(r.status)}</span></td>
-            <td><code style="font-size:11px;">${r.txid ? `<a href="https://solscan.io/tx/${r.txid}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${r.txid.substring(0,14)}</a>` : "-"}</code></td>
+            <td><code style="font-size:11px;">${(r.txid||r.txHash) ? `<a href="${(r.network === 'BSC' ? 'https://bscscan.com/tx/' : (r.network === 'TRON' ? 'https://tronscan.org/#/transaction/' : 'https://solscan.io/tx/'))}${r.txid||r.txHash}" target="_blank" style="color:#3b82f6;text-decoration:underline;">${(r.txid||r.txHash).substring(0,14)}</a>` : "-"}</code></td>
             <td style="font-size:12px;">${fmtDate(r.createdAt)}</td>
           </tr>`).join('')}</tbody></table></div>`;
     } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); }
@@ -8233,7 +8405,7 @@ function setupEvents() {
             else if (page==='gamelogs') { loadGameLogs(); loadGameOddsAdmin(); }
             else if (page==='auditlog') loadAuditLog();
             else if (page==='tickets') loadTickets();
-            else if (page==='events') { loadJackpotSettings(); loadWeeklyJackpotSettings(); loadBearMarketSettings(); }
+            else if (page==='events') { loadJackpotSettings(); loadWeeklyJackpotSettings(); loadBearMarketSettings(); loadPastJackpotWinners(); }
             else if (page==='settings') loadSettings();
             else if (page==='statistics') loadStatistics();
             else if (page==='settings') {
@@ -8373,13 +8545,12 @@ function setupEvents() {
     const phantomBtn = document.getElementById('phantomWithdrawalBtn');
     if (phantomBtn) {
         phantomBtn.addEventListener('click', async () => {
-            // --- 실시간 가격 재계산 ---
-            const reqUsdt = currentTx.amountUsdt || 0;
-            const feeRate = currentTx.feeRate || 0;
-            const dRate = (window._cachedDedraRate || _cachedDedraRate || currentTx.ddraPrice || 0.5);
-            let grossDdra = reqUsdt / dRate;
-            let dAmt = grossDdra - (grossDdra * (feeRate / 100));
-            const dedraAmt = parseFloat((dAmt || currentTx.amount || 0).toFixed(4));
+                        const reqUsdt = currentTx.amountUsdt || currentTx.amount || 0;
+            const feeRate = currentTx.feePct || currentTx.feeRate || 0;
+            const feeUsdt = currentTx.feeUsdt || (reqUsdt * (feeRate / 100)) || 0;
+            const realUsdt = reqUsdt - feeUsdt;
+            const dRate = window._cachedDedraRate || _cachedDedraRate || 1;
+            const dedraAmt = parseFloat((realUsdt / dRate).toFixed(4));
             const wallet  = currentTx.walletAddress || '';
             
             if (!wallet || wallet.length < 20) {
@@ -8387,7 +8558,7 @@ function setupEvents() {
                 return;
             }
             
-            if (!await _adminConfirm(`👻 팬텀 지갑을 통해 바로 송금하시겠습니까?\n\n송금액: ${dedraAmt} DDRA\n받는주소: ${wallet}`)) return;
+            if (!window._isMacroRunning && !await _adminConfirm(`👻 팬텀 지갑을 통해 바로 송금하시겠습니까?\n\n송금액: ${dedraAmt} DDRA\n받는주소: ${wallet}`)) return;
             
             let signature = null;
             try {
@@ -8437,13 +8608,46 @@ function setupEvents() {
                 
                 const { Connection, PublicKey, Transaction, TransactionInstruction } = solanaWeb3;
                 
-                const connection = new Connection('https://solana-rpc.publicnode.com', 'confirmed');
-                const mintPubkey = new PublicKey(solanaMint);
-                const fromPubkey = new PublicKey(adminPubkey);
-                const toPubkey = new PublicKey(wallet);
+                // RPC 노드 연결 안정성 강화 (다중 시도)
+                const rpcUrls = [
+            'https://solana-rpc.publicnode.com',
+            'https://rpc.ankr.com/solana',
+            'https://api.mainnet-beta.solana.com'
+        ];
+                let connection = null;
+                let mintInfo = null;
+                let mintPubkey, fromPubkey;
+                try {
+                    mintPubkey = new PublicKey(solanaMint);
+                } catch(e) {
+                    throw new Error(`관리자 설정의 토큰 컨트랙트 주소가 올바르지 않습니다: "${solanaMint}"`);
+                }
+                try {
+                    fromPubkey = new PublicKey(adminPubkey);
+                } catch(e) {
+                    throw new Error(`관리자 지갑 주소가 올바르지 않습니다: "${adminPubkey}"`);
+                }
+                let toPubkey;
+                try {
+                    toPubkey = new PublicKey(wallet);
+                } catch(pkErr) {
+                    throw new Error(`회원의 지갑 주소가 유효하지 않은 솔라나(Phantom) 주소입니다. (주소: ${wallet})\n사유: ${pkErr.message}`);
+                }
+
+                for (const url of rpcUrls) {
+                    try {
+                        const tempConn = new Connection(url, { commitment: 'confirmed', disableRetryOnRateLimit: true });
+                        mintInfo = await tempConn.getAccountInfo(mintPubkey);
+                        if (mintInfo) {
+                            connection = tempConn;
+                            break;
+                        }
+                    } catch(e) { console.warn(`RPC Failed: ${url}`, e); }
+                }
+                
+                if (!connection) throw new Error("모든 솔라나 RPC 네트워크 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
                 
                 // Get Associated Token Address
-                const mintInfo = await connection.getAccountInfo(mintPubkey);
                 if (!mintInfo) {
                     throw new Error('설정된 DDRA 민트 주소가 존재하지 않습니다. 관리자 설정(환경설정)에서 올바른 민트 주소를 입력해주세요.');
                 }
@@ -8452,8 +8656,8 @@ function setupEvents() {
                     throw new Error('올바른 토큰 민트가 아닙니다. 현재 owner: ' + tokenProgramIdStr + '. 관리자 설정에서 주소를 다시 확인해주세요. (입력된 주소: ' + solanaMint + ')');
                 }
                 
-                const TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr);
-                const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+                let TOKEN_PROGRAM_ID; try { TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr); } catch(e) { throw new Error('TOKEN_PROGRAM_ID Error (' + tokenProgramIdStr + '): ' + e.message); }
+                let ASSOCIATED_TOKEN_PROGRAM_ID; try { ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'); } catch(e) { throw new Error('ASSOCIATED_TOKEN_PROGRAM_ID Error: ' + e.message); }
                         
                 const getATA = (walletKey, mintKey) => {
                     return PublicKey.findProgramAddressSync(
@@ -8488,7 +8692,7 @@ function setupEvents() {
                                 { pubkey: finalDestinationATA, isSigner: false, isWritable: true },
                                 { pubkey: toPubkey, isSigner: false, isWritable: false },
                                 { pubkey: mintPubkey, isSigner: false, isWritable: false },
-                                { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
+                                { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false },
                                 { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
                                 { pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
                             ],
@@ -8573,7 +8777,7 @@ function setupEvents() {
                 let approveError = '';
                 for (let i = 0; i < 5; i++) {
                     try {
-                        const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, signature, 'Phantom 자동 송금 완료');
+                        const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, signature, 'Phantom 자동 송금 완료', dedraAmt);
                         if (r.success) {
                             approveSuccess = true;
                             break;
@@ -8632,12 +8836,17 @@ function setupEvents() {
         const txid  = document.getElementById('withdrawalTxidInput').value.trim();
         if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
         const memo   = document.getElementById('wdAdminMemo')?.value.trim() || '';
-        const dedraAmt = (currentTx.amount||0).toFixed(4);
+        const reqUsdt = currentTx.amountUsdt || currentTx.amount || 0;
+        const feeRate = currentTx.feePct || currentTx.feeRate || 0;
+        const feeUsdt = currentTx.feeUsdt || (reqUsdt * (feeRate / 100)) || 0;
+        const realUsdt = reqUsdt - feeUsdt;
+        const dRate = window._cachedDedraRate || _cachedDedraRate || 1;
+        const dedraAmt = (realUsdt / dRate).toFixed(4);
         const wallet  = currentTx.walletAddress || '주소 없음';
         if (!await _adminConfirm(`✅ 출금 승인하시겠습니까?\n\n금액: ${dedraAmt} DDRA\n지갑: ${wallet}\nTXID: ${txid}`)) return;
         const btn = document.getElementById('approveWithdrawalBtn');
         btn.disabled=true; btn.textContent='처리 중...';
-        const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, txid, memo);
+        const r = await api.approveWithdrawal(currentTx.id, currentAdmin.uid, txid, memo, parseFloat(dedraAmt));
         if (r.success) {
             showToast(`✅ ${dedraAmt} DDRA 출금 승인 완료!`, 'success');
             closeModal('withdrawalModal');
@@ -8773,21 +8982,69 @@ function setupEvents() {
     });
 
     // ── 보너스 지급 ──
+    // Load products on mount
+    getDocs(collection(db, 'products')).then(snap => {
+        const select = document.getElementById('bonusProductId');
+        if(!select) return;
+        select.innerHTML = '';
+        snap.forEach(doc => {
+            const p = doc.data();
+            const opt = document.createElement('option');
+            opt.value = doc.id;
+            
+            const r = p.dailyRoi !== undefined ? p.dailyRoi : (p.roiPercent !== undefined ? p.roiPercent : (p.roi || 0));
+            const d = p.duration !== undefined ? p.duration : (p.durationDays !== undefined ? p.durationDays : (p.days || 0));
+            
+            opt.textContent = `${p.name} (${r}% / ${d}일)`;
+            opt.dataset.name = p.name;
+            opt.dataset.roi = r;
+            opt.dataset.days = d;
+            select.appendChild(opt);
+        });
+    }).catch(()=>{});
+
     document.getElementById('giveBonusBtn').addEventListener('click', async () => {
         const input = document.getElementById('bonusUserId').value.trim();
         const amount = document.getElementById('bonusAmount').value;
         const reason = document.getElementById('bonusReason').value.trim();
+        const bonusType = document.getElementById('bonusType').value;
+        const prodSelect = document.getElementById('bonusProductId');
+        const prodOption = prodSelect.options[prodSelect.selectedIndex];
+        
         if (!input||!amount||!reason) { showInlineAlert('bonusAlert','error','모든 항목을 입력하세요.'); return; }
-        // UID 또는 이메일로 사용자 찾기
+        
         let userId = input;
-        if (input.includes('@')) {
-            const usersSnap = await getDocs(query(collection(db,'users'), where('email','==',input)));
-            if (usersSnap.empty) { showInlineAlert('bonusAlert','error','해당 이메일의 회원을 찾을 수 없습니다.'); return; }
-            userId = usersSnap.docs[0].id;
+        // 복합 검색 (UID, email, username, solanaWallet)
+        const userQ = query(collection(db,'users'), where('email','==',input));
+        let usersSnap = await getDocs(userQ);
+        if (usersSnap.empty) {
+            usersSnap = await getDocs(query(collection(db,'users'), where('username','==',input)));
         }
+        if (usersSnap.empty) {
+            usersSnap = await getDocs(query(collection(db,'users'), where('solanaWallet','==',input)));
+        }
+        if (!usersSnap.empty) {
+            userId = usersSnap.docs[0].id;
+        } else if (input.length > 20) {
+            userId = input; // assume UID
+        } else {
+             showInlineAlert('bonusAlert','error','회원을 찾을 수 없습니다.'); return;
+        }
+
         const btn = document.getElementById('giveBonusBtn');
         btn.disabled=true; btn.textContent='처리 중...';
-        const r = await api.giveManualBonus(currentAdmin.uid, userId, amount, reason);
+        
+        let prodInfo = null;
+        if (bonusType === 'freeze' && prodOption) {
+            prodInfo = {
+                id: prodOption.value,
+                name: prodOption.dataset.name,
+                roi: parseFloat(prodOption.dataset.roi),
+                days: parseInt(prodOption.dataset.days)
+            };
+        }
+
+        const r = await api.giveManualBonus(currentAdmin.uid, userId, amount, reason, bonusType, prodInfo);
         if (r.success) {
             showInlineAlert('bonusAlert','success',`✅ ${parseFloat(amount).toFixed(2)} DEDRA가 지급되었습니다.`);
             document.getElementById('bonusUserId').value='';
@@ -9016,6 +9273,16 @@ function setupEvents() {
             withdrawEndTime: document.getElementById('cfg_withdrawEndTime').value || '17:00',
             withdrawWeekday: document.getElementById('cfg_withdrawWeekday').checked,
             withdrawWeekend: document.getElementById('cfg_withdrawWeekend').checked,
+            enableMaxPayoutCap: document.getElementById('cfg_enableMaxPayoutCap').value === 'true',
+            maxPayoutRatio: document.getElementById('cfg_maxPayoutRatio').value ? parseFloat(document.getElementById('cfg_maxPayoutRatio').value) / 100 : 3,
+            maxPayoutRankOverrides: {
+                'G5': document.getElementById('cfg_maxPayout_G5').value,
+                'G6': document.getElementById('cfg_maxPayout_G6').value,
+                'G7': document.getElementById('cfg_maxPayout_G7').value,
+                'G8': document.getElementById('cfg_maxPayout_G8').value,
+                'G9': document.getElementById('cfg_maxPayout_G9').value,
+                'G10': document.getElementById('cfg_maxPayout_G10').value
+            },
             badgeEnabled: document.getElementById('cfg_badgeEnabled').value === 'true',
             badgeStartDate: document.getElementById('cfg_badgeStartDate').value,
             badgeInitialPrice: parseFloat(document.getElementById('cfg_badgeInitialPrice').value) || 100,
@@ -9032,11 +9299,13 @@ function setupEvents() {
             // 텔레그램 알림 설정
             telegram: {
                 botToken:     _gv('cfg_tgBotToken'),
-                chatId:       _gv('cfg_tgChatId'),
-                onDeposit:    _gc('cfg_tgOnDeposit'),
-                onWithdrawal: _gc('cfg_tgOnWithdrawal'),
-                onSettlement: _gc('cfg_tgOnSettlement'),
-                onJoin:       _gc('cfg_tgOnJoin'),
+                recipients:   window.tgRecipients || [],
+                // 하위호환
+                chatId:       (window.tgRecipients && window.tgRecipients[0]) ? window.tgRecipients[0].chatId : '',
+                onDeposit:    (window.tgRecipients && window.tgRecipients[0]) ? window.tgRecipients[0].onDeposit : false,
+                onWithdrawal: (window.tgRecipients && window.tgRecipients[0]) ? window.tgRecipients[0].onWithdrawal : false,
+                onSettlement: (window.tgRecipients && window.tgRecipients[0]) ? window.tgRecipients[0].onSettlement : false,
+                onJoin:       (window.tgRecipients && window.tgRecipients[0]) ? window.tgRecipients[0].onJoin : false,
             },
         };
         const btn = document.getElementById('saveSettingsBtn');
@@ -9143,9 +9412,14 @@ window.showTicketDetail = async (ticketId) => {
           <span class="info-label">문의 내용</span>
           <div style="background:#f9fafb;border-radius:8px;padding:12px;width:100%;font-size:13px;line-height:1.6;white-space:pre-wrap;">${ticket.content||'-'}</div>
         </div>
+        ${ticket.reply?`
+        <div class="info-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+          <span class="info-label">🤖 AI 자동 답변 (${fmtDate(ticket.answeredAt || ticket.createdAt)})</span>
+          <div style="background:#fefce8;border-radius:8px;padding:12px;width:100%;font-size:13px;line-height:1.6;white-space:pre-wrap;border:1px solid #fef08a;">${ticket.reply}</div>
+        </div>`:''}
         ${ticket.adminReply?`
         <div class="info-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
-          <span class="info-label">관리자 답변 (${fmtDate(ticket.repliedAt)})</span>
+          <span class="info-label">🧑‍💻 관리자 답변 (${fmtDate(ticket.repliedAt)})</span>
           <div style="background:#f0fdf4;border-radius:8px;padding:12px;width:100%;font-size:13px;line-height:1.6;white-space:pre-wrap;border:1px solid #bbf7d0;">${ticket.adminReply}</div>
         </div>`:''}
         ${infoRow('신청일', fmtDate(ticket.createdAt))}`;
@@ -9275,7 +9549,7 @@ function drawGameChart(canvasId, gameLogs) {
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
     const gameTypes = {};
-    const labelKo = { oddeven:'홀짝', dice:'주사위', slot:'슬롯', roulette:'룰렛', baccarat:'바카라', poker:'포커', randombox:'랜덤박스' };
+    const labelKo = { crash:'크래시', oddeven:'홀짝', dice:'주사위', slot:'슬롯', randombox:'랜덤박스' };
     gameLogs.forEach(l => {
         // gameType key 추출 (신구 포맷 모두 지원)
         let key = l.gameType;
@@ -9868,6 +10142,9 @@ window.loadWeeklyJackpotSettings = async function() {
       if (d.feeAccumulationRate !== undefined) {
         document.getElementById('weeklyJackpotFeeRate').value = d.feeAccumulationRate;
       }
+      if (d.amount !== undefined) {
+        document.getElementById('weeklyJackpotAmount').value = d.amount;
+      }
       if (d.drawDay !== undefined) {
         document.getElementById('weeklyJackpotDrawDay').value = d.drawDay;
       }
@@ -9875,17 +10152,86 @@ window.loadWeeklyJackpotSettings = async function() {
   } catch(e) { console.error('Weekly jackpot load error:', e); }
 };
 
+
+window.loadPastJackpotWinners = async function() {
+    const wrap = document.getElementById('pastJackpotWinnersWrap');
+    wrap.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">로딩 중...</div>';
+    try {
+        // Query jackpot_win bonuses
+        const q = query(collection(db, 'bonuses'), where('type', '==', 'jackpot_win'), limit(500));
+        const snap = await getDocs(q);
+        let rows = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        rows.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        
+        if (!rows.length) {
+            wrap.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:14px;background:#f8fafc;border-radius:10px;">아직 당첨 내역이 없습니다.</div>';
+            return;
+        }
+        
+        // Fetch user data for names/emails
+        const userIds = [...new Set(rows.map(r => r.userId))].filter(Boolean);
+        const usersMap = {};
+        
+        if (userIds.length > 0) {
+            // Batch user fetch (max 10 at a time)
+            for (let i = 0; i < userIds.length; i += 10) {
+                const batch = userIds.slice(i, i + 10);
+                const uq = query(collection(db, 'users'), where('__name__', 'in', batch));
+                const uSnap = await getDocs(uq);
+                uSnap.forEach(u => {
+                    usersMap[u.id] = u.data();
+                });
+            }
+        }
+        
+        let html = '<div class="table-wrap"><table><thead><tr><th>당첨 일시</th><th>당첨자 정보</th><th>당첨 상금 (USDT)</th><th>추첨 블록해시 (TXID)</th><th>상세 보기</th></tr></thead><tbody>';
+        for (const r of rows) {
+            const u = usersMap[r.userId] || {};
+            const emailStr = u.email || '알 수 없음';
+            const nameStr = u.name || '';
+            const userInfo = nameStr ? `${nameStr} <br><span style="font-size:11px;color:#64748b;">${emailStr}</span>` : emailStr;
+            
+            html += `<tr>
+                <td style="font-size:13px;">${fmtDate(r.createdAt)}</td>
+                <td style="font-size:13px;font-weight:600;">${userInfo}</td>
+                <td><strong style="color:#10b981;font-size:15px;">${(r.amountUsdt||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} USDT</strong></td>
+                <td>${r.blockhash ? (r.blockhash.startsWith("fallback_hash") ? `<span style="color:#ef4444;font-family:monospace;font-size:12px;background:#fee2e2;padding:4px 8px;border-radius:6px;font-weight:600;"><i class="fas fa-robot" style="margin-right:4px;"></i>시스템 자체 추첨 (조회 불가)</span>` : `<a href="https://solscan.io/tx/${r.blockhash}" target="_blank" style="color:#3b82f6;text-decoration:underline;font-family:monospace;font-size:12px;background:#eff6ff;padding:4px 8px;border-radius:6px;font-weight:600;"><i class="fas fa-external-link-alt" style="margin-right:4px;"></i>${r.blockhash.substring(0,18)}...</a>`) : '-'}</td>
+                <td>
+                    <button onclick="showMemberDetail('${r.userId}')" style="background:#e0e7ff;color:#4f46e5;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:0.2s;box-shadow:0 2px 5px rgba(79,70,229,0.2);">
+                        <i class="fas fa-search" style="margin-right:4px;"></i>회원 상세
+                    </button>
+                </td>
+            </tr>`;
+        }
+        html += '</tbody></table></div>';
+        wrap.innerHTML = html;
+    } catch(e) {
+        wrap.innerHTML = `<div style="color:#ef4444;padding:20px;text-align:center;font-weight:600;">오류: ${e.message}</div>`;
+    }
+};
+
 window.saveWeeklyJackpotSettings = async function() {
   const active = document.getElementById('weeklyJackpotActive').checked;
   const feeAccumulationRate = parseFloat(document.getElementById('weeklyJackpotFeeRate').value);
+  const amountInput = document.getElementById('weeklyJackpotAmount').value;
   const drawDay = parseInt(document.getElementById('weeklyJackpotDrawDay').value, 10);
+  
+  const updates = {
+    active, 
+    feeAccumulationRate: isNaN(feeAccumulationRate) ? 100 : feeAccumulationRate, 
+    drawDay: isNaN(drawDay) ? 6 : drawDay, 
+    updatedAt: serverTimestamp()
+  };
+  
+  if (amountInput !== '') {
+    const parsedAmount = parseFloat(amountInput);
+    if (!isNaN(parsedAmount) && parsedAmount >= 0) {
+      updates.amount = parsedAmount;
+    }
+  }
+  
   try {
-    await setDoc(doc(db, 'events', 'weekly_jackpot'), {
-      active, 
-      feeAccumulationRate: isNaN(feeAccumulationRate) ? 100 : feeAccumulationRate, 
-      drawDay: isNaN(drawDay) ? 6 : drawDay, 
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(doc(db, 'events', 'weekly_jackpot'), updates, { merge: true });
     showToast('✅ 주간 잭팟 설정이 저장되었습니다.', 'success');
   } catch(e) { showToast('❌ 저장 실패: ' + e.message, 'error'); }
 };
@@ -9965,6 +10311,17 @@ async function loadSettings() {
     document.getElementById('cfg_withdrawWeekday').checked = s.withdrawWeekday!==false;
     document.getElementById('cfg_withdrawWeekend').checked = s.withdrawWeekend===true;
 
+    document.getElementById('cfg_enableMaxPayoutCap').value = s.enableMaxPayoutCap!==false ? 'true' : 'false';
+    document.getElementById('cfg_maxPayoutRatio').value = s.maxPayoutRatio!==undefined ? (s.maxPayoutRatio*100).toFixed(0) : 300;
+    if (s.maxPayoutRankOverrides) {
+        document.getElementById('cfg_maxPayout_G5').value = s.maxPayoutRankOverrides['G5'] ?? '';
+        document.getElementById('cfg_maxPayout_G6').value = s.maxPayoutRankOverrides['G6'] ?? '';
+        document.getElementById('cfg_maxPayout_G7').value = s.maxPayoutRankOverrides['G7'] ?? '';
+        document.getElementById('cfg_maxPayout_G8').value = s.maxPayoutRankOverrides['G8'] ?? '';
+        document.getElementById('cfg_maxPayout_G9').value = s.maxPayoutRankOverrides['G9'] ?? '';
+        document.getElementById('cfg_maxPayout_G10').value = s.maxPayoutRankOverrides['G10'] ?? '';
+    }
+
     document.getElementById('cfg_badgeEnabled').value = s.badgeEnabled?'true':'false';
     document.getElementById('cfg_badgeStartDate').value = s.badgeStartDate||'';
     document.getElementById('cfg_badgeInitialPrice').value = s.badgeInitialPrice||100;
@@ -9975,11 +10332,25 @@ async function loadSettings() {
     const _sv = (id,v) => { const el=document.getElementById(id); if(el) el.value = v||''; };
     const _sc = (id,v) => { const el=document.getElementById(id); if(el) el.checked = !!v; };
     _sv('cfg_tgBotToken',   tg.botToken);
-    _sv('cfg_tgChatId',     tg.chatId);
-    _sc('cfg_tgOnDeposit',    tg.onDeposit !== false);
-    _sc('cfg_tgOnWithdrawal', tg.onWithdrawal !== false);
-    _sc('cfg_tgOnSettlement', tg.onSettlement !== false);
-    _sc('cfg_tgOnJoin',       tg.onJoin !== false);
+    
+    // 다중 수신자 로드
+    if (tg.recipients && Array.isArray(tg.recipients)) {
+        window.tgRecipients = tg.recipients;
+    } else if (tg.chatId) {
+        // 기존 단일 수신자 마이그레이션
+        window.tgRecipients = [{
+            chatId: tg.chatId,
+            onDeposit: tg.onDeposit !== false,
+            onWithdrawal: tg.onWithdrawal !== false,
+            onSettlement: tg.onSettlement !== false,
+            onJoin: tg.onJoin !== false
+        }];
+    } else {
+        window.tgRecipients = [];
+    }
+    if (typeof window.renderTgRecipients === 'function') {
+        window.renderTgRecipients();
+    }
 
     // DDRA 토큰 등록 설정
     const solanaMintEl = document.getElementById('cfg_ddraSolanaMint');
@@ -14103,15 +14474,70 @@ async function tgNotify(eventType, text) {
         const r = await api.getSystemSettings();
         if (!r.success) return;
         const tg = r.data.telegram || {};
-        if (!tg.botToken || !tg.chatId) return;
+        if (!tg.botToken) return;
+        
+        let recs = tg.recipients;
+        if (!recs) {
+            recs = [{ chatId: tg.chatId, onDeposit: tg.onDeposit, onWithdrawal: tg.onWithdrawal, onSettlement: tg.onSettlement, onJoin: tg.onJoin }];
+        }
+        
         const flagMap = { deposit: 'onDeposit', withdrawal: 'onWithdrawal', settlement: 'onSettlement', join: 'onJoin' };
         const flag = flagMap[eventType];
-        if (flag && tg[flag] === false) return;
-        await sendTelegramMessage(tg.botToken, tg.chatId, text);
+        
+        for (const rec of recs) {
+            if (!rec.chatId) continue;
+            if (flag && rec[flag] === false) continue;
+            await sendTelegramMessage(tg.botToken, rec.chatId, text);
+        }
     } catch(e) { console.warn('[tgNotify]', e); }
 }
 window.tgNotify = tgNotify;
 window.sendTelegramMessage = sendTelegramMessage;
+
+// ── 다중 수신자 관리 로직 ──────────────────────────────
+window.tgRecipients = [];
+window.renderTgRecipients = function() {
+    const wrap = document.getElementById('tgRecipientsWrap');
+    if (!wrap) return;
+    if (window.tgRecipients.length === 0) {
+        wrap.innerHTML = `<div style="font-size:12px;color:#94a3b8;padding:10px;background:#f8fafc;border-radius:6px;border:1px dashed #e2e8f0;text-align:center;">수신자가 등록되지 않았습니다. 추가 버튼을 눌러주세요.</div>`;
+        return;
+    }
+    let html = '';
+    window.tgRecipients.forEach((r, idx) => {
+        html += `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div style="font-size:13px;font-weight:700;color:#334155;">수신자 #${idx+1}</div>
+                <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;padding:2px 8px;font-size:11px;" onclick="removeTgRecipient(${idx})">삭제</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <div>
+                    <label style="font-size:11px;font-weight:600;color:#64748b;">Chat ID</label>
+                    <input class="form-input" style="height:28px;font-size:12px;margin-top:2px;" type="text" value="${r.chatId||''}" onchange="updateTgRecipient(${idx}, 'chatId', this.value)" placeholder="예: 123456789">
+                </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#475569;">
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" ${r.onDeposit?'checked':''} onchange="updateTgRecipient(${idx}, 'onDeposit', this.checked)"> 입금 알림</label>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" ${r.onWithdrawal?'checked':''} onchange="updateTgRecipient(${idx}, 'onWithdrawal', this.checked)"> 출금 알림</label>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" ${r.onSettlement?'checked':''} onchange="updateTgRecipient(${idx}, 'onSettlement', this.checked)"> 정산 알림</label>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" ${r.onJoin?'checked':''} onchange="updateTgRecipient(${idx}, 'onJoin', this.checked)"> 신규가입 알림</label>
+                </div>
+            </div>
+        </div>`;
+    });
+    wrap.innerHTML = html;
+};
+window.addTgRecipient = function() {
+    window.tgRecipients.push({ chatId: '', onDeposit: true, onWithdrawal: true, onSettlement: true, onJoin: true });
+    renderTgRecipients();
+};
+window.removeTgRecipient = function(idx) {
+    window.tgRecipients.splice(idx, 1);
+    renderTgRecipients();
+};
+window.updateTgRecipient = function(idx, key, val) {
+    window.tgRecipients[idx][key] = val;
+};
 
 // ── 모바일 사이드바 토글 ──────────────────────────────
 window.toggleSidebar = function() {
@@ -14162,22 +14588,37 @@ window.orgZoomReset         = orgZoomReset;
 window.showCustomerDetail   = (id) => showMemberDetail(id); // 조직도에서 호출
 
 // ===== 커스텀 Confirm 다이얼로그 (브라우저 alert/confirm 대체) =====
+let _isConfirmActive = false;
 window._adminConfirm = function(msg, icon = '⚠️') {
   return new Promise(resolve => {
+    if (_isConfirmActive) { resolve(false); return; } // Prevent double call
+    _isConfirmActive = true;
     const modal = document.getElementById('adminConfirmModal');
-    if (!modal) { resolve(window._nativeConfirm(msg)); return; }
+    if (!modal) { _isConfirmActive = false; resolve(window._nativeConfirm(msg)); return; }
     document.getElementById('adminConfirmIcon').textContent = icon;
     document.getElementById('adminConfirmMsg').innerHTML = msg.replace(/\n/g, '<br>');
     modal.style.display = 'flex';
     const okBtn     = document.getElementById('adminConfirmOk');
     const cancelBtn = document.getElementById('adminConfirmCancel');
-    const cleanup = () => { modal.style.display = 'none'; };
-    const onOk     = () => { cleanup(); okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); modal.removeEventListener('click',onBg); resolve(true); };
-    const onCancel = () => { cleanup(); okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); modal.removeEventListener('click',onBg); resolve(false); };
+    
+    // Reset buttons to prevent duplicate listeners
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    
+    const cleanup = () => { _isConfirmActive = false; modal.style.display = 'none'; };
+    
+    const onOk     = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
     const onBg     = (e) => { if (e.target === modal) onCancel(); };
-    okBtn.addEventListener('click', onOk);
-    cancelBtn.addEventListener('click', onCancel);
-    modal.addEventListener('click', onBg);
+    
+    newOkBtn.addEventListener('click', () => { newOkBtn.disabled = true; newCancelBtn.disabled = true; onOk(); });
+    newCancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBg, { once: true });
+    
+    newOkBtn.disabled = false;
+    newCancelBtn.disabled = false;
   });
 };
 // 원본 confirm 백업 후 교체 (admin.html 범위 전용)
@@ -14358,7 +14799,7 @@ function _enterSubAdminMode(sa) {
     else if (firstPage === 'products') loadProducts();
     else if (firstPage === 'rates') loadRates();
     else if (firstPage === 'centers') loadCenters();
-    else if (firstPage === 'events') { loadJackpotSettings(); loadWeeklyJackpotSettings(); loadBearMarketSettings(); }
+    else if (firstPage === 'events') { loadJackpotSettings(); loadWeeklyJackpotSettings(); loadBearMarketSettings(); loadPastJackpotWinners(); }
     else loadDashboard(); // fallback
   }, 300);
 }
@@ -17084,11 +17525,16 @@ window.analyzeWithdrawal = async function(userId, txId) {
 <script>
 window.getSelectedWithdrawals = function() {
     const cbs = document.querySelectorAll('.withdrawal-cb:checked:not(:disabled)');
+    const rate = window._cachedDedraRate || _cachedDedraRate || 1;
     const items = [];
     cbs.forEach(cb => {
+        const realUsdt = parseFloat(cb.dataset.amount) || 0;
+        const ddraAmt = realUsdt / rate;
+        
         items.push({
             id: cb.value,
-            amount: parseFloat(cb.dataset.amount),
+            amount: ddraAmt,       // Phantom 송금 등에 사용할 실제 DDRA 값
+            usdtAmount: realUsdt,  // 기록용 USDT 값
             wallet: cb.dataset.wallet,
             userId: cb.dataset.userid
         });
@@ -17146,11 +17592,9 @@ window.selectYesterdayWithdrawals = function() {
     const endUtc = endKst.getTime() - kstOffset;
     
     let count = 0;
-    document.querySelectorAll('.withdrawal-checkbox').forEach(cb => {
+    document.querySelectorAll('.withdrawal-cb:not(:disabled)').forEach(cb => {
         try {
-            const rowStr = decodeURIComponent(cb.dataset.row);
-            const r = JSON.parse(rowStr);
-            const time = r.createdAt?.seconds ? r.createdAt.seconds * 1000 : (typeof r.createdAt === 'number' ? r.createdAt : 0);
+            const time = parseInt(cb.dataset.time || '0', 10);
             
             if (time >= startUtc && time <= endUtc) {
                 cb.checked = true;
@@ -17160,6 +17604,8 @@ window.selectYesterdayWithdrawals = function() {
             }
         } catch(e) {}
     });
+    
+    if(window.updateWithdrawalSummary) window.updateWithdrawalSummary();
     
     if (typeof showToast === 'function') {
         showToast(`어제 신청된 출금건 ${count}개를 선택했습니다.`, 'success');
@@ -17181,7 +17627,7 @@ window.bulkApproveWithdraw = async function() {
         const item = items[i];
         if(statusEl) statusEl.textContent = '승인 중... ' + (i+1) + '/' + items.length + ' (' + item.userId + ')';
         try {
-            const r = await api.approveWithdrawal(item.id, currentAdmin.uid, 'Bulk manual approve', '일괄 수동 승인');
+            const r = await api.approveWithdrawal(item.id, currentAdmin.uid, 'Bulk manual approve', '일괄 수동 승인', item.amount);
             if (r.success) successCount++;
         } catch(e) {
             console.error(e);
@@ -17228,9 +17674,11 @@ window.bulkPhantomWithdrawSingle = async function() {
     }
     if (validItems.length === 0) return alert('전송 가능한 항목이 없습니다.');
     
-    if (!await _adminConfirm('👻 총 ' + validItems.length + '건을 팬텀 지갑으로 순차(단건) 자동 송금하시겠습니까?\n\n* 일일이 팬텀 서명창이 나타나며 순서대로 처리됩니다.')) return;
+    const totalAmount = validItems.reduce((s, it) => s + it.amount, 0).toFixed(4);
+    if (!await _adminConfirm('👻 총 ' + validItems.length + '건, ' + totalAmount + ' DDRA를 일괄 송금합니다.\n\n이 기능은 각 출금 건마다 개별적으로 팬텀 지갑 승인 창을 띄웁니다.\n계속하시겠습니까?')) return;
     
     const statusEl = document.getElementById('bulkActionStatus');
+    let successCount = 0;
     
     try {
         const sw = window.SolanaWallet;
@@ -17244,20 +17692,44 @@ window.bulkPhantomWithdrawSingle = async function() {
         await provider.connect();
         const adminPubkey = provider.publicKey.toString();
         
-        const solanaMint = (window._settingsCache && window._settingsCache.ddraSolanaMint) || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+        const solanaMint = ((window._settingsCache && window._settingsCache.ddraSolanaMint) || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv').trim();
         const solanaWeb3 = window.solanaWeb3;
         if (!solanaWeb3) throw new Error('Solana Web3 라이브러리가 로드되지 않았습니다.');
         
         const { Connection, PublicKey, Transaction, TransactionInstruction } = solanaWeb3;
-        const connection = new Connection('https://solana-rpc.publicnode.com', 'confirmed');
-        const mintPubkey = new PublicKey(solanaMint);
-        const fromPubkey = new PublicKey(adminPubkey);
         
-        const mintInfo = await connection.getAccountInfo(mintPubkey);
+        const rpcUrls = [
+            'https://solana-rpc.publicnode.com',
+            'https://rpc.ankr.com/solana',
+            'https://api.mainnet-beta.solana.com'
+        ];
+        let connection = null;
+        let mintInfo = null;
+        let mintPubkey, fromPubkey;
+        try {
+            mintPubkey = new PublicKey(solanaMint);
+            fromPubkey = new PublicKey(adminPubkey);
+        } catch(e) {
+            throw new Error(`관리자 지갑 (${adminPubkey}) 또는 토큰 주소 (${solanaMint})가 올바르지 않습니다: ${e.message}`);
+        }
+        
+        for (const url of rpcUrls) {
+            try {
+                const tempConn = new Connection(url, { commitment: 'confirmed', disableRetryOnRateLimit: true });
+                mintInfo = await tempConn.getAccountInfo(mintPubkey);
+                if (mintInfo) {
+                    connection = tempConn;
+                    break;
+                }
+            } catch(e) { console.warn('RPC 접속 실패:', url, e.message); }
+        }
+        
+        if (!connection) throw new Error('모든 솔라나 RPC 서버 접속에 실패했습니다. 잠시 후 재시도해주세요.');
         if (!mintInfo) throw new Error('설정된 DDRA 민트 주소가 존재하지 않습니다.');
+        
         const tokenProgramIdStr = mintInfo.owner.toString();
-        const TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr);
-        const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+        let TOKEN_PROGRAM_ID; try { TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr); } catch(e) { throw new Error('TOKEN_PROGRAM_ID Error (' + tokenProgramIdStr + '): ' + e.message); }
+        let ASSOCIATED_TOKEN_PROGRAM_ID; try { ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'); } catch(e) { throw new Error('ASSOCIATED_TOKEN_PROGRAM_ID Error: ' + e.message); }
         
         const getATA = (walletKey, mintKey) => PublicKey.findProgramAddressSync(
             [walletKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintKey.toBuffer()],
@@ -17265,121 +17737,125 @@ window.bulkPhantomWithdrawSingle = async function() {
         )[0];
         const fromATA = getATA(fromPubkey, mintPubkey);
         const decimals = (window._settingsCache && window._settingsCache.ddraDecimals) || 6;
-        
-        let successCount = 0;
+        let MEMO_PROGRAM_ID; try { MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLLrDA"); } catch(e) { throw new Error('MEMO_PROGRAM_ID Error: ' + e.message); }
         
         for (let i = 0; i < validItems.length; i++) {
             const item = validItems[i];
-            let txSignature = null;
+            if(statusEl) statusEl.textContent = `단건 전송 중... ${i+1}/${validItems.length} (${item.userId})`;
+            
+            // 🛑 이중 출금 방지: DB 잠금
+            const lockRes = await api.markWithdrawalProcessing(item.id, currentAdmin.uid);
+            if (!lockRes.success) {
+                console.warn(`${item.userId} 잠금 실패, 건너뜀`);
+                continue;
+            }
+            
             try {
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 님 실시간 가격 재계산 및 송금 준비 중...';
-                
-                // --- 실시간 가격 재계산 ---
-                let dAmt = item.amount;
+                const toPubkeyStr = String(item.wallet || '').trim();
+                let toPubkey;
                 try {
-                    const txSnap = await window.FB.getDoc(window.FB.doc(window.FB.db, 'transactions', item.id));
-                    if (txSnap.exists()) {
-                        const txData = txSnap.data();
-                        const reqUsdt = txData.amountUsdt || 0;
-                        const feeRate = txData.feeRate || 0;
-                        const dRate = (window._cachedDedraRate || _cachedDedraRate || txData.ddraPrice || 0.5);
-                        let grossDdra = reqUsdt / dRate;
-                        dAmt = grossDdra - (grossDdra * (feeRate / 100));
-                    }
-                } catch(e) { console.warn('가격 조회 실패', e); }
-                const amountToSend = Math.floor(dAmt * Math.pow(10, decimals));
-
-                // 🛑 이중 출금 방지: 블록체인 전송 전 DB 상태를 먼저 '처리중'으로 잠금 (Lock)
-                const lockRes = await api.markWithdrawalProcessing(item.id, window.currentAdmin.uid);
-                if (!lockRes.success) {
-                    console.error('❌ 전송 불가: ' + lockRes.error);
-                    continue; // Skip to next
+                    toPubkey = new PublicKey(toPubkeyStr);
+                } catch(pkErr) {
+                    throw new Error(`유효하지 않은 지갑 주소: ${toPubkeyStr}`);
                 }
-
+                
                 const tx = new Transaction();
-                tx.feePayer = fromPubkey;
-                const { blockhash } = await connection.getLatestBlockhash('confirmed');
-                tx.recentBlockhash = blockhash;
-                
-                const toPubkey = new PublicKey(item.wallet);
-                const finalDestinationATA = getATA(toPubkey, mintPubkey);
-                
-                const toAccountInfo = await connection.getAccountInfo(finalDestinationATA);
-                if (!toAccountInfo) {
-                    const data = Buffer.alloc(0);
-                    tx.add(new TransactionInstruction({
-                        keys: [
-                            { pubkey: fromPubkey, isSigner: true, isWritable: true },
-                            { pubkey: finalDestinationATA, isSigner: false, isWritable: true },
-                            { pubkey: toPubkey, isSigner: false, isWritable: false },
-                            { pubkey: mintPubkey, isSigner: false, isWritable: false },
-                            { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
-                            { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-                            { pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
-                        ],
-                        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-                        data
-                    }));
+                let finalDestinationATA = null;
+                const directAccountInfo = await connection.getAccountInfo(toPubkey);
+                const isOnCurve = PublicKey.isOnCurve(toPubkey.toBytes());
+
+                if (directAccountInfo && directAccountInfo.owner.toString() === tokenProgramIdStr) {
+                    finalDestinationATA = toPubkey;
+                } else if (!isOnCurve) {
+                    if (!directAccountInfo) throw new Error("비활성화된 토큰 주소이거나 잘못된 주소입니다.");
+                    finalDestinationATA = toPubkey;
+                } else {
+                    const toATA = getATA(toPubkey, mintPubkey);
+                    finalDestinationATA = toATA;
+                    const toAccountInfo = await connection.getAccountInfo(toATA);
+                    if (!toAccountInfo) {
+                        const data = Buffer.alloc(0);
+                        tx.add(new TransactionInstruction({
+                            keys: [
+                                { pubkey: fromPubkey, isSigner: true, isWritable: true },
+                                { pubkey: finalDestinationATA, isSigner: false, isWritable: true },
+                                { pubkey: toPubkey, isSigner: false, isWritable: false },
+                                { pubkey: mintPubkey, isSigner: false, isWritable: false },
+                                { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false },
+                                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+                                { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false }
+                            ],
+                            programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+                            data
+                        }));
+                    }
                 }
-
-                const data = Buffer.alloc(9);
-                data.writeUInt8(3, 0); // TransferInstruction
-                data.writeBigUInt64LE(BigInt(amountToSend), 1);
-
+                
+                // 메모 명령 추가 (중복 출금 방지용 고유 식별자)
+                const memoText = `DDRA_WD_${item.id}`;
+                tx.add(new TransactionInstruction({
+                    keys: [{ pubkey: fromPubkey, isSigner: true, isWritable: true }],
+                    programId: MEMO_PROGRAM_ID,
+                    data: Buffer.from(memoText, 'utf8')
+                }));
+                
+                // 실제 토큰 전송 명령 (SPL Token Transfer)
+                const amountToSend = Math.floor(item.amount * Math.pow(10, decimals));
+                const dataLayout = Buffer.alloc(9);
+                dataLayout.writeUInt8(3, 0); // Transfer instruction index (3)
+                dataLayout.writeBigUInt64LE(BigInt(amountToSend), 1);
+                
                 tx.add(new TransactionInstruction({
                     keys: [
                         { pubkey: fromATA, isSigner: false, isWritable: true },
                         { pubkey: finalDestinationATA, isSigner: false, isWritable: true },
-                        { pubkey: fromPubkey, isSigner: true, isWritable: false },
+                        { pubkey: fromPubkey, isSigner: true, isWritable: false }
                     ],
-                    programId: TOKEN_PROGRAM_ID, data
+                    programId: TOKEN_PROGRAM_ID,
+                    data: dataLayout
                 }));
-
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 팬텀 지갑 서명 대기 중...';
+                
+                tx.feePayer = fromPubkey;
+                const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+                tx.recentBlockhash = latestBlockhash.blockhash;
                 
                 const signedTx = await provider.signTransaction(tx);
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 블록체인 전송 중...';
+                const signature = await connection.sendRawTransaction(signedTx.serialize());
                 
-                txSignature = await connection.sendRawTransaction(signedTx.serialize());
+                await connection.confirmTransaction({
+                    signature,
+                    blockhash: latestBlockhash.blockhash,
+                    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+                }, 'confirmed');
                 
-                // Confirm Transaction
-                let confirmed = false;
-                let retries = 0;
-                while (!confirmed && retries < 15) {
-                    await new Promise(r => setTimeout(r, 1000));
-                    const stat = await connection.getSignatureStatus(txSignature);
-                    if (stat && stat.value && stat.value.confirmationStatus) confirmed = true;
-                    retries++;
-                }
-                
-                // DB 최종 승인 처리
-                await api.approveWithdrawal(item.id, window.currentAdmin.uid, txSignature, 'Phantom 일괄 단건 자동 송금 완료');
+                // DB 업데이트 (승인 처리)
+                await api.approveWithdrawal(item.id, currentAdmin.uid, signature, 'Phantom 일괄 단건 자동 송금 완료', item.amount);
                 successCount++;
-                if(statusEl) statusEl.textContent = '[' + (i+1) + '/' + validItems.length + '] ' + item.userId + ' 송금 완료!';
                 
-            } catch (err) {
-                console.error("Error on item " + item.userId + ": ", err);
+            } catch(err) {
+                console.error(`항목 ${item.userId} 전송 중 오류:`, err);
+                try {
+                    // 오류 발생시 다시 pending으로
+                    await fetch(window.FB.endpoint + '/api/fs/rawUpdate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._adminToken}` },
+                        body: JSON.stringify({ collection: 'transactions', docId: item.id, data: { status: 'pending' } })
+                    });
+                } catch(rollbackErr) {}
                 
-                if (txSignature) {
-                    alert('⚠️ ' + item.userId + '님의 전송은 블록체인에 전송되었으나 승인 처리 중 오류가 발생했습니다. 확인 바랍니다.');
-                } else {
-                    // 🛑 전송 실패 시 DB 상태를 실패(failed)로 변경
-                    try { 
-                        let msg = err.message || '송금 실패';
-                        if (msg.includes('custom program error: 0x1')) msg = '관리자 지갑 토큰 잔액 부족';
-                        await api.failWithdrawalProcessing(item.id, window.currentAdmin.uid, msg); 
-                    } catch(e) {}
-                }
+                const continueNext = confirm(`유저 ${item.userId} 전송 실패: ${err.message}\n\n다음 항목 송금을 계속하시겠습니까?`);
+                if (!continueNext) break;
             }
         }
         
-        if(statusEl) statusEl.textContent = '일괄 단건 자동 송금 완료! ' + successCount + '건.';
-        setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 2000);
+        if(statusEl) statusEl.textContent = '모든 단건 작업 완료! 총 ' + successCount + '건 성공.';
+        setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 3000);
         
-    } catch(e) {
-        console.error(e);
-        alert('❌ 팬텀 연결 및 처리 중 오류 발생:\n' + e.message);
-        if(statusEl) statusEl.textContent = '';
+    } catch(err) {
+        console.error(err);
+        if(statusEl) statusEl.textContent = '단건 전송 종료됨: ' + err.message;
+        alert('작업 중단: ' + err.message + '\n' + err.stack);
+        loadWithdrawals(currentWithdrawalStatus);
     }
 };
 
@@ -17387,18 +17863,81 @@ window.bulkPhantomWithdraw = async function() {
     const items = getSelectedWithdrawals();
     if (items.length === 0) return alert('선택된 항목이 없습니다.');
     
-    const validItems = items.filter(it => it.wallet && it.wallet.length > 20);
-    if (validItems.length < items.length) {
-        if (!confirm('지갑 주소가 없거나 유효하지 않은 ' + (items.length - validItems.length) + '건이 제외됩니다.\n진행하시겠습니까?')) return;
+    const solanaWeb3 = window.solanaWeb3;
+    const PublicKey = solanaWeb3 ? solanaWeb3.PublicKey : null;
+
+    const validItems = [];
+    const invalidItems = [];
+
+    for (const it of items) {
+        let isValid = false;
+        if (it.wallet && it.wallet.length > 20 && PublicKey) {
+            try {
+                new PublicKey(it.wallet.trim());
+                isValid = true;
+            } catch(e) {}
+        }
+        if (isValid) {
+            validItems.push(it);
+        } else {
+            invalidItems.push(it);
+        }
     }
-    if (validItems.length === 0) return alert('전송 가능한 항목이 없습니다.');
+
+    if (invalidItems.length > 0) {
+        if (!confirm(`⚠️ 잘못된 지갑 주소(또는 빈 주소)를 가진 항목이 ${invalidItems.length}건 발견되었습니다.\n\n[확인]을 누르시면:\n1. 잘못된 주소 건들은 자동으로 '거부(반려)' 처리되며\n2. 해당 회원에게 잔액 복구 및 안내 메시지가 발송됩니다.\n3. 그 후 유효한 ${validItems.length}건에 대해서만 일괄 송금을 진행합니다.\n\n계속하시겠습니까?`)) return;
+    } else if (validItems.length === 0) {
+        return alert('전송 가능한 항목이 없습니다.');
+    }
+
+    // 중복 지갑 체크 (1개의 지갑으로 여러 개 계정이 송금하는 경우)
+    const walletCounts = {};
+    validItems.forEach(it => walletCounts[it.wallet] = (walletCounts[it.wallet] || 0) + 1);
+    const dupWallets = Object.keys(walletCounts).filter(w => walletCounts[w] > 1);
+    if (dupWallets.length > 0) {
+        if (!confirm(`⚠️ [중복 송금 경고]\n동일한 지갑 주소로 여러 건을 송금하는 항목이 발견되었습니다.\n(계정은 여러 개이나 받는 지갑이 하나인 경우 등)\n\n의도하신 정상적인 송금이라면 [확인]을 눌러 강제 진행할 수 있습니다.\n\n계속 진행하시겠습니까?`)) return;
+    }
     
-    const totalAmount = validItems.reduce((s, it) => s + it.amount, 0).toFixed(4);
-    if (!await _adminConfirm('👻 총 ' + validItems.length + '건, ' + totalAmount + ' DDRA를 팬텀 지갑으로 일괄 송금하시겠습니까?\n\n* 안정성을 위해 한 건씩 순차적으로 서명창이 나타납니다.')) return;
+    if (validItems.length === 0 && invalidItems.length > 0) {
+        // 유효한 항목은 없고 반려할 항목만 있는 경우 처리
+        if (!await _adminConfirm('송금할 항목은 없으며, 잘못된 지갑 주소 ' + invalidItems.length + '건을 반려 처리합니다.')) return;
+    } else if (validItems.length > 0) {
+        const totalAmount = validItems.reduce((s, it) => s + it.amount, 0).toFixed(4);
+        if (!await _adminConfirm('👻 총 ' + validItems.length + '건, ' + totalAmount + ' DDRA를 팬텀 지갑으로 일괄 송금하시겠습니까?\n\n* 안정성을 위해 한 건씩 순차적으로 서명창이 나타납니다.')) return;
+    }
     
     const statusEl = document.getElementById('bulkActionStatus');
     
     try {
+        // 잘못된 지갑 자동 반려 처리
+        if (invalidItems.length > 0) {
+            if(statusEl) statusEl.textContent = `잘못된 지갑 주소 ${invalidItems.length}건 반려 처리 중...`;
+            for (const inv of invalidItems) {
+                try {
+                    await api.rejectWithdrawal(inv.id, currentAdmin.uid, '지갑 주소 오류: 올바른 솔라나(Phantom) 지갑 주소를 입력한 후 다시 신청해 주세요.');
+                    try {
+                        const nRef = window.doc(window.collection(window.db, 'notifications'));
+                        await window.setDoc(nRef, {
+                            userId: inv.userId,
+                            title: '❌ 출금 거부 안내 (지갑 주소 오류)',
+                            message: '입력하신 지갑 주소가 잘못되었습니다.\\n올바른 솔라나(Phantom) 지갑 주소인지 확인 후 다시 출금 신청을 진행해 주세요.',
+                            type: 'withdrawal_rejected',
+                            priority: 'high',
+                            icon: '❌',
+                            color: '#ef4444',
+                            isRead: false,
+                            createdAt: window.serverTimestamp()
+                        });
+                    } catch(ne) { console.error('반려 알림 발송 오류:', ne); }
+                } catch(err) { console.error('반려 처리 오류:', err); }
+            }
+        }
+
+        if (validItems.length === 0) {
+            if(statusEl) statusEl.textContent = '반려 처리 완료!';
+            setTimeout(() => { if(statusEl) statusEl.textContent = ''; loadWithdrawals(currentWithdrawalStatus); }, 2000);
+            return;
+        }
         const sw = window.SolanaWallet;
         if (!sw) throw new Error('솔라나 지갑 모듈이 없습니다.');
         
@@ -17410,20 +17949,50 @@ window.bulkPhantomWithdraw = async function() {
         await provider.connect();
         const adminPubkey = provider.publicKey.toString();
         
-        const solanaMint = (window._settingsCache && window._settingsCache.ddraSolanaMint) || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+        const solanaMint = ((window._settingsCache && window._settingsCache.ddraSolanaMint) || 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv').trim();
         const solanaWeb3 = window.solanaWeb3;
         if (!solanaWeb3) throw new Error('Solana Web3 라이브러리가 로드되지 않았습니다.');
         
         const { Connection, PublicKey, Transaction, TransactionInstruction } = solanaWeb3;
-        const connection = new Connection('https://solana-rpc.publicnode.com', 'confirmed');
-        const mintPubkey = new PublicKey(solanaMint);
-        const fromPubkey = new PublicKey(adminPubkey);
         
-        const mintInfo = await connection.getAccountInfo(mintPubkey);
+        // RPC 노드 다중 연결 시도 (네트워크 안정성 강화)
+        const rpcUrls = [
+            'https://solana-rpc.publicnode.com',
+            'https://rpc.ankr.com/solana',
+            'https://api.mainnet-beta.solana.com'
+        ];
+        let connection = null;
+        let mintInfo = null;
+        let mintPubkey, fromPubkey;
+        try {
+            mintPubkey = new PublicKey(solanaMint);
+        } catch(e) {
+            throw new Error(`관리자 설정의 토큰 컨트랙트 주소가 올바르지 않습니다: "${solanaMint}"`);
+        }
+        try {
+            fromPubkey = new PublicKey(adminPubkey);
+        } catch(e) {
+            throw new Error(`관리자 지갑 주소가 올바르지 않습니다: "${adminPubkey}"`);
+        }
+        
+        for (const url of rpcUrls) {
+            try {
+                // timeout 설정으로 행 방지
+                const tempConn = new Connection(url, { commitment: 'confirmed', disableRetryOnRateLimit: true });
+                mintInfo = await tempConn.getAccountInfo(mintPubkey);
+                if (mintInfo) {
+                    connection = tempConn;
+                    break;
+                }
+            } catch(e) { console.warn(`RPC Failed: ${url}`, e); }
+        }
+        
+        if (!connection) throw new Error('모든 솔라나 RPC 서버 접속에 실패했습니다. 잠시 후 재시도해주세요.');
         if (!mintInfo) throw new Error('설정된 DDRA 민트 주소가 존재하지 않습니다.');
+        
         const tokenProgramIdStr = mintInfo.owner.toString();
-        const TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr);
-        const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+        let TOKEN_PROGRAM_ID; try { TOKEN_PROGRAM_ID = new PublicKey(tokenProgramIdStr); } catch(e) { throw new Error('TOKEN_PROGRAM_ID Error (' + tokenProgramIdStr + '): ' + e.message); }
+        let ASSOCIATED_TOKEN_PROGRAM_ID; try { ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'); } catch(e) { throw new Error('ASSOCIATED_TOKEN_PROGRAM_ID Error: ' + e.message); }
         
         const getATA = (walletKey, mintKey) => PublicKey.findProgramAddressSync(
             [walletKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintKey.toBuffer()],
@@ -17431,6 +18000,7 @@ window.bulkPhantomWithdraw = async function() {
         )[0];
         const fromATA = getATA(fromPubkey, mintPubkey);
         const decimals = (window._settingsCache && window._settingsCache.ddraDecimals) || 6;
+        let MEMO_PROGRAM_ID; try { MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLLrDA"); } catch(e) { throw new Error('MEMO_PROGRAM_ID Error: ' + e.message); }
         
         let successCount = 0;
         const BATCH_SIZE = 10;
@@ -17439,6 +18009,7 @@ window.bulkPhantomWithdraw = async function() {
         for (let b = 0; b < validItems.length; b += BATCH_SIZE) {
             const batch = validItems.slice(b, b + BATCH_SIZE);
             const txs = [];
+            const batchATAsToCreate = new Set();
             
             if(statusEl) statusEl.textContent = `[${b+1}~${b+batch.length}/${validItems.length}] 트랜잭션 구성 중...`;
             const { blockhash } = await connection.getLatestBlockhash('confirmed');
@@ -17449,7 +18020,14 @@ window.bulkPhantomWithdraw = async function() {
                 tx.feePayer = fromPubkey;
                 tx.recentBlockhash = blockhash;
                 
-                const toPubkey = new PublicKey(item.wallet);
+                const toPubkeyStr = String(item.wallet || '').trim();
+                if (!toPubkeyStr) throw new Error(`지갑 주소가 비어있습니다. (${item.userId})`);
+                let toPubkey;
+                try {
+                    toPubkey = new PublicKey(toPubkeyStr);
+                } catch(pkErr) {
+                    throw new Error(`유효하지 않은 지갑 주소입니다: ${toPubkeyStr} (회원: ${item.userId}) - ${pkErr.message}`);
+                }
                 let finalDestinationATA = null;
                 
                 // ATA 로직 판별
@@ -17467,7 +18045,8 @@ window.bulkPhantomWithdraw = async function() {
                     const toATA = getATA(toPubkey, mintPubkey);
                     finalDestinationATA = toATA;
                     const toAccountInfo = await connection.getAccountInfo(toATA);
-                    if (!toAccountInfo) {
+                    if (!toAccountInfo && !batchATAsToCreate.has(toATA.toString())) {
+                        batchATAsToCreate.add(toATA.toString());
                         const data = Buffer.alloc(0);
                         tx.add(new TransactionInstruction({
                             keys: [
@@ -17475,7 +18054,7 @@ window.bulkPhantomWithdraw = async function() {
                                 { pubkey: finalDestinationATA, isSigner: false, isWritable: true },
                                 { pubkey: toPubkey, isSigner: false, isWritable: false },
                                 { pubkey: mintPubkey, isSigner: false, isWritable: false },
-                                { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
+                                { pubkey: new PublicKey('11111111111111111111111111111111'), isSigner: false, isWritable: false },
                                 { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
                                 { pubkey: solanaWeb3.SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }
                             ],
@@ -17484,6 +18063,15 @@ window.bulkPhantomWithdraw = async function() {
                         }));
                     }
                 }
+                
+                // 트랜잭션 서명이 중복되지 않도록 고유 식별자(Memo) 추가 (중복 지갑 송금 방지 우회용)
+                try {
+                    tx.add(new TransactionInstruction({
+                        keys: [],
+                        programId: MEMO_PROGRAM_ID,
+                        data: Buffer.from(`deedra-withdraw-${item.id}`, 'utf8')
+                    }));
+                } catch(e) { console.error('Memo Add Error:', e); }
                 
                 const amountToSend = Math.floor(item.amount * Math.pow(10, decimals));
                 if (tokenProgramIdStr === 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb') {
@@ -17571,7 +18159,7 @@ window.bulkPhantomWithdraw = async function() {
                     }
                     
                     // 2. DB 최종 승인 처리
-                    await api.approveWithdrawal(item.id, currentAdmin.uid, txSignature, 'Phantom 일괄 묶음 송금 완료');
+                    await api.approveWithdrawal(item.id, currentAdmin.uid, txSignature, 'Phantom 일괄 묶음 송금 완료', item.amount);
                     successCount++;
                     
                     if(statusEl) statusEl.textContent = `[${globalIndex}/${validItems.length}] ${item.userId} 완료! (잠시 대기)`;
@@ -17623,7 +18211,7 @@ window.bulkPhantomWithdraw = async function() {
     } catch(err) {
         console.error(err);
         if(statusEl) statusEl.textContent = '종료됨: ' + err.message;
-        alert('작업 중단: ' + err.message);
+        alert('작업 중단: ' + err.message + '\n' + err.stack);
         loadWithdrawals(currentWithdrawalStatus);
     }
 };
@@ -17642,27 +18230,31 @@ window.updateWithdrawalSummary = function() {
     }
     
     let totalUsdt = 0;
-    let totalDedra = 0;
+    let totalRealUsdt = 0;
+    let totalFeeUsdt = 0;
     
     cbs.forEach(cb => {
         const usdtVal = parseFloat(cb.getAttribute('data-usdt')) || 0;
-        let dedraVal = parseFloat(cb.getAttribute('data-amount')) || 0;
-        if (dedraVal === 0 && (window._cachedDedraRate || _cachedDedraRate || 0) > 0) {
-            dedraVal = usdtVal / _cachedDedraRate;
-        }
+        const realUsdtVal = parseFloat(cb.getAttribute('data-amount')) || 0; // 이제 data-amount에 realUsdt가 들어있음
+        const feeUsdtVal = parseFloat(cb.getAttribute('data-fee')) || 0;     // 이제 data-fee에 feeUsdt가 들어있음
+        
         totalUsdt += usdtVal;
-        totalDedra += dedraVal;
+        totalRealUsdt += realUsdtVal;
+        totalFeeUsdt += feeUsdtVal;
     });
     
     document.getElementById('wsCount').innerText = cbs.length;
     document.getElementById('wsUsdt').innerText = totalUsdt.toFixed(2);
-    document.getElementById('wsDedra').innerText = totalDedra.toFixed(4);
+    document.getElementById('wsDedra').innerText = totalRealUsdt.toFixed(2);
+    
+    const feeEl = document.getElementById('wsFee');
+    if(feeEl) feeEl.innerText = totalFeeUsdt.toFixed(2);
     
     const rate = window._cachedDedraRate || _cachedDedraRate || 0;
     if (rate) {
-        document.getElementById('wsRate').innerText = '(시세: ' + rate + ')';
+        document.getElementById('wsRate').innerHTML = `<br><span style="color:#8b5cf6">DDRA 환산: ${(totalRealUsdt/rate).toFixed(4)} DDRA (현재시세: ${rate})</span>`;
     } else {
-        document.getElementById('wsRate').innerText = '';
+        document.getElementById('wsRate').innerHTML = '';
     }
     
     box.style.display = 'flex';
@@ -17934,10 +18526,69 @@ window.deleteCountryBonusRule = async function(idx) {
     countryBonusRules.splice(idx, 1);
     await saveCountryBonusRulesAPI(null);
 }
-</script>
-</body>
-</html>
-<script>
+
+window.drawWeeklyJackpot = async function() {
+    if(!confirm('정말로 지금 주간 잭팟 추첨을 강제로 진행하시겠습니까?\n(이미 진행된 경우 에러가 발생하거나 풀이 비어있을 수 있습니다)')) return;
+    const btn = event.currentTarget;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 추첨중...';
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/cron/draw-weekly-jackpot', {
+            method: 'GET',
+            headers: { 'x-cron-secret': 'deedra-cron-2026' } // Using master secret
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert(`🎉 추첨 완료!\n당첨자: ${data.winner}\n상금: ${data.prize} USDT\n블록해시: ${data.blockhash}`);
+            location.reload();
+        } else {
+            alert('추첨 실패 (또는 대상자 없음): ' + (data.message || data.error));
+        }
+    } catch(e) {
+        alert('에러 발생: ' + e.message);
+    } finally {
+        btn.innerHTML = oldHtml;
+        btn.disabled = false;
+    }
+};
+
+window.revertJackpotManually = async function() {
+  const amtStr = prompt('강제로 차감할 주간 잭팟 상금(USDT)을 입력하세요.\n(예: 반려 처리 시 증가된 수수료 16달러를 차감하려면 16 입력)');
+  const amt = parseFloat(amtStr);
+  if (!amt || amt <= 0) return;
+  if (!confirm(`주간 잭팟 상금에서 ${amt} USDT를 차감하시겠습니까?`)) return;
+  
+  try {
+    // 백엔드 API를 사용하는 가장 안정적인 방법.
+    // 기존에 추가한 /api/admin/revert-jackpot 로 호출
+    const endpoint = window._settingsCache ? (window.FB && window.FB.endpoint ? window.FB.endpoint : '') : '';
+    const res = await fetch(endpoint + '/api/admin/revert-jackpot', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${window._adminToken}`
+      },
+      body: JSON.stringify({ amount: amt })
+    });
+    
+    if (!res.ok) {
+       throw new Error(`서버 에러 (${res.status})`);
+    }
+    
+    const data = await res.json();
+    if (data && data.success) {
+      alert(`잭팟 차감 완료!\n이전 금액: ${data.oldAmount}\n현재 금액: ${data.newAmount}`);
+      loadWeeklyJackpotSettings(); // 화면 갱신
+    } else {
+      alert('오류: ' + (data ? data.error : '알 수 없는 오류'));
+    }
+  } catch(e) {
+    alert('오류 발생: ' + e.message);
+  }
+};
+
+
 
 window.saveQuickWithdrawalFee = async function() {
   const el = document.getElementById('quick_withdrawalFeeRate');
@@ -17995,4 +18646,193 @@ window.saveQuickWithdrawalFee = async function() {
 };
 
 
+
+// ── 완전 수동 송금 매크로 ──
+window.bulkMacroQueue = [];
+window.macroSuccessCount = 0;
+window.macroCheckInterval = null;
+window._isMacroRunning = false;
+
+window.processNextMacroItem = async function() {
+    if (!window.bulkMacroQueue || window.bulkMacroQueue.length === 0) {
+        window._isMacroRunning = false;
+        const statusEl = document.getElementById('bulkActionStatus');
+        if(statusEl) statusEl.textContent = '모든 단건 자동화 작업 완료!';
+        alert('모든 단건 자동화 작업이 완료되었습니다.');
+        loadWithdrawals(window.currentWithdrawalStatus);
+        return;
+    }
+    
+    const nextId = window.bulkMacroQueue.shift();
+    const statusEl = document.getElementById('bulkActionStatus');
+    if(statusEl) statusEl.textContent = `단건 매크로 진행 중... 남은 건수: ${window.bulkMacroQueue.length + 1}건 (현재 ID: ${nextId})`;
+    
+    await window.showWithdrawalDetail(nextId);
+    
+    setTimeout(() => {
+        const btn = document.getElementById('phantomWithdrawalBtn');
+        if (btn && btn.style.display !== 'none' && !btn.disabled) {
+            btn.click();
+            
+            clearInterval(window.macroCheckInterval);
+            window.macroCheckInterval = setInterval(() => {
+                const modal = document.getElementById('withdrawalModal');
+                if (!modal.classList.contains('show')) {
+                    clearInterval(window.macroCheckInterval);
+                    window.macroSuccessCount++;
+                    setTimeout(window.processNextMacroItem, 1000);
+                }
+            }, 1000);
+        } else {
+            if (confirm(`출금건(ID: ${nextId})은 팬텀 전송 버튼이 비활성화 상태입니다.\n건너뛰고 다음 건으로 진행할까요?`)) {
+                closeModal('withdrawalModal');
+                setTimeout(window.processNextMacroItem, 500);
+            } else {
+                window._isMacroRunning = false;
+                window.bulkMacroQueue = [];
+                if(statusEl) statusEl.textContent = '단건 매크로 중단됨';
+            }
+        }
+    }, 1500);
+};
+
+window.bulkPhantomWithdrawSingle = async function() {
+    const items = window.getSelectedWithdrawals();
+    if (items.length === 0) return alert('선택된 항목이 없습니다.');
+    
+    const validItems = items.filter(it => (it.wallet || it.walletAddress) && (it.wallet || it.walletAddress).length > 20);
+    if (validItems.length < items.length) {
+        if (!confirm('지갑 주소가 없거나 유효하지 않은 ' + (items.length - validItems.length) + '건이 제외됩니다.\n진행하시겠습니까?')) return;
+    }
+    if (validItems.length === 0) return alert('전송 가능한 항목이 없습니다.');
+    
+    const totalAmount = validItems.reduce((s, it) => s + (it.amount || 0), 0).toFixed(4);
+    if (!await window._adminConfirm('👻 총 ' + validItems.length + '건, ' + totalAmount + ' DDRA를 순수 "단건 매크로" 방식으로 진행합니다.\n\n이 버튼은 백그라운드 몰아보내기가 아니라, 한명씩 [상세 모달창]을 열고 [팬텀 버튼]을 누르는 단순 수작업을 자동화해줍니다.\n\n팬텀 지갑 안내창을 건너뛰고 바로 팬텀 지갑 승인창이 뜹니다. 직접 승인을 누르시면 성공 후 다음 사람의 창을 자동으로 엽니다.\n\n진행할까요?')) return;
+    
+    window._isMacroRunning = true;
+    window.bulkMacroQueue = validItems.map(it => it.id);
+    window.macroSuccessCount = 0;
+    
+    window.processNextMacroItem();
+};
+
 </script>
+
+<script>
+// 일일 상세 통계 조회
+async function showDailyDetails(type) {
+    document.getElementById('dailyDetailsModal').style.display = 'flex';
+    const titleEl = document.getElementById('dailyDetailsTitle');
+    const bodyEl = document.getElementById('dailyDetailsBody');
+    
+    if(type === 'signup') titleEl.innerHTML = '👥 금일 신규 가입 상세 (KST)';
+    else if(type === 'deposit') titleEl.innerHTML = '📥 금일 입금 상세 (KST)';
+    else if(type === 'withdrawal') titleEl.innerHTML = '📤 금일 출금 상세 (KST)';
+    
+    bodyEl.innerHTML = '<div class="loading" style="padding:40px;"><div class="spinner"></div><div style="text-align:center; margin-top:10px;">데이터를 불러오는 중...</div></div>';
+    
+    try {
+        const res = await fetch(`/api/admin/daily-stats?type=${type}`, {
+            headers: { 'Authorization': 'Bearer ' + getCookie('admin_token') }
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || '통계 조회 실패');
+        
+        let html = '';
+        
+        // 총계 정보
+        html += `<div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; text-align:center; font-size:20px; font-weight:bold; color:#1e293b;">`;
+        if (type === 'signup') {
+            html += `총 ${data.totalCount}명 가입`;
+        } else if (type === 'deposit') {
+            html += `총 ${Number(data.totalAmount).toLocaleString()} USDT 입금`;
+        } else if (type === 'withdrawal') {
+            html += `총 ${Number(data.totalAmount).toLocaleString()} USDT 출금`;
+        }
+        html += `</div>`;
+        
+        // 국가별 통계 테이블
+        if (data.byCountry && Object.keys(data.byCountry).length > 0) {
+            html += `<h4 style="margin-bottom:10px; border-bottom:2px solid #e2e8f0; padding-bottom:5px;">🌍 국가별 현황</h4>`;
+            html += `<table class="data-table" style="margin-bottom:20px;">
+                <thead>
+                    <tr>
+                        <th>국가</th>
+                        <th>${type === 'signup' ? '가입자 수' : '금액 (USDT)'}</th>
+                        <th>비율</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            const sortedCountries = Object.entries(data.byCountry).sort((a,b) => b[1] - a[1]);
+            const total = type === 'signup' ? data.totalCount : data.totalAmount;
+            
+            sortedCountries.forEach(([country, value]) => {
+                const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                const displayVal = type === 'signup' ? `${value}명` : `${Number(value).toLocaleString()}`;
+                html += `
+                    <tr>
+                        <td style="font-weight:bold;">${country || '알 수 없음'}</td>
+                        <td style="text-align:right;">${displayVal}</td>
+                        <td style="text-align:right;">${pct}%</td>
+                    </tr>
+                `;
+            });
+            html += `</tbody></table>`;
+        } else {
+            html += `<div style="padding:20px; text-align:center; color:#64748b;">국가별 데이터가 없습니다.</div>`;
+        }
+        
+        // 최고 랭킹 (입출금)
+        if ((type === 'deposit' || type === 'withdrawal') && data.topUsers && data.topUsers.length > 0) {
+            html += `<h4 style="margin-bottom:10px; border-bottom:2px solid #e2e8f0; padding-bottom:5px;">🏆 금일 최고 ${type === 'deposit' ? '입금자' : '출금자'} Top 5</h4>`;
+            html += `<table class="data-table">
+                <thead>
+                    <tr>
+                        <th>이메일 / ID</th>
+                        <th>이름</th>
+                        <th>국가</th>
+                        <th>금액 (USDT)</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            data.topUsers.forEach(u => {
+                html += `
+                    <tr>
+                        <td>
+                            <div style="font-weight:bold;">${u.email || '-'}</div>
+                            <div style="font-size:11px; color:#64748b;">${u.displayId || '-'}</div>
+                        </td>
+                        <td>${u.name || '-'}</td>
+                        <td>${u.country || '-'}</td>
+                        <td style="text-align:right; font-weight:bold; color:${type==='deposit' ? '#10b981' : '#ef4444'}">${Number(u.amount).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            html += `</tbody></table>`;
+        }
+        
+        bodyEl.innerHTML = html;
+        
+    } catch (error) {
+        bodyEl.innerHTML = `<div style="color:red; text-align:center; padding:20px;">오류: ${error.message}</div>`;
+    }
+}
+window.showDailyDetails = showDailyDetails;
+</script>
+
+
+    <!-- 일일 상세 통계 모달 -->
+    <div id="dailyDetailsModal" class="modal-overlay" style="display:none; align-items:center; justify-content:center; padding:20px; position:fixed; inset:0; background:rgba(15,15,35,.75); backdrop-filter:blur(6px); z-index:9999;" onclick="if(event.target===this) this.style.display='none'">
+      <div class="modal-content" style="background:#fff; border-radius:16px; width:100%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+        <div class="modal-header" style="background:#f8fafc; padding:20px 24px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+          <h3 id="dailyDetailsTitle" style="margin:0; font-size:18px; font-weight:800; color:#1e293b;">📊 일일 상세 통계</h3>
+          <button class="close-btn" onclick="document.getElementById('dailyDetailsModal').style.display='none'" style="background:none; border:none; font-size:24px; color:#94a3b8; cursor:pointer; padding:0; line-height:1;">&times;</button>
+        </div>
+        <div class="modal-body" id="dailyDetailsBody" style="padding:20px 24px; overflow-y:auto; flex:1; min-height:200px;">
+            <div class="loading" style="text-align:center; padding:40px;"><div class="spinner"></div><div style="color:#64748b; margin-top:12px; font-size:13px;">로딩 중...</div></div>
+        </div>
+      </div>
+    </div>
