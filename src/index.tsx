@@ -4167,7 +4167,8 @@ async function runSettle(c: any, overrideDate?: string | null) {
       direct2: Number(ratesData.rate_direct2 ?? 5),
       rankGap: Number(ratesData.rate_rankGap ?? 10), // Requirement: rank difference * 10%
       override: Number(ratesData.rate_override ?? 10), // Requirement: 10% of total allowance
-      rankGapMode: ratesData.rankGapMode || 'gap'
+      rankGapMode: ratesData.rankGapMode || 'gap',
+      maxEarningCapMultiplier: Number(ratesData.maxEarningCapMultiplier || 3.0) // 기본 300%
     }
 
     const autoRules = await fsQuery('autoRules', adminToken).catch(()=>[]);
@@ -4175,12 +4176,31 @@ async function runSettle(c: any, overrideDate?: string | null) {
     const wallets = await fsQuery('wallets', adminToken, [], 100000)
 
     // NEW LOGIC: memberMap tracking all financials (strict separation of dividend and allowance)
+    // 1. Pre-build robust matching map for parent_member_id (cyj0300 case-insensitive/trim fix)
+    const uidSetMap = new Map();
+    const usernameMap = new Map();
+    const refCodeMap = new Map();
+    for (const u of allUsers) {
+      uidSetMap.set(u.id, u.id);
+      if (u.username) usernameMap.set(String(u.username).trim().toLowerCase(), u.id);
+      if (u.referralCode) refCodeMap.set(String(u.referralCode).trim().toLowerCase(), u.id);
+    }
+    const resolveRef = (r: any) => {
+      if (!r || typeof r !== 'string' || r.trim() === '') return null;
+      const rt = r.trim();
+      if (uidSetMap.has(rt)) return rt;
+      const rl = rt.toLowerCase();
+      if (usernameMap.has(rl)) return usernameMap.get(rl);
+      if (refCodeMap.has(rl)) return refCodeMap.get(rl);
+      return null;
+    };
+
     const memberMap = new Map();
     for (const u of allUsers) {
       memberMap.set(u.id, {
         id: u.id,
         name: u.name || u.id,
-        parent_member_id: u.referredBy || null,
+        parent_member_id: resolveRef(u.referredBy),
         rank_level: getRankLevel(u.rank || 'G0'),
         daily_dividend: 0,
         recommend_bonus: 0,
@@ -4496,12 +4516,45 @@ async function runSettle(c: any, overrideDate?: string | null) {
 
     // Write wallet updates and bonuses to DB using fsBatchCommit
     
+    // --- Max Cap (300%) 적용 로직 ---
+    const maxEarningCapMult = Number(config.maxEarningCapMultiplier || 3.0); // 기본 300%
+
     for (const [uid, wup] of walletUpdates.entries()) {
-      if (wup.bonusBalanceToAdd > 0 || wup.totalInvestToAdd > 0 || wup.totalEarningsToAdd > 0) {
+      // 1. Cap 한도 계산 (현재 보유중인 원금 * 배수)
+      const maxCap = Math.round(wup.currentTotalInvest * maxEarningCapMult * 1e8) / 1e8;
+      let finalBonusAdd = wup.bonusBalanceToAdd;
+      let finalInvestAdd = wup.totalInvestToAdd;
+      let finalEarningsAdd = wup.totalEarningsToAdd;
+      
+      // 2. 한도 초과(Cut-off) 여부 검사
+      if (maxCap > 0 && (wup.currentTotalEarnings + finalEarningsAdd) > maxCap) {
+         const excess = (wup.currentTotalEarnings + finalEarningsAdd) - maxCap;
+         // 초과분만큼 깎기
+         if (excess >= finalEarningsAdd) {
+            // 이번 수익을 전부 날려도 한도 초과 상태 (기존부터 이미 초과)
+            finalEarningsAdd = 0;
+            finalBonusAdd = 0;
+            finalInvestAdd = 0;
+         } else {
+            // 이번 수익 중 일부만 지급
+            finalEarningsAdd -= excess;
+            // 지갑/복리 투자금에서 비율대로 차감하거나, 보너스부터 깎기
+            if (finalBonusAdd >= excess) {
+                finalBonusAdd -= excess;
+            } else {
+                const rem = excess - finalBonusAdd;
+                finalBonusAdd = 0;
+                finalInvestAdd -= rem;
+                if (finalInvestAdd < 0) finalInvestAdd = 0;
+            }
+         }
+      }
+
+      if (finalBonusAdd > 0 || finalInvestAdd > 0 || finalEarningsAdd > 0) {
         const fields: any = {
-          bonusBalance: Math.round((wup.currentBonusBalance + wup.bonusBalanceToAdd) * 1e8) / 1e8,
-          totalInvest: Math.round((wup.currentTotalInvest + wup.totalInvestToAdd) * 1e8) / 1e8,
-          totalEarnings: Math.round((wup.currentTotalEarnings + wup.totalEarningsToAdd) * 1e8) / 1e8
+          bonusBalance: Math.round((wup.currentBonusBalance + finalBonusAdd) * 1e8) / 1e8,
+          totalInvest: Math.round((wup.currentTotalInvest + finalInvestAdd) * 1e8) / 1e8,
+          totalEarnings: Math.round((wup.currentTotalEarnings + finalEarningsAdd) * 1e8) / 1e8
         };
         const firestoreFields: any = {};
         for (const [k, v] of Object.entries(fields)) {
