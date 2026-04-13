@@ -8715,13 +8715,44 @@ window.showTickets = async function() {
       return;
     }
     if (listEl) listEl.innerHTML = tickets.map(t => `
-      <div class="ticket-item">
+      <div class="ticket-item" style="cursor: pointer;" onclick="window.openUserTicketDetail('${t.id}')">
         <div class="ticket-title">${t.title}</div>
         <div class="ticket-meta">${fmtDate(t.createdAt)}</div>
         <span class="ticket-status-badge ${t.status === 'closed' ? 'ticket-closed' : 'ticket-open'}">
           ${t.status === 'closed' ? '답변 완료' : '처리 중'}
         </span>
       </div>`).join('');
+      
+    window._cachedUserTickets = tickets;
+window.openUserTicketDetail = function(ticketId) {
+    if (!window._cachedUserTickets) return;
+    const ticket = window._cachedUserTickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+    
+    document.getElementById('utdTitle').textContent = ticket.title || '(제목 없음)';
+    document.getElementById('utdDate').textContent = fmtDate(ticket.createdAt);
+    document.getElementById('utdContent').textContent = ticket.content || '';
+    
+    const replyBox = document.getElementById('utdReplyBox');
+    const adminReplyBox = document.getElementById('utdAdminReplyBox');
+    
+    if (ticket.reply) {
+        replyBox.style.display = 'block';
+        document.getElementById('utdReply').textContent = ticket.reply;
+    } else {
+        replyBox.style.display = 'none';
+    }
+    
+    if (ticket.adminReply) {
+        adminReplyBox.style.display = 'block';
+        document.getElementById('utdAdminReply').textContent = ticket.adminReply;
+    } else {
+        adminReplyBox.style.display = 'none';
+    }
+    
+    document.getElementById('userTicketDetailModal').classList.remove('hidden');
+};
+
   } catch (err) {
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
