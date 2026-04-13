@@ -896,6 +896,7 @@ canvas{width:100% !important;}
 
     <script src="https://bundle.run/buffer@6.0.3"></script>
 <script>window.Buffer = window.Buffer || buffer.Buffer;</script>
+  <script src="/static/js/admin-ui.js?v=${Date.now()}"></script>
 </head>
 <body>
 
@@ -10024,32 +10025,14 @@ function fmtDateFile() {
 // ══════════════════════════════════════════════════
 // 유틸리티
 // ══════════════════════════════════════════════════
-function loading() { return '<div class="loading"><div class="spinner"></div><div>로딩 중...</div></div>'; }
-function emptyState(msg) { return `<div class="empty-state"><div class="empty-icon">📭</div>${msg}</div>`; }
-function infoRow(label, value) {
-    return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${value}</span></div>`;
-}
-// 개선된 infoRow (배경 없는 깔끔한 2열 레이아웃)
-function infoRow2(label, value) {
-    return `<div style="display:flex;align-items:flex-start;padding:9px 14px;border-bottom:1px solid #f1f5f9;">
-      <span style="font-size:12px;color:#64748b;min-width:110px;font-weight:600;padding-top:1px;">${label}</span>
-      <span style="font-size:13px;color:#1e293b;flex:1;word-break:break-word;">${value}</span>
-    </div>`;
-}
-function showInlineAlert(id, type, msg) {
-    const el = document.getElementById(id);
-    if (!msg) { el.classList.remove('show'); return; }
-    el.className = `inline-alert inline-alert-${type} show`;
-    el.textContent = msg;
-}
-function fmtDate(ts) {
-    if (!ts) return '-';
-    const d = ts.toDate ? ts.toDate() : new Date(ts);
-    return d.toLocaleString('ko-KR');
-}
-function fmtStatus(s) {
-    return {pending:'대기중',processing:'처리중',approved:'승인됨',rejected:'거부됨',held:'보류됨',failed:'실패됨'}[s]||s;
-}
+// UI 함수들은 이제 admin-ui.js 에서 불러옵니다.
+const loading = window.loading;
+const emptyState = window.emptyState;
+const infoRow = window.infoRow;
+const infoRow2 = window.infoRow2;
+const showInlineAlert = window.showInlineAlert;
+const fmtDate = window.fmtDate;
+const fmtStatus = window.fmtStatus;
 // fmtAuditAction → AUDIT_ACTION_MAP 기반 (3700번대에 정의됨)
 
 // ══════════════════════════════════════════════════════════════
@@ -14052,27 +14035,7 @@ function setupProductForm() {}
 window.toggleProductActive = window.togglePlan;
 window.deleteProduct       = window.deletePlan;
 
-function showToast(msg, type = 'default') {
-    let toast = document.getElementById('adminToast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'adminToast';
-        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(0);padding:12px 24px;border-radius:24px;font-size:14px;z-index:9999;transition:opacity .3s,transform .3s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.25);';
-        document.body.appendChild(toast);
-    }
-    const colors = {
-        success: 'background:linear-gradient(135deg,#10b981,#059669);color:#fff;',
-        error:   'background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;',
-        warning: 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;',
-        default: 'background:rgba(30,30,30,.92);color:#fff;'
-    };
-    toast.style.cssText += colors[type] || colors.default;
-    toast.textContent = msg;
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateX(-50%) translateY(0)';
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3000);
-}
+const showToast = window.showToast; // admin-ui.js 모듈로 이동됨
 
 // ── window 전역 노출 (type="module" 안의 함수를 HTML onclick에서 호출 가능하도록) ──
 window.loadDashboardCharts  = loadDashboardCharts;
