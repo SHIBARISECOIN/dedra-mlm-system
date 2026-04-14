@@ -9401,8 +9401,7 @@ window.showTicketDetail = async (ticketId) => {
     const statusLabel = { open:'미답변', answered:'답변완료', closed:'종결' };
     document.getElementById('ticketModalBody').innerHTML = `
         ${infoRow('문의 ID', ticket.id)}
-        ${infoRow('회원 ID', '<strong style="color:#2563eb;">' + formatUserLabel(ticket.userId, ticket.userEmail) + '</strong>')}
-        ${infoRow('회원 ID', ticket.userId)}
+        ${infoRow('회원 ID', '<strong style="color:#2563eb;">' + formatUserLabel(ticket.userId, ticket.userEmail) + '</strong> <span style="color:#94a3b8; font-size:11px; margin-left:6px;">(' + ticket.userId + ')</span>')}
         ${infoRow('카테고리', ticket.category||'-')}
         ${infoRow('상태', `<span class="ticket-status-${ticket.status||'open'}">${statusLabel[ticket.status]||ticket.status}</span>`)}
         ${infoRow('제목', `<strong>${ticket.subject||'-'}</strong>`)}
