@@ -1268,6 +1268,42 @@
         </div>
       </div>
 
+
+      
+    <!-- D-WALLET Promo Modal -->
+    <div id="dwalletPromoModal" class="modal-overlay hidden" style="z-index: 9999; display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); justify-content:center; align-items:center; padding:20px;">
+        <div style="background:linear-gradient(180deg, #1e293b, #0f172a); border:1px solid #334155; border-radius:20px; width:100%; max-width:400px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.5); position:relative; animation:slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.15)); padding:30px 20px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.05); position:relative;">
+                <button onclick="window.closeDwalletPromoModal()" style="position:absolute; top:15px; right:15px; background:rgba(0,0,0,0.3); border:none; width:30px; height:30px; border-radius:50%; color:#94a3b8; cursor:pointer; display:flex; justify-content:center; align-items:center; font-size:14px;"><i class="fas fa-times"></i></button>
+                <div style="width:64px; height:64px; background:linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius:50%; display:flex; justify-content:center; align-items:center; margin:0 auto 15px; box-shadow:0 0 20px rgba(139,92,246,0.5);">
+                    <i class="fas fa-layer-group" style="color:#fff; font-size:28px;"></i>
+                </div>
+                <h2 style="color:#f8fafc; font-size:20px; font-weight:900; margin:0 0 8px; letter-spacing:-0.5px;">D-WALLET 하나로 완벽하게</h2>
+                <p style="color:#94a3b8; font-size:13px; margin:0; line-height:1.4; word-break:keep-all;">SOL, BSC, TRON 네트워크의 USDT를<br>가장 편하게 통합 관리하세요.</p>
+            </div>
+            <!-- Content -->
+            <div style="padding:24px 20px;">
+                <div style="display:flex; gap:12px; margin-bottom:18px;">
+                    <div style="color:#60a5fa; font-size:18px; margin-top:2px;"><i class="fas fa-check-circle"></i></div>
+                    <div>
+                        <div style="color:#f8fafc; font-size:14px; font-weight:800; margin-bottom:4px; letter-spacing:-0.5px;">네트워크 제한 없는 자유로움</div>
+                        <div style="color:#94a3b8; font-size:12px; line-height:1.5; word-break:keep-all;">TRC-20, BEP-20, SPL 어떤 네트워크로 전송하든 내 D-WALLET으로 즉시 입금 및 통합됩니다.</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px; margin-bottom:18px;">
+                    <div style="color:#fcd34d; font-size:18px; margin-top:2px;"><i class="fas fa-gas-pump"></i></div>
+                    <div>
+                        <div style="color:#f8fafc; font-size:14px; font-weight:800; margin-bottom:4px; letter-spacing:-0.5px;">수수료(가스비) 코인 구매 불필요</div>
+                        <div style="color:#94a3b8; font-size:12px; line-height:1.5; word-break:keep-all;">TRX나 BNB를 따로 준비할 필요가 없습니다. 복잡한 과정은 D-WALLET 시스템이 알아서 처리합니다.</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px; margin-bottom:26px;">
+                    <div style="color:#34d399; font-size:18px; margin-top:2px;"><i class="fas fa-chart-pie"></i></div>
+                    <div>
+                        <div style="color:#f8fafc; font-size:14px; font-weight:800; margin-bottom:4px; letter-spacing:-0.5px;">초간편 자산 통합 관리</div>
+                        <div style="color:#94a3b8; font-size:12px; line-height:1.5; word-break:keep-all;">흩어진 USDT를 한 화면에서 한눈에 확인하고, 모든 서비스에 즉시 활용하세요.</div>
+                    </div>
                 </div>
                 
                 <button onclick="window.closeDwalletPromoModal()" style="width:100%; background:linear-gradient(90deg, #3b82f6, #8b5cf6); color:#fff; border:none; padding:14px; border-radius:12px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(59,130,246,0.3); transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
@@ -1499,16 +1535,6 @@
             <div class="menu-section-title large" data-i18n="txHistory">📊 거래 내역</div>
             <div class="tx-tabs" id="txTabsContainer" style="overflow-x:auto; white-space:nowrap; padding-bottom:4px;">
               <button class="tx-tab active" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
-
-      <!-- ======== MORE 페이지 ======== -->
-      <div id="morePage" class="page">
-        <div class="page-scroll">
-
-          <!-- 거래 내역 (상단) -->
-          <div class="menu-section" style="margin-top:0;padding-top:16px;">
-            <div class="menu-section-title large" data-i18n="txHistory">📊 거래 내역</div>
-            <div class="tx-tabs" id="txTabsContainer" style="overflow-x:auto; white-space:nowrap; padding-bottom:4px;">
-              <button class="tx-tab active" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
               <button class="tx-tab" onclick="switchTxTab('withdrawal', this)" data-i18n="txWithdraw">출금</button>
               <button class="tx-tab" onclick="switchTxTab('roi', this)" data-i18n="txInvest">FREEZE</button>
               <button class="tx-tab" onclick="switchTxTab('direct_bonus', this)" data-i18n="txDirectBonus">추천 수당</button>
@@ -1558,6 +1584,7 @@
             </div>
           </div>
 
+          
           <!-- 계정 Manage 메뉴 -->
           <div class="menu-section" style="margin-top:0;">
             <div class="menu-list">
@@ -2209,13 +2236,6 @@
       </div>
 
       <div id="ticketList" class="ticket-list"></div>
-      
-      
-          <div class="modal-footer">
-            <button class="btn btn-primary btn-full" onclick="closeModal('userTicketDetailModal')">확인</button>
-          </div>
-        </div>
-      </div>
       <div class="divider"></div>
       <div class="form-group">
         <label class="form-label" data-i18n="ticketTitleLabel">제목</label>
