@@ -8724,34 +8724,6 @@ window.showTickets = async function() {
       </div>`).join('');
       
     window._cachedUserTickets = tickets;
-window.openUserTicketDetail = function(ticketId) {
-    if (!window._cachedUserTickets) return;
-    const ticket = window._cachedUserTickets.find(t => t.id === ticketId);
-    if (!ticket) return;
-    
-    document.getElementById('utdTitle').textContent = ticket.title || '(제목 없음)';
-    document.getElementById('utdDate').textContent = fmtDate(ticket.createdAt);
-    document.getElementById('utdContent').textContent = ticket.content || '';
-    
-    const replyBox = document.getElementById('utdReplyBox');
-    const adminReplyBox = document.getElementById('utdAdminReplyBox');
-    
-    if (ticket.reply) {
-        replyBox.style.display = 'block';
-        document.getElementById('utdReply').textContent = ticket.reply;
-    } else {
-        replyBox.style.display = 'none';
-    }
-    
-    if (ticket.adminReply) {
-        adminReplyBox.style.display = 'block';
-        document.getElementById('utdAdminReply').textContent = ticket.adminReply;
-    } else {
-        adminReplyBox.style.display = 'none';
-    }
-    
-    document.getElementById('userTicketDetailModal').classList.remove('hidden');
-};
 
   } catch (err) {
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
@@ -12176,4 +12148,446 @@ window.submitCenterWithdraw = async function() {
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '출금 신청'; }
   }
+};
+
+    showToast('출금 신청 실패: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '출금 신청'; }
+  }
+};
+
+// ==============================================================
+// 🚀 D-WALLET (Solana) - Frontend Logic
+// ==============================================================
+window.createDeedraWallet = async function() {
+    const btn = document.getElementById('btnCreateDeedraWallet');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 생성 중...';
+        btn.disabled = true;
+    }
+    
+    try {
+    let idToken = window.FB && window.FB._idToken ? window.FB._idToken : '';
+    let activeUser = null;
+    if (typeof window.FB !== 'undefined' && window.FB.auth && window.FB.auth.currentUser) {
+        activeUser = window.FB.auth.currentUser;
+    } else if (typeof window.auth !== 'undefined' && window.auth.currentUser) {
+        activeUser = window.auth.currentUser;
+    } else if (typeof auth !== 'undefined' && auth.currentUser) {
+        activeUser = auth.currentUser;
+    } else if (typeof currentUser !== 'undefined' && currentUser) {
+        activeUser = currentUser;
+    }
+
+    if (activeUser && typeof activeUser.getIdToken === 'function') {
+        try {
+            idToken = await activeUser.getIdToken();
+        } catch(e) {}
+    }
+    
+    if (!idToken) throw new Error("사용자 인증 토큰을 찾을 수 없습니다. 다시 로그인해주세요.");
+        
+        // 1. Solana Wallet
+        if (!window.solanaWeb3) throw new Error('Solana Core Not Loaded');
+        const keypair = window.solanaWeb3.Keypair.generate();
+        const pubKey = keypair.publicKey.toBase58();
+        const secArray = Array.from(keypair.secretKey);
+
+        // 2. BSC (EVM) Wallet
+        let evmAddress = '', evmPrivateKey = '';
+        if (window.ethers) {
+            const evmWallet = ethers.Wallet.createRandom();
+            evmAddress = evmWallet.address;
+            evmPrivateKey = evmWallet.privateKey;
+        }
+
+        // 3. TRON Wallet
+        let tronAddress = '', tronPrivateKey = '';
+        if (window.TronWeb) {
+            try {
+                const tronWeb = new TronWeb({fullNode:'https://api.trongrid.io', solidityNode:'https://api.trongrid.io', eventServer:'https://api.trongrid.io'});
+                const tronAccount = await tronWeb.createAccount();
+                tronAddress = tronAccount.address.base58;
+                tronPrivateKey = tronAccount.privateKey;
+            } catch(e) { console.error('Tron wallet gen error', e); }
+        }
+        
+        const payload = { 
+            publicKey: pubKey, 
+            secretKeyArray: secArray,
+            evmAddress, evmPrivateKey,
+            tronAddress, tronPrivateKey
+        };
+
+        const res = await fetch('/api/solana/create-wallet', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + idToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('✅ 디드라 지갑이 성공적으로 발급되었습니다!', 'success');
+            // userData.deedraWallet 에 바로 반영되도록 설정하거나 reload
+            if (!userData.deedraWallet) userData.deedraWallet = {};
+            userData.deedraWallet.publicKey = data.publicKey;
+            renderDeedraWallet();
+        } else {
+            showToast('❌ 생성 실패: ' + (data.error || '알 수 없는 오류'), 'error');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-sparkles"></i> 내 디드라 지갑 발급받기';
+                btn.disabled = false;
+            }
+        }
+    } catch(e) {
+        console.error(e);
+        showToast('❌ 네트워크 오류가 발생했습니다.', 'error');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-sparkles"></i> 내 디드라 지갑 발급받기';
+            btn.disabled = false;
+        }
+    }
+};
+
+window.autoMigrateMultiChainWallet = async function() {
+    if (window._isMigratingMultiChain) return;
+    window._isMigratingMultiChain = true;
+    try {
+        let idToken = null;
+        if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.getIdToken === 'function') {
+            idToken = await currentUser.getIdToken();
+        } else if (window.FB && window.FB.auth && window.FB.auth.currentUser) {
+            idToken = window.FB._idToken || await window.FB.auth.currentUser.getIdToken();
+        } else if (window.auth && window.auth.currentUser) {
+            idToken = await window.auth.currentUser.getIdToken();
+        }
+        
+        if (!idToken) {
+            console.log("autoMigrateMultiChainWallet: No valid token could be fetched!");
+            window._isMigratingMultiChain = false;
+            return;
+        }
+        
+        const res = await fetch('/api/solana/migrate-wallet', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + idToken
+            }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success || data.evmAddress) {
+                if (userData && userData.deedraWallet) {
+                    userData.deedraWallet.evmAddress = data.evmAddress;
+                    userData.deedraWallet.evmPrivateKey = data.evmPrivateKey || '';
+                    userData.deedraWallet.tronAddress = data.tronAddress;
+                    userData.deedraWallet.tronPrivateKey = data.tronPrivateKey || '';
+                    console.log('Multi-chain wallet auto-migration completed via backend!');
+                    
+                    // Update UI immediately
+                    const elBsc = document.getElementById('deedraWalletBscAddress');
+                    if (elBsc && data.evmAddress) {
+                        elBsc.textContent = data.evmAddress.substring(0,6) + '...' + data.evmAddress.substring(data.evmAddress.length-6);
+                        elBsc.setAttribute('data-full', data.evmAddress);
+                    }
+                    const elTron = document.getElementById('deedraWalletTronAddress');
+                    if (elTron && data.tronAddress) {
+                        elTron.textContent = data.tronAddress.substring(0,6) + '...' + data.tronAddress.substring(data.tronAddress.length-6);
+                        elTron.setAttribute('data-full', data.tronAddress);
+                    }
+                }
+            } else {
+                console.error("Migration response failed:", data);
+                if (window.showToast) window.showToast('지갑 발급 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'));
+            }
+        } else {
+            const errData = await res.text();
+            console.error("Migration HTTP failed:", errData);
+            if (window.showToast) window.showToast('지갑 발급 실패: ' + res.status);
+        }
+    } catch(e) {
+        console.error('Migration error', e);
+    } finally {
+        window._isMigratingMultiChain = false;
+    }
+}
+
+window.renderDeedraWallet = function() {
+    const notCreated = document.getElementById('deedraWalletNotCreated');
+    const created = document.getElementById('deedraWalletCreated');
+    const addressEl = document.getElementById('deedraWalletAddress');
+    
+    if (!notCreated || !created) return;
+    
+    if (userData && userData.deedraWallet && userData.deedraWallet.publicKey) {
+        // [Multi-chain Auto-migration]
+        if (!userData.deedraWallet.evmAddress && typeof window.autoMigrateMultiChainWallet === 'function') {
+            window.autoMigrateMultiChainWallet();
+        }
+
+        notCreated.style.display = 'none';
+        created.style.display = 'block';
+        
+        const pubKey = userData.deedraWallet.publicKey;
+        addressEl.textContent = pubKey.substring(0,6) + '...' + pubKey.substring(pubKey.length-6);
+        addressEl.setAttribute('data-full', pubKey);
+        
+        const elBsc = document.getElementById('deedraWalletBscAddress');
+        if (elBsc && userData.deedraWallet.evmAddress) {
+            elBsc.textContent = userData.deedraWallet.evmAddress.substring(0,6) + '...' + userData.deedraWallet.evmAddress.substring(userData.deedraWallet.evmAddress.length-6);
+        }
+        const elTron = document.getElementById('deedraWalletTronAddress');
+        if (elTron && userData.deedraWallet.tronAddress) {
+            elTron.textContent = userData.deedraWallet.tronAddress.substring(0,6) + '...' + userData.deedraWallet.tronAddress.substring(userData.deedraWallet.tronAddress.length-6);
+        }
+
+        
+        // 잔액 호출
+        
+        const updateBals = (isInitial = false) => {
+            if (!document.getElementById('deedraWalletSection') || document.getElementById('deedraWalletSection').offsetParent === null) return;
+            
+            const loadingStatus = document.getElementById('deedraWalletLoadingStatus');
+            if (loadingStatus && isInitial) {
+                loadingStatus.style.display = 'inline-flex';
+            }
+
+            // Apply localized loading text
+            const usdtEl = document.getElementById('deedraWalletUsdtBalance');
+            const ddraEl = document.getElementById('deedraWalletDdraBalance');
+            const solEl = document.getElementById('deedraWalletBalance');
+            if (isInitial) {
+                const loadingHtml = t('walletLoadingBalance') || '<i class="fas fa-spinner fa-spin" style="font-size:12px; margin-right:4px;"></i>조회중...';
+                if(usdtEl) usdtEl.innerHTML = loadingHtml;
+                if(ddraEl) ddraEl.innerHTML = loadingHtml;
+                if(solEl) solEl.innerHTML = loadingHtml;
+                const bnbEl = document.getElementById('deedraWalletBnbBalance');
+                const trxEl = document.getElementById('deedraWalletTrxBalance');
+                if(bnbEl) bnbEl.innerHTML = loadingHtml;
+                if(trxEl) trxEl.innerHTML = loadingHtml;
+            }
+            
+            window._fetchSolanaBalances(pubKey).then(data => {
+                if (loadingStatus) loadingStatus.style.display = 'none';
+                
+                const usdtEl = document.getElementById('deedraWalletUsdtBalance');
+                const ddraEl = document.getElementById('deedraWalletDdraBalance');
+                const solEl = document.getElementById('deedraWalletBalance');
+                
+                if (data.success) {
+                    if (solEl && data.sol !== undefined) {
+                        solEl.innerHTML = data.sol.toFixed(4);
+                    }
+                    if (usdtEl && data.usdt !== undefined) {
+                        usdtEl.innerHTML = data.usdt.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
+                    }
+                                        if (ddraEl && data.ddra !== undefined) {
+                        ddraEl.innerHTML = data.ddra.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
+                    }
+                    const bnbEl = document.getElementById('deedraWalletBnbBalance');
+                    const trxEl = document.getElementById('deedraWalletTrxBalance');
+                    if (bnbEl) {
+                        bnbEl.innerHTML = data.bnb !== undefined ? data.bnb.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6}) : '0.000000';
+                    }
+                    if (trxEl) {
+                        trxEl.innerHTML = data.trx !== undefined ? data.trx.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6}) : '0.000000';
+                    }
+                    
+                    const otherContainer = document.getElementById('deedraWalletOtherTokens');
+                    if (otherContainer && data.otherTokens) {
+                        let html = '';
+                        data.otherTokens.forEach(t => {
+                            const shortMint = t.mint.substring(0,4) + '...' + t.mint.substring(t.mint.length-4);
+                            
+                            let iconHtml = `<div style="width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:12px; box-shadow:0 0 5px rgba(255,255,255,0.1);"><i class="fas fa-coins"></i></div>`;
+                            
+                            // Check if it's C3 Token
+                            const C3_MINT = 'C3CX1E9M6E4Xk4Bv8Vf4H1XqJYZwSj24n7KjAfaQaSZK';
+                            if (t.mint === C3_MINT) {
+                                iconHtml = `<img src="/static/img/c3-coin.png" style="width:28px; height:28px; border-radius:50%; box-shadow:0 0 5px rgba(255,255,255,0.1);">`;
+                            }
+
+                            html += `
+                                <div onclick="window.showTokenDetails('${shortMint}', '${t.mint}')" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.05); padding:12px 16px; border-radius:10px; margin-top:8px; cursor:pointer; transition:background 0.2s;" onmouseover="this.style.background='rgba(30,41,59,0.8)'" onmouseout="this.style.background='rgba(15,23,42,0.5)'">
+                                  <div style="display:flex; align-items:center; gap:10px;">
+                                    ${iconHtml}
+                                    <div style="display:flex; flex-direction:column;">
+                                        <span style="color:#f8fafc; font-weight:600; font-size:12px;">${shortMint}</span>
+                                        <span style="color:#94a3b8; font-size:10px;">SPL Token</span>
+                                    </div>
+                                  </div>
+                                  <div style="color:#f8fafc; font-weight:600; font-size:14px; font-family:monospace; letter-spacing:0.5px;">${t.amount.toLocaleString()}</div>
+                                </div>
+                            `;
+                        });
+                        otherContainer.innerHTML = html;
+                    }
+
+                    
+                    // Update swap balance if it's open
+                    if (typeof window.renderSwapUI === 'function') window.renderSwapUI();
+                }
+            }).catch(e => { 
+                if (loadingStatus) loadingStatus.style.display = 'none';
+                console.error('Balance fetch error', e); 
+                showToast('RPC 네트워크 지연으로 잔액을 불러오지 못했습니다. 잠시 후 다시 시도합니다.', 'error'); 
+                const errorHtml = '<span style="color:#ef4444;font-size:12px;">Error</span>';
+                if(usdtEl) usdtEl.innerHTML = errorHtml;
+                if(ddraEl) ddraEl.innerHTML = errorHtml;
+                if(solEl) solEl.innerHTML = errorHtml;
+            });
+        };
+        
+        updateBals(true);
+        if (window._deedraWalletInterval) clearInterval(window._deedraWalletInterval);
+        window._deedraWalletInterval = setInterval(() => updateBals(false), 10000); // 7-second live polling
+
+    } else {
+        notCreated.style.display = 'block';
+        created.style.display = 'none';
+    }
+};
+
+window.copyDeedraWallet = function() {
+    const pubKey = document.getElementById('deedraWalletAddress').getAttribute('data-full');
+    if (!pubKey) return;
+    navigator.clipboard.writeText(pubKey).then(() => {
+        showToast('주소가 복사되었습니다.', 'success');
+    });
+};
+
+window.showWalletQr = function() {
+    const pubKey = document.getElementById('deedraWalletAddress').getAttribute('data-full');
+    if (!pubKey) return;
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(pubKey) + '&color=8b5cf6&bgcolor=ffffff';
+    
+    // Swal이 로드되어 있지 않으면 기본 알림창으로 대체하거나 커스텀 모달 생성
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: '<span style="font-size:18px; color:#1e293b;">내 지갑 주소 QR</span>',
+            html: '<img src="' + qrUrl + '" style="border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.1); padding:10px; background:#fff; margin-bottom:15px;"><br><div style="font-size:12px; color:#64748b; font-family:monospace; word-break:break-all;">' + pubKey + '</div>',
+            confirmButtonText: '닫기',
+            confirmButtonColor: '#8b5cf6'
+        });
+    } else {
+        // 기존 모달 시스템 재사용 또는 간단한 레이어 생성
+        const existingOverlay = document.getElementById('qrModalOverlay');
+        if (existingOverlay) existingOverlay.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'qrModalOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+        
+        const content = document.createElement('div');
+        content.style.background = '#fff';
+        content.style.padding = '20px';
+        content.style.borderRadius = '15px';
+        content.style.textAlign = 'center';
+        content.style.maxWidth = '300px';
+        content.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+        
+        content.innerHTML = `
+            <h3 style="margin:0 0 15px 0; color:#1e293b; font-size:18px;">내 지갑 주소 QR</h3>
+            <img src="${qrUrl}" style="width:200px; height:200px; border-radius:10px; border:1px solid #e2e8f0; padding:10px; margin-bottom:15px;">
+            <div style="font-size:11px; color:#64748b; font-family:monospace; word-break:break-all; margin-bottom:15px;">${pubKey}</div>
+            <button onclick="document.getElementById('qrModalOverlay').remove()" style="background:#8b5cf6; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">닫기</button>
+        `;
+        
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+    }
+};
+
+
+
+window.useDeedraWalletForWithdraw = function() {
+    if (userData && userData.deedraWallet && userData.deedraWallet.publicKey) {
+        const addrInput = document.getElementById('withdrawAddress');
+        if (addrInput) {
+            addrInput.value = userData.deedraWallet.publicKey;
+            showToast('디드라 지갑 주소가 자동 입력되었습니다.', 'success');
+        }
+    }
+};
+
+const oldShowWithdrawModal = window.showWithdrawModal;
+window.showWithdrawModal = function() {
+    oldShowWithdrawModal();
+    const btn = document.getElementById('btnUseDeedraWallet');
+    if (btn) {
+        if (userData && userData.deedraWallet && userData.deedraWallet.publicKey) {
+            btn.style.display = 'block';
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+};
+
+
+window.showWalletSend = function() {
+    const pubKey = document.getElementById('deedraWalletAddress').getAttribute('data-full');
+    if (!pubKey) return;
+    
+    const existingOverlay = document.getElementById('sendModalOverlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'sendModalOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+    
+    const content = document.createElement('div');
+
+
+window.openUserTicketDetail = function(ticketId) {
+    if (!window._cachedUserTickets) return;
+    const ticket = window._cachedUserTickets.find(t => t.id === ticketId);
+    if (!ticket) return;
+    
+    document.getElementById('utdTitle').textContent = ticket.title || '(제목 없음)';
+    document.getElementById('utdDate').textContent = fmtDate(ticket.createdAt);
+    document.getElementById('utdContent').textContent = ticket.content || '';
+    
+    const replyBox = document.getElementById('utdReplyBox');
+    const adminReplyBox = document.getElementById('utdAdminReplyBox');
+    
+    if (ticket.reply) {
+        replyBox.style.display = 'block';
+        document.getElementById('utdReply').textContent = ticket.reply;
+    } else {
+        replyBox.style.display = 'none';
+    }
+    
+    if (ticket.adminReply) {
+        adminReplyBox.style.display = 'block';
+        document.getElementById('utdAdminReply').textContent = ticket.adminReply;
+    } else {
+        adminReplyBox.style.display = 'none';
+    }
+    
+    document.getElementById('userTicketDetailModal').classList.remove('hidden');
 };
