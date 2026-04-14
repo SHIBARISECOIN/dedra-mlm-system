@@ -1268,6 +1268,238 @@
         </div>
       </div>
 
+                </div>
+                
+                <button onclick="window.closeDwalletPromoModal()" style="width:100%; background:linear-gradient(90deg, #3b82f6, #8b5cf6); color:#fff; border:none; padding:14px; border-radius:12px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(59,130,246,0.3); transition:opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    확인 완료
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======== WALLET 페이지 ======== -->
+      <div id="walletPage" class="page">
+        <div class="page-scroll">
+          <!-- 디드라 전용 지갑 (D-WALLET) -->
+          <div class="menu-section" id="deedraWalletSection" style="margin-top:0; margin-bottom:16px;">
+            <div style="background:linear-gradient(135deg, #1e293b, #0f172a); border:1px solid #334155; border-radius:var(--radius-lg); padding:20px; position:relative; overflow:hidden; box-shadow:0 8px 25px rgba(0,0,0,0.3);">
+              <!-- Glow Effect -->
+              <div style="position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%); border-radius:50%;"></div>
+              <div style="position:absolute; bottom:-30px; left:-30px; width:120px; height:120px; background:radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%); border-radius:50%;"></div>
+              
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; position:relative; z-index:1;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div style="width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg, #3b82f6, #8b5cf6); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(59,130,246,0.4);">
+                    <i class="fas fa-wallet" style="color:#fff; font-size:12px;"></i>
+                  </div>
+                  <span style="color:#f8fafc; font-weight:800; font-size:16px; letter-spacing:0.5px;">D-WALLET</span>
+                </div>
+                <div style="display:flex; gap:4px;">
+                  <span style="font-size:10px; background:rgba(59,130,246,0.15); color:#60a5fa; padding:3px 8px; border-radius:12px; font-weight:900; border:1px solid rgba(59,130,246,0.3);">SOL</span>
+                  <span style="font-size:10px; background:rgba(245,158,11,0.15); color:#fcd34d; padding:3px 8px; border-radius:12px; font-weight:900; border:1px solid rgba(245,158,11,0.3);">BSC</span>
+                  <span style="font-size:10px; background:rgba(239,68,68,0.15); color:#fca5a5; padding:3px 8px; border-radius:12px; font-weight:900; border:1px solid rgba(239,68,68,0.3);">TRON</span>
+                </div>
+              </div>
+
+              <div id="deedraWalletNotCreated">
+                <div style="color:#94a3b8; font-size:13px; margin-bottom:16px; line-height:1.5;">
+                  팬텀 지갑 연결의 번거로움 없이,<br><strong style="color:#e2e8f0;">디드라 전용 핫월렛</strong>으로 수수료 혜택을 누리세요.
+                </div>
+                <button onclick="window.createDeedraWallet()" id="btnCreateDeedraWallet" style="width:100%; background:linear-gradient(90deg, #3b82f6, #8b5cf6); color:#fff; border:none; padding:14px; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(59,130,246,0.3); display:flex; align-items:center; justify-content:center; gap:8px; transition:transform 0.2s;">
+                  <i class="fas fa-sparkles"></i> <span data-i18n="wallet_create_btn">내 디드라 지갑 발급받기</span>
+                </button>
+              </div>
+
+              <div id="deedraWalletCreated" style="display:none; position:relative; z-index:1;">
+                <!-- Premium Wallet Address Card -->
+                <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.05); border-radius:16px; padding:20px 18px; margin-bottom:20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                  <div style="font-size:13px; color:#94a3b8; margin-bottom:18px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+                    <span data-i18n="wallet_my_address">나의 고유 주소 (Address)</span>
+                    <i class="fas fa-wallet" style="color:#8b5cf6;"></i>
+                  </div>
+                  
+                  <!-- SOL Address -->
+                  <div style="margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#60a5fa; margin-bottom:8px; font-weight:700;"><i class="fas fa-link"></i> SOLANA</div>
+                      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:rgba(0,0,0,0.3); padding:12px 14px; border-radius:10px;">
+                        <div id="deedraWalletAddress" style="color:#f8fafc; font-size:13px; font-family:monospace; letter-spacing:0.5px;">-</div>
+                        <button onclick="window.copyAddress('sol')" style="background:transparent; border:none; color:#60a5fa; cursor:pointer; font-size:16px; padding:0; display:flex; transition:all 0.2s;"><i class="far fa-copy"></i></button>
+                      </div>
+                  </div>
+
+                  <!-- BSC Address -->
+                  <div style="margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.04);">
+                      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#fcd34d; margin-bottom:8px; font-weight:700;"><i class="fas fa-link"></i> BSC (BEP-20)</div>
+                      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:rgba(0,0,0,0.3); padding:12px 14px; border-radius:10px;">
+                        <div id="deedraWalletBscAddress" style="color:#f8fafc; font-size:13px; font-family:monospace; letter-spacing:0.5px;">발급 중...</div>
+                        <button onclick="window.copyAddress('bsc')" style="background:transparent; border:none; color:#fcd34d; cursor:pointer; font-size:16px; padding:0; display:flex; transition:all 0.2s;"><i class="far fa-copy"></i></button>
+                      </div>
+                  </div>
+
+                  <!-- TRON Address -->
+                  <div>
+                      <div style="display:flex; align-items:center; gap:6px; font-size:11px; color:#fca5a5; margin-bottom:8px; font-weight:700;"><i class="fas fa-link"></i> TRON (TRC-20)</div>
+                      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:rgba(0,0,0,0.3); padding:12px 14px; border-radius:10px;">
+                        <div id="deedraWalletTronAddress" style="color:#f8fafc; font-size:13px; font-family:monospace; letter-spacing:0.5px;">발급 중...</div>
+                        <button onclick="window.copyAddress('tron')" style="background:transparent; border:none; color:#fca5a5; cursor:pointer; font-size:16px; padding:0; display:flex; transition:all 0.2s;"><i class="far fa-copy"></i></button>
+                      </div>
+                  </div>
+                </div>
+
+                                <!-- Owned Coins (Balances) -->
+                <div style="margin-bottom:16px;">
+                  <div style="font-size:13px; color:#94a3b8; font-weight:bold; margin-bottom:10px; padding-left:4px; display:flex; align-items:center; gap:10px;">
+                    <span data-i18n="wallet_owned_coins">보유 자산 (Assets)</span>
+                    <span id="deedraWalletLoadingStatus" style="font-size:11.5px; color:#a78bfa; display:none; font-weight:600; text-shadow:0 0 8px rgba(167,139,250,0.5); animation:pulse 1.5s cubic-bezier(0.4,0,0.6,1) infinite;">
+                      <i class="fas fa-circle-notch fa-spin" style="margin-right:4px;"></i>잔액 연동 중...
+                    </span>
+                  </div>
+                  
+                  <div style="display:flex; flex-direction:column; gap:10px;">
+                    <!-- USDT Row -->
+                    <div onclick="window.showMultiChainUsdtDetails()" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.05); padding:14px 16px; border-radius:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(30,41,59,0.8)'; this.style.borderColor='rgba(16,185,129,0.3)'" onmouseout="this.style.background='rgba(15,23,42,0.5)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="/static/img/usdt-coin.png" style="width:34px; height:34px; border-radius:50%; box-shadow:0 0 10px rgba(16,185,129,0.3); object-fit:contain; flex-shrink:0;" alt="USDT">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#f8fafc; font-weight:800; font-size:15px; letter-spacing:0.5px;">USDT</span>
+                            <span style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:2px;">Total (SOL+BSC+TRX)</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                          <div id="deedraWalletUsdtBalance" style="color:#10b981; font-weight:800; font-size:15px; font-family:monospace; letter-spacing:0.5px;"><i class="fas fa-spinner fa-spin" style="font-size:13px; margin-right:4px;"></i>조회중...</div>
+                          <i class="fas fa-chevron-right" style="color:#64748b; font-size:12px;"></i>
+                      </div>
+                    </div>
+                    
+                    <!-- DDRA Row -->
+                    <div onclick="window.showTokenDetails('DDRA', 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv')" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.05); padding:14px 16px; border-radius:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(30,41,59,0.8)'; this.style.borderColor='rgba(192,132,252,0.3)'" onmouseout="this.style.background='rgba(15,23,42,0.5)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="/static/img/ddra-coin-v2.png" style="width:34px; height:34px; border-radius:50%; box-shadow:0 0 10px rgba(139,92,246,0.3); object-fit:contain; flex-shrink:0;" alt="DDRA">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#f8fafc; font-weight:800; font-size:15px; letter-spacing:0.5px;">DDRA</span>
+                            <span style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:2px;">Solana Network</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                          <div id="deedraWalletDdraBalance" style="color:#c084fc; font-weight:800; font-size:15px; font-family:monospace; letter-spacing:0.5px;"><i class="fas fa-spinner fa-spin" style="font-size:13px; margin-right:4px;"></i>조회중...</div>
+                          <i class="fas fa-chevron-right" style="color:#64748b; font-size:12px;"></i>
+                      </div>
+                    </div>
+
+                    <!-- SOL Row -->
+                    <div onclick="window.showTokenDetails('SOL', 'So11111111111111111111111111111111111111112')" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.05); padding:14px 16px; border-radius:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(30,41,59,0.8)'; this.style.borderColor='rgba(20,241,149,0.3)'" onmouseout="this.style.background='rgba(15,23,42,0.5)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="/static/img/solana-logo.png" style="width:34px; height:34px; border-radius:50%; box-shadow:0 0 10px rgba(20,241,149,0.3); object-fit:contain; flex-shrink:0;" alt="SOL">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#f8fafc; font-weight:800; font-size:15px; letter-spacing:0.5px;">SOL</span>
+                            <span style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:2px;">Solana Network</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                          <div id="deedraWalletBalance" style="color:#f8fafc; font-weight:800; font-size:15px; font-family:monospace; letter-spacing:0.5px;"><i class="fas fa-spinner fa-spin" style="font-size: 13px; margin-right:4px;"></i>조회중...</div>
+                          <i class="fas fa-chevron-right" style="color:#64748b; font-size:12px;"></i>
+                      </div>
+                    </div>
+                    
+                    
+                    <!-- BNB Row -->
+                    <div onclick="window.showTokenDetails('BNB', '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c')" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.05); padding:14px 16px; border-radius:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(30,41,59,0.8)'; this.style.borderColor='rgba(243,186,47,0.3)'" onmouseout="this.style.background='rgba(15,23,42,0.5)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="/static/img/bnb-logo.png" style="width:34px; height:34px; border-radius:50%; box-shadow:0 0 10px rgba(243,186,47,0.3); object-fit:contain; flex-shrink:0;" alt="BNB">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#f8fafc; font-weight:800; font-size:15px; letter-spacing:0.5px;">BNB</span>
+                            <span style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:2px;">Binance Smart Chain</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                          <div id="deedraWalletBnbBalance" style="color:#f8fafc; font-weight:800; font-size:15px; font-family:monospace; letter-spacing:0.5px;"><i class="fas fa-spinner fa-spin" style="font-size: 13px; margin-right:4px;"></i>조회중...</div>
+                          <i class="fas fa-chevron-right" style="color:#64748b; font-size:12px;"></i>
+                      </div>
+                    </div>
+                    
+                    <!-- TRX Row -->
+                    <div onclick="window.showTokenDetails('TRX', '0x85EAC5Ac2F758618dFa09bDbe0cf174e7d574D5B')" style="display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.05); padding:14px 16px; border-radius:12px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.background='rgba(30,41,59,0.8)'; this.style.borderColor='rgba(239,68,68,0.3)'" onmouseout="this.style.background='rgba(15,23,42,0.5)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                      <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="/static/img/trx-logo.png" style="width:34px; height:34px; border-radius:50%; box-shadow:0 0 10px rgba(239,68,68,0.3); object-fit:contain; flex-shrink:0;" alt="TRX">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="color:#f8fafc; font-weight:800; font-size:15px; letter-spacing:0.5px;">TRX</span>
+                            <span style="font-size:11px; color:#94a3b8; font-weight:600; margin-top:2px;">TRON Network</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                          <div id="deedraWalletTrxBalance" style="color:#f8fafc; font-weight:800; font-size:15px; font-family:monospace; letter-spacing:0.5px;"><i class="fas fa-spinner fa-spin" style="font-size: 13px; margin-right:4px;"></i>조회중...</div>
+                          <i class="fas fa-chevron-right" style="color:#64748b; font-size:12px;"></i>
+                      </div>
+                    </div>
+                    
+<!-- Dynamic area for Other Tokens -->
+                    <div id="deedraWalletOtherTokens" style="display:flex; flex-direction:column; gap:10px;"></div>
+                  </div>
+                </div>
+                <!-- USDT Deposit/Withdrawal Recommendation Banner -->
+                <div style="background:linear-gradient(90deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1)); border:1px solid rgba(16, 185, 129, 0.3); border-radius:12px; padding:12px; margin-top:16px; display:flex; align-items:center; gap:12px;">
+                    <div style="width:36px; height:36px; background:rgba(16, 185, 129, 0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#10b981; font-size:18px; flex-shrink:0; box-shadow:0 0 10px rgba(16, 185, 129, 0.3);">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div>
+                        <div data-i18n="wallet_banner_title" style="color:#f8fafc; font-size:13px; font-weight:800; margin-bottom:4px; letter-spacing:-0.5px;">💡 USDT 입출금은 디드라 지갑으로!</div>
+                        <div data-i18n="wallet_banner_desc" style="color:#94a3b8; font-size:11px; line-height:1.4; letter-spacing:-0.3px;">타 지갑 대비 <strong>빠른 전송</strong>과 <strong>가장 저렴한 수수료</strong> 혜택을 제공합니다.</div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display:flex; gap:12px; margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);">
+                    <button onclick="window.showWalletQr()" style="flex:1; background:rgba(167,139,250,0.1); border:1px solid rgba(167,139,250,0.2); color:#c084fc; padding:12px; border-radius:10px; cursor:pointer; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:8px; transition:all 0.2s;" onmouseover="this.style.background='rgba(167,139,250,0.2)'" onmouseout="this.style.background='rgba(167,139,250,0.1)'">
+                        <i class="fas fa-qrcode" style="font-size:18px;"></i>
+                        <span style="font-size:12px;" data-i18n="wallet_btn_receive">USDT 받기</span>
+                    </button>
+                    <button onclick="window.showWalletSend()" style="flex:1; background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.2); color:#60a5fa; padding:12px; border-radius:10px; cursor:pointer; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:8px; transition:all 0.2s;" onmouseover="this.style.background='rgba(96,165,250,0.2)'" onmouseout="this.style.background='rgba(96,165,250,0.1)'">
+                        <i class="fas fa-paper-plane" style="font-size:18px;"></i>
+                        <span style="font-size:12px;" data-i18n="wallet_btn_send">USDT 보내기</span>
+                    </button>
+                    <button onclick="window.showWalletSwap()" style="flex:1; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); color:#10b981; padding:12px; border-radius:10px; cursor:pointer; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:8px; transition:all 0.2s;" onmouseover="this.style.background='rgba(16,185,129,0.2)'" onmouseout="this.style.background='rgba(16,185,129,0.1)'">
+                        <i class="fas fa-exchange-alt" style="font-size:18px;"></i>
+                        <span style="font-size:12px;" data-i18n="wallet_btn_swap">스왑</span>
+                    </button>
+                </div>
+
+                <!-- History Button -->
+                <button onclick="window.showWalletHistory()" style="width:100%; margin-top:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#94a3b8; padding:12px; border-radius:10px; cursor:pointer; font-weight:600; display:flex; justify-content:center; align-items:center; gap:8px; transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#f8fafc'" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#94a3b8'">
+                    <i class="fas fa-history"></i>
+                    <span data-i18n="wallet_btn_history">전송 이력 및 솔스캔 확인 (History)</span>
+                </button>
+                <!-- D-WALLET Promo Grand Banner -->
+                <div onclick="window.showDwalletPromoModal()" style="margin-top:20px; margin-bottom: 20px; background:linear-gradient(135deg, rgba(30,41,59,0.8), rgba(79,70,229,0.3)); border:1px solid rgba(99,102,241,0.5); border-radius:12px; padding:16px; cursor:pointer; display:flex; align-items:center; gap:14px; box-shadow:0 4px 15px rgba(0,0,0,0.2); transition:all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(99,102,241,0.3)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'">
+                    <div style="width:44px; height:44px; background:linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius:50%; display:flex; justify-content:center; align-items:center; flex-shrink:0; box-shadow:0 0 15px rgba(139,92,246,0.4);">
+                        <i class="fas fa-globe" style="color:#fff; font-size:20px;"></i>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="color:#c084fc; font-size:11px; font-weight:900; margin-bottom:4px; letter-spacing:0.5px;">ALL-IN-ONE SYSTEM</div>
+                        <div style="color:#f8fafc; font-size:14px; font-weight:800; line-height:1.3; letter-spacing:-0.5px;">복잡한 네트워크 구분 없이<br>USDT 입금을 한 번에! 🚀</div>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:#6366f1; font-size:14px;"></i>
+                </div>
+</button>
+
+
+              </div>
+              
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ======== MORE 페이지 ======== -->
+      <div id="morePage" class="page">
+        <div class="page-scroll">
+
+          <!-- 거래 내역 (상단) -->
+          <div class="menu-section" style="margin-top:0;padding-top:16px;">
+            <div class="menu-section-title large" data-i18n="txHistory">📊 거래 내역</div>
+            <div class="tx-tabs" id="txTabsContainer" style="overflow-x:auto; white-space:nowrap; padding-bottom:4px;">
+              <button class="tx-tab active" onclick="switchTxTab('deposit', this)" data-i18n="txDeposit">입금</button>
+
       <!-- ======== MORE 페이지 ======== -->
       <div id="morePage" class="page">
         <div class="page-scroll">
@@ -1493,6 +1725,10 @@
       <button class="nav-item" id="nav-play" onclick="switchPage('play')">
         <i class="fas fa-gamepad"></i>
         <span>Play</span>
+      </button>
+      <button class="nav-item" id="nav-wallet" onclick="switchPage('wallet')">
+        <i class="fas fa-wallet"></i>
+        <span>Wallet</span>
       </button>
       <button class="nav-item" id="nav-more" onclick="switchPage('more')">
         <i class="fas fa-ellipsis-h"></i>
@@ -1974,33 +2210,7 @@
 
       <div id="ticketList" class="ticket-list"></div>
       
-      <!-- 1:1 문의 상세 모달 (내부 모달) -->
-      <div id="userTicketDetailModal" class="modal hidden" style="z-index: 10001;">
-        <div class="modal-overlay" onclick="closeModal('userTicketDetailModal')"></div>
-        <div class="modal-sheet">
-          <div class="modal-handle"></div>
-          <div class="modal-title">💬 문의 상세 내역</div>
-          <div class="modal-body" style="text-align: left; max-height: 70vh; overflow-y: auto;">
-            <div style="margin-bottom: 15px;">
-              <div style="font-size: 11px; color: var(--text2); margin-bottom: 4px;" id="utdDate">2026-04-14</div>
-              <div style="font-size: 16px; font-weight: 700; color: #fff;" id="utdTitle">제목</div>
-            </div>
-            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; font-size: 14px; color: #cbd5e1; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap;" id="utdContent">내용</div>
-            
-            <div id="utdReplyBox" style="display: none; margin-bottom: 20px;">
-              <div style="font-size: 13px; font-weight: bold; color: #fef08a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                🤖 AI 자동 답변
-              </div>
-              <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); padding: 15px; border-radius: 12px; font-size: 14px; color: #fefce8; line-height: 1.6; white-space: pre-wrap;" id="utdReply">답변 내용</div>
-            </div>
-
-            <div id="utdAdminReplyBox" style="display: none; margin-bottom: 20px;">
-              <div style="font-size: 13px; font-weight: bold; color: #86efac; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                🧑‍💻 관리자 답변
-              </div>
-              <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); padding: 15px; border-radius: 12px; font-size: 14px; color: #f0fdf4; line-height: 1.6; white-space: pre-wrap;" id="utdAdminReply">관리자 답변 내용</div>
-            </div>
-          </div>
+      
           <div class="modal-footer">
             <button class="btn btn-primary btn-full" onclick="closeModal('userTicketDetailModal')">확인</button>
           </div>

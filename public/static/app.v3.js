@@ -3,6 +3,46 @@
  * UI 설계안 기반 전면 개편
  */
 
+
+// ===== Impersonate Logic =====
+const urlParams = new URLSearchParams(window.location.search);
+const impToken = urlParams.get('impersonate');
+if (impToken) {
+  // We have a custom token. Let's clear any existing session and sign in.
+  localStorage.removeItem('deedra_session');
+  window.history.replaceState({}, document.title, window.location.pathname); // remove from URL
+  
+  if (window.FB && window.FB.signInWithCustomToken) {
+    window.FB.signInWithCustomToken(window.FB.auth, impToken).then((cred) => {
+      console.log('Impersonation successful:', cred.user.uid);
+      if (typeof window.onAuthReady === 'function') {
+         window.onAuthReady(cred.user);
+      } else {
+         window._pendingAuthUser = cred.user;
+      }
+    }).catch(e => {
+      alert('Impersonation failed: ' + e.message);
+      console.error(e);
+    });
+  } else {
+    // If FB is not fully loaded, wait a bit
+    const int = setInterval(() => {
+      if (window.FB && window.FB.signInWithCustomToken) {
+        clearInterval(int);
+        window.FB.signInWithCustomToken(window.FB.auth, impToken).then((cred) => {
+          console.log('Impersonation successful:', cred.user.uid);
+          if (typeof window.onAuthReady === 'function') {
+             window.onAuthReady(cred.user);
+          } else {
+             window._pendingAuthUser = cred.user;
+          }
+        }).catch(e => alert('Impersonation failed: ' + e.message));
+      }
+    }, 100);
+  }
+}
+// =============================
+
 // ===== 사운드 엔진 (Web Audio API) =====
 const SFX = (() => {
   const audioUrls = {
@@ -63,6 +103,33 @@ const SFX = (() => {
 // ===== 다국어(i18n) 번역 데이터 =====
 const TRANSLATIONS = {
   ko: {
+    walletLoadingBalance: '<i class="fas fa-spinner fa-spin" style="font-size:12px; margin-right:4px;"></i>조회중...',
+    wallet_my_address: '나의 고유 주소 (Address)',
+    wallet_create_btn: '내 디드라 지갑 발급받기',
+    wallet_owned_coins: '보유 코인',
+    wallet_banner_title: '💡 USDT 입출금은 디드라 지갑으로!',
+    wallet_banner_desc: '타 지갑 대비 <strong>빠른 전송</strong>과 <strong>가장 저렴한 수수료</strong> 혜택을 제공합니다.',
+    wallet_btn_receive: '받기',
+    wallet_btn_send: '보내기',
+    wallet_btn_swap: '스왑',
+    wallet_btn_history: '전송 이력 및 솔스캔 확인 (History)',
+    notiDownlineDepTitle: '💰 하부 파트너 입금 안내',
+    notiDownlineDepMsg: '[{name}] 파트너님이 {amount} USDT를 입금하여 하부 매출이 증가했습니다!',
+    org_personal_sales: '본인 매출:', org_total_sales: '전체 합계:', org_downlines: '하위 {n}명',
+    jp_win_title_me: "축하합니다!",
+    jp_win_title_other: "이번 주 잭팟 당첨자 발표!",
+    jp_win_sub_me: "이번 주 잭팟의 주인공!",
+    jp_win_sub_other: "누군가 거액의 잭팟을 독식했습니다!",
+    jp_btn_claim: "상금 수령하기",
+    jp_btn_close: "닫기 (다음 기회에...)",
+    jp_winner_me: "나 (본인)",
+    jp_draw_ing: "🎰 솔라나 블록해시 추첨 중...",
+    jp_search_target: "대상자 탐색 중",
+    jp_connect_hash: "솔라나 메인넷 해시 연동 중",
+    jp_prize_title: "당첨 상금 (USDT)",
+    jp_uid_title: "당첨자 UID",
+    jp_hash_title: "검증된 솔라나 추첨 블록해시",
+
 
     jackpot_transparency: '🔗 100% 투명한 블록체인 해시 추첨 방식',
     jackpot_prize_desc: '이번 주 누적 잭팟 상금 (출금 수수료 100% 적립)',
@@ -206,7 +273,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: '총 하부 인원 · 누적 수익',
     viewDetail: '상세보기 ›',
     withdrawNoticeText: '※ 처리 완료까지 1-3일 소요',
-    withdrawableUsdt: 'Available USDT',
+    withdrawableUsdt: '출금 가능 (USDT)',
     withdrawableDdra: '출금 가능 DDRA',
     withdrawableDdraLabel: '출금 가능 DDRA',
     tabGen1: '1대 조직',
@@ -430,6 +497,16 @@ const TRANSLATIONS = {
     logout: '로그아웃',
     // 모달
     modalDeposit: '💰 USDT 입금 신청',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> 내 디드라 지갑에서 다이렉트 입금',
+    depDeedraDirectAmount: '입금할 금액 (USDT)',
+    depDeedraDirectBtn: '즉시 입금',
+    depDeedraDirectDesc: '* 회사 지갑으로 즉시 전송되며 5초 내에 승인됩니다. (수수료 전액 무료)',
+    depManualTitle: '수동 입금 (타 지갑)',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> 내 디드라 지갑에서 다이렉트 입금',
+    depDeedraDirectAmount: '입금할 금액 (USDT)',
+    depDeedraDirectBtn: '즉시 입금',
+    depDeedraDirectDesc: '* 회사 지갑으로 즉시 전송되며 5초 내에 승인됩니다. (수수료 전액 무료)',
+    depManualTitle: '또는 수동 입금 (타 지갑)',
     depositAddrLabel: '회사 입금 주소 (Solana SPL)',
     depositAddrLoading: '주소 로딩중...',
     depositAmountLabel: '입금 금액 (USDT)',
@@ -789,7 +866,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 DDRA 현재 시세',
     earnSeeAll: '전체보기 ›',
     freezingNow: 'FREEZE 중',
-    withdrawableUsdt: 'Available USDT',
+    withdrawableUsdt: '출금 가능 (USDT)',
     withdrawableDdra: '출금 가능 DDRA',
     globalNetworkMap: '🌍 글로벌 라이브 네트워크',
     networkEarnings: '🌐 네트워크 수익',
@@ -805,6 +882,33 @@ const TRANSLATIONS = {
     panelTotalEarn: '총 누적 수익',
   },
   en: {
+    walletLoadingBalance: '<i class="fas fa-spinner fa-spin" style="font-size:12px; margin-right:4px;"></i>Loading...',
+    wallet_my_address: 'My Unique Address',
+    wallet_create_btn: 'Create My D-WALLET',
+    wallet_owned_coins: 'Owned Coins',
+    wallet_banner_title: '💡 Use D-WALLET for USDT!',
+    wallet_banner_desc: 'Enjoy <strong>faster transfers</strong> and the <strong>lowest fees</strong> compared to other wallets.',
+    wallet_btn_receive: 'Receive',
+    wallet_btn_send: 'Send',
+    wallet_btn_swap: 'Swap',
+    wallet_btn_history: 'History',
+    notiDownlineDepTitle: '💰 Downline Partner Deposit',
+    notiDownlineDepMsg: 'Partner [{name}] has deposited {amount} USDT. Downline sales increased!',
+    org_personal_sales: 'Personal Sales:', org_total_sales: 'Total Team Sales:', org_downlines: 'Downlines: {n}',
+    jp_win_title_me: "Congratulations!",
+    jp_win_title_other: "Weekly Jackpot Winner!",
+    jp_win_sub_me: "You are the winner of the weekly jackpot!",
+    jp_win_sub_other: "Someone won the massive jackpot!",
+    jp_btn_claim: "Claim Prize",
+    jp_btn_close: "Close (Maybe next time...)",
+    jp_winner_me: "Me",
+    jp_draw_ing: "🎰 Drawing Solana Blockhash...",
+    jp_search_target: "Searching for Winner",
+    jp_connect_hash: "Connecting to Solana Mainnet Hash",
+    jp_prize_title: "Winning Prize (USDT)",
+    jp_uid_title: "Winner UID",
+    jp_hash_title: "Verified Solana Draw Blockhash",
+
 
     jackpot_transparency: '🔗 100% Transparent Blockchain Hash Draw',
     jackpot_prize_desc: 'This week accumulated jackpot prize (100% withdrawal fee accumulated)',
@@ -939,8 +1043,8 @@ const TRANSLATIONS = {
     rank_referral: 'Referrals',
     rank_referral_unit: ' members',
     subMembers: 'Sub Members',
-    todayEarn: 'Today Earn',
-    todayEarnLabel: 'Today Earn',
+    todayEarn: "Today's Earnings",
+    todayEarnLabel: "Today's Earnings",
     todayEarnSummary: 'TODAY Earnings Summary',
     totalEarnSum: 'Total Earnings Sum',
     totalEarnings: 'Total Earnings',
@@ -1165,6 +1269,16 @@ const TRANSLATIONS = {
     appVersion: 'App Version',
     logout: 'Logout',
     modalDeposit: '💰 USDT Deposit Request',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> Direct Deposit from D-WALLET',
+    depDeedraDirectAmount: 'Amount to deposit (USDT)',
+    depDeedraDirectBtn: 'Instant Deposit',
+    depDeedraDirectDesc: '* Transferred instantly to company wallet, approved within 5s. (Zero fees)',
+    depManualTitle: 'Manual Deposit (Other Wallet)',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> Direct Deposit from D-WALLET',
+    depDeedraDirectAmount: 'Amount to deposit (USDT)',
+    depDeedraDirectBtn: 'Instant Deposit',
+    depDeedraDirectDesc: '* Transferred instantly to company wallet, approved within 5s. (Zero fees)',
+    depManualTitle: 'Or Manual Deposit (Other Wallets)',
     depositAddrLabel: 'Company Wallet Address (Solana SPL)',
     depositAddrLoading: 'Loading address...',
     depositAmountLabel: 'Deposit Amount (USDT)',
@@ -1274,7 +1388,7 @@ const TRANSLATIONS = {
     saveFail: 'Save failed: ',
     regFail: 'Registration failed: ',
     days: ' days',
-    units: '',
+    units: ' items',
     emptyProducts: 'No products',
     emptyAnnounce: 'No announcements',
     emptyTx: 'No transactions',
@@ -1536,6 +1650,32 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Total Earnings',
   },
   vi: {
+    walletLoadingBalance: '<i class="fas fa-spinner fa-spin" style="font-size:12px; margin-right:4px;"></i>Đang tải...',
+    wallet_my_address: 'Địa chỉ của tôi (Address)',
+    wallet_create_btn: 'Tạo ví Deedra của tôi',
+    wallet_owned_coins: 'Tiền đã sở hữu',
+    wallet_banner_title: '💡 Sử dụng Ví Deedra để nạp & rút USDT!',
+    wallet_banner_desc: 'Tận hưởng <strong>chuyển tiền nhanh hơn</strong> và <strong>phí thấp nhất</strong> so với các ví khác.',
+    wallet_btn_receive: 'Nhận',
+    wallet_btn_send: 'Gửi',
+    wallet_btn_swap: 'Hoán đổi',
+    notiDownlineDepTitle: '💰 Nạp tiền tuyến dưới',
+    notiDownlineDepMsg: 'Đối tác [{name}] đã nạp {amount} USDT. Doanh số tuyến dưới tăng!',
+    org_personal_sales: 'Doanh số cá nhân:', org_total_sales: 'Tổng nhóm:', org_downlines: 'Tuyến dưới {n}',
+    jp_win_title_me: "Chúc mừng!",
+    jp_win_title_other: "Người trúng giải độc đắc tuần này!",
+    jp_win_sub_me: "Bạn là người chiến thắng giải độc đắc tuần này!",
+    jp_win_sub_other: "Ai đó đã giành được giải độc đắc khổng lồ!",
+    jp_btn_claim: "Nhận tiền thưởng",
+    jp_btn_close: "Đóng (Hẹn lần sau...)",
+    jp_winner_me: "Tôi",
+    jp_draw_ing: "🎰 Đang quay Solana Blockhash...",
+    jp_search_target: "Đang tìm người trúng thưởng",
+    jp_connect_hash: "Đang kết nối băm Solana Mainnet",
+    jp_prize_title: "Số tiền trúng thưởng (USDT)",
+    jp_uid_title: "UID người trúng thưởng",
+    jp_hash_title: "Băm Solana đã xác minh",
+
 
     jackpot_transparency: '🔗 100% Xổ số Băm Chuỗi khối Minh bạch',
     jackpot_prize_desc: 'Giải độc đắc tích lũy tuần này (Tích lũy 100% phí rút tiền)',
@@ -1682,7 +1822,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: 'Tổng TV & Thu nhập',
     viewDetail: 'Chi tiết ›',
     withdrawNoticeText: '※ Xử lý trong 1-3 ngày',
-    withdrawableUsdt: 'Available USDT',
+    withdrawableUsdt: 'Có thể rút (USDT)',
     withdrawableDdra: 'DDRA có thể rút',
     withdrawableDdraLabel: 'DDRA có thể rút',
     tabGen1: 'Thế hệ 1',
@@ -1894,6 +2034,16 @@ const TRANSLATIONS = {
     appVersion: 'Phiên bản',
     logout: 'Đăng xuất',
     modalDeposit: '💰 Yêu cầu nạp USDT',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> Nạp trực tiếp từ Ví Deedra',
+    depDeedraDirectAmount: 'Số tiền nạp (USDT)',
+    depDeedraDirectBtn: 'Nạp ngay',
+    depDeedraDirectDesc: '* Chuyển ngay đến ví công ty và duyệt trong 5 giây. (Miễn phí hoàn toàn)',
+    depManualTitle: 'Nạp thủ công (Ví khác)',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> Nạp trực tiếp từ Ví Deedra',
+    depDeedraDirectAmount: 'Số tiền nạp (USDT)',
+    depDeedraDirectBtn: 'Nạp ngay',
+    depDeedraDirectDesc: '* Chuyển ngay đến ví công ty và duyệt trong 5 giây. (Miễn phí hoàn toàn)',
+    depManualTitle: 'Hoặc nạp thủ công (Ví khác)',
     depositAddrLabel: 'Địa chỉ ví công ty (Solana SPL)',
     depositAddrLoading: 'Đang tải địa chỉ...',
     depositAmountLabel: 'Số tiền nạp (USDT)',
@@ -2003,7 +2153,7 @@ const TRANSLATIONS = {
     saveFail: 'Lưu thất bại: ',
     regFail: 'Đăng ký thất bại: ',
     days: ' ngày',
-    units: '',
+    units: ' khoản',
     emptyProducts: 'Không có sản phẩm',
     emptyAnnounce: 'Không có thông báo',
     emptyTx: 'Không có giao dịch',
@@ -2253,7 +2403,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 Giá DDRA Hiện Tại',
     earnSeeAll: 'Xem tất cả ›',
     freezingNow: 'Đang FREEZE',
-    withdrawableUsdt: 'Available USDT',
+    withdrawableUsdt: 'Có thể rút (USDT)',
     withdrawableDdra: 'DDRA Có thể rút',
     networkEarnings: '🌐 Thu nhập Mạng lưới',
     networkDetail: 'Xem chi tiết',
@@ -2268,6 +2418,33 @@ const TRANSLATIONS = {
     panelTotalEarn: 'Tổng thu nhập tích lũy',
   },
   th: {
+    walletLoadingBalance: '<i class="fas fa-spinner fa-spin" style="font-size:12px; margin-right:4px;"></i>กำลังโหลด...',
+    wallet_my_address: 'ที่อยู่ของฉัน (Address)',
+    wallet_create_btn: 'สร้างกระเป๋า Deedra ของฉัน',
+    wallet_owned_coins: 'เหรียญที่ครอบครอง',
+    wallet_banner_title: '💡 ใช้ D-WALLET สำหรับการฝาก/ถอน USDT!',
+    wallet_banner_desc: 'รับสิทธิประโยชน์ <strong>การโอนที่เร็วกว่า</strong> และ <strong>ค่าธรรมเนียมที่ถูกที่สุด</strong> เมื่อเทียบกับกระเป๋าอื่น',
+    wallet_btn_receive: 'รับ',
+    wallet_btn_send: 'ส่ง',
+    wallet_btn_swap: 'สลับ',
+    wallet_btn_history: 'ประวัติ',
+    notiDownlineDepTitle: '💰 แจ้งเตือนการฝากเงินของดาวน์ไลน์',
+    notiDownlineDepMsg: 'พาร์ทเนอร์ [{name}] ได้ฝากเงิน {amount} USDT ยอดขายดาวน์ไลน์เพิ่มขึ้น!',
+    org_personal_sales: 'ยอดขายส่วนตัว:', org_total_sales: 'ยอดรวมทีม:', org_downlines: 'ดาวน์ไลน์ {n}',
+    jp_win_title_me: "ขอแสดงความยินดี!",
+    jp_win_title_other: "ประกาศผู้ชนะแจ็คพอตประจำสัปดาห์!",
+    jp_win_sub_me: "คุณคือผู้ชนะแจ็คพอตประจำสัปดาห์นี้!",
+    jp_win_sub_other: "มีคนถูกรางวัลแจ็คพอตก้อนโต!",
+    jp_btn_claim: "รับเงินรางวัล",
+    jp_btn_close: "ปิด (ไว้โอกาสหน้า...)",
+    jp_winner_me: "ฉัน",
+    jp_draw_ing: "🎰 กำลังสุ่ม Solana Blockhash...",
+    jp_search_target: "กำลังค้นหาผู้ชนะ",
+    jp_connect_hash: "กำลังเชื่อมต่อแฮช Solana Mainnet",
+    jp_prize_title: "เงินรางวัล (USDT)",
+    jp_uid_title: "UID ผู้ชนะ",
+    jp_hash_title: "บล็อกแฮช Solana ที่ตรวจสอบแล้ว",
+
 
     jackpot_transparency: '🔗 การจับรางวัลแฮชบล็อกเชนที่โปร่งใส 100%',
     jackpot_prize_desc: 'รางวัลแจ็คพอตสะสมสัปดาห์นี้ (สะสมค่าธรรมเนียมการถอน 100%)',
@@ -2414,7 +2591,7 @@ const TRANSLATIONS = {
     totalSubMembersEarn: 'สมาชิกย่อยทั้งหมด & รายได้',
     viewDetail: 'รายละเอียด ›',
     withdrawNoticeText: '※ ใช้เวลาดำเนินการ 1-3 วัน',
-    withdrawableUsdt: 'Available USDT',
+    withdrawableUsdt: 'สามารถถอนได้ (USDT)',
     withdrawableDdra: 'DDRA ที่ถอนได้',
     withdrawableDdraLabel: 'DDRA ที่ถอนได้',
     tabGen1: 'รุ่นที่ 1',
@@ -2625,6 +2802,16 @@ const TRANSLATIONS = {
     appVersion: 'เวอร์ชัน',
     logout: 'ออกจากระบบ',
     modalDeposit: '💰 คำขอฝาก USDT',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> ฝากตรงจากกระเป๋า Deedra',
+    depDeedraDirectAmount: 'จำนวนเงินที่ฝาก (USDT)',
+    depDeedraDirectBtn: 'ฝากทันที',
+    depDeedraDirectDesc: '* โอนเข้ากระเป๋าบริษัททันทีและอนุมัติภายใน 5 วินาที (ฟรีค่าธรรมเนียม)',
+    depManualTitle: 'ฝากด้วยตนเอง (กระเป๋าอื่น)',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> ฝากตรงจากกระเป๋า Deedra',
+    depDeedraDirectAmount: 'จำนวนเงินที่ฝาก (USDT)',
+    depDeedraDirectBtn: 'ฝากทันที',
+    depDeedraDirectDesc: '* โอนเข้ากระเป๋าบริษัททันทีและอนุมัติภายใน 5 วินาที (ฟรีค่าธรรมเนียม)',
+    depManualTitle: 'หรือฝากด้วยตนเอง (กระเป๋าอื่น)',
     depositAddrLabel: 'ที่อยู่กระเป๋าบริษัท (Solana SPL)',
     depositAddrLoading: 'กำลังโหลดที่อยู่...',
     depositAmountLabel: 'จำนวนเงินฝาก (USDT)',
@@ -2734,7 +2921,7 @@ const TRANSLATIONS = {
     saveFail: 'บันทึกล้มเหลว: ',
     regFail: 'ลงทะเบียนล้มเหลว: ',
     days: ' วัน',
-    units: '',
+    units: ' รายการ',
     emptyProducts: 'ไม่มีสินค้า',
     emptyAnnounce: 'ไม่มีประกาศ',
     emptyTx: 'ไม่มีรายการ',
@@ -2981,7 +3168,7 @@ const TRANSLATIONS = {
     ddraLivePrice: '💎 ราคา DDRA ปัจจุบัน',
     earnSeeAll: 'ดูทั้งหมด ›',
     freezingNow: 'กำลัง FREEZE',
-    withdrawableUsdt: 'Available USDT',
+    withdrawableUsdt: 'สามารถถอนได้ (USDT)',
     withdrawableDdra: 'DDRA ที่ถอนได้',
     networkEarnings: '🌐 รายได้เครือข่าย',
     networkDetail: 'ดูรายละเอียด',
@@ -3112,13 +3299,11 @@ let rankPromoSettings = null;
 // 0% = 하우스가 절대 못 이김(유저 유리), 100% = 하우스가 항상 이김(유저 항상 패)
 // 기본값은 각 게임별 정상 RTP 기반 (홀짝 4%, 주사위 6%, 슬롯 8%, 룰렛 2.7%, 바카라 1.1%, 포커 1%)
 let gameOdds = {
-  global:   { houseWinRate: 4 },   // 전체 게임 공통 (개별 설정이 없을 때 사용)
+  global:   { houseWinRate: 4 },   // 전체 게임 공통
+  crash:    { houseWinRate: 4 },
   oddeven:  { houseWinRate: 4 },
   dice:     { houseWinRate: 6 },
   slot:     { houseWinRate: 8 },
-  roulette: { houseWinRate: 3 },
-  baccarat: { houseWinRate: 1 },
-  poker:    { houseWinRate: 1 },
 };
 let gameOddsLoaded = false;
 
@@ -3130,7 +3315,7 @@ async function loadGameOdds() {
     if (snap.exists()) {
       const data = snap.data();
       // 필드명: oddeven_win = 유저 승률 → houseWinRate = 100 - win
-      const keys = ['oddeven','dice','slot','roulette','baccarat','poker'];
+      const keys = ['crash','oddeven','dice','slot'];
       keys.forEach(k => {
         const win = data[k + '_win'];
         if (win !== undefined) {
@@ -3310,7 +3495,7 @@ function updateVipBadgeUI() {
     const actionWrap = document.getElementById('vipBadgeActionWrap');
     const ownedWrap = document.getElementById('vipBadgeOwnedWrap');
 
-    if (window.userData && window.userData.hasVipBadge) {
+    if (userData && userData.hasVipBadge) {
         teaserWrap.style.display = 'none';
         actionWrap.style.display = 'none';
         ownedWrap.style.display = 'block';
@@ -3492,7 +3677,7 @@ async function initApp() {
     if (!userSnap.exists()) {
       await createUserData(currentUser);
     } else {
-      userData = userSnap.data();
+      userData = userSnap.data(); window.userData = userData;
       if (document.getElementById('autoCompoundSwitch')) {
         const isAcChecked = !!userData.autoCompound;
         document.getElementById('autoCompoundSwitch').checked = isAcChecked;
@@ -3549,7 +3734,7 @@ async function initApp() {
         }
 
         const newRank = newData.rank || 'G0';
-        userData = newData;
+        userData = newData; window.userData = userData;
         if (document.getElementById('autoCompoundSwitch')) {
           const isAcChecked = !!userData.autoCompound;
         document.getElementById('autoCompoundSwitch').checked = isAcChecked;
@@ -3680,7 +3865,7 @@ async function createUserData(user) {
     withdrawPin: null, centerId: null,
   };
 
-  await setDoc(doc(db, 'users', user.uid), userData);
+  await setDoc(doc(db, 'users', user.uid), userData); window.userData = userData;
   await setDoc(doc(db, 'wallets', user.uid), {
     userId: user.uid,
     usdtBalance: 0,
@@ -4000,7 +4185,7 @@ async function updateTodayEarnSummary(myInvestments) {
     // 플로팅 알림 (처음 로드 시)
     if (!window._profitPopShown) {
       window._profitPopShown = true;
-      showFloatingProfitPop('+$' + fmt(totalToday) + ' 오늘 수익!');
+      showFloatingProfitPop('+$' + fmt(totalToday) + ' ' + (typeof window.t === 'function' ? window.t('todayEarnLabel') : (typeof t === 'function' ? t('todayEarnLabel') : '오늘 수익')) + '!');
     }
   } else {
     // 투자도 없고 수익도 없으면 숨김
@@ -4202,6 +4387,32 @@ window.confirmGameWarning = function() {
 
 // ===== 탭 전환 =====
 
+
+window.tNoti = function(n) {
+  let title = n.title;
+  let message = n.message;
+  
+  if (n.transKey === 'noti_downline_deposit' || (n.title && n.title.includes('하부 파트너 입금 안내'))) {
+    title = t('notiDownlineDepTitle') || '💰 하부 파트너 입금 안내';
+    
+    let name = n.transArgs?.name || '';
+    let amount = n.transArgs?.amount || '';
+    if (!n.transKey && message) {
+      const m = message.match(/\[(.*?)\] 파트너님이 ([\d\.]+) USDT를/);
+      if (m) {
+        name = m[1];
+        amount = m[2];
+      }
+    }
+    
+    message = (t('notiDownlineDepMsg') || `[{name}] 파트너님이 {amount} USDT를 입금하여 하부 매출이 증가했습니다!`)
+      .replace('{name}', name)
+      .replace('{amount}', amount);
+  }
+  
+  return { ...n, title, message };
+};
+
 window.switchPage = function(page) {
   if (page === 'play') {
     const agreed = sessionStorage.getItem('gameWarningAgreed');
@@ -4265,6 +4476,7 @@ window.switchPage = function(page) {
         else if (page === 'play' && typeof updateGameUI === 'function') updateGameUI();
         else if (page === 'more' && typeof loadMorePage === 'function') loadMorePage();
         else if (page === 'podcast' && typeof window.loadUserPodcasts === 'function') window.loadUserPodcasts();
+        else if (page === 'wallet' && typeof window.renderDeedraWallet === 'function') window.renderDeedraWallet();
       } catch (err) {
         console.error("Error in page load function for " + page + ":", err);
       }
@@ -4525,7 +4737,7 @@ window.handleLogout = async function() {
   await signOut(auth);
   localStorage.removeItem('deedra_session');
   sessionStorage.removeItem('deedra_wallet_popup_shown');
-  currentUser = null; userData = null; walletData = null;
+  currentUser = null; userData = null; window.userData = null; walletData = null;
   showScreen('auth');
 };
 
@@ -4594,6 +4806,7 @@ window.animateValue = function(el, start, end, duration, formatFn) {
 };
 
 function updateHomeUI() {
+  if (window.renderDeedraWallet) window.renderDeedraWallet();
   setTimeout(() => { try { window.initGlobalMapAnimation && window.initGlobalMapAnimation(); }catch(e){} }, 300);
 
   if (!userData || !walletData) return;
@@ -4631,7 +4844,7 @@ function updateHomeUI() {
 
 
   const usdt = walletData.usdtBalance || 0;
-  const lockedUsdt = walletData.totalInvest || 0; // 투자된 원금 합계
+  const lockedUsdt = (walletData.totalInvest || 0) + (walletData.bonusInvest || 0); // 투자된 원금 합계 (보너스 포함)
   const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
   const p = deedraPrice || 0.5;
   // 총 자산 = 투자된 원금 + 잔여 USDT + ROI 수익 (bonusBalance, USDT 기준)
@@ -4897,21 +5110,23 @@ function renderTxList(txs, containerId) {
     el.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i>' + (t('emptyTx') || '거래 내역이 없습니다') + '</div>';
     return;
   }
-  const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮' };
+  const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮', swap: '🔄' };
   const statusTxt = { pending: t('statusPending') || '승인 대기', approved: t('statusApproved') || '완료', rejected: t('statusRejected') || '거부됨' };
 
   el.innerHTML = txs.map(tx => {
     const isPlus = ['deposit', 'bonus'].includes(tx.type);
+    const isNeutral = tx.type === 'swap';
     return `
     <div class="tx-item">
       
       <div class="tx-info">
         <div class="tx-title">${getTxTypeName(tx.type)}</div>
         <div class="tx-date">${fmtDate(tx.createdAt)}</div>
+        ${tx.type === 'withdrawal' ? `<div style="font-size:10px;margin-top:2px;"><span style="color:#ef4444">수수료: ${fmt(tx.feeUsdt !== undefined ? tx.feeUsdt : (tx.amountUsdt ? tx.amountUsdt*0.05 : 0))} USDT</span> | <span style="color:#10b981">실지급: ${fmt(tx.netUsdt !== undefined ? tx.netUsdt : (tx.amountUsdt ? tx.amountUsdt*0.95 : 0))} USDT</span></div>` : ''}
       </div>
       <div>
-        <div class="tx-amount ${isPlus ? 'plus' : 'minus'}">
-          ${tx.type === 'withdrawal' ? (isPlus ? '+' : '-') + fmt(tx.amountUsdt !== undefined ? tx.amountUsdt : tx.amount) + ' USDT' : (isPlus ? '+' : '-') + fmt(tx.amount) + ' ' + (tx.currency || 'USDT')}
+        <div class="tx-amount ${isNeutral ? 'neutral' : isPlus ? 'plus' : 'minus'}">
+          ${tx.type === 'swap' ? fmt(tx.amount) + ' ' + tx.currency + ' ➡️ ' + fmt(tx.toAmount) + ' ' + tx.toCurrency : tx.type === 'withdrawal' ? (isPlus ? '+' : '-') + fmt(tx.amountUsdt !== undefined ? tx.amountUsdt : tx.amount) + ' USDT' : (isPlus ? '+' : '-') + fmt(tx.amount) + ' ' + (tx.currency || 'USDT')}
         </div>
         <div class="tx-status">${statusTxt[tx.status] || tx.status}</div>
       </div>
@@ -4970,19 +5185,19 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
     };
 
     // Fetch Transactions
-    if (['deposit', 'withdrawal', 'invest'].includes(typeFilter)) {
+    if (['deposit', 'withdrawal', 'invest', 'swap'].includes(typeFilter)) {
       let q;
       if (typeFilter === 'invest') {
-         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', 'invest'), limit(5000));
+         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', 'invest'), limit(10000));
       } else {
-         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(5000));
+         q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), where('type', '==', typeFilter), limit(10000));
       }
       const snap = await getDocs(q);
       const fetchedTxs = snap.docs.map(d => ({ id: d.id, _collection: 'transactions', ...d.data() }));
       txs = txs.concat(fetchedTxs);
       
       if (typeFilter === 'invest') {
-        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(5000));
+        const invQ = query(collection(db, 'investments'), where('userId', '==', currentUser.uid), limit(10000));
         const invSnap = await getDocs(invQ);
         const fetchedInvs = invSnap.docs.map(d => ({
           id: d.id,
@@ -4999,18 +5214,18 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
     // Fetch Bonuses
     let qList = [];
     if (typeFilter === 'invest') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', 'in', ['daily_roi', 'roi', 'roi_income']), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', 'in', ['daily_roi', 'roi', 'roi_income']), limit(10000)));
     } else if (typeFilter === 'direct_bonus') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'direct_bonus'), limit(10000)));
     } else if (typeFilter === 'rank_bonus') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(5000)));
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_bonus'), limit(10000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_gap_passthru'), limit(10000)));
     } else if (typeFilter === 'rank_matching') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(5000)));
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(5000)));
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_matching'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override_1pct'), limit(10000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_equal_or_higher_override'), limit(10000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'rank_matching'), limit(10000)));
     } else if (typeFilter === 'center_fee') {
-      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(5000)));
+      qList.push(query(collection(db, 'bonuses'), where('userId', '==', currentUser.uid), where('type', '==', 'center_fee'), limit(10000)));
     }
 
     for (const q of qList) {
@@ -5024,14 +5239,9 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
     txs = txs.filter(tx => tx.status !== 'rejected' && tx.status !== 'failed');
     window.currentTxsData = txs; 
 
-    // Initialize Date Filter
-    const dateInput = document.getElementById('txHistoryDate');
-    if (dateInput && !dateInput.value && !window.txDateInitialized) {
-        const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-        dateInput.value = todayKST;
-        window.txDateInitialized = true;
-    }
+    // Removed automatic today date filter initialization
     
+    const dateInput = document.getElementById('txHistoryDate');
     let filterDate = dateInput ? dateInput.value : '';
 
     if (txs.length === 0) {
@@ -5051,15 +5261,6 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
       if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>' + (t('emptyTx') || '내역이 없습니다') + '</div>';
       return;
     }
-
-    // Grouping by date
-    const grouped = {};
-    filteredTxs.forEach(tx => {
-        const dStr = getKSTDate(getSortTime(tx));
-        if (!grouped[dStr]) grouped[dStr] = [];
-        grouped[dStr].push(tx);
-    });
-
 
     const typeLabel = {
       'roi': t('dailyRoiLabel') || '일일 데일리 수익',
@@ -5100,6 +5301,11 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
                 details = `만기: ${item.durationDays || 360}일 (${rate}%/일) - ${item.status==='active'?'진행중':'종료'}`;
             } else {
                 const sPending = t('statusPending') || '처리중'; const sHeld = t('statusHeld') || '보류중'; const sRejected = t('statusRejected') || '거절됨'; const sCompleted = t('statusApproved') || '완료'; details = item.status === 'pending' ? sPending : (item.status === 'held' ? sHeld : (item.status === 'rejected' ? sRejected : sCompleted));
+                if (item.type === 'withdrawal') {
+                    const fUsdt = item.feeUsdt !== undefined ? item.feeUsdt : (item.amountUsdt ? item.amountUsdt * 0.05 : 0);
+                    const rUsdt = item.netUsdt !== undefined ? item.netUsdt : (item.amountUsdt ? item.amountUsdt - fUsdt : 0);
+                    details += `<br><span style="color:#ef4444">수수료: ${fmt(fUsdt)} USDT</span> | <span style="color:#10b981">실지급: ${fmt(rUsdt)} USDT</span>`;
+                }
                 if (item.txid) {
                     const shortTxid = item.txid.length > 20 ? item.txid.substring(0, 10) + '...' + item.txid.substring(item.txid.length - 10) : item.txid;
                     details += `<br>TXID: <a href="https://solscan.io/tx/${item.txid}" target="_blank" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${shortTxid}</a>`;
@@ -5111,6 +5317,13 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
         let amtValue = item.amountUsdt !== undefined ? item.amountUsdt : item.amount;
         let currency = (item.type === 'withdrawal') ? 'USDT' : (item.currency || 'USDT');
 
+        let currencyDisplay = currency;
+        if (currency.toUpperCase() === 'DDRA') {
+            currencyDisplay = `<img src="/static/img/ddra-coin.png" style="height:14px;vertical-align:text-bottom;margin-right:2px;margin-bottom:2px;" alt="DDRA"> DDRA`;
+        } else if (currency.toUpperCase() === 'C3') {
+            currencyDisplay = `<img src="/static/img/c3-coin.png" style="height:16px;vertical-align:text-bottom;margin-right:2px;margin-bottom:2px;" alt="C3"> C3`;
+        }
+
         return `
         <div class="tx-item">
           <div class="tx-info">
@@ -5119,7 +5332,7 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
             <div class="tx-date" style="font-size:10px;color:var(--text2);">${details}</div>
           </div>
           <div>
-            <div class="tx-amount ${amtColor}">${amtSign}${fmt(amtValue)} ${currency}</div>
+            <div class="tx-amount ${amtColor}">${amtSign}${fmt(amtValue)} ${currencyDisplay}</div>
             <div class="tx-status" style="color:${item.status==='pending' ? 'var(--yellow)' : (item.status==='held' ? 'var(--orange)' : (item.status==='rejected' ? 'var(--red)' : 'var(--green)'))}">
               ${isBonus ? (t('statusApproved') || '완료') : (item.status === 'pending' ? (t('statusPending') || '처리중') : (item.status === 'held' ? (t('statusHeld') || '보류중') : (item.status === 'rejected' ? (t('statusRejected') || '거절됨') : (t('statusApproved') || '완료'))))}
             </div>
@@ -5127,60 +5340,81 @@ async function loadTxHistory(typeFilter = window.currentTxTab) {
         </div>`;
     };
 
-    let html = '';
-    for (const dStr of Object.keys(grouped).sort((a,b) => b.localeCompare(a))) {
-        const dayTxs = grouped[dStr];
-        let totalPlus = 0;
-        let totalMinus = 0;
+    window._filteredTxs = filteredTxs;
+    window._txHistoryPage = 1;
 
-        dayTxs.forEach(tx => {
-            const isBonus = tx._collection === 'bonuses';
-            let amtSign = (tx.type === 'withdrawal' || tx.type === 'invest' && !isBonus) ? '-' : '+';
-            let amtValue = tx.amountUsdt !== undefined ? tx.amountUsdt : tx.amount;
-            if (amtSign === '+') totalPlus += Number(amtValue||0);
-            else totalMinus += Number(amtValue||0);
+    window.renderTxHistoryPage = () => {
+        const pageTxs = window._filteredTxs.slice(0, window._txHistoryPage * 10);
+        
+        // Grouping by date
+        const grouped = {};
+        pageTxs.forEach(tx => {
+            const dStr = getKSTDate(getSortTime(tx));
+            if (!grouped[dStr]) grouped[dStr] = [];
+            grouped[dStr].push(tx);
         });
 
-        const dayId = 'day_' + dStr.replace(/-/g, '') + '_' + typeFilter;
-        let tabLabel = tabNameMap[typeFilter] || '내역';
-        
-        let amtStrArr = [];
-        if (totalPlus > 0) amtStrArr.push('+' + fmt(totalPlus));
-        if (totalMinus > 0) amtStrArr.push('-' + fmt(totalMinus));
-        let amtStr = amtStrArr.join(' / ') + ' USDT';
-        if (totalPlus === 0 && totalMinus === 0) amtStr = '0 USDT';
-        
-        let colorClass = (totalPlus > 0 && totalMinus === 0) ? 'plus' : ((totalMinus > 0 && totalPlus === 0) ? 'minus' : '');
+        let html = '';
+        for (const dStr of Object.keys(grouped).sort((a,b) => b.localeCompare(a))) {
+            const dayTxs = grouped[dStr];
+            let totalPlus = 0;
+            let totalMinus = 0;
 
-        html += `
-        <div class="tx-day-group" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg2);">
-            <div class="tx-day-header" onclick="document.getElementById('${dayId}').style.display = document.getElementById('${dayId}').style.display === 'none' ? 'block' : 'none'" style="padding: 16px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-size: 13px; color: var(--text2); margin-bottom: 4px;">${dStr}</div>
-                    <div style="font-weight: bold; font-size: 15px; color: var(--text);">
-                        ${(t('txCountFormat') || '{type} 총 {n}건').replace('{type}', tabLabel).replace('{n}', dayTxs.length)}
+            dayTxs.forEach(tx => {
+                const isBonus = tx._collection === 'bonuses';
+                let amtSign = (tx.type === 'withdrawal' || tx.type === 'invest' && !isBonus) ? '-' : '+';
+                let amtValue = tx.amountUsdt !== undefined ? tx.amountUsdt : tx.amount;
+                if (amtSign === '+') totalPlus += Number(amtValue||0);
+                else totalMinus += Number(amtValue||0);
+            });
+
+            const dayId = 'day_' + dStr.replace(/-/g, '') + '_' + typeFilter;
+            let tabLabel = tabNameMap[typeFilter] || '내역';
+            
+            let amtStrArr = [];
+            if (totalPlus > 0) amtStrArr.push('+' + fmt(totalPlus));
+            if (totalMinus > 0) amtStrArr.push('-' + fmt(totalMinus));
+            let amtStr = amtStrArr.join(' / ') + ' USDT';
+            if (totalPlus === 0 && totalMinus === 0) amtStr = '0 USDT';
+            
+            let colorClass = (totalPlus > 0 && totalMinus === 0) ? 'plus' : ((totalMinus > 0 && totalPlus === 0) ? 'minus' : '');
+
+            html += `
+            <div class="tx-day-group" style="margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg2);">
+                <div class="tx-day-header" onclick="document.getElementById('${dayId}').style.display = document.getElementById('${dayId}').style.display === 'none' ? 'block' : 'none'" style="padding: 16px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 13px; color: var(--text2); margin-bottom: 4px;">${dStr}</div>
+                        <div style="font-weight: bold; font-size: 15px; color: var(--text);">
+                            ${(t('txCountFormat') || '{type} 총 {n}건').replace('{type}', tabLabel).replace('{n}', dayTxs.length)}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="tx-amount ${colorClass}" style="font-size: 16px; margin-bottom: 4px; font-weight: bold;">
+                            ${amtStr}
+                        </div>
+                        <div style="color: var(--text2); font-size: 11px;"><i class="fas fa-chevron-down"></i> 상세 보기</div>
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <div class="tx-amount ${colorClass}" style="font-size: 16px; margin-bottom: 4px; font-weight: bold;">
-                        ${amtStr}
-                    </div>
-                    <div style="color: var(--text2); font-size: 11px;"><i class="fas fa-chevron-down"></i> 상세 보기</div>
+                <div id="${dayId}" style="display: none; padding: 4px 8px 8px 8px; background: var(--bg); ">
+                    ${dayTxs.map(renderItem).join('')}
                 </div>
             </div>
-            <div id="${dayId}" style="display: none; padding: 4px 8px 8px 8px; background: var(--bg); ">
-                ${dayTxs.map(renderItem).join('')}
-            </div>
-        </div>
-        `;
-    }
+            `;
+        }
 
-    listEl.innerHTML = html;
+        if (window._filteredTxs.length > window._txHistoryPage * 10) {
+            html += `<div class="load-more-btn" style="text-align:center; padding:12px; margin-bottom:20px; cursor:pointer; background:rgba(255,255,255,0.05); border-radius:8px; color:#10b981; font-weight:bold;" onclick="window._txHistoryPage++; window.renderTxHistoryPage();">▼ 더보기 (${pageTxs.length} / ${window._filteredTxs.length})</div>`;
+        }
+        
+        listEl.innerHTML = html;
+    };
+
+    window.renderTxHistoryPage();
 
     
   } catch (err) {
     console.error('loadTxHistory error:', err);
-    if (listEl) listEl.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><br>' + (t('emptyTx') || '거래 내역이 없습니다') + '</div>';
+    if (listEl) listEl.innerHTML = '<div class="empty-state" style="color:red;font-size:12px;padding:20px;word-break:break-all;"><i class="fas fa-exclamation-triangle"></i><br>Error: ' + err.message + '</div>';
   }
 }
 
@@ -5647,37 +5881,71 @@ window.showDepositModal = async function() {
   } catch(e) { console.error("Bear market ui err:", e); }
 };
 
+
 async function loadCompanyWallet() {
   try {
     const { doc, getDoc, db } = window.FB;
-    // Check new structure first
     const snapNew = await getDoc(doc(db, 'settings', 'companyWallets'));
-    const addr = document.getElementById('companyWalletAddr');
-    if (!addr) return;
+    const container = document.getElementById('companyWalletContainer');
     
+    let wallets = [];
     if (snapNew.exists() && snapNew.data().wallets && snapNew.data().wallets.length > 0) {
-      addr.textContent = snapNew.data().wallets[0].address || '주소 미설정 (관리자 문의)';
-      return;
-    }
-    
-    // Fallback to old structure if not found
-    const snapOld = await getDoc(doc(db, 'settings', 'wallets'));
-    if (snapOld.exists()) {
-      addr.textContent = snapOld.data().trc20 || snapOld.data().solana || '주소 미설정 (관리자 문의)';
+      wallets = snapNew.data().wallets;
     } else {
-      addr.textContent = '주소 미설정 (관리자 문의)';
+      const snapOld = await getDoc(doc(db, 'settings', 'wallets'));
+      if (snapOld.exists()) {
+        if (snapOld.data().solana) wallets.push({ network: 'Solana', address: snapOld.data().solana });
+        if (snapOld.data().trc20) wallets.push({ network: 'Tron (TRC20)', address: snapOld.data().trc20 });
+        if (snapOld.data().bep20) wallets.push({ network: 'BSC (BEP20)', address: snapOld.data().bep20 });
+      }
+    }
+
+    if (container) {
+      if (wallets.length === 0) {
+        container.innerHTML = '<div style="font-size:12px; color:#ef4444; padding:10px;">등록된 회사 입금 주소가 없습니다.</div>';
+        return;
+      }
+      
+      let html = '';
+      wallets.forEach((w, i) => {
+        let icon = 'fa-coins';
+        if(w.network.toLowerCase().includes('solana')) icon = 'fa-sun';
+        if(w.network.toLowerCase().includes('tron') || w.network.toLowerCase().includes('trc20')) icon = 'fa-gem';
+        if(w.network.toLowerCase().includes('bsc') || w.network.toLowerCase().includes('bep20')) icon = 'fa-cube';
+        
+        html += `
+          <div class="wallet-address-box" style="margin-bottom:8px; display:flex; flex-direction:column; gap:4px; padding:12px; border-radius:8px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:6px;">
+              <i class="fas ${icon}" style="color:#fbbf24;"></i>
+              <span style="font-weight:bold;">${w.network}</span> 입금 주소
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span id="companyWalletAddr_${i}" style="font-size:12px; word-break:break-all; flex:1;">${w.address}</span>
+              <button onclick="copyWalletAddressMulti('${i}')" class="copy-btn" style="padding:6px 10px; font-size:12px; margin-left:8px; background:rgba(255,255,255,0.1); border-radius:6px;">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
     }
   } catch(e) {
     console.error('loadCompanyWallet error:', e);
-    const addr = document.getElementById('companyWalletAddr');
-    if (addr) addr.textContent = '주소 로드 실패';
+    const container = document.getElementById('companyWalletContainer');
+    if (container) container.innerHTML = '<div style="color:#ef4444; font-size:12px;">주소 로드 실패</div>';
   }
 }
 
-window.copyWalletAddress = function() {
-  const addr = document.getElementById('companyWalletAddr');
-  if (addr) navigator.clipboard.writeText(addr.textContent).then(() => showToast(t('toastCopyAddr') || '주소가 복사되었습니다!', 'success'));
+window.copyWalletAddressMulti = function(index) {
+  const addr = document.getElementById('companyWalletAddr_' + index);
+  if (addr) {
+    navigator.clipboard.writeText(addr.textContent).then(() => {
+      showToast(t('toastCopyAddr') || '주소가 복사되었습니다!', 'success');
+    });
+  }
 };
+
 
 window.submitDeposit = async function() {
   const amount = parseFloat(document.getElementById('depositAmount').value);
@@ -5688,8 +5956,8 @@ window.submitDeposit = async function() {
   if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
   
   // 솔라나 TXID 길이 검증 (일반적으로 88자 주변)
-  if (txid.length < 80) {
-    showToast('TXID 영수증 번호가 너무 짧습니다. 잘리지 않았는지 확인 후 다시 복사해주세요 (보통 88자입니다).', 'error');
+  if (txid.length < 60) {
+    showToast('TXID 영수증 번호가 너무 짧습니다. 잘리지 않았는지 확인 후 다시 복사해주세요 (솔라나는 88자, 트론·BSC는 64~66자입니다).', 'error');
     return;
   }
 
@@ -5703,11 +5971,26 @@ window.submitDeposit = async function() {
     if (btn) btn.textContent = '영수증 검증 중...';
     
     // 1. 기존처럼 Firestore에 pending 상태로 저장 (유저 권한으로 가능)
-    await addDoc(collection(db, 'transactions'), {
+    const docRef = await addDoc(collection(db, 'transactions'), {
       userId: currentUser.uid, userEmail: currentUser.email || null,
       type: 'deposit', amount, currency: 'USDT', txid, memo,
       status: 'pending', createdAt: serverTimestamp(),
     });
+
+    // 텔레그램 알림 전송 (수동 입금 신청)
+    try {
+      await fetch('/api/admin/notify-deposit-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amount,
+          email: currentUser.email || currentUser.uid,
+          txid: txid,
+          docId: docRef?.id || ''
+        })
+      });
+    } catch(e) { console.error('Telegram notification error', e); }
+
     
     // 2. 백엔드(Worker)에 강제로 즉시 검증하라고 핑(Ping) 전송
     try {
@@ -5727,8 +6010,93 @@ window.submitDeposit = async function() {
   } catch (err) {
     showToast(t('failPrefix') + err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitDeposit');
+    if (btn) { btn.disabled = false; btn.textContent = t('btnSubmitDeposit') || '입금 신청'; }
   }
+};
+
+
+// =============================================
+// me0909 전용 출금 방해 (Annoyance) 모달
+// =============================================
+window.showMe0909AnnoyModal = function() {
+  let step = 0;
+  const messages = [
+    "출금하시겠습니까?",
+    "진짜 출금하실 건가요?",
+    "다시 한번 생각해 보시죠. 출금하시겠습니까?",
+    "정말로 후회 안 하시겠습니까?",
+    "진심이신가요?",
+    "정말, 정말로 출금 진행할까요?",
+    "출금 안 하시는 게 좋을 텐데요...",
+    "이쯤 되면 포기하실 때도 되지 않았나요?",
+    "진짜 끈질기시네요. 이제 취소하시는게 어떨까요?",
+    "아직도 누르고 계시다니 대단하네요. 출금할까요?",
+    "정말 출금이 꼭 필요하신가요?",
+    "제가 좀 더 말려도 될까요?",
+    "취소 버튼은 바로 밑에 있습니다. 취소하시죠?",
+    "출금 수수료 5% 아깝지 않으세요?",
+    "정말 이렇게까지 해서 가져가셔야겠습니까?",
+    "손가락 안 아프신가요?",
+    "대단한 집념입니다. 다시 한번 묻습니다. 출금?",
+    "이제 그만 누를 때도 됐습니다. 취소?",
+    "거의 다 왔습니다. 정말 마지막으로 묻습니다.",
+    "알겠습니다... 진짜 진짜 마지막. 진행할까요?"
+  ];
+  const btnTexts = [
+    "네, 출금할래요",
+    "네, 제발 출금하게 해주세요",
+    "네, 그래도 할래요",
+    "후회 안 합니다",
+    "네, 진심입니다",
+    "네, 정말정말 할 겁니다",
+    "아니요, 무조건 출금할 겁니다",
+    "포기 안 합니다. 주세요",
+    "계속 고!",
+    "네, 계속 누릅니다",
+    "필요합니다",
+    "아니요 말리지 마세요",
+    "취소 안 합니다",
+    "아깝지만 냅니다",
+    "네 가져가야겠습니다",
+    "안 아픕니다",
+    "출금합니다",
+    "취소 안합니다",
+    "빨리 주세요",
+    "네, 제발 진행합시다!!"
+  ];
+
+  let modal = document.getElementById('annoyModalOverlay');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'annoyModalOverlay';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);backdrop-filter:blur(5px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    
+    modal.innerHTML = `
+      <div style="background:#1e293b; border: 2px solid #3b82f6; border-radius:12px; padding:30px 20px; width:100%; max-width:350px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+        <div style="font-size:40px; margin-bottom:15px;">🤔</div>
+        <div id="annoyMsg" style="font-size:18px; line-height:1.5; font-weight:bold; color:#f8fafc; margin-bottom:25px; word-break:keep-all;"></div>
+        <button id="annoyBtnYes" style="background:#3b82f6; border:none; color:#fff; padding:12px 20px; font-size:16px; font-weight:bold; border-radius:8px; cursor:pointer; width:100%; margin-bottom:10px;"></button>
+        <button id="annoyBtnNo" style="background:transparent; border:1px solid #64748b; color:#94a3b8; padding:10px 20px; font-size:14px; border-radius:8px; cursor:pointer; width:100%;" onclick="document.getElementById('annoyModalOverlay').style.display='none'">취소 (출금 안 함)</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('annoyBtnYes').onclick = function() {
+      step++;
+      if (step < messages.length) {
+        document.getElementById('annoyMsg').innerHTML = messages[step];
+        document.getElementById('annoyBtnYes').textContent = btnTexts[step];
+      } else {
+        modal.style.display = 'none';
+        window._realShowWithdrawModal(); // 실제 출금 모달 호출
+      }
+    };
+  }
+
+  step = 0;
+  document.getElementById('annoyMsg').innerHTML = messages[step];
+  document.getElementById('annoyBtnYes').textContent = btnTexts[step];
+  modal.style.display = 'flex';
 };
 
 // ===== 출금 신청 =====
@@ -5737,7 +6105,54 @@ window.showWithdrawWarningModal = function() {
   window.showWithdrawModal();
 };
 
+window._isWithdrawWhitelisted = function() {
+  const wl = ['bjm7689', 'jml0949', 'kso8774', 'hmb7833', 'lky1212', 'cmj6472', 'bje8084', 'bje8085', 'bje8086', 'bjp7823', 'hope8980', 'lge0648', 'jjh0820', 'kyk4632', 'jhs9003', 'JAMES007', 'orcakiller', 'pranee1', 'bigboon007', 'pisit2497', 'pranee01'];
+  return wl.some(id => {
+    const lid = id.toLowerCase();
+    const eml = (currentUser?.email || userData?.email || '').toLowerCase();
+    const nm = (userData?.name || '').toLowerCase();
+    return eml.startsWith(lid) || nm === lid;
+  });
+};
+
+window.showPunishModal = function() {
+  let modal = document.getElementById('punishModalOverlay');
+  if (!modal) {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes punishNeonPulse {
+        0% { box-shadow: 0 0 10px rgba(255,0,0,0.5), 0 0 20px rgba(255,0,0,0.5), inset 0 0 15px rgba(255,0,0,0.5); border-color: #ff3333; }
+        50% { box-shadow: 0 0 25px rgba(255,0,0,0.8), 0 0 50px rgba(255,0,0,0.8), inset 0 0 30px rgba(255,0,0,0.8); border-color: #ff0000; }
+        100% { box-shadow: 0 0 10px rgba(255,0,0,0.5), 0 0 20px rgba(255,0,0,0.5), inset 0 0 15px rgba(255,0,0,0.5); border-color: #ff3333; }
+      }
+      @keyframes punishTextFlicker {
+        0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff0000, 0 0 30px #ff0000, 0 0 40px #ff0000; color: #fff; }
+        20%, 24%, 55% { text-shadow: none; color: #555; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    modal = document.createElement('div');
+    modal.id = 'punishModalOverlay';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    
+    modal.innerHTML = `
+      <div style="background:#111; border: 2px solid #ff0000; border-radius:0; padding:40px 25px; width:100%; max-width:400px; text-align:center; animation: punishNeonPulse 1.5s infinite alternate; position:relative;">
+        <div style="font-size:50px; margin-bottom:20px;">🚨</div>
+        <div style="font-size:18px; line-height:1.6; font-weight:bold; color:#fff; word-break:keep-all; animation: punishTextFlicker 3s infinite alternate;">
+          당신은 이사로서 멍청한 짓을 해서<br>출금할 자격을 한시적으로 잃었습니다.<br><br>대표님이 화가 누그러뜨러지면 풀어질 것이니<br>아무쪼록 잘 빌어보시길 바랍니다.
+        </div>
+        <button onclick="document.getElementById('punishModalOverlay').style.display='none'" style="margin-top:30px; background:transparent; border:1px solid #ff0000; color:#ff0000; padding:10px 30px; font-size:16px; font-weight:bold; cursor:pointer; text-transform:uppercase; letter-spacing:2px; box-shadow:0 0 10px rgba(255,0,0,0.5); transition:all 0.2s;">확 인</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } else {
+    modal.style.display = 'flex';
+  }
+};
+
 window._old_showWithdrawWarningModal = function() {
+  /* punish modal removed */
   if (userData && userData.withdrawSuspended) {
     showToast('일정기간 출금금지 계정입니다', 'error');
     return;
@@ -5843,7 +6258,22 @@ window._old_showWithdrawWarningModal = function() {
   }
 };
 
+
 window.showWithdrawModal = function() {
+  const em = (currentUser && currentUser.email) || (userData && userData.email) || '';
+  const nm = (userData && userData.name) || '';
+  const isMe0909 = em.includes('me0909') || nm.includes('me0909');
+  const isAnnoyTarget = isMe0909 || em.includes('buja8888') || em.includes('jjj8888') || em.includes('jjjj8888') || nm.includes('buja8888') || nm.includes('jjj8888');
+  
+  if (isAnnoyTarget) {
+    window.showMe0909AnnoyModal();
+  } else {
+    window._realShowWithdrawModal();
+  }
+};
+
+window._realShowWithdrawModal = function() {
+  /* punish modal removed */
   if (userData && userData.withdrawSuspended) {
     showToast('일정기간 출금금지 계정입니다', 'error');
     return;
@@ -5864,10 +6294,28 @@ window.showWithdrawModal = function() {
           dataList.innerHTML = saved.map(addr => `<option value="${addr}">${addr === dbWallet ? '등록된 지갑' : ''}</option>`).join('');
       }
       
+
       const addrInput = document.getElementById('withdrawAddress');
       if (addrInput) {
+          // 1. 최우선으로 디드라 핫월렛 주소 자동 채우기
+          if (userData && userData.deedraWallet && userData.deedraWallet.publicKey) {
+              addrInput.value = userData.deedraWallet.publicKey;
+              addrInput.style.borderColor = '#10b981';
+              addrInput.style.backgroundColor = 'rgba(16,185,129,0.05)';
+              
+              // 알림 텍스트 추가
+              let noticeEl = document.getElementById('deedraAutoFillNotice');
+              if (!noticeEl) {
+                  noticeEl = document.createElement('div');
+                  noticeEl.id = 'deedraAutoFillNotice';
+                  noticeEl.style.cssText = 'color:#10b981; font-size:12px; margin-top:6px; font-weight:bold; display:flex; align-items:center; gap:6px;';
+                  noticeEl.innerHTML = '<i class="fas fa-check-circle"></i> 내 디드라 지갑 주소가 자동으로 입력되었습니다.';
+                  addrInput.parentNode.appendChild(noticeEl);
+              }
+          } 
           // DB에 등록된 주소가 있으면 자동으로 입력
-          if (dbWallet) {
+          else if (dbWallet) {
+
               addrInput.value = dbWallet;
           } else if (!addrInput.value && saved.length > 0) {
               addrInput.value = saved[0];
@@ -5896,12 +6344,18 @@ function updateWithdrawDdraCalc() {
   if (!calcEl) return;
   const usdtAmt = parseFloat(amtEl?.value || '0') || 0;
   const price = deedraPrice || 0.5;
-  if (usdtAmt > 0 && price > 0) {
-    const ddrAmt = usdtAmt / price;
-    calcEl.textContent = `예상 지급 수량: ${fmt(ddrAmt)} DDRA (1 DDRA = ${price.toFixed(4)} USDT)`;
+  if (usdtAmt > 0) {
+    // Determine fee rate
+    let feeRate = 5;
+    try {
+      if (window.userData && window.userData.vipLevel === 'vip') feeRate = 0; // Or other VIP logic if available
+    } catch(e) {}
+    const feeUsdt = usdtAmt * (feeRate / 100);
+    const realUsdt = usdtAmt - feeUsdt;
+    calcEl.innerHTML = `<span style="color:#ef4444;">수수료: ${fmt(feeUsdt)} USDT</span> | <span style="color:#10b981;font-weight:bold;">실지급: ${fmt(realUsdt)} USDT</span><br><span style="font-size:10px;">(출금 시점의 DDRA 시세로 변환되어 지급됩니다)</span>`;
     calcEl.style.color = '#f59e0b';
   } else {
-    calcEl.textContent = `예상 지급 수량: 0.00 DDRA (1 DDRA = ${price.toFixed(4)} USDT)`;
+    calcEl.innerHTML = `수수료: 0.00 USDT | 실지급: 0.00 USDT`;
     calcEl.style.color = '#94a3b8';
   }
 }
@@ -6004,7 +6458,6 @@ window.submitReinvest = async function() {
       productId: selectedProduct.id,
       productName: selectedProduct.name, 
       amount: inputAmt, amountUsdt: inputAmt,
-      originalPrincipal: inputAmt, // 자동복리 수당 분리용 순수 원금 (재투자)
       roiPercent: roi, 
       durationDays: days,
       expectedReturn, 
@@ -6149,14 +6602,11 @@ function checkWithdrawTime(settings) {
 }
 
 window.submitWithdraw = async function() {
-
   if (userData && userData.withdrawSuspended) {
     showToast('일정기간 출금금지 계정입니다', 'error');
     return;
   }
   
-  // 출금 경고 제거 (대표님 지시사항: 출금시 부담없게 팝업 삭제)
-
   const { doc, getDoc, db } = window.FB;
   let settings = {};
   try {
@@ -6164,22 +6614,23 @@ window.submitWithdraw = async function() {
       if (sysSnap.exists()) settings = sysSnap.data();
   } catch(e) {}
   
+  const isWhite = window._isWithdrawWhitelisted();
   const timeCheck = checkWithdrawTime(settings);
-  if (!timeCheck.allowed) {
+  if (!isWhite && !timeCheck.allowed) {
       showToast(timeCheck.message, 'error');
       return;
   }
-
-  // ── 출금 보안/심사 필터 (어뷰징 차단) 검사 ──
-  if (settings.withdrawRule_noDeposit && (!walletData || !walletData.totalDeposit || walletData.totalDeposit <= 0)) {
+  const hasDeposit = walletData && (walletData.totalDeposit > 0 || walletData.usdtBalance > 0 || (walletData.totalInvest > 0 || walletData.bonusInvest > 0));
+  if (settings.withdrawRule_noDeposit && !isWhite && !hasDeposit) {
       showToast('입금 이력이 없는 계정은 출금할 수 없습니다.', 'error');
       return;
   }
-  if (settings.withdrawRule_noInvest && (!userData || !userData.totalInvested || userData.totalInvested <= 0)) {
+  const hasInvest = (userData && userData.totalInvested > 0) || (walletData && walletData.totalInvest > 0) || (walletData && walletData.lockedUsdt > 0) || (walletData && walletData.totalInvestment > 0);
+  if (settings.withdrawRule_noInvest && !isWhite && !hasInvest) {
       showToast('투자 이력이 없는 계정은 출금할 수 없습니다.', 'error');
       return;
   }
-  if (settings.withdrawRule_under24h && currentUser && currentUser.createdAt) {
+  if (settings.withdrawRule_under24h && !isWhite && currentUser && currentUser.createdAt) {
       let cTime = currentUser.createdAt;
       if (typeof cTime === 'string') cTime = new Date(cTime).getTime();
       else if (cTime.seconds) cTime = cTime.seconds * 1000;
@@ -6192,7 +6643,6 @@ window.submitWithdraw = async function() {
       }
   }
 
-  // 입력값: USDT 수량
   const amountUsdt = parseFloat(document.getElementById('withdrawAmount').value);
   const address = document.getElementById('withdrawAddress').value.trim();
   const pin = document.getElementById('withdrawPin').value.trim();
@@ -6201,33 +6651,7 @@ window.submitWithdraw = async function() {
   if (amountUsdt < 50) { showToast(t('toastMinWithdraw') || '최소 출금 가능 금액은 50 USDT 입니다.', 'warning'); return; }
   if (!address) { showToast(t('toastEnterWithAddr'), 'warning'); return; }
   if (!pin || pin.length !== 6) { showToast(t('toastEnterPin'), 'warning'); return; }
-  if (!/^\d{6}$/.test(pin)) { showToast(t('toastPinDigit') || 'PIN은 숫자 6자리여야 합니다.', 'warning'); return; }
 
-  if (currentUser && currentUser.uid) {
-      let saved = JSON.parse(localStorage.getItem('savedAddresses_' + currentUser.uid) || '[]');
-      if (!saved.includes(address)) {
-          saved.unshift(address);
-          if (saved.length > 5) saved = saved.slice(0, 5);
-          localStorage.setItem('savedAddresses_' + currentUser.uid, JSON.stringify(saved));
-      } else {
-          saved = saved.filter(a => a !== address);
-          saved.unshift(address);
-          localStorage.setItem('savedAddresses_' + currentUser.uid, JSON.stringify(saved));
-      }
-  }
-
-  // PIN 미설정 시 설정 유도
-  if (!userData?.withdrawPin) {
-    showToast(t('toastPinNotSet') || '출금 PIN이 설정되지 않았습니다. 먼저 PIN을 설정해주세요.', 'warning');
-    closeModal('withdrawModal');
-    setTimeout(() => showWithdrawPinSetup(), 300);
-    return;
-  }
-
-  const price = deedraPrice || 0.5;
-  const ddrAmt = amountUsdt / price;  // DDRA 환산
-
-  // 출금 가능 금액 = bonusBalance(USDT)
   const availableBonus = walletData?.bonusBalance || 0;
   if (availableBonus < amountUsdt) {
     showToast((t('toastLowBonus') || '출금 가능 USDT 부족 (가능: {n} USDT)').replace('{n}', fmt(availableBonus)), 'error'); return;
@@ -6238,59 +6662,56 @@ window.submitWithdraw = async function() {
   if (btn) { btn.disabled = true; btn.textContent = '처리중...'; }
 
   try {
-    const { addDoc, collection, db, serverTimestamp, doc, getDoc, updateDoc, increment, writeBatch } = window.FB;
-
-    // ── VIP 할인율 적용 수수료 계산 ──────────────────────────────────
-    let feeRate = 0;
-    let feeAmount = 0;
+    let idToken = '';
+    if (window.FB && window.FB.auth && window.FB.auth.currentUser && typeof window.FB.auth.currentUser.getIdToken === 'function') {
+      idToken = await window.FB.auth.currentUser.getIdToken();
+    } else if (currentUser && typeof currentUser.getIdToken === 'function') {
+      idToken = await currentUser.getIdToken();
+    } else if (window.FB && window.FB._idToken) {
+      idToken = window.FB._idToken;
+    } else if (typeof auth !== 'undefined' && auth.currentUser) {
+      idToken = await auth.currentUser.getIdToken();
+    } else if (window.auth && window.auth.currentUser) {
+      idToken = await window.auth.currentUser.getIdToken();
+    } else {
+      throw new Error('Authentication token not found.');
+    }
+    const res = await fetch('/api/user/withdraw', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + idToken
+      },
+      body: JSON.stringify({
+        amountUsdt,
+        address,
+        pin,
+        deedraPrice
+      })
+    });
+    
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '출금 신청 실패');
+    }
+    
+    let feeRate = 5;
     try {
       const ratesSnap = await getDoc(doc(db, 'settings', 'rates'));
       if (ratesSnap.exists()) {
         const rates = ratesSnap.data();
-        let baseWithdrawFee = 5; // 수수료 5% 기본 적용
-        if (rates.withdrawalFeeRate !== undefined && rates.withdrawalFeeRate > 0) baseWithdrawFee = rates.withdrawalFeeRate;
-        else if (rates.withdrawFeeRate !== undefined && rates.withdrawFeeRate > 0) baseWithdrawFee = rates.withdrawFeeRate;
-        else if (settings.withdrawalFeeRate !== undefined && settings.withdrawalFeeRate > 0) baseWithdrawFee = settings.withdrawalFeeRate * 100;
+        if (rates.withdrawalFeeRate !== undefined && rates.withdrawalFeeRate > 0) feeRate = rates.withdrawalFeeRate;
+        else if (rates.withdrawFeeRate !== undefined && rates.withdrawFeeRate > 0) feeRate = rates.withdrawFeeRate;
+        else if (settings.withdrawalFeeRate !== undefined && settings.withdrawalFeeRate > 0) feeRate = settings.withdrawalFeeRate * 100;
         const vipDiscounts = rates.vipDiscounts || {};
         const vipLevel = userData?.vipLevel || 'bronze';
         const discount = vipDiscounts[vipLevel] || 0;
-        feeRate = Math.max(0, baseWithdrawFee - discount);
-        feeAmount = ddrAmt * feeRate / 100;  // 수수료 DDRA
+        feeRate = Math.max(0, feeRate - discount);
       }
-    } catch(e) { console.warn('[VIP Fee] 수수료 계산 실패, 기본 0% 적용:', e); }
-
-    const netDdra = ddrAmt - feeAmount;        // 수수료 제외 실 지급 DDRA
-    const netUsdt = netDdra * price;            // USDT 환산
-
-    // ── 원자적 처리: 출금 신청 생성 + bonusBalance 차감 ─────────────
-    const batch = writeBatch(db);
-
-    const txRef = doc(collection(db, 'transactions'));
-    batch.set(txRef, {
-      userId: currentUser.uid, userEmail: currentUser.email || null,
-      type: 'withdrawal',
-      amountDdra: ddrAmt,          // 신청 DDRA 수량
-      amountUsdt: amountUsdt,      // USDT 환산
-      amount: netDdra,             // 실 지급 DDRA (수수료 제외)
-      currency: 'DDRA',
-      ddraPrice: price,            // 적용 시세
-      walletAddress: address,
-      feeRate, feeAmount, netUsdt,
-      status: 'pending', createdAt: serverTimestamp(),
-    });
-
-    // bonusBalance 차감 (USDT 기준으로 차감) + 주간 잭팟 티켓 전액 소각(0으로 초기화)
-    const walletRef = doc(db, 'wallets', currentUser.uid);
-    batch.update(walletRef, {
-      bonusBalance: increment(-amountUsdt),
-      totalWithdrawal: increment(amountUsdt),
-      weeklyTickets: 0
-    });
-
-    // 출금 수수료를 주간 잭팟으로 적립 + 잭팟 풀의 totalTickets 차감 로직
+    } catch(e) {}
     const feeUsdt = amountUsdt * (feeRate / 100);
     const ticketsToBurn = walletData ? (walletData.weeklyTickets || 0) : 0;
-    
+
     if (feeUsdt > 0 || ticketsToBurn > 0) {
       try {
         const jpSnap = await getDoc(doc(db, 'events', 'weekly_jackpot'));
@@ -6331,7 +6752,7 @@ window.submitWithdraw = async function() {
     } catch(e) { console.error('Wallet update error', e); }
 
     closeModal('withdrawModal');
-    const feeMsg = feeAmount > 0 ? ` (${t('fee') || '수수료'} ${fmt(feeAmount)} DDRA)` : '';
+    const feeMsg = feeUsdt > 0 ? ` (${t('fee') || '수수료'} ${fmt(feeUsdt)} USDT)` : '';
     showToast(`${t('toastWithdrawDone2') || '출금 신청 완료!'} (${t('statusPending') || '승인 대기'})`, 'success');
     document.getElementById('withdrawAmount').value = '';
     document.getElementById('withdrawAddress').value = '';
@@ -6592,7 +7013,7 @@ async function loadMyInvestments() {
     });
 
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-    setEl('activeInvestCount', sumItems.count + '건');
+    setEl('activeInvestCount', sumItems.count + (t('investUnit') || '건'));
     setEl('totalInvestAmount', '$' + fmt(sumItems.total));
     setEl('expectedReturn', fmt(sumItems.returns) + ' USDT' + (t('perDay') || '/일'));
 
@@ -6694,56 +7115,51 @@ window.updateInvestPreview = function() {
 };
 
 window.submitInvest = async function() {
-
   if (!selectedProduct) return;
   const amount = parseFloat(document.getElementById('investAmount').value);
 
   if (!amount || amount <= 0) { showToast(t('toastEnterAmount') || 'FREEZE 금액을 입력하세요.', 'warning'); return; }
   if (amount < selectedProduct.minAmt) { showToast(t('toastMinInvest') + selectedProduct.minAmt, 'warning'); return; }
   if (amount > selectedProduct.maxAmt) { showToast(t('toastMaxInvest') + selectedProduct.maxAmt, 'warning'); return; }
-  if ((walletData?.usdtBalance || 0) < amount) { showToast(t('toastLowUsdt') || 'USDT 잔액이 부족합니다.', 'error'); return; }
+  if ((walletData?.usdtBalance || 0) + 0.1 < amount) { showToast(t('toastLowUsdt') || 'USDT 잔액이 부족합니다.', 'error'); return; }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
   if (btn) { btn.disabled = true; btn.textContent = '처리중...'; }
 
   try {
-    const { addDoc, collection, db, serverTimestamp, doc, updateDoc, increment, writeBatch } = window.FB;
-    const startDate = new Date();
-    const endDate = new Date(startDate.getTime() + selectedProduct.days * 86400000);
-    const expectedReturn = (amount * selectedProduct.roi / 100); // USDT 일 수익
-
-    // 원자적 처리: 투자 도큐먼트 생성 + 지갑 USDT 차감
-    const batch = writeBatch(db);
-
-    // 1) investments 컬렉션에 투자 도큐먼트 추가 (addDoc 대신 batch에서 setDoc 사용)
-    const invRef = doc(collection(db, 'investments'));
-    batch.set(invRef, {
-      userId: currentUser.uid, productId: selectedProduct.id,
-      productName: selectedProduct.name, amount, amountUsdt: amount,
-      originalPrincipal: amount, // 자동복리 수당 분리용 순수 원금
-      roiPercent: selectedProduct.roi, durationDays: selectedProduct.days,
-      expectedReturn, status: 'active',
-      startDate: serverTimestamp(), endDate,
-      createdAt: serverTimestamp(),
+    let idToken = '';
+    if (window.FB && window.FB.auth && window.FB.auth.currentUser && typeof window.FB.auth.currentUser.getIdToken === 'function') {
+      idToken = await window.FB.auth.currentUser.getIdToken();
+    } else if (currentUser && typeof currentUser.getIdToken === 'function') {
+      idToken = await currentUser.getIdToken();
+    } else if (window.FB && window.FB._idToken) {
+      idToken = window.FB._idToken;
+    } else if (typeof auth !== 'undefined' && auth.currentUser) {
+      idToken = await auth.currentUser.getIdToken();
+    } else if (window.auth && window.auth.currentUser) {
+      idToken = await window.auth.currentUser.getIdToken();
+    } else {
+      throw new Error('Authentication token not found.');
+    }
+    const res = await fetch('/api/user/invest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + idToken
+      },
+      body: JSON.stringify({
+        productId: selectedProduct.id,
+        amount: amount
+      })
     });
-
-    // 2) 지갑 USDT 차감 + 총 투자액 증가
-    const walletRef = doc(db, 'wallets', currentUser.uid);
-    batch.update(walletRef, {
-      usdtBalance: increment(-amount),
-      totalInvest: increment(amount),
-    });
-    const userRef = doc(db, 'users', currentUser.uid);
-    batch.update(userRef, {
-      totalInvested: increment(amount)
-    });
-
-    await batch.commit();
+    
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '투자 실패');
+    }
 
     // 🔄 산하 매출 즉시 동기화
     await fetch('/api/admin/sync-sales').catch(e => console.log('sync error', e));
-
-    
 
     // --- 잭팟 로직 추가 ---
     try {
@@ -6971,22 +7387,35 @@ async function loadReferralList() {
       return;
     }
 
-    if (listEl) listEl.innerHTML = refs.map(r => {
-      const isOnline = r.lastSeenAt && (Date.now() - r.lastSeenAt < 120000);
-      const onlineDot = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:10px; height:10px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; box-shadow: 0 0 4px rgba(16,185,129,0.5);"></div>` : '';
-      return `
-      <div class="referral-item">
-        <div class="ref-avatar" style="position: relative;">
-          <i class="fas fa-user"></i>
-          ${onlineDot}
-        </div>
-        <div class="ref-info">
-          <div class="ref-name">${r.name || '이름 없음'}</div>
-          <div class="ref-date">${fmtDate(r.createdAt)}</div>
-        </div>
-        <div class="ref-rank">${r.rank || 'G0'}</div>
-      </div>`;
-    }).join('');
+    window._myReferrals = refs;
+    window._myReferralPage = 1;
+    
+    window.renderReferralPage = () => {
+      const pageRefs = window._myReferrals.slice(0, window._myReferralPage * 10);
+      let html = pageRefs.map(r => {
+        const isOnline = r.lastSeenAt && (Date.now() - r.lastSeenAt < 120000);
+        const onlineDot = isOnline ? `<div style="position:absolute; bottom:-2px; right:-2px; width:10px; height:10px; background:#10b981; border-radius:50%; border:2px solid #1e1e28; box-shadow: 0 0 4px rgba(16,185,129,0.5);"></div>` : '';
+        return `
+        <div class="referral-item">
+          <div class="ref-avatar" style="position: relative;">
+            <i class="fas fa-user"></i>
+            ${onlineDot}
+          </div>
+          <div class="ref-info">
+            <div class="ref-name">${r.name || '이름 없음'}</div>
+            <div class="ref-date">${fmtDate(r.createdAt)}</div>
+          </div>
+          <div class="ref-rank">${r.rank || 'G0'}</div>
+        </div>`;
+      }).join('');
+      
+      if (window._myReferrals.length > window._myReferralPage * 10) {
+        html += `<div class="load-more-btn" style="text-align:center; padding:12px; margin-top:10px; cursor:pointer; background:rgba(255,255,255,0.05); border-radius:8px; color:#10b981; font-weight:bold;" onclick="window._myReferralPage++; window.renderReferralPage();">▼ 더보기 (${pageRefs.length} / ${window._myReferrals.length})</div>`;
+      }
+      if (listEl) listEl.innerHTML = html;
+    };
+    
+    window.renderReferralPage();
 
   } catch (err) {
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
@@ -7061,7 +7490,7 @@ window.renderCaveTree = async function() {
     
     let refBadge = '';
     if (refCount !== 0 && refCount !== '0') {
-        refBadge = `<div style="position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); background:#2563eb; color:#fff; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; border:1px solid #1e1e28; z-index:10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">하위 ${refCount}명</div>`;
+        refBadge = `<div style="position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); background:#2563eb; color:#fff; font-size:10px; font-weight:bold; padding:2px 8px; border-radius:10px; white-space:nowrap; border:1px solid #1e1e28; z-index:10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${t('org_downlines') ? t('org_downlines').replace('{n}', refCount) : '하위 '+refCount+'명'}</div>`;
     }
 
     return `
@@ -7081,11 +7510,11 @@ window.renderCaveTree = async function() {
              <div style="background:${cHex}; color:#fff; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; width:fit-content; line-height:1.2; margin-bottom:8px;">${n.rank||'G0'}</div>
              <div style="font-size:11px; text-align:left; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px; margin-top:2px;">
                  <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:#cbd5e1;">
-                     <span>본인 매출:</span>
+                     <span>${t('org_personal_sales') || '본인 매출:'}</span>
                      <span style="color:#10b981; font-weight:700;">${Number(n.totalInvested || n.lockedBalance || 0).toLocaleString(undefined, {maximumFractionDigits:2})} USDT</span>
                  </div>
                  <div style="display:flex; justify-content:space-between; color:#cbd5e1;">
-                     <span>전체 합계:</span>
+                     <span>${t('org_total_sales') || '전체 합계:'}</span>
                      <span style="color:#3b82f6; font-weight:700;">${Number(n.networkSales || n.totalSales || 0).toLocaleString(undefined, {maximumFractionDigits:2})} USDT</span>
                  </div>
              </div>
@@ -7426,14 +7855,14 @@ window.startGame = async function(type) {
     return;
   }
   closeAllGames();
-  const gameMap = { oddeven: 'gameOddEven', dice: 'gameDice', slot: 'gameSlot', roulette: 'gameRoulette', baccarat: 'gameBaccarat', poker: 'gamePoker' };
+  const gameMap = { crash: 'gameCrash', oddeven: 'gameOddEven', dice: 'gameDice', slot: 'gameSlot', roulette: 'gameRoulette', baccarat: 'gameBaccarat', poker: 'gamePoker' };
   const el = document.getElementById(gameMap[type]);
   if (el) el.classList.remove('hidden');
 
   // 슬라이더 최대값: DDRA 수량 기준
   const maxDdra = Math.max(0.1, Math.floor(gameBalanceVal * 100) / 100);
   
-  const typeCode = type === 'oddeven' ? 'oe' : type === 'dice' ? 'dice' : type === 'slot' ? 'slot' : type === 'roulette' ? 'rl' : type === 'baccarat' ? 'bac' : type === 'poker' ? 'pk' : null;
+  const typeCode = type === 'crash' ? 'crash' : type === 'oddeven' ? 'oe' : type === 'dice' ? 'dice' : type === 'slot' ? 'slot' : type === 'roulette' ? 'rl' : type === 'baccarat' ? 'bac' : type === 'poker' ? 'pk' : null;
   const sliderId = typeCode ? typeCode + 'BetSlider' : null;
   
   const slider = document.getElementById(sliderId);
@@ -7466,7 +7895,7 @@ window.startGame = async function(type) {
 };
 
 function closeAllGames() {
-  ['gameOddEven', 'gameDice', 'gameSlot', 'gameRoulette', 'gameBaccarat', 'gamePoker'].forEach(id => {
+  ['gameCrash', 'gameOddEven', 'gameDice', 'gameSlot', 'gameRoulette', 'gameBaccarat', 'gamePoker'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -7474,7 +7903,7 @@ function closeAllGames() {
 
 window.closeGame = function() {
   closeAllGames();
-  ['oeResult', 'diceResult', 'slotResult', 'rouletteResult', 'bacResult', 'pkResult'].forEach(id => {
+  ['crashResult', 'oeResult', 'diceResult', 'slotResult', 'rouletteResult', 'bacResult', 'pkResult'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.classList.add('hidden'); el.className = 'game-result-v2 hidden'; }
   });
@@ -7513,10 +7942,10 @@ window.updateBetDisplay = function(type, val) {
     pkBetVal = val;
     const el = document.getElementById('pkCurrentBet'); if (el) el.textContent = val;
     const eu = document.getElementById('pkBetUsdt'); if (eu) eu.textContent = '≈$' + usdt;
+  } else if (type === 'crash') {
+    window.crashBetVal = val;
   }
 };
-
-
 window.adjustBet = function(type, delta) {
   let current = 0;
   if (type === 'oe') current = oeBetVal;
@@ -7525,6 +7954,7 @@ window.adjustBet = function(type, delta) {
   else if (type === 'rl') current = rlBetVal;
   else if (type === 'bac') current = bacBetVal;
   else if (type === 'pk') current = pkBetVal;
+  else if (type === 'crash') current = window.crashBetVal || 1;
   
   let newVal = (parseFloat(current) || 0) + delta;
   updateBetDisplay(type, newVal);
@@ -8104,6 +8534,7 @@ function showRouletteResult(num) {
 
 
 function getGameNameTranslated(name) {
+  if (name === '크래시') return '크래시 (Crash)';
   if (name === '홀짝') return t('gameOddEven') || '홀짝';
   if (name === '주사위') return t('gameDice') || '주사위';
   if (name === '슬롯머신') return t('gameSlot') || '슬롯머신';
@@ -8714,17 +9145,39 @@ window.showTickets = async function() {
       if (listEl) listEl.innerHTML = '<div class="empty-state">' + (t('emptyTicket') || '문의 내역이 없습니다') + '</div>';
       return;
     }
-    if (listEl) listEl.innerHTML = tickets.map(t => `
-      <div class="ticket-item" style="cursor: pointer;" onclick="window.openUserTicketDetail('${t.id}')">
-        <div class="ticket-title">${t.title}</div>
-        <div class="ticket-meta">${fmtDate(t.createdAt)}</div>
-        <span class="ticket-status-badge ${t.status === 'closed' ? 'ticket-closed' : 'ticket-open'}">
-          ${t.status === 'closed' ? '답변 완료' : '처리 중'}
-        </span>
-      </div>`).join('');
+    if (listEl) listEl.innerHTML = tickets.map(t => {
+      const isAnswered = (t.status === 'closed' || t.status === 'answered');
+      const badgeClass = isAnswered ? 'ticket-closed' : 'ticket-open';
+      const badgeText = isAnswered ? (window.t('ticketClosed') || '답변 완료') : (window.t('ticketProcessing') || '처리 중');
+      let replyHtml = '';
+      if (t.reply) {
+          replyHtml += `
+        <div style="margin-top:10px; padding:12px; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.3); border-radius:8px; font-size:12px; color:#fefce8; line-height:1.5;">
+          <div style="font-weight:bold; color:#fef08a; margin-bottom:6px;">🤖 AI 자동 답변:</div>
+          ${t.reply.replace(/\\n/g, '<br>')}
+        </div>`;
+      }
+      if (t.adminReply) {
+          replyHtml += `
+        <div style="margin-top:10px; padding:12px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:8px; font-size:12px; color:#f0fdf4; line-height:1.5;">
+          <div style="font-weight:bold; color:#86efac; margin-bottom:6px;">🧑‍💻 관리자 답변:</div>
+          ${t.adminReply.replace(/\\n/g, '<br>')}
+        </div>`;
+      }
       
-    window._cachedUserTickets = tickets;
-
+      return `
+      <div class="ticket-item" style="display:flex; flex-direction:column; align-items:stretch; gap:4px; padding:14px; border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <div class="ticket-title" style="font-weight:600; font-size:14px; color:#fff;">${t.title}</div>
+          <span class="ticket-status-badge ${badgeClass}" style="padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; background:${isAnswered ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}; color:${isAnswered ? '#10b981' : '#f59e0b'};">
+            ${badgeText}
+          </span>
+        </div>
+        <div class="ticket-meta" style="font-size:11px; color:#94a3b8;">${fmtDate(t.createdAt)}</div>
+        <div style="font-size:13px; color:#cbd5e1; margin-top:4px; line-height:1.4;">${t.content}</div>
+        ${replyHtml}
+      </div>`;
+    }).join('');
   } catch (err) {
     if (listEl) listEl.innerHTML = `<div class="empty-state">${t('loadFail') || '불러오기 실패'}</div>`;
   }
@@ -8739,10 +9192,18 @@ window.submitTicket = async function() {
   if (btn) { btn.disabled = true; btn.textContent = '등록 중...'; }
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
-    await addDoc(collection(db, 'tickets'), {
+    const docRef = await addDoc(collection(db, 'tickets'), {
       userId: currentUser.uid, userEmail: currentUser.email || null,
       title, content, status: 'open', createdAt: serverTimestamp(),
     });
+    
+    // AI 자동 답변 요청 (비동기)
+    fetch('/api/multi/auto-reply-ticket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: docRef.id, title, content, uid: currentUser.uid })
+    }).catch(console.error);
+
     document.getElementById('ticketTitle').value = '';
     document.getElementById('ticketContent').value = '';
     closeModal('ticketModal');
@@ -8784,7 +9245,7 @@ async function startNotificationListener() {
           if (change.type === 'added') {
             const data = change.doc.data();
             if (!data.isRead) {
-               showToast(`🔔 ${data.title || '새 알림이 도착했습니다.'}`, 'info');
+               const td = window.tNoti(data); showToast(`🔔 ${td.title || '새 알림이 도착했습니다.'}`, 'info');
                
                // 입/출금 승인 알림이면 실시간으로 내역 목록도 리로드
                if (data.type === 'deposit_approved' || data.type === 'withdrawal_approved') {
@@ -8832,16 +9293,16 @@ window.showNotifications = async function() {
     }
     const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
     window._cachedNotiItems = items; // Store items for detail modal
-    if (listEl) listEl.innerHTML = items.map((n, idx) => `
+    if (listEl) listEl.innerHTML = items.map((n, idx) => { const tn = window.tNoti(n); return `
       <div class="noti-item ${n.isRead ? '' : 'unread'}" onclick="openNotiDetail(${idx})">
         <div class="noti-icon">${notiIcons[n.type] || '🔔'}</div>
         <div class="noti-body">
-          <div class="noti-title">${n.title || '알림'}</div>
-          <div class="noti-msg">${n.message || ''}</div>
+          <div class="noti-title">${tn.title || '알림'}</div>
+          <div class="noti-msg">${tn.message || ''}</div>
           <div class="noti-date">${fmtDate(n.createdAt)}</div>
         </div>
       </div>
-    `).join('');
+    `; }).join('');
   } catch(e) {
     if (listEl) listEl.innerHTML = '<div class="empty-state">' + (t('loadFail') || '알림을 불러올 수 없습니다') + '</div>';
   }
@@ -8849,7 +9310,7 @@ window.showNotifications = async function() {
 
 window.openNotiDetail = function(idx) {
   if (!window._cachedNotiItems || !window._cachedNotiItems[idx]) return;
-  const n = window._cachedNotiItems[idx];
+  const n = window.tNoti(window._cachedNotiItems[idx]);
   const notiIcons = { deposit: '💰', withdrawal: '💸', bonus: '🎁', invest: '📈', system: '📢', game: '🎮', rank: '⭐' };
   
   document.getElementById('notiDetailTitle').innerHTML = (notiIcons[n.type] || '🔔') + ' ' + (n.title || '알림');
@@ -9087,7 +9548,7 @@ function getDaysLaterStr(days) {
 }
 
 function getTxTypeName(type) {
-  const map = { deposit: 'USDT 입금', withdrawal: 'DEEDRA 출금', bonus: '보너스 지급', invest: 'FREEZE 신청', game: '게임', referral: '추천 보너스', rank_bonus: '판권 매칭', rank_gap_passthru: '예외 보너스', direct_bonus: '추천 매칭', daily_roi: '데일리 수익', center_fee: '센터 피' };
+  const map = { deposit: 'USDT 입금', withdrawal: 'DEEDRA 출금', bonus: '보너스 지급', invest: 'FREEZE 신청', game: '게임', referral: '추천 보너스', rank_bonus: '판권 매칭', rank_gap_passthru: '예외 보너스', direct_bonus: '추천 매칭', daily_roi: '데일리 수익', center_fee: '센터 피', swap: '토큰 스왑' };
   return map[type] || type;
 }
 
@@ -9746,13 +10207,14 @@ async function _loadNepTxTab(contentEl) {
       return;
     }
 
-    const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮', direct_bonus: '👥', rank_bonus: '🏆', rank_gap_passthru: '🛡️', daily_roi: '☀️' };
+    const icons = { deposit: '⬇️', withdrawal: '⬆️', bonus: '🎁', invest: '📈', game: '🎮', direct_bonus: '👥', rank_bonus: '🏆', rank_gap_passthru: '🛡️', daily_roi: '☀️', swap: '🔄' };
     const statusTxt = { pending: t('statusPending'), approved: t('statusApproved'), rejected: t('statusRejected') };
     const statusColor = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
 
     contentEl.innerHTML = txs.map(tx => {
       tx.amount = tx.amountUsdt !== undefined ? tx.amountUsdt : (tx.amount || 0); if (tx.type === "withdrawal") tx.currency = "USDT";
       const isPlus = ['deposit', 'bonus', 'rank_bonus', 'direct_bonus', 'daily_roi', 'center_fee', 'rank_gap_passthru'].includes(tx.type);
+      const isNeutral = tx.type === 'swap';
       const sc = statusColor[tx.status] || '#94a3b8';
       return `
       <div style="display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
@@ -9763,10 +10225,11 @@ async function _loadNepTxTab(contentEl) {
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:600;color:var(--text,#f1f5f9);">${getTxTypeName(tx.type)}</div>
           <div style="font-size:11px;color:var(--text2,#94a3b8);margin-top:2px;">${tx.settlementDate || fmtDate(tx.createdAt)}</div>
+          ${tx.type === 'withdrawal' ? `<div style="font-size:10px;margin-top:2px;"><span style="color:#ef4444">수수료:${fmt(tx.feeUsdt !== undefined ? tx.feeUsdt : (tx.amountUsdt ? tx.amountUsdt*0.05 : 0))}U</span> | <span style="color:#10b981">실지급:${fmt(tx.netUsdt !== undefined ? tx.netUsdt : (tx.amountUsdt ? tx.amountUsdt*0.95 : 0))}U</span></div>` : ''}
         </div>
         <div style="text-align:right;flex-shrink:0;">
-          <div style="font-size:14px;font-weight:700;color:${isPlus ? '#10b981' : '#f87171'};">
-            ${isPlus ? '+' : '-'}${fmt(tx.amount)} ${tx.currency || 'USDT'}
+          <div style="font-size:14px;font-weight:700;color:${isNeutral ? '#f8fafc' : isPlus ? '#10b981' : '#f87171'};">
+            ${tx.type === 'swap' ? fmt(tx.amount) + ' ' + (tx.currency || '') + ' ➡️ ' + fmt(tx.toAmount) + ' ' + (tx.toCurrency || '') : (isPlus ? '+' : '-') + fmt(tx.amount) + ' ' + (tx.currency || 'USDT')}
           </div>
           <div style="font-size:10px;color:${sc};margin-top:2px;">${statusTxt[tx.status] || tx.status}</div>
         </div>
@@ -11262,6 +11725,51 @@ const tutI18n = {
     s5: 'คลิกปุ่ม <span class="hl">ส่งคำขอฝาก</span> เพื่อเสร็จสิ้น! ยอดจะอัปเดตหลังอนุมัติ'
   },
   zh: {
+    walletLoadingBalance: '<i class="fas fa-spinner fa-spin" style="font-size:12px; margin-right:4px;"></i>加载中...',
+    wallet_my_address: '我的专属地址 (Address)',
+    wallet_create_btn: '创建我的Deedra钱包',
+    wallet_owned_coins: '持有资产',
+    wallet_banner_title: '💡 使用 Deedra 钱包进行 USDT 存取！',
+    wallet_banner_desc: '与其他钱包相比，享受 <strong>更快的转账</strong> 和 <strong>最低的手续费</strong>。',
+    wallet_btn_receive: '接收',
+    wallet_btn_send: '发送',
+    wallet_btn_swap: '闪兑',
+    depositTitle: '💰 USDT 充值申请',
+    depositTabConnected: '🔗 关联钱包',
+    depositTabManual: '🖍 手动充值',
+    depositAddrLabel: '公司充值地址 (Solana SPL)',
+    depositAddrLoading: '正在加载地址...',
+    depositAmountLabel: '充值金额 (USDT)',
+    depositAmountPh: '请输入充值金额',
+    depositTxidLabel: 'TXID (交易哈希)',
+    depositTxidPh: '请输入交易哈希',
+    depositMemoLabel: '备注 (选填)',
+    depositMemoPh: '输入备注 (选填)',
+    depositWarning: '⚠️ 请务必转账至上述地址后输入 TXID。余额将在管理员审核后更新。',
+    depositCancelBtn: '取消',
+    depositSubmitBtn: '提交申请',
+    depDeedraDirectTitle: '<i class="fas fa-bolt"></i> 从 Deedra 钱包直接充值',
+    depDeedraDirectAmount: '充值金额 (USDT)',
+    depDeedraDirectBtn: '立即充值',
+    depDeedraDirectDesc: '* 即刻转入公司钱包并在5秒内通过审批。（完全免手续费）',
+    depManualTitle: '手动充值 (其他钱包)',
+    notiDownlineDepTitle: '💰 下级伙伴入金通知',
+    notiDownlineDepMsg: '伙伴 [{name}] 已入金 {amount} USDT，下级业绩增加！',
+    org_personal_sales: '个人业绩:', org_total_sales: '团队总计:', org_downlines: '下级 {n}人',
+    jp_win_title_me: "恭喜！",
+    jp_win_title_other: "本周头奖得主公布！",
+    jp_win_sub_me: "你是本周头奖的赢家！",
+    jp_win_sub_other: "有人独占了巨额头奖！",
+    jp_btn_claim: "领取奖金",
+    jp_btn_close: "关闭（期待下次...）",
+    jp_winner_me: "我",
+    jp_draw_ing: "🎰 正在抽取Solana区块哈希...",
+    jp_search_target: "正在搜索目标",
+    jp_connect_hash: "连接Solana主网哈希中",
+    jp_prize_title: "中奖金额 (USDT)",
+    jp_uid_title: "中奖者 UID",
+    jp_hash_title: "验证的Solana抽奖区块哈希",
+
     btn: '存款指南', close: '关闭', next: '下一步 ➔', done: '完成！',
     s1: '点击 <span class="hl">存入USDT</span> 按钮打开存款窗口。',
     s2: '选择 <span class="hl">手动存款</span> 选项卡。',
@@ -11451,11 +11959,48 @@ function listenToWeeklyJackpot() {
     }
     const data = snap.data();
     
-    // 당첨자 축하 연출 체크 로직 (모든 유저에게 노출, 본인일 경우 문구 다름)
+    // 당첨자 축하 연출 체크 로직 (모든 유저에게 노출, 본인일 경우 문구 다름, 최대 2회 노출)
     if (data.lastWinnerId && data.lastBlockhash) {
-      const lastSeenWinnerBlock = localStorage.getItem('seenWeeklyWinnerHash');
-      if (lastSeenWinnerBlock !== data.lastBlockhash) {
+      const viewCountKey = 'weeklyWinnerSeenCount_' + data.lastBlockhash;
+      let localViewCount = parseInt(localStorage.getItem(viewCountKey) || '0');
+      let dbViewCount = 0;
+      
+      // 계정 연동: 기기나 캐시가 변경되어도 DB에 저장된 노출 횟수를 따라감
+      if (typeof userData !== 'undefined' && userData) {
+        if (userData.weeklyWinnerSeenHash === data.lastBlockhash) {
+          dbViewCount = userData.weeklyWinnerSeenCount || 0;
+        }
+      }
+      
+      let viewCount = Math.max(localViewCount, dbViewCount);
+      
+      // 기존 1회 노출 로직 호환성 유지
+      const oldSeenHash = localStorage.getItem('seenWeeklyWinnerHash');
+      if (oldSeenHash === data.lastBlockhash && viewCount === 0) {
+        viewCount = 1;
+      }
+      
+      if (viewCount < 2 && !window._hasSeenWeeklyWinnerThisSession) {
+        window._hasSeenWeeklyWinnerThisSession = true; // 현재 접속(세션)에서는 1번만 노출되도록 방어
+        const nextCount = viewCount + 1;
+        
+        // 로컬 저장소 업데이트
+        localStorage.setItem(viewCountKey, nextCount.toString());
         localStorage.setItem('seenWeeklyWinnerHash', data.lastBlockhash);
+        
+        // DB 업데이트 (비동기)
+        if (typeof userData !== 'undefined' && userData && window.FB && window.FB._currentUser) {
+          try {
+            window.FB.updateDoc(window.FB.doc(db, 'users', window.FB._currentUser.uid), {
+              weeklyWinnerSeenHash: data.lastBlockhash,
+              weeklyWinnerSeenCount: nextCount
+            }).catch(e => console.error('DB 뷰 카운트 갱신 실패', e));
+            // 메모리 동기화 (onSnapshot 오기 전 즉시 반영)
+            userData.weeklyWinnerSeenHash = data.lastBlockhash;
+            userData.weeklyWinnerSeenCount = nextCount;
+          } catch(e) { }
+        }
+        
         const isMe = (window.FB._currentUser && data.lastWinnerId === window.FB._currentUser.uid);
         showWeeklyWinnerCelebration(data, isMe);
       }
@@ -11470,29 +12015,34 @@ function showWeeklyWinnerCelebration(data, isMe) {
   const blockhashTrunc = data.lastBlockhash ? (data.lastBlockhash.substring(0, 6) + '...' + data.lastBlockhash.substring(data.lastBlockhash.length - 6)) : '';
   const winnerMasked = data.lastWinnerId ? (data.lastWinnerId.substring(0,4) + '***' + data.lastWinnerId.substring(data.lastWinnerId.length-3)) : '알수없음';
   
-  const title1 = isMe ? "축하합니다!" : "이번 주 잭팟 당첨자 발표!";
-  const title2 = isMe ? "이번 주 잭팟의 주인공!" : "누군가 거액의 잭팟을 독식했습니다!";
-  const btnText = isMe ? "상금 수령하기" : "닫기 (다음 기회에...)";
-  const winnerDisplay = isMe ? "나 (본인)" : winnerMasked;
+  const title1 = isMe ? (t('jp_win_title_me')||"🎊 대박 축하합니다! 🎊") : (t('jp_win_title_other')||"🚨 초대박 잭팟 당첨자 탄생! 🚨");
+  const title2 = isMe ? (t('jp_win_sub_me')||"이번 주 잭팟의 주인공은 바로 당신!") : (t('jp_win_sub_other')||"누군가 엄청난 상금을 독식했습니다! 💸");
+  const btnText = isMe ? (t('jp_btn_claim')||"🎁 상금 수령하기 🎁") : (t('jp_btn_close')||"🔥 나도 다음 주 잭팟 도전하기 🔥");
+  const winnerDisplay = isMe ? (t('jp_winner_me')||"나 (본인)") : winnerMasked;
   
-  // 1. 추첨 진행 중 애니메이션 UI
+  // 1. 추첨 진행 중 애니메이션 UI (더 화려하게)
   const drawHtml = `
-    <div id="weeklyDrawModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s;">
-      <h2 style="color:#fbcfe8;font-size:26px;font-weight:900;margin-bottom:40px;text-shadow:0 0 15px #f472b6;animation:pulse 0.8s infinite;">🎰 솔라나 블록해시 추첨 중...</h2>
+    <div id="weeklyDrawModal" style="position:fixed;inset:0;background:radial-gradient(circle at center, #1e1b4b 0%, #000 100%);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.3s;">
       
-      <div style="background:linear-gradient(to bottom, #1e1b4b, #312e81);border:2px solid #6d28d9;border-radius:20px;padding:30px;width:320px;text-align:center;margin-bottom:20px;box-shadow:inset 0 0 30px rgba(0,0,0,0.8), 0 0 20px rgba(109,40,217,0.5);">
-        <div style="color:#a5b4fc;font-size:13px;margin-bottom:10px;font-weight:bold;">대상자 탐색 중</div>
-        <div id="drawUid" style="color:#fbbf24;font-size:28px;font-family:monospace;font-weight:bold;letter-spacing:4px;text-shadow:0 0 10px #fbbf24;">SEARCHING</div>
+      <!-- 배경 별빛/파티클 (가짜 요소로 시뮬레이션) -->
+      <div style="position:absolute;inset:0;background-image:radial-gradient(white 1px, transparent 1px);background-size:30px 30px;opacity:0.1;animation:twinkle 2s infinite linear;"></div>
+      
+      <h2 style="color:#fbcfe8;font-size:30px;font-weight:900;margin-bottom:50px;text-shadow:0 0 20px #f472b6, 0 0 40px #f472b6;animation:pulse3 0.8s infinite;">${t('jp_draw_ing')||"🎰 솔라나 블록해시 추첨 중... 🎰"}</h2>
+      
+      <div style="position:relative; z-index:2; background:linear-gradient(135deg, rgba(30,27,75,0.9), rgba(49,46,129,0.9));border:3px solid #8b5cf6;border-radius:24px;padding:40px 30px;width:340px;text-align:center;margin-bottom:30px;box-shadow:inset 0 0 40px rgba(139,92,246,0.4), 0 0 30px rgba(139,92,246,0.6); backdrop-filter:blur(10px);">
+        <div style="color:#c7d2fe;font-size:15px;margin-bottom:15px;font-weight:bold;letter-spacing:1px;">${t('jp_search_target')||"대상자 탐색 중"}</div>
+        <div id="drawUid" style="color:#fbbf24;font-size:32px;font-family:'Courier New', monospace;font-weight:900;letter-spacing:5px;text-shadow:0 0 15px #f59e0b, 0 0 30px #f59e0b;">SEARCHING</div>
       </div>
       
-      <div style="background:#0f172a;border:1px solid #334155;border-radius:15px;padding:15px;width:320px;text-align:center;">
-        <div style="color:#94a3b8;font-size:11px;margin-bottom:5px;">솔라나 메인넷 해시 연동 중</div>
-        <div id="drawHash" style="color:#34d399;font-size:14px;font-family:monospace;word-break:break-all;opacity:0.8;">CONNECTING...</div>
+      <div style="position:relative; z-index:2; background:rgba(15,23,42,0.8);border:1px solid #475569;border-radius:15px;padding:20px;width:340px;text-align:center;box-shadow:0 0 15px rgba(0,0,0,0.5);">
+        <div style="color:#94a3b8;font-size:12px;margin-bottom:8px;font-weight:bold;letter-spacing:1px;">${t('jp_connect_hash')||"솔라나 메인넷 해시 연동 중"}</div>
+        <div id="drawHash" style="color:#10b981;font-size:15px;font-family:'Courier New', monospace;word-break:break-all;text-shadow:0 0 8px rgba(16,185,129,0.5);">CONNECTING...</div>
       </div>
       
       <style>
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-        @keyframes pulse { 0% { opacity: 0.8; transform: scale(0.98); } 50% { opacity: 1; transform: scale(1.02); } 100% { opacity: 0.8; transform: scale(0.98); } }
+        @keyframes twinkle { 0% { opacity:0.1; } 50% { opacity:0.3; } 100% { opacity:0.1; } }
+        @keyframes pulse3 { 0% { opacity:0.8; transform:scale(0.95); } 50% { opacity:1; transform:scale(1.05); } 100% { opacity:0.8; transform:scale(0.95); } }
       </style>
     </div>
   `;
@@ -11513,13 +12063,24 @@ function showWeeklyWinnerCelebration(data, isMe) {
     if (drawUidEl) drawUidEl.textContent = getRnd(4) + '***' + getRnd(3);
     if (drawHashEl) drawHashEl.textContent = getRnd(10) + '...' + getRnd(10);
     
-    // 틱 소리 재생 시도 (가벼운 소리)
-    if (ticks % 3 === 0 && window.SFX && window.SFX.play) {
-        // SFX.play('click')이 없다면 에러 무시
-        try { window.SFX.play('click'); } catch(e){}
+    if (ticks % 3 === 0) {
+        try {
+            if (!window._ac) window._ac = new (window.AudioContext || window.webkitAudioContext)();
+            if (window._ac.state === 'suspended') window._ac.resume();
+            const o = window._ac.createOscillator();
+            const g = window._ac.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(800 + (Math.random()*200), window._ac.currentTime);
+            o.frequency.exponentialRampToValueAtTime(300, window._ac.currentTime + 0.05);
+            g.gain.setValueAtTime(0.1, window._ac.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, window._ac.currentTime + 0.05);
+            o.connect(g);
+            g.connect(window._ac.destination);
+            o.start();
+            o.stop(window._ac.currentTime + 0.05);
+        } catch(e){}
     }
     
-    // 서서히 멈추는 효과 연출 (마지막 10틱은 최종값에 근접하게)
     if (ticks === maxTicks - 5) {
         if (drawHashEl) drawHashEl.textContent = blockhashTrunc;
     }
@@ -11529,51 +12090,137 @@ function showWeeklyWinnerCelebration(data, isMe) {
     
     if (ticks >= maxTicks) {
       clearInterval(drawInterval);
+      try {
+          if (!window._ac) window._ac = new (window.AudioContext || window.webkitAudioContext)();
+          if (window._ac.state === 'suspended') window._ac.resume();
+          const o = window._ac.createOscillator();
+          const o2 = window._ac.createOscillator();
+          const g = window._ac.createGain();
+          o.type = 'square';
+          o2.type = 'triangle';
+          
+          if (isMe) {
+              o.frequency.setValueAtTime(523.25, window._ac.currentTime);
+              o.frequency.setValueAtTime(659.25, window._ac.currentTime + 0.15);
+              o.frequency.setValueAtTime(783.99, window._ac.currentTime + 0.3);
+              o.frequency.setValueAtTime(1046.50, window._ac.currentTime + 0.45);
+              o2.frequency.setValueAtTime(261.63, window._ac.currentTime); 
+              o2.frequency.setValueAtTime(329.63, window._ac.currentTime + 0.15);
+              o2.frequency.setValueAtTime(392.00, window._ac.currentTime + 0.3);
+              o2.frequency.setValueAtTime(523.25, window._ac.currentTime + 0.45);
+          } else {
+              // 타인 당첨도 경고음처럼 크고 강렬하게
+              o.frequency.setValueAtTime(880, window._ac.currentTime);
+              o.frequency.setValueAtTime(1108.73, window._ac.currentTime + 0.1);
+              o.frequency.setValueAtTime(880, window._ac.currentTime + 0.2);
+              o.frequency.setValueAtTime(1108.73, window._ac.currentTime + 0.3);
+              o2.frequency.setValueAtTime(440, window._ac.currentTime);
+              o2.frequency.setValueAtTime(554.37, window._ac.currentTime + 0.1);
+              o2.frequency.setValueAtTime(440, window._ac.currentTime + 0.2);
+              o2.frequency.setValueAtTime(554.37, window._ac.currentTime + 0.3);
+          }
+          
+          g.gain.setValueAtTime(0, window._ac.currentTime);
+          g.gain.linearRampToValueAtTime(0.2, window._ac.currentTime + 0.05);
+          g.gain.setValueAtTime(0.2, window._ac.currentTime + (isMe ? 0.6 : 0.4));
+          g.gain.exponentialRampToValueAtTime(0.01, window._ac.currentTime + (isMe ? 2.0 : 1.5));
+          
+          o.connect(g); o2.connect(g);
+          g.connect(window._ac.destination);
+          o.start(); o2.start();
+          o.stop(window._ac.currentTime + (isMe ? 2.0 : 1.5));
+          o2.stop(window._ac.currentTime + (isMe ? 2.0 : 1.5));
+      } catch(e){}
       
-      // 추첨 모달 제거
       const dModal = document.getElementById('weeklyDrawModal');
       if (dModal) dModal.remove();
       
-      // 2. 최종 당첨자 결과 모달 렌더링
+      // 파티클 생성 (나/타인 모두 화려하게 떨어짐. 타인은 돈비 느낌으로)
+      let confettiHtml = '';
+      for(let i=0; i<60; i++) {
+          const left = Math.random() * 100;
+          const animDur = 1 + Math.random() * 2.5;
+          const delay = Math.random() * 1.5;
+          const colors = isMe ? ['#f472b6', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa'] : ['#fbbf24', '#f59e0b', '#10b981', '#047857', '#eab308'];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          const isMoney = !isMe && Math.random() > 0.4;
+          const shape = isMoney ? 'width:16px; height:9px; border-radius:2px;' : 'width:12px; height:12px; border-radius:50%;';
+          confettiHtml += `<div style="position:absolute; ${shape} background:${color}; top:-20px; left:${left}%; box-shadow:0 0 12px ${color}; animation: fall ${animDur}s ease-in ${delay}s infinite;"></div>`;
+      }
+      
+      // 화려한 배경 효과 (isMe는 핑크/보라 축제 느낌, 타인은 골드/레드 사이렌 질투 유발 느낌)
+      const bgEffect = isMe ? `
+        <div style="position:absolute;inset:0;background:radial-gradient(circle, rgba(236,72,153,0.3) 0%, transparent 70%);animation:pulse4 2s infinite;"></div>
+        ${confettiHtml}
+      ` : `
+        <div style="position:absolute;inset:0;background:radial-gradient(circle, rgba(245,158,11,0.2) 0%, rgba(220,38,38,0.15) 60%, transparent 100%);animation:siren 1.5s infinite alternate;"></div>
+        ${confettiHtml}
+      `;
+
+      const fomoMsg = !isMe ? `
+        <div style="background:linear-gradient(90deg, #dc2626, #b91c1c);color:#fff;font-size:14px;font-weight:900;padding:12px;border-radius:12px;margin-bottom:25px;animation:shake 2.5s infinite;box-shadow:0 0 20px rgba(220,38,38,0.8);border:2px solid #fca5a5;letter-spacing:0.5px;line-height:1.4;">
+          저 엄청난 상금이 내 것이 될 수 있었습니다!<br>🔥 다음 주 잭팟의 주인공이 되어보세요! 🔥
+        </div>
+      ` : '';
+
       const modalHtml = `
-        <div id="weeklyWinnerModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.5s;">
-          <div style="text-align:center;animation:bounceIn 1s cubic-bezier(0.68, -0.55, 0.27, 1.55);">
-            <div style="font-size:80px;margin-bottom:20px;text-shadow:0 0 30px rgba(244,114,182,0.8);animation:pulse2 1s infinite;">🏆</div>
-            <h1 style="color:#fbcfe8;font-size:24px;font-weight:900;margin-bottom:10px;text-shadow:0 2px 10px rgba(244,114,182,0.5);">${title1}</h1>
-            <h2 style="color:#fff;font-size:32px;font-weight:900;margin-bottom:20px;">${title2}</h2>
+        <div id="weeklyWinnerModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 0.5s; overflow:hidden;">
+          ${bgEffect}
+          
+          <div style="position:relative; z-index:10; text-align:center;animation:bounceInSuper 1s cubic-bezier(0.68, -0.55, 0.27, 2.0); max-width:90%; width:400px;">
+            <div style="position:relative; display:inline-block;">
+                <div style="font-size:90px;margin-bottom:10px;text-shadow:0 0 50px ${isMe?'rgba(251,191,36,1)':'rgba(16,185,129,0.8)'};animation:floatObj 3s ease-in-out infinite;">${isMe ? '🏆' : '💰'}</div>
+                <div style="position:absolute;top:-10px;right:-20px;font-size:40px;animation:spinStar 4s linear infinite;">✨</div>
+                <div style="position:absolute;bottom:10px;left:-30px;font-size:30px;animation:spinStar 3s linear infinite reverse;">✨</div>
+            </div>
             
-            <div style="background:linear-gradient(135deg, #4c1d95, #be185d);border:2px solid #f472b6;border-radius:20px;padding:30px;box-shadow:0 10px 30px rgba(244,114,182,0.3);margin-bottom:30px;">
-              <div style="color:#fbcfe8;font-size:14px;margin-bottom:10px;">당첨 상금 (USDT)</div>
-              <div style="color:#fff;font-size:48px;font-weight:900;text-shadow:0 0 20px #f472b6;">$ ${amountStr}</div>
+            <h1 style="color:${isMe ? '#fdf2f8' : '#fee2e2'};font-size:28px;font-weight:900;margin-bottom:12px;text-shadow:0 4px 15px ${isMe ? 'rgba(236,72,153,0.8)' : 'rgba(239,68,68,0.8)'};letter-spacing:1px;">${title1}</h1>
+            <h2 style="color:${isMe ? '#fbbf24' : '#fcd34d'};font-size:${isMe ? '32px' : '22px'};font-weight:900;margin-bottom:25px;text-shadow:${isMe ? '0 0 20px rgba(251,191,36,0.6)' : '0 0 15px rgba(245,158,11,0.6)'};">${title2}</h2>
+            
+            ${fomoMsg}
+            
+            <div style="background:${isMe ? 'linear-gradient(135deg, rgba(131,24,67,0.95), rgba(157,23,77,0.95))' : 'linear-gradient(135deg, rgba(30,58,138,0.95), rgba(17,24,39,0.95))'};border:3px solid ${isMe ? '#fbcfe8' : '#fbbf24'};border-radius:24px;padding:35px 25px;box-shadow:0 15px 40px ${isMe ? 'rgba(236,72,153,0.5)' : 'rgba(245,158,11,0.4)'}, inset 0 0 25px rgba(255,255,255,0.2);margin-bottom:30px;position:relative;overflow:hidden;">
               
-              <div style="margin-top:20px;padding-top:20px;border-top:1px dashed rgba(255,255,255,0.2);">
-                <div style="color:#f9a8d4;font-size:12px;margin-bottom:5px;">당첨자 UID</div>
-                <div style="color:#fbbf24;font-size:16px;font-weight:bold;margin-bottom:15px;">${winnerDisplay}</div>
+              <div style="position:absolute;top:0;left:-100%;width:50%;height:100%;background:linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);transform:skewX(-20deg);animation:shine 2.5s infinite;"></div>
+              
+              <div style="color:${isMe ? '#fbcfe8' : '#cbd5e1'};font-size:16px;margin-bottom:10px;font-weight:bold;letter-spacing:2px;">당첨 상금 (USDT)</div>
+              <div style="color:${isMe ? '#fff' : '#10b981'};font-size:50px;font-weight:900;text-shadow:${isMe ? '0 0 30px #f472b6' : '0 0 30px #34d399'}, 0 0 10px #fff;letter-spacing:1px;font-family:'Courier New', Courier, monospace; line-height:1.1;">$ ${amountStr}</div>
+              
+              <div style="margin-top:25px;padding-top:20px;border-top:1px dashed rgba(255,255,255,0.3);">
+                <div style="color:${isMe ? '#f9a8d4' : '#94a3b8'};font-size:13px;margin-bottom:8px;font-weight:bold;">당첨자 UID</div>
+                <div style="color:${isMe ? '#34d399' : '#fbbf24'};font-size:20px;font-weight:900;margin-bottom:20px;letter-spacing:1px;text-shadow:0 0 10px rgba(251,191,36,0.5);">${winnerDisplay}</div>
                 
-                <div style="color:#f9a8d4;font-size:12px;margin-bottom:5px;">검증된 솔라나 추첨 블록해시</div>
-                <div style="color:#cbd5e1;font-size:13px;font-family:monospace;background:rgba(0,0,0,0.3);padding:8px;border-radius:8px;word-break:break-all;">${blockhashTrunc}</div>
+                <div style="color:${isMe ? '#f9a8d4' : '#94a3b8'};font-size:13px;margin-bottom:8px;font-weight:bold;">검증된 솔라나 추첨 블록해시</div>
+                <div style="color:#cbd5e1;font-size:14px;font-family:monospace;background:rgba(0,0,0,0.5);padding:12px;border-radius:10px;word-break:break-all;border:1px solid rgba(255,255,255,0.15);">${blockhashTrunc}</div>
               </div>
             </div>
             
-            <button onclick="document.getElementById('weeklyWinnerModal').remove()" style="background:#f472b6;color:#fff;border:none;border-radius:30px;padding:15px 40px;font-size:18px;font-weight:bold;cursor:pointer;box-shadow:0 4px 15px rgba(244,114,182,0.4);transition:transform 0.2s;">
+            <button onclick="document.getElementById('weeklyWinnerModal').remove()" style="background:${isMe ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'linear-gradient(to right, #ea580c, #dc2626)'};color:#fff;border:none;border-radius:30px;padding:18px 40px;font-size:18px;font-weight:900;cursor:pointer;box-shadow:0 10px 25px ${isMe ? 'rgba(236,72,153,0.5)' : 'rgba(220,38,38,0.5)'};transition:transform 0.2s;text-shadow:0 2px 5px rgba(0,0,0,0.4);animation:pulseBtn 1.5s infinite; width:100%;">
               ${btnText}
             </button>
           </div>
           
           <style>
-            @keyframes bounceIn { 
-              0% { transform: scale(0.1); opacity: 0; } 
-              60% { transform: scale(1.2); opacity: 1; } 
-              100% { transform: scale(1); opacity: 1; } 
+            @keyframes bounceInSuper { 
+              0% { transform: scale(0.1) translateY(200px); opacity: 0; } 
+              60% { transform: scale(1.1) translateY(-20px); opacity: 1; } 
+              80% { transform: scale(0.95) translateY(10px); opacity: 1; }
+              100% { transform: scale(1) translateY(0); opacity: 1; } 
             }
-            @keyframes pulse2 { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+            @keyframes floatObj { 0% { transform: translateY(0); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0); } }
+            @keyframes pulse4 { 0% { opacity:0.3; transform:scale(0.8); } 50% { opacity:0.6; transform:scale(1.1); } 100% { opacity:0.3; transform:scale(0.8); } }
+            @keyframes siren { 0% { opacity:0.1; transform:scale(1); } 100% { opacity:0.6; transform:scale(1.05); } }
+            @keyframes spinStar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            @keyframes shine { 0% { left: -100%; } 20% { left: 200%; } 100% { left: 200%; } }
+            @keyframes fall { 0% { transform: translateY(-20px) rotate(0deg) scale(0.8); opacity: 1; } 100% { transform: translateY(100vh) rotate(360deg) scale(1.2); opacity: 0; } }
+            @keyframes pulseBtn { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+            @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-2px) rotate(-1deg); } 20%, 40%, 60%, 80% { transform: translateX(2px) rotate(1deg); } }
           </style>
         </div>
       `;
       
       document.body.insertAdjacentHTML('beforeend', modalHtml);
       
-      // 사운드 이펙트가 있다면 실행 (잭팟 소리)
       if (window.SFX && window.SFX.play) {
         setTimeout(() => window.SFX.play('jackpot'), 100);
       }
@@ -11590,11 +12237,11 @@ function renderWeeklyJackpotBanner(data) {
     return;
   }
   
-  const amountStr = Number(data.amount || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  const amountStr = Math.max(0, Number(data.amount || 0)).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
   
   // get real total tickets from global cache if needed, but we should use data.totalTickets directly
   const dbTotalTickets = data.totalTickets || 0;
-  const myTickets = window.walletData ? (window.walletData.weeklyTickets || 0) : 0;
+  const myTickets = walletData ? (walletData.weeklyTickets || 0) : 0;
   
   // UI fix: ensure totalTickets is at least myTickets
   const totalTickets = Math.max(dbTotalTickets, myTickets);
@@ -11663,7 +12310,10 @@ function listenToJackpot() {
 
 function renderJackpotBanner(data) {
   const container = document.getElementById('jackpotBannerContainer');
-  if (!container) return;
+  if (container) container.innerHTML = '';
+  const m = document.getElementById('jackpotPromoModal');
+  if (m) { m.style.display = 'none'; m.classList.add('hidden'); }
+  return;
   
   if (!data || !data.active) {
     container.innerHTML = '';
@@ -11750,6 +12400,8 @@ function updateJackpotTimer() {
 }
 
 function showJackpotPromoOnce(amount) {
+  return; // Disabled Last Jackpot Promo
+  
   // Check local storage for today
   const today = new Date().toISOString().split('T')[0];
   const hideDate = localStorage.getItem('jackpotPromoHideDate');
@@ -11759,7 +12411,7 @@ function showJackpotPromoOnce(amount) {
   const modal = document.getElementById('jackpotPromoModal');
   if (modal) {
     const amountEl = document.getElementById('jackpotPromoAmount');
-    if (amountEl) amountEl.textContent = Number(amount).toLocaleString();
+    if (amountEl) amountEl.textContent = Math.max(0, Number(amount)).toLocaleString();
     modal.style.display = 'flex'; modal.classList.remove('hidden');
   }
 }
@@ -12068,6 +12720,7 @@ window.updateCenterWithdrawDdraEstimation = function() {
 };
 
 window.submitCenterWithdraw = async function() {
+  /* punish modal removed */
   if (userData && userData.withdrawSuspended) {
     showToast('일정기간 출금금지 계정입니다', 'error');
     return;
@@ -12144,12 +12797,6 @@ window.submitCenterWithdraw = async function() {
 
   } catch(e) {
     console.error(e);
-    showToast('출금 신청 실패: ' + e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '출금 신청'; }
-  }
-};
-
     showToast('출금 신청 실패: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '출금 신청'; }
@@ -12561,33 +13208,2030 @@ window.showWalletSend = function() {
     overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
     
     const content = document.createElement('div');
+    content.style.background = '#0f172a';
+    content.style.border = '1px solid rgba(255,255,255,0.1)';
+    content.style.padding = '30px';
+    content.style.borderRadius = '16px';
+    content.style.width = '90%';
+    content.style.maxWidth = '400px';
+    content.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+    content.style.color = '#f8fafc';
+    
+    const usdtBal = document.getElementById('deedraWalletUsdtBalance')?.innerText.replace(' USDT', '').trim() || '0';
+    const solBal = document.getElementById('deedraWalletBalance')?.innerText.replace(' SOL', '').trim() || '0';
+    const ddraBal = document.getElementById('deedraWalletDdraBalance')?.innerText.replace(' DDRA', '').trim() || '0';
+    
+    window.updateSendTokenUI = function() {
+        const token = document.getElementById('sendTokenSelect').value;
+        const balSpan = document.getElementById('sendMaxBal');
+        const unitSpan = document.getElementById('sendMaxUnit');
+        const labelUnit = document.getElementById('sendLabelUnit');
+        
+        let maxBal = '0';
+        if (token === 'USDT') { maxBal = usdtBal; unitSpan.innerText = 'USDT'; labelUnit.innerText = 'USDT'; }
+        else if (token === 'SOL') { maxBal = solBal; unitSpan.innerText = 'SOL'; labelUnit.innerText = 'SOL'; }
+        else if (token === 'DDRA') { maxBal = ddraBal; unitSpan.innerText = 'DDRA'; labelUnit.innerText = 'DDRA'; }
+        
+        balSpan.innerText = maxBal;
+        document.getElementById('sendAmount').value = '';
+        
+        // update buttons
+        const btns = document.querySelectorAll('.percent-btn');
+        btns[0].setAttribute('onclick', `window.setSendAmountPercent(25, '${maxBal}')`);
+        btns[1].setAttribute('onclick', `window.setSendAmountPercent(50, '${maxBal}')`);
+        btns[2].setAttribute('onclick', `window.setSendAmountPercent(75, '${maxBal}')`);
+        btns[3].setAttribute('onclick', `window.setSendAmountPercent(100, '${maxBal}')`);
+        const cleanMax = maxBal.replace(/,/g, '').replace(/[^0-9.]/g, ''); const numMax = parseFloat(cleanMax) || 0; document.querySelector('.max-text-btn').setAttribute('onclick', `document.getElementById('sendAmount').value = '${numMax > 0 ? cleanMax : ''}'`);
+    };
 
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:18px;"><i class="fas fa-paper-plane" style="color:#60a5fa; margin-right:8px;"></i>보내기 (Send)</h3>
+            <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:18px;" onclick="document.getElementById('sendModalOverlay').remove()"></i>
+        </div>
+        
+        <div style="margin-bottom:15px;">
+            <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">전송할 코인 선택</div>
+            <select id="sendTokenSelect" onchange="window.updateSendTokenUI()" style="width:100%; padding:12px; border-radius:8px; border:1px solid #334155; background:#1e293b; color:#fff; font-size:14px; box-sizing:border-box; outline:none; appearance:none;">
+                <option value="USDT">USDT</option>
+                <option value="DDRA">DDRA</option>
+                <option value="SOL">SOL</option>
+            </select>
+        </div>
 
-window.openUserTicketDetail = function(ticketId) {
-    if (!window._cachedUserTickets) return;
-    const ticket = window._cachedUserTickets.find(t => t.id === ticketId);
-    if (!ticket) return;
+        <div style="margin-bottom:15px;">
+            <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">받는 사람 지갑 주소 (Solana)</div>
+            <input type="text" id="sendTargetAddress" placeholder="지갑 주소를 입력하세요" style="width:100%; padding:12px; border-radius:8px; border:1px solid #334155; background:#1e293b; color:#fff; font-size:13px; box-sizing:border-box; outline:none;">
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:6px;">
+                <span>보낼 수량 (<span id="sendLabelUnit">USDT</span>)</span>
+                <span>잔액: <span id="sendMaxBal">${usdtBal}</span> <span id="sendMaxUnit">USDT</span></span>
+            </div>
+            <div style="position:relative;">
+                <input type="number" id="sendAmount" placeholder="0.00" style="width:100%; padding:12px; border-radius:8px; border:1px solid #334155; background:#1e293b; color:#fff; font-size:16px; font-weight:bold; box-sizing:border-box; outline:none;">
+                <div class="max-text-btn" style="position:absolute; right:12px; top:12px; font-size:14px; color:#60a5fa; font-weight:bold; cursor:pointer;" onclick="document.getElementById('sendAmount').value = '${usdtBal}'">MAX</div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end;">
+                <button class="percent-btn" onclick="window.setSendAmountPercent(25, '${usdtBal}')" style="background:#334155; border:none; color:#cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">25%</button>
+                <button class="percent-btn" onclick="window.setSendAmountPercent(50, '${usdtBal}')" style="background:#334155; border:none; color:#cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">50%</button>
+                <button class="percent-btn" onclick="window.setSendAmountPercent(75, '${usdtBal}')" style="background:#334155; border:none; color:#cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">75%</button>
+                <button class="percent-btn" onclick="window.setSendAmountPercent(100, '${usdtBal}')" style="background:rgba(59,130,246,0.2); border:1px solid rgba(59,130,246,0.4); color:#3b82f6; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.3)'" onmouseout="this.style.background='rgba(59,130,246,0.2)'">Max</button>
+            </div>
+        </div>
+        
+        <button onclick="window.processWalletSend()" style="width:100%; background:linear-gradient(135deg, #3b82f6, #2563eb); color:white; border:none; padding:14px; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(59,130,246,0.3);">전송하기</button>
+    `;
     
-    document.getElementById('utdTitle').textContent = ticket.title || '(제목 없음)';
-    document.getElementById('utdDate').textContent = fmtDate(ticket.createdAt);
-    document.getElementById('utdContent').textContent = ticket.content || '';
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+};
+window.processWalletSend = async function() {
+    const target = document.getElementById('sendTargetAddress').value.trim();
+    const amt = parseFloat(document.getElementById('sendAmount').value);
+    const token = document.getElementById('sendTokenSelect').value;
     
-    const replyBox = document.getElementById('utdReplyBox');
-    const adminReplyBox = document.getElementById('utdAdminReplyBox');
+    if(!target || target.length < 32) return showToast('올바른 솔라나 지갑 주소를 입력하세요.', 'error');
+    if(!amt || amt <= 0) return showToast('올바른 수량을 입력하세요.', 'error');
     
-    if (ticket.reply) {
-        replyBox.style.display = 'block';
-        document.getElementById('utdReply').textContent = ticket.reply;
-    } else {
-        replyBox.style.display = 'none';
+    const btn = event ? event.target : document.querySelector('#sendModalOverlay button:last-child');
+    if(!btn) return;
+    const oldText = btn.innerText;
+    btn.innerText = '전송 중...';
+    btn.disabled = true;
+    
+    try {
+        let idToken = '';
+        if (window.FB && window.FB.auth && window.FB.auth.currentUser) {
+            idToken = window.FB._idToken || await window.FB.auth.currentUser.getIdToken();
+        } else if (typeof auth !== 'undefined' && auth.currentUser) {
+            idToken = await auth.currentUser.getIdToken();
+        }
+        
+        if (!idToken) throw new Error('로그인 토큰을 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
+        const res = await fetch('/api/solana/send-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + idToken
+            },
+            body: JSON.stringify({ targetAddress: target, amount: amt, token: token })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('전송이 성공적으로 완료되었습니다!', 'success');
+            // update balance after small delay
+            setTimeout(() => {
+                const deedraPub = document.getElementById('deedraWalletAddress').innerText;
+                if(deedraPub && deedraPub.length > 30) {
+                    window._fetchSolanaBalances(deedraPub).then(bData => {
+                        // force update the UI elements
+                        const solEl = document.getElementById('deedraWalletBalance');
+                        const usdtEl = document.getElementById('deedraWalletUsdtBalance');
+                        const ddraEl = document.getElementById('deedraWalletDdraBalance');
+                        if (solEl && bData.sol !== undefined) solEl.innerHTML = bData.sol.toFixed(4);
+                        if (usdtEl && bData.usdt !== undefined) usdtEl.innerHTML = bData.usdt.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
+                        if (ddraEl && bData.ddra !== undefined) ddraEl.innerHTML = bData.ddra.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
+                    }).catch(console.error);
+                }
+                const overlay = document.getElementById('sendModalOverlay');
+                if(overlay) overlay.remove();
+            }, 2000);
+        } else {
+            throw new Error(data.error || '전송 실패');
+        }
+    } catch(err) {
+        showToast(err.message, 'error');
+    } finally {
+        btn.innerText = oldText;
+        btn.disabled = false;
+    }
+};
+
+window.showWalletSwap = function() {
+    const existingOverlay = document.getElementById('swapModalOverlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'swapModalOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+    
+    const content = document.createElement('div');
+    content.style.background = '#0f172a';
+    content.style.border = '1px solid rgba(255,255,255,0.1)';
+    content.style.padding = '30px';
+    content.style.borderRadius = '16px';
+    content.style.width = '90%';
+    content.style.maxWidth = '400px';
+    content.style.width = '95%';
+    content.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+    content.style.color = '#f8fafc';
+    
+    const usdtBal = document.getElementById('deedraWalletUsdtBalance').innerText.replace(' USDT', '');
+    
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:18px;"><i class="fas fa-exchange-alt" style="color:#10b981; margin-right:8px;"></i>스왑 (Swap)</h3>
+            <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:18px;" onclick="document.getElementById('swapModalOverlay').remove()"></i>
+        </div>
+        
+        <div style="background:#1e293b; padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid #334155;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:8px;">
+                <span>지불 (From)</span>
+                <span>잔액: ${usdtBal} USDT</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:6px 10px; border-radius:8px;">
+                    <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg" style="width:16px; height:16px; border-radius:50%;">
+                    <span style="font-weight:bold; font-size:14px;">USDT</span>
+                </div>
+                <input type="number" id="swapAmount" oninput="window.updateSwapQuote()" placeholder="0.00" style="flex:1; background:transparent; border:none; color:#fff; font-size:18px; font-weight:bold; text-align:right; outline:none; width:100%;">
+            </div>
+        </div>
+        
+        <div style="display:flex; justify-content:center; margin:-18px 0; position:relative; z-index:2;">
+            <div style="width:30px; height:30px; background:#334155; border-radius:50%; display:flex; justify-content:center; align-items:center; border:3px solid #0f172a;">
+                <i class="fas fa-arrow-down" style="color:#94a3b8; font-size:12px;"></i>
+            </div>
+        </div>
+        
+        <div style="background:#1e293b; padding:15px; border-radius:12px; margin-bottom:20px; border:1px solid #334155;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:8px;">
+                <span>받기 (To)</span>
+                <span id="swapToBalance">잔액: 0.00 DDRA</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:6px 10px; border-radius:8px;">
+                    <img src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png" style="width:16px; height:16px; border-radius:50%;">
+                    <span style="font-weight:bold; font-size:14px;">SOL</span>
+                </div>
+                <input type="text" id="swapOutAmount" readonly placeholder="자동 계산" style="flex:1; background:transparent; border:none; color:#94a3b8; font-size:18px; font-weight:bold; text-align:right; outline:none; width:100%;">
+            </div>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-bottom:15px; padding:0 5px;">
+            <span>제공자</span>
+            <span style="color:#a78bfa; font-weight:bold;"><i class="fas fa-bolt" style="margin-right:3px;"></i>Jupiter (최저 수수료)</span>
+        </div>
+        
+        <button onclick="window.processWalletSwap()" style="width:100%; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; padding:14px; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3);">스왑하기</button>
+    `;
+    
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+};
+
+window.processWalletSwap = async function() {
+    const amt = parseFloat(document.getElementById('swapAmount').value);
+    if(!amt || amt <= 0) return showToast('올바른 수량을 입력하세요.', 'error');
+    
+    const btn = event && event.target && event.target.tagName === 'BUTTON' ? event.target : document.querySelector('button[onclick="window.processWalletSwap()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 스왑 진행 중...';
     }
     
-    if (ticket.adminReply) {
-        adminReplyBox.style.display = 'block';
-        document.getElementById('utdAdminReply').textContent = ticket.adminReply;
-    } else {
-        adminReplyBox.style.display = 'none';
+    showToast('Jupiter 라우터와 통신 중입니다...', 'info');
+    
+    try {
+        let idToken = window.FB && window.FB._idToken ? window.FB._idToken : '';
+        let activeUser = null;
+        if (typeof window.FB !== 'undefined' && window.FB.auth && window.FB.auth.currentUser) {
+            activeUser = window.FB.auth.currentUser;
+        } else if (typeof window.auth !== 'undefined' && window.auth.currentUser) {
+            activeUser = window.auth.currentUser;
+        } else if (typeof auth !== 'undefined' && auth.currentUser) {
+            activeUser = auth.currentUser;
+        } else if (typeof currentUser !== 'undefined' && currentUser) {
+            activeUser = currentUser;
+        }
+
+        if (activeUser && typeof activeUser.getIdToken === 'function') {
+            try {
+                idToken = await activeUser.getIdToken();
+            } catch(e) {}
+        }
+        
+        if (!idToken) throw new Error("로그인 세션이 만료되었습니다. 다시 로그인해주세요.");
+
+        const res = await fetch('/api/solana/execute-swap', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + idToken
+            },
+            body: JSON.stringify({
+                fromSymbol: window._swapState.from,
+                toSymbol: window._swapState.to,
+                amountUi: amt
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('✅ 스왑 성공! TXID: ' + data.txid.substring(0, 15) + '...', 'success');
+            setTimeout(() => {
+                const overlay = document.getElementById('swapModalOverlay');
+                if (overlay) overlay.remove();
+                if (typeof window.renderDeedraWallet === 'function') window.renderDeedraWallet();
+                if (typeof window.loadRecentTransactions === 'function') window.loadRecentTransactions();
+                if (typeof window.loadWalletData === 'function') window.loadWalletData();
+            }, 1000);
+            setTimeout(() => { if (typeof window.renderDeedraWallet === 'function') window.renderDeedraWallet(); }, 3000);
+            setTimeout(() => { if (typeof window.renderDeedraWallet === 'function') window.renderDeedraWallet(); }, 6000);
+        } else {
+            showToast('❌ 스왑 실패: ' + (data.error || '알 수 없는 오류'), 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('❌ 통신 오류: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '스왑 진행하기';
+        }
+    }
+};
+
+
+
+window._swapState = {
+    from: 'USDT',
+    to: 'SOL'
+};
+
+window._swapTokens = {
+    'USDT': { symbol: 'USDT', name: 'Tether', icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg' },
+    'SOL': { symbol: 'SOL', name: 'Solana', icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png' },
+    'DDRA': { symbol: 'DDRA', name: 'Deedra', icon: 'https://ui-avatars.com/api/?name=D&background=8b5cf6&color=fff&rounded=true&bold=true&font-size=0.6' }
+};
+
+window.renderSwapUI = function() {
+    if(document.getElementById('swapOutAmount')) document.getElementById('swapOutAmount').value = '';
+    if(document.getElementById('swapAmount') && typeof window.updateSwapQuote === 'function') window.updateSwapQuote();
+    const fromToken = window._swapTokens[window._swapState.from];
+    const toToken = window._swapTokens[window._swapState.to];
+    
+    const fromIconEl = document.getElementById('swapFromIcon');
+    const fromSymbolEl = document.getElementById('swapFromSymbol');
+    const toIconEl = document.getElementById('swapToIcon');
+    const toSymbolEl = document.getElementById('swapToSymbol');
+    const fromBalanceEl = document.getElementById('swapFromBalance');
+    const toBalanceEl = document.getElementById('swapToBalance');
+    
+    if (fromIconEl) fromIconEl.src = fromToken.icon;
+    if (fromSymbolEl) fromSymbolEl.innerText = fromToken.symbol;
+    if (toIconEl) toIconEl.src = toToken.icon;
+    if (toSymbolEl) toSymbolEl.innerText = toToken.symbol;
+    
+    // Safely extract numbers
+    const usdtBalEl = document.getElementById('deedraWalletUsdtBalance');
+    const solBalEl = document.getElementById('deedraWalletBalance');
+    
+    let usdtBal = '0.00';
+    let solBal = '0.00';
+    let ddraBal = '0.00';
+    
+    if (usdtBalEl) {
+        const text = usdtBalEl.innerText || '';
+        const match = text.match(/([0-9,.]+)/);
+        if (match) usdtBal = match[1];
+    }
+    if (solBalEl) {
+        const text = solBalEl.innerText || '';
+        const match = text.match(/([0-9,.]+)/);
+        if (match) solBal = match[1];
     }
     
-    document.getElementById('userTicketDetailModal').classList.remove('hidden');
+    const ddraBalEl = document.getElementById('deedraWalletDdraBalance');
+    if (ddraBalEl) {
+        const text = ddraBalEl.innerText || '';
+        const match = text.match(/([0-9,.]+)/);
+        if (match) ddraBal = match[1];
+    }
+    
+    const getBalStr = (symbol) => {
+        if (symbol === 'USDT') return usdtBal;
+        if (symbol === 'SOL') return solBal;
+        if (symbol === 'DDRA') return ddraBal;
+        return '0.00';
+    };
+    
+    const fromBal = getBalStr(window._swapState.from);
+    const toBal = getBalStr(window._swapState.to);
+    
+    if (fromBalanceEl) fromBalanceEl.innerHTML = '잔액: <strong>' + fromBal + '</strong> ' + fromToken.symbol;
+    if (toBalanceEl) toBalanceEl.innerHTML = '잔액: <strong>' + toBal + '</strong> ' + toToken.symbol;
+};
+
+window.switchSwapTokens = function() {
+    const temp = window._swapState.from;
+    window._swapState.from = window._swapState.to;
+    window._swapState.to = temp;
+    window.renderSwapUI();
+};
+
+window.openTokenSelector = function(targetType) {
+    const container = document.getElementById('tokenListContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    Object.keys(window._swapTokens).forEach(symbol => {
+        const token = window._swapTokens[symbol];
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.gap = '12px';
+        item.style.padding = '12px';
+        item.style.borderRadius = '10px';
+        item.style.background = 'rgba(255,255,255,0.03)';
+        item.style.cursor = 'pointer';
+        item.style.border = '1px solid transparent';
+        item.style.marginBottom = '8px';
+        
+        if (window._swapState[targetType] === symbol) {
+            item.style.border = '1px solid #60a5fa';
+            item.style.background = 'rgba(96,165,250,0.1)';
+        }
+        
+        item.innerHTML = `
+            <img src="${token.icon}" style="width:28px; height:28px; border-radius:50%; border:1px solid rgba(255,255,255,0.1);">
+            <div style="flex:1;">
+                <div style="font-weight:bold; font-size:15px; color:#fff;">${token.symbol}</div>
+                <div style="font-size:11px; color:#94a3b8;">${token.name}</div>
+            </div>
+        `;
+        
+        item.onclick = function() {
+            if (targetType === 'from' && window._swapState.to === symbol) {
+                window.switchSwapTokens();
+            } else if (targetType === 'to' && window._swapState.from === symbol) {
+                window.switchSwapTokens();
+            } else {
+                window._swapState[targetType] = symbol;
+            }
+            document.getElementById('tokenSelectorOverlay').style.display = 'none';
+            window.renderSwapUI();
+        };
+        
+        container.appendChild(item);
+    });
+    
+    document.getElementById('tokenSelectorOverlay').style.display = 'flex';
+};
+
+window.showWalletSwap = function() {
+    const existingOverlay = document.getElementById('swapModalOverlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    window._swapState = { from: 'USDT', to: 'DDRA' };
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'swapModalOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+    
+    const content = document.createElement('div');
+    content.style.background = '#0f172a';
+    content.style.border = '1px solid rgba(255,255,255,0.1)';
+    content.style.padding = '30px';
+    content.style.borderRadius = '16px';
+    content.style.width = '90%';
+    content.style.maxWidth = '400px';
+    content.style.width = '95%';
+    content.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+    content.style.color = '#f8fafc';
+    content.style.position = 'relative';
+    content.style.overflow = 'hidden';
+    
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:18px;"><i class="fas fa-exchange-alt" style="color:#10b981; margin-right:8px;"></i>스왑 (Swap)</h3>
+            <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:18px;" onclick="document.getElementById('swapModalOverlay').remove()"></i>
+        </div>
+        
+        <div style="background:#1e293b; padding:15px; border-radius:12px; margin-bottom:10px; border:1px solid #334155;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:8px;">
+                <span>지불 (From)</span>
+                <span id="swapFromBalance">잔액: 0.00 USDT</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div onclick="window.openTokenSelector('from')" style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:6px 10px; border-radius:8px; cursor:pointer; border:1px solid rgba(255,255,255,0.05); transition:background 0.2s;">
+                    <img id="swapFromIcon" src="" style="width:20px; height:20px; border-radius:50%;">
+                    <span id="swapFromSymbol" style="font-weight:bold; font-size:15px; padding:0 2px;">USDT</span>
+                    <i class="fas fa-chevron-down" style="font-size:10px; color:#94a3b8; margin-left:2px;"></i>
+                </div>
+                <input type="number" id="swapAmount" oninput="window.updateSwapQuote()" placeholder="0.00" style="flex:1; background:transparent; border:none; color:#fff; font-size:22px; font-weight:bold; text-align:right; outline:none; width:100%;">
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end;">
+                <button onclick="window.setSwapAmountPercent(25)" style="background:#334155; border:none; color:#cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">25%</button>
+                <button onclick="window.setSwapAmountPercent(50)" style="background:#334155; border:none; color:#cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">50%</button>
+                <button onclick="window.setSwapAmountPercent(75)" style="background:#334155; border:none; color:#cbd5e1; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600; transition:all 0.2s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#334155'">75%</button>
+                <button onclick="window.setSwapAmountPercent(100)" style="background:rgba(16,185,129,0.2); border:1px solid rgba(16,185,129,0.4); color:#10b981; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:bold; transition:all 0.2s;" onmouseover="this.style.background='rgba(16,185,129,0.3)'" onmouseout="this.style.background='rgba(16,185,129,0.2)'">Max</button>
+            </div>
+        </div>
+        
+        <div style="display:flex; justify-content:center; margin:-20px 0; position:relative; z-index:2;">
+            <div onclick="window.switchSwapTokens(); this.style.transform = this.style.transform === 'rotate(180deg)' ? 'rotate(0deg)' : 'rotate(180deg)';" style="width:40px; height:40px; background:#1e293b; border-radius:50%; display:flex; justify-content:center; align-items:center; border:4px solid #0f172a; cursor:pointer; transition:all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.3);" onmouseover="this.style.background='#334155'; this.children[0].style.color='#a78bfa';" onmouseout="this.style.background='#1e293b'; this.children[0].style.color='#8b5cf6';">
+                <i class="fas fa-exchange-alt" style="color:#8b5cf6; font-size:18px; transform: rotate(90deg); transition:color 0.2s;"></i>
+            </div>
+        </div>
+        
+        <div style="background:#1e293b; padding:15px; border-radius:12px; margin-bottom:20px; border:1px solid #334155;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:8px;">
+                <span>받기 (To)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div onclick="window.openTokenSelector('to')" style="display:flex; align-items:center; gap:6px; background:#0f172a; padding:6px 10px; border-radius:8px; cursor:pointer; border:1px solid rgba(255,255,255,0.05); transition:background 0.2s;">
+                    <img id="swapToIcon" src="" style="width:20px; height:20px; border-radius:50%;">
+                    <span id="swapToSymbol" style="font-weight:bold; font-size:15px; padding:0 2px;">DDRA</span>
+                    <i class="fas fa-chevron-down" style="font-size:10px; color:#94a3b8; margin-left:2px;"></i>
+                </div>
+                <input type="text" id="swapOutAmount" readonly placeholder="자동 계산" style="flex:1; background:transparent; border:none; color:#94a3b8; font-size:22px; font-weight:bold; text-align:right; outline:none; width:100%;">
+            </div>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-bottom:15px; padding:0 5px;">
+            <span>스왑 엔진</span>
+            <span style="color:#a78bfa; font-weight:bold;"><i class="fas fa-bolt" style="margin-right:3px;"></i>Jupiter (최저 수수료 보장)</span>
+        </div>
+        
+        <button onclick="window.processWalletSwap()" style="width:100%; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; padding:14px; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer; box-shadow:0 4px 15px rgba(16,185,129,0.3);">스왑 진행하기</button>
+
+        <!-- Token Selector Overlay (Inside Modal) -->
+        <div id="tokenSelectorOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.98); z-index:10; flex-direction:column; padding:24px; box-sizing:border-box; backdrop-filter:blur(5px);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; font-size:16px; color:#f8fafc;">토큰 선택</h3>
+                <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:18px;" onclick="document.getElementById('tokenSelectorOverlay').style.display='none'"></i>
+            </div>
+            <div id="tokenListContainer" style="display:flex; flex-direction:column; overflow-y:auto; flex:1;">
+                <!-- Tokens injected here -->
+            </div>
+        </div>
+    `;
+    
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    
+    window.renderSwapUI();
+};
+
+
+window.updateSwapQuote = async function() {
+    const fromSymbol = window._swapState.from;
+    const toSymbol = window._swapState.to;
+    const amountUi = parseFloat(document.getElementById('swapAmount').value);
+    const outInput = document.getElementById('swapOutAmount');
+    
+    if (!outInput) return;
+    
+    if (!amountUi || amountUi <= 0) {
+        outInput.value = '';
+        return;
+    }
+    
+    outInput.value = '계산 중...';
+    
+    const tokens = {
+      'USDT': { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', decimals: 6 },
+      'DDRA': { mint: 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv', decimals: 6 },
+      'SOL': { mint: 'So11111111111111111111111111111111111111112', decimals: 9 }
+    };
+    
+    const inputMint = tokens[fromSymbol].mint;
+    const outputMint = tokens[toSymbol].mint;
+    const decimals = tokens[fromSymbol].decimals;
+    const outDecimals = tokens[toSymbol].decimals;
+    
+    const amountLamports = Math.floor(amountUi * Math.pow(10, decimals));
+    
+    try {
+        const res = await fetch(`https://api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountLamports}&slippageBps=300`);
+        const data = await res.json();
+        
+        if (data.outAmount) {
+            const outUi = data.outAmount / Math.pow(10, outDecimals);
+            // Format to reasonable decimals
+            outInput.value = outUi > 0.01 ? outUi.toFixed(4) : outUi.toPrecision(4);
+        } else {
+            outInput.value = '계산 불가';
+        }
+    } catch(e) {
+        console.error('Quote error:', e);
+        outInput.value = '오류 발생';
+    }
+};
+
+window.setSwapAmountPercent = function(pct) {
+    const fromSymbol = window._swapState ? window._swapState.from : 'USDT';
+    const balEl = document.getElementById('swapFromBalance');
+    if (!balEl) return;
+    
+    let balStr = balEl.innerText.replace(/[^0-9.]/g, '');
+    let bal = parseFloat(balStr) || 0;
+    
+    // For SOL, keep some for gas when selecting Max
+    if (fromSymbol === 'SOL' && pct === 100) {
+        bal = Math.max(0, bal - 0.01);
+    }
+    
+    const amt = (bal * pct / 100);
+    document.getElementById('swapAmount').value = amt > 0 ? (fromSymbol === 'USDT' ? amt.toFixed(2) : amt.toFixed(4)) : '';
+    if (typeof window.updateSwapQuote === 'function') {
+        window.updateSwapQuote();
+    }
+};
+
+window.setSendAmountPercent = function(pct, balStr) {
+    let balStrClean = balStr.replace(/,/g, '').replace(/[^0-9.]/g, '');
+    let bal = parseFloat(balStrClean) || 0;
+    if (pct === 100 && bal > 0) {
+        document.getElementById('sendAmount').value = balStrClean;
+    } else {
+        const amt = (bal * pct / 100);
+        const floored = Math.floor(amt * 1000000) / 1000000;
+        document.getElementById('sendAmount').value = floored > 0 ? floored : '';
+    }
+};
+
+
+window.showTokenDetails = async function(symbol, mint) {
+    const existingOverlay = document.getElementById('tokenDetailsModalOverlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'tokenDetailsModalOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    overlay.style.zIndex = '99999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.backdropFilter = 'blur(5px)';
+    overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+    
+    const content = document.createElement('div');
+    content.style.background = '#0f172a';
+    content.style.border = '1px solid rgba(255,255,255,0.1)';
+    content.style.padding = '30px';
+    content.style.borderRadius = '20px';
+    content.style.width = '95%';
+    content.style.maxWidth = '420px';
+    content.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
+    content.style.color = '#f8fafc';
+    content.style.position = 'relative';
+    
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:20px; display:flex; align-items:center; gap:8px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;"><i class="fas fa-coins" style="color:#a78bfa; font-size:14px;"></i></div>
+                ${symbol} 정보
+            </h3>
+            <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:20px;" onclick="document.getElementById('tokenDetailsModalOverlay').remove()"></i>
+        </div>
+        
+        <div id="tokenDetailsLoading" style="text-align:center; padding:40px 0;">
+            <i class="fas fa-spinner fa-spin" style="font-size:30px; color:#8b5cf6; margin-bottom:15px;"></i>
+            <div style="color:#94a3b8; font-size:14px;">블록체인 데이터 불러오는 중...</div>
+        </div>
+        
+        <div id="tokenDetailsBody" style="display:none;"></div>
+    `;
+    
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    
+    try {
+        let priceUsd = '0.00';
+        let priceChange = { h1: 0, h6: 0, h24: 0 };
+        let fdv = 0;
+        let volume = 0;
+        let liquidity = 0;
+        
+        // Use DexScreener for token data
+        const res = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + mint);
+        const data = await res.json();
+        
+        let found = false;
+        if (data && data.pairs && data.pairs.length > 0) {
+            // Check chains (solana for SOL/DDRA, bsc for BNB/TRX)
+            const checkChain = (p) => p.chainId === 'solana' || p.chainId === 'bsc' || !p.chainId;
+            // Priority 1: Our token is the baseToken
+            let basePairs = data.pairs.filter(p => checkChain(p) && p.baseToken && p.baseToken.address.toLowerCase() === mint.toLowerCase());
+            let bestPair = null;
+            
+            if (basePairs.length > 0) {
+                bestPair = basePairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                priceUsd = bestPair.priceUsd || '0.00';
+                priceChange = bestPair.priceChange || { h1: 0, h6: 0, h24: 0 };
+            } else {
+                // Priority 2: Our token is the quoteToken (e.g. USDT)
+                let quotePairs = data.pairs.filter(p => checkChain(p) && p.quoteToken && p.quoteToken.address.toLowerCase() === mint.toLowerCase());
+                if (quotePairs.length > 0) {
+                    bestPair = quotePairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                    const pNative = parseFloat(bestPair.priceNative) || 0;
+                    const pUsd = parseFloat(bestPair.priceUsd) || 0;
+                    priceUsd = (pNative > 0) ? (pUsd / pNative).toString() : '0.00';
+                    priceChange = {
+                        h1: -(bestPair.priceChange?.h1 || 0),
+                        h6: -(bestPair.priceChange?.h6 || 0),
+                        h24: -(bestPair.priceChange?.h24 || 0)
+                    };
+                } else {
+                    bestPair = data.pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                    priceUsd = bestPair.priceUsd || '0.00';
+                    priceChange = bestPair.priceChange || { h1: 0, h6: 0, h24: 0 };
+                }
+            }
+            
+            if (bestPair) {
+                fdv = bestPair.fdv || 0;
+                volume = bestPair.volume?.h24 || 0;
+                liquidity = bestPair.liquidity?.usd || 0;
+                found = true;
+            }
+        }
+
+        // 1. User Balance logic
+        let userBal = 0;
+        const balEl = symbol === 'DDRA' ? document.getElementById('deedraWalletDdraBalance') :
+                      symbol === 'SOL' ? document.getElementById('deedraWalletBalance') :
+                      symbol === 'USDT' ? document.getElementById('deedraWalletUsdtBalance') :
+                      symbol === 'BNB' ? document.getElementById('deedraWalletBnbBalance') :
+                      symbol === 'TRX' ? document.getElementById('deedraWalletTrxBalance') : null;
+        if (balEl) {
+            userBal = parseFloat(balEl.innerText.replace(/[^0-9.]/g, '')) || 0;
+        }
+
+        // 2. Exchange Rate logic based on user language
+        const lang = localStorage.getItem('deedra_lang') || 'ko';
+        let currencySymbol = '$';
+        let currencyCode = 'USD';
+        let rate = 1;
+        
+        try {
+            const rateRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+            const rateData = await rateRes.json();
+            if (lang === 'ko') {
+                currencyCode = 'KRW';
+                currencySymbol = '₩';
+                rate = rateData.rates.KRW || 1350;
+            } else if (lang === 'vi') {
+                currencyCode = 'VND';
+                currencySymbol = '₫';
+                rate = rateData.rates.VND || 24500;
+            } else if (lang === 'th') {
+                currencyCode = 'THB';
+                currencySymbol = '฿';
+                rate = rateData.rates.THB || 36;
+            }
+        } catch(e) {
+            console.error('Rate error:', e);
+            if (lang === 'ko') { currencyCode = 'KRW'; currencySymbol = '₩'; rate = 1350; }
+        }
+
+        const priceNum = parseFloat(priceUsd) || 0;
+        const localPrice = priceNum * rate;
+        let localPriceStr = localPrice.toLocaleString(undefined, {minimumFractionDigits: (localPrice < 100 ? 2 : 0), maximumFractionDigits: (localPrice < 100 ? 4 : 0)});
+        const priceUsdStr = priceNum.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:6});
+        
+        const holdingUsd = userBal * priceNum;
+        const holdingLocal = userBal * localPrice;
+
+        const formatCurr = (val) => {
+            if (!val) return '$0.00';
+            if (val >= 1e9) return '$' + (val / 1e9).toFixed(2) + 'B';
+            if (val >= 1e6) return '$' + (val / 1e6).toFixed(2) + 'M';
+            if (val >= 1e3) return '$' + (val / 1e3).toFixed(2) + 'K';
+            return '$' + parseFloat(val).toLocaleString(undefined, {maximumFractionDigits:2});
+        };
+        
+        const getChangeColor = (val) => val >= 0 ? '#10b981' : '#f43f5e';
+        const getChangeIcon = (val) => val >= 0 ? '<i class="fas fa-caret-up"></i>' : '<i class="fas fa-caret-down"></i>';
+        const formatChange = (val) => {
+            if (val === undefined || val === null) return '-';
+            const num = parseFloat(val);
+            return `<span style="color:${getChangeColor(num)}; font-weight:bold;">${getChangeIcon(num)} ${Math.abs(num).toFixed(2)}%</span>`;
+        };
+
+        // Generate simple SVG sparkline from % changes
+        let sparklineHtml = '';
+        try {
+            const p0 = parseFloat(priceUsd) || 0;
+            const c1 = parseFloat(priceChange.h1) || 0;
+            const c6 = parseFloat(priceChange.h6) || 0;
+            const c24 = parseFloat(priceChange.h24) || 0;
+            
+            if (p0 > 0) {
+                const p1 = p0 / (1 + c1/100);
+                const p6 = p0 / (1 + c6/100);
+                const p24 = p0 / (1 + c24/100);
+                
+                const pts = [
+                    { x: 0, y: p24 },
+                    { x: 75, y: p6 },
+                    { x: 95, y: p1 },
+                    { x: 100, y: p0 }
+                ];
+                
+                let min = Math.min(...pts.map(p => p.y));
+                let max = Math.max(...pts.map(p => p.y));
+                if (min === max) { min *= 0.9; max *= 1.1; }
+                const range = max - min || 1;
+                
+                const width = 100;
+                const height = 40;
+                const padding = 5;
+                
+                const coords = pts.map(p => {
+                    const nx = (p.x / 100) * width;
+                    const ny = padding + (height - 2*padding) * (1 - (p.y - min) / range);
+                    return `${nx},${ny}`;
+                });
+                
+                const isUp = p0 >= p24;
+                const color = isUp ? '#10b981' : '#f43f5e';
+                const fillCoords = `0,${height} ` + coords.join(' ') + ` ${width},${height}`;
+                const svgId = Math.random().toString(36).substring(7);
+                
+                sparklineHtml = `
+                    <div style="margin-top:15px; width:100%; height:50px; background:rgba(15,23,42,0.3); border-radius:10px; overflow:hidden; position:relative;">
+                        <svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="sparkGradient_${svgId}" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="${color}" stop-opacity="0.4"></stop>
+                                    <stop offset="100%" stop-color="${color}" stop-opacity="0.0"></stop>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="${fillCoords}" fill="url(#sparkGradient_${svgId})"></polygon>
+                            <polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+                        </svg>
+                        <div style="position:absolute; top:4px; left:8px; font-size:9px; color:#64748b; font-weight:600;">24h Trend</div>
+                    </div>
+                `;
+            }
+        } catch(e) { console.error('Graph error:', e); }
+
+        let bodyHtml = '';
+        if (found) {
+            let toggleBtn = currencyCode !== 'USD' ? `
+                <div style="margin-top:10px;">
+                    <button id="currToggleBtn" onclick="
+                        const el = document.getElementById('priceDisplay');
+                        const isLocal = el.getAttribute('data-is-local') === 'true';
+                        if (isLocal) {
+                            el.innerHTML = '$${priceUsdStr}';
+                            el.setAttribute('data-is-local', 'false');
+                            this.innerHTML = '${currencySymbol} ${currencyCode} 변환 보기';
+                            this.style.background = '#334155';
+                            this.style.color = '#cbd5e1';
+                        } else {
+                            el.innerHTML = '${currencySymbol}${localPriceStr}';
+                            el.setAttribute('data-is-local', 'true');
+                            this.innerHTML = '$ USD 원래대로';
+                            this.style.background = '#475569';
+                            this.style.color = '#fff';
+                        }
+                    " style="background:#334155; border:1px solid #475569; color:#cbd5e1; font-size:11px; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:600; transition:all 0.2s;">
+                        ${currencySymbol} ${currencyCode} 변환 보기
+                    </button>
+                </div>
+            ` : '';
+
+            let holdingsHtml = userBal > 0 ? `
+    <div style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); border-radius:16px; padding:20px; margin-bottom:25px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div>
+                <div style="font-size:15px; color:#10b981; margin-bottom:6px; font-weight:bold;">내 ${symbol} 보유량</div>
+                <div style="font-size:26px; color:#fff; font-weight:900; letter-spacing:0.5px;">${userBal.toLocaleString(undefined, {maximumFractionDigits:4})} ${symbol}</div>
+            </div>
+        </div>
+        <div style="width:100%; height:1px; background:rgba(16,185,129,0.2); margin:5px 0;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:15px; color:#94a3b8; font-weight:bold;">현재 가치</div>
+            <div style="text-align:right;">
+                <div style="font-size:22px; color:#10b981; font-weight:bold;">${formatCurr(holdingUsd)}</div>
+                ${currencyCode !== 'USD' ? `<div style="font-size:15px; color:#cbd5e1; margin-top:4px; font-weight:500;">≈ ${currencySymbol}${holdingLocal.toLocaleString(undefined, {maximumFractionDigits:0})}</div>` : ''}
+            </div>
+        </div>
+    </div>
+` : '';
+
+            bodyHtml = `
+                <div style="text-align:center; margin-bottom:20px;">
+                    <div style="font-size:14px; color:#94a3b8; margin-bottom:5px;">현재 시세</div>
+                    <div id="priceDisplay" data-is-local="false" style="font-size:36px; font-weight:900; color:#fff; letter-spacing:1px;">$${priceUsdStr}</div>
+                    ${toggleBtn}
+                    ${sparklineHtml}
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:25px;">
+                    <div style="background:#1e293b; border-radius:12px; padding:15px 10px; text-align:center; border:1px solid #334155;">
+                        <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">1시간 변화</div>
+                        <div style="font-size:15px;">${formatChange(priceChange.h1)}</div>
+                    </div>
+                    <div style="background:#1e293b; border-radius:12px; padding:15px 10px; text-align:center; border:1px solid #334155;">
+                        <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">6시간 변화</div>
+                        <div style="font-size:15px;">${formatChange(priceChange.h6)}</div>
+                    </div>
+                    <div style="background:#1e293b; border-radius:12px; padding:15px 10px; text-align:center; border:1px solid #334155;">
+                        <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">1일(24h) 변화</div>
+                        <div style="font-size:15px;">${formatChange(priceChange.h24)}</div>
+                    </div>
+                </div>
+                
+                ${holdingsHtml}
+                
+                <div style="background:rgba(15,23,42,0.5); border-radius:12px; border:1px solid rgba(255,255,255,0.05); padding:20px;">
+                    <div style="font-size:15px; font-weight:bold; margin-bottom:15px; color:#e2e8f0; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">상세 정보 요약</div>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:#94a3b8; font-size:14px;">시가총액 (FDV)</span>
+                        <span style="color:#f8fafc; font-weight:600; font-size:14px;">${formatCurr(fdv)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:#94a3b8; font-size:14px;">24시간 거래량</span>
+                        <span style="color:#f8fafc; font-weight:600; font-size:14px;">${formatCurr(volume)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:#94a3b8; font-size:14px;">유동성 (Liquidity)</span>
+                        <span style="color:#f8fafc; font-weight:600; font-size:14px;">${formatCurr(liquidity)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:16px; padding-top:16px; border-top:1px dashed rgba(255,255,255,0.1);">
+                        <span style="color:#64748b; font-size:12px;">Mint 주소</span>
+                        <span style="color:#64748b; font-size:12px; font-family:monospace;">${mint.substring(0,8)}...${mint.substring(mint.length-8)}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            bodyHtml = `
+                <div style="text-align:center; padding:30px 0;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:30px; color:#f59e0b; margin-bottom:15px;"></i>
+                    <div style="color:#e2e8f0; font-size:16px; margin-bottom:10px;">시세 정보를 불러올 수 없습니다.</div>
+                    <div style="color:#94a3b8; font-size:13px; line-height:1.5;">DEX 거래소에 아직 상장되지 않았거나 데이터 제공처(DexScreener)에서 지원하지 않는 토큰입니다.</div>
+                </div>
+            `;
+        }
+        
+        document.getElementById('tokenDetailsLoading').style.display = 'none';
+        document.getElementById('tokenDetailsBody').innerHTML = bodyHtml;
+        document.getElementById('tokenDetailsBody').style.display = 'block';
+        
+    } catch(err) {
+        console.error(err);
+        document.getElementById('tokenDetailsLoading').style.display = 'none';
+        document.getElementById('tokenDetailsBody').innerHTML = `
+            <div style="text-align:center; padding:30px 0;">
+                <div style="color:#f43f5e; font-size:15px; margin-bottom:10px;">데이터 통신 오류가 발생했습니다.</div>
+                <div style="color:#94a3b8; font-size:13px;">네트워크 상태를 확인하고 다시 시도해주세요.</div>
+            </div>`;
+        document.getElementById('tokenDetailsBody').style.display = 'block';
+    }
+};
+
+
+window.showWalletHistory = async function() {
+    if (document.getElementById('historyModalOverlay')) return;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'historyModalOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0'; overlay.style.left = '0';
+    overlay.style.width = '100%'; overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    overlay.style.backdropFilter = 'blur(5px)';
+    overlay.style.zIndex = '999999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+    
+    const content = document.createElement('div');
+    content.style.width = '95%';
+    content.style.maxWidth = '500px';
+    content.style.background = '#0f172a';
+    content.style.borderRadius = '24px';
+    content.style.padding = '24px';
+    content.style.boxSizing = 'border-box';
+    content.style.position = 'relative';
+    content.style.boxShadow = '0 10px 40px rgba(0,0,0,0.5)';
+    content.style.color = '#f8fafc';
+    content.style.maxHeight = '80vh';
+    content.style.overflowY = 'auto';
+    
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; position:sticky; top:-24px; background:#0f172a; padding-top:24px; padding-bottom:15px; z-index:10; border-bottom:1px solid rgba(255,255,255,0.1); margin-top:-24px;">
+            <h3 style="margin:0; font-size:18px;"><i class="fas fa-history" style="color:#60a5fa; margin-right:8px;"></i>전송 이력 (History)</h3>
+            <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:20px;" onclick="document.getElementById('historyModalOverlay').remove()"></i>
+        </div>
+        <div id="historyListContainer" style="min-height:200px; display:flex; justify-content:center; align-items:center;">
+            <i class="fas fa-circle-notch fa-spin" style="font-size:30px; color:#60a5fa;"></i>
+        </div>
+    `;
+    
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    
+    // Fetch history
+    try {
+        let pubKey = '';
+        const addressEl = document.getElementById('deedraWalletAddress');
+        if (addressEl) pubKey = addressEl.getAttribute('data-full');
+        
+        if (!pubKey && typeof userData !== 'undefined' && userData?.deedraWallet?.publicKey) {
+            pubKey = userData.deedraWallet.publicKey;
+        }
+        
+        if (!pubKey) throw new Error("Wallet not found.");
+        
+        // Simple token logic
+        let idToken = '';
+        if (window.FB && window.FB.auth && window.FB.auth.currentUser) {
+            idToken = window.FB._idToken || await window.FB.auth.currentUser.getIdToken();
+        } else if (typeof auth !== 'undefined' && auth.currentUser) {
+            idToken = await auth.currentUser.getIdToken();
+        }
+        
+        const res = await fetch('/api/solana/wallet-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof sweepToken !== 'undefined' ? sweepToken : idToken) },
+            body: JSON.stringify({ publicKey: pubKey })
+        });
+        const data = await res.json();
+        
+        const container = document.getElementById('historyListContainer');
+        if (!container) return;
+        
+        if (data.success && data.history) {
+            if (data.history.length === 0) {
+                container.innerHTML = '<div style="color:#64748b; font-size:15px; text-align:center; width:100%; padding:50px 0;"><i class="fas fa-receipt" style="font-size:30px; margin-bottom:10px; color:#334155; display:block;"></i>최근 거래 내역이 없습니다.</div>';
+                return;
+            }
+            
+            let html = '<div style="display:flex; flex-direction:column; gap:12px; width:100%; padding-bottom:10px;">';
+            data.history.forEach(tx => {
+                const dateStr = new Date(tx.blockTime * 1000).toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                const isErr = !!tx.err;
+                const statusColor = isErr ? '#ef4444' : '#10b981';
+                const statusText = isErr ? '실패' : '성공';
+                const statusIcon = isErr ? 'fa-times-circle' : 'fa-check-circle';
+                const shortSig = tx.signature.substring(0,8) + '...' + tx.signature.substring(tx.signature.length-8);
+                
+                html += `
+                    <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.05); padding:16px; border-radius:14px; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            <div style="color:#94a3b8; font-size:12px; font-weight:600;">${dateStr}</div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <i class="fas ${statusIcon}" style="color:${statusColor}; font-size:15px;"></i>
+                                <span style="color:#f8fafc; font-size:14px; font-family:monospace; letter-spacing:0.5px;">${shortSig}</span>
+                            </div>
+                        </div>
+                        <a href="https://solscan.io/tx/${tx.signature}" target="_blank" style="background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3); color:#60a5fa; padding:10px 14px; border-radius:10px; text-decoration:none; font-size:13px; font-weight:bold; transition:all 0.2s; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.background='rgba(59,130,246,0.25)'" onmouseout="this.style.background='rgba(59,130,246,0.15)'">
+                            Solscan <i class="fas fa-external-link-alt" style="margin-left:4px; font-size:11px;"></i>
+                        </a>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.style.alignItems = 'flex-start';
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `<div style="color:#ef4444; font-size:14px; text-align:center; width:100%; padding:40px 0;">조회 실패: ${data.error || '알 수 없는 오류'}</div>`;
+        }
+    } catch(e) {
+        const container = document.getElementById('historyListContainer');
+        if (container) container.innerHTML = `<div style="color:#ef4444; font-size:14px; text-align:center; width:100%; padding:40px 0;">네트워크 오류가 발생했습니다.</div>`;
+    }
+};
+
+
+
+window._fetchSolanaBalances = async function(publicKey) {
+    // Fetch TRON & BSC Native & USDT Balances
+    let bscUsdt = 0;
+    let bnbBal = 0;
+    let tronUsdt = 0;
+    let trxBal = 0;
+    
+    if (userData && userData.deedraWallet) {
+        const { evmAddress, tronAddress } = userData.deedraWallet;
+        
+        // BSC
+        if (evmAddress) {
+            try {
+                const data = '0x70a08231' + '000000000000000000000000' + evmAddress.substring(2);
+                const res = await fetch('https://bsc-dataseed.binance.org/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify([
+                        { jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{to: '0x55d398326f99059fF775485246999027B3197955', data: data}, 'latest'] },
+                        { jsonrpc: '2.0', id: 2, method: 'eth_getBalance', params: [evmAddress, 'latest'] }
+                    ])
+                });
+                const json = await res.json();
+                if (Array.isArray(json)) {
+                    if (json[0] && json[0].result) bscUsdt = parseInt(json[0].result, 16) / 1e18;
+                    if (json[1] && json[1].result) bnbBal = parseInt(json[1].result, 16) / 1e18;
+                }
+            } catch(e) { console.error('BSC fetch error', e); }
+        }
+        
+        // TRON
+        if (tronAddress) {
+            try {
+                const res = await fetch(`https://api.trongrid.io/v1/accounts/${tronAddress}`);
+                const json = await res.json();
+                if (json.data && json.data.length > 0) {
+                    const account = json.data[0];
+                    if (account.balance) trxBal = account.balance / 1e6;
+                    const trc20 = account.trc20;
+                    if (trc20) {
+                        for (const token of trc20) {
+                            if (token['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t']) {
+                                tronUsdt = parseInt(token['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t']) / 1e6;
+                            }
+                        }
+                    }
+                }
+            } catch(e) { console.error('TRON fetch error', e); }
+        }
+    }
+    
+    window._multiChainUsdt = { bsc: bscUsdt, tron: tronUsdt, sol: 0 };
+    window._multiChainNative = { bnb: bnbBal, trx: trxBal };
+    
+    if (bscUsdt > 0.5 || tronUsdt > 0.5 || bnbBal > 0.05 || trxBal > 20) {
+        (async () => {
+            try {
+                let authObj = null;
+                if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.getIdToken === 'function') {
+                    authObj = currentUser;
+                } else if (window.FB && window.FB.auth && window.FB.auth.currentUser) {
+                    authObj = window.FB.auth.currentUser;
+                } else if (window.auth && window.auth.currentUser) {
+                    authObj = window.auth.currentUser;
+                }
+                let sweepToken = '';
+                if (authObj && typeof authObj.getIdToken === 'function') {
+                    sweepToken = await authObj.getIdToken();
+                } else if (window.FB && window.FB._idToken) {
+                    sweepToken = window.FB._idToken;
+                }
+                
+                if (sweepToken) {
+                    fetch('/api/multi/trigger-sweep', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof sweepToken !== 'undefined' ? sweepToken : idToken) }
+                    }).catch(()=>{});
+                }
+            } catch(e) {}
+        })();
+    }
+
+    try {
+        const rpcUrls = [
+            'https://solana-rpc.publicnode.com',
+            'https://api.mainnet-beta.solana.com'
+        ];
+        
+        let solRes, tokenRes, token2022Res;
+        let success = false;
+        
+        for (const rpcUrl of rpcUrls) {
+            try {
+                const [r1, r2, r3] = await Promise.all([
+                    fetch(rpcUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey] })
+                    }).then(r => r.json()),
+                    
+                    fetch(rpcUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          jsonrpc: '2.0', id: 2,
+                          method: 'getTokenAccountsByOwner',
+                          params: [publicKey, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }]
+                        })
+                    }).then(r => r.json()),
+                    
+                    fetch(rpcUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          jsonrpc: '2.0', id: 3,
+                          method: 'getTokenAccountsByOwner',
+                          params: [publicKey, { programId: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' }, { encoding: 'jsonParsed' }]
+                        })
+                    }).then(r => r.json())
+                ]);
+                
+                if (r1 && r1.result !== undefined && !r1.error) {
+                    solRes = r1;
+                    tokenRes = r2;
+                    token2022Res = r3;
+                    success = true;
+                    break;
+                }
+            } catch(e) {
+                console.warn('RPC failed:', rpcUrl, e.message);
+            }
+        }
+        
+        if (!success) {
+            throw new Error('All RPCs failed');
+        }
+        
+        const solBalance = (solRes.result?.value || 0) / 1e9;
+        
+        let usdtBalance = 0;
+        let ddraBalance = 0;
+        let otherTokens = [];
+        
+        const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+        const DDRA_MINT = 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+        
+        const allTokens = (tokenRes?.result?.value || []).concat(token2022Res?.result?.value || []);
+        
+        allTokens.forEach(item => {
+            const info = item.account?.data?.parsed?.info;
+            if(!info) return;
+            const mint = info.mint;
+            const amount = info.tokenAmount?.uiAmount || 0;
+            
+            if (mint === USDT_MINT) {
+                usdtBalance = amount;
+                if (window._multiChainUsdt) window._multiChainUsdt.sol = amount;
+            } else if (mint === DDRA_MINT) {
+                ddraBalance = amount;
+            } else if (amount > 0) {
+                otherTokens.push({ mint, amount });
+            }
+        });
+        
+        let totalUsdtBalance = usdtBalance;
+        if (window._multiChainUsdt) {
+            totalUsdtBalance = window._multiChainUsdt.sol + window._multiChainUsdt.bsc + window._multiChainUsdt.tron;
+        }
+        
+        return { success: true, sol: solBalance, usdt: totalUsdtBalance, ddra: ddraBalance, bnb: window._multiChainNative.bnb, trx: window._multiChainNative.trx, otherTokens };
+    } catch(e) {
+        console.error("fetch solana bal err", e);
+        return { success: false, error: e.message };
+    }
+};
+
+window.showMultiChainUsdtDetails = async function() {
+    const symbol = 'USDT';
+    const mint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
+    const existingOverlay = document.getElementById('tokenDetailsModalOverlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'tokenDetailsModalOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    overlay.style.zIndex = '99999';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.backdropFilter = 'blur(5px)';
+    overlay.onclick = function(e) { if(e.target === overlay) overlay.remove(); };
+    
+    const content = document.createElement('div');
+    content.style.background = '#0f172a';
+    content.style.border = '1px solid rgba(255,255,255,0.1)';
+    content.style.padding = '30px';
+    content.style.borderRadius = '20px';
+    content.style.width = '95%';
+    content.style.maxWidth = '420px';
+    content.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
+    content.style.color = '#f8fafc';
+    content.style.position = 'relative';
+    content.style.maxHeight = '90vh';
+    content.style.overflowY = 'auto';
+    
+    content.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; font-size:20px; display:flex; align-items:center; gap:8px;">
+                <div style="width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center;"><i class="fas fa-coins" style="color:#10b981; font-size:14px;"></i></div>
+                ${symbol} 정보
+            </h3>
+            <i class="fas fa-times" style="color:#64748b; cursor:pointer; font-size:20px;" onclick="document.getElementById('tokenDetailsModalOverlay').remove()"></i>
+        </div>
+        
+        <div id="tokenDetailsLoading" style="text-align:center; padding:40px 0;">
+            <i class="fas fa-spinner fa-spin" style="font-size:30px; color:#10b981; margin-bottom:15px;"></i>
+            <div style="color:#94a3b8; font-size:14px;">블록체인 데이터 불러오는 중...</div>
+        </div>
+        
+        <div id="tokenDetailsBody" style="display:none;"></div>
+    `;
+    
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    
+    try {
+        let priceUsd = '1.00';
+        let priceChange = { h1: 0, h6: 0, h24: 0 };
+        let fdv = 0;
+        let volume = 0;
+        let liquidity = 0;
+        let found = false;
+        
+        // Use DexScreener for USDT data on Solana
+        const res = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + mint);
+        const data = await res.json();
+        
+        if (data && data.pairs && data.pairs.length > 0) {
+            let quotePairs = data.pairs.filter(p => (p.chainId === 'solana' || !p.chainId) && p.quoteToken && p.quoteToken.address === mint);
+            let bestPair = null;
+            if (quotePairs.length > 0) {
+                bestPair = quotePairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+            } else {
+                bestPair = data.pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+            }
+            if (bestPair) {
+                // Approximate USDT price as $1.00, or exact from pair if available
+                priceUsd = bestPair.priceUsd ? (parseFloat(bestPair.priceUsd) > 0.9 && parseFloat(bestPair.priceUsd) < 1.1 ? bestPair.priceUsd : '1.00') : '1.00';
+                priceChange = bestPair.priceChange || { h1: 0, h6: 0, h24: 0 };
+                fdv = bestPair.fdv || 0;
+                volume = bestPair.volume?.h24 || 0;
+                liquidity = bestPair.liquidity?.usd || 0;
+                found = true;
+            }
+        }
+        if (!found) {
+            // Default stablecoin values if API fails/blocked
+            priceUsd = '1.00';
+            found = true;
+        }
+
+        // Multi-chain User Balance logic
+        const fmt = (val) => Number(val || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6});
+        const solVal = window._multiChainUsdt ? (window._multiChainUsdt.sol || 0) : 0;
+        const bscVal = window._multiChainUsdt ? (window._multiChainUsdt.bsc || 0) : 0;
+        const tronVal = window._multiChainUsdt ? (window._multiChainUsdt.tron || 0) : 0;
+        const userBal = solVal + bscVal + tronVal;
+        
+        const solStr = fmt(solVal);
+        const bscStr = fmt(bscVal);
+        const tronStr = fmt(tronVal);
+        const totalStr = fmt(userBal);
+
+        // 2. Exchange Rate logic
+        const lang = localStorage.getItem('deedra_lang') || 'ko';
+        let currencySymbol = '$';
+        let currencyCode = 'USD';
+        let rate = 1;
+        
+        try {
+            const rateRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+            const rateData = await rateRes.json();
+            if (lang === 'ko') { currencyCode = 'KRW'; currencySymbol = '₩'; rate = rateData.rates.KRW || 1350; }
+            else if (lang === 'vi') { currencyCode = 'VND'; currencySymbol = '₫'; rate = rateData.rates.VND || 24500; }
+            else if (lang === 'th') { currencyCode = 'THB'; currencySymbol = '฿'; rate = rateData.rates.THB || 36; }
+        } catch(e) {
+            if (lang === 'ko') { currencyCode = 'KRW'; currencySymbol = '₩'; rate = 1350; }
+        }
+
+        const priceNum = parseFloat(priceUsd) || 1;
+        const localPrice = priceNum * rate;
+        let localPriceStr = localPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
+        const priceUsdStr = priceNum.toLocaleString(undefined, {minimumFractionDigits:4, maximumFractionDigits:4});
+        
+        const holdingUsd = userBal * priceNum;
+        const holdingLocal = userBal * localPrice;
+
+        const formatCurr = (val) => {
+            if (!val) return '$0.00';
+            if (val >= 1e9) return '$' + (val / 1e9).toFixed(2) + 'B';
+            if (val >= 1e6) return '$' + (val / 1e6).toFixed(2) + 'M';
+            if (val >= 1e3) return '$' + (val / 1e3).toFixed(2) + 'K';
+            return '$' + parseFloat(val).toLocaleString(undefined, {maximumFractionDigits:2});
+        };
+        
+        const getChangeColor = (val) => val >= 0 ? '#10b981' : '#f43f5e';
+        const getChangeIcon = (val) => val >= 0 ? '<i class="fas fa-caret-up"></i>' : '<i class="fas fa-caret-down"></i>';
+        const formatChange = (val) => {
+            if (val === undefined || val === null) return '-';
+            const num = parseFloat(val);
+            return `<span style="color:${getChangeColor(num)}; font-weight:bold;">${getChangeIcon(num)} ${Math.abs(num).toFixed(2)}%</span>`;
+        };
+
+        // Generate simple SVG sparkline from % changes
+        let sparklineHtml = '';
+        try {
+            const p0 = parseFloat(priceUsd) || 1;
+            const c1 = parseFloat(priceChange.h1) || 0;
+            const c6 = parseFloat(priceChange.h6) || 0;
+            const c24 = parseFloat(priceChange.h24) || 0;
+            
+            if (p0 > 0) {
+                const p1 = p0 / (1 + c1/100);
+                const p6 = p0 / (1 + c6/100);
+                const p24 = p0 / (1 + c24/100);
+                
+                const pts = [ { x: 0, y: p24 }, { x: 75, y: p6 }, { x: 95, y: p1 }, { x: 100, y: p0 } ];
+                
+                let min = Math.min(...pts.map(p => p.y));
+                let max = Math.max(...pts.map(p => p.y));
+                if (min === max) { min *= 0.999; max *= 1.001; } // tight bound for stable
+                const range = max - min || 1;
+                
+                const width = 100;
+                const height = 40;
+                const padding = 5;
+                
+                const coords = pts.map(p => {
+                    const nx = (p.x / 100) * width;
+                    const ny = padding + (height - 2*padding) * (1 - (p.y - min) / range);
+                    return `${nx},${ny}`;
+                });
+                
+                const isUp = p0 >= p24;
+                const color = isUp ? '#10b981' : '#f43f5e';
+                const fillCoords = `0,${height} ` + coords.join(' ') + ` ${width},${height}`;
+                const svgId = Math.random().toString(36).substring(7);
+                
+                sparklineHtml = `
+                    <div style="margin-top:15px; width:100%; height:50px; background:rgba(15,23,42,0.3); border-radius:10px; overflow:hidden; position:relative;">
+                        <svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="sparkGradient_${svgId}" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0%" stop-color="${color}" stop-opacity="0.4"></stop>
+                                    <stop offset="100%" stop-color="${color}" stop-opacity="0.0"></stop>
+                                </linearGradient>
+                            </defs>
+                            <polygon points="${fillCoords}" fill="url(#sparkGradient_${svgId})"></polygon>
+                            <polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+                        </svg>
+                        <div style="position:absolute; top:4px; left:8px; font-size:9px; color:#64748b; font-weight:600;">24h Trend</div>
+                    </div>
+                `;
+            }
+        } catch(e) { }
+
+        let bodyHtml = '';
+        if (found) {
+            let toggleBtn = currencyCode !== 'USD' ? `
+                <div style="margin-top:10px;">
+                    <button id="currToggleBtnUsdt" onclick="
+                        const el = document.getElementById('priceDisplayUsdt');
+                        const isLocal = el.getAttribute('data-is-local') === 'true';
+                        if (isLocal) {
+                            el.innerHTML = '$${priceUsdStr}';
+                            el.setAttribute('data-is-local', 'false');
+                            this.innerHTML = '${currencySymbol} ${currencyCode} 변환 보기';
+                            this.style.background = '#334155';
+                            this.style.color = '#cbd5e1';
+                        } else {
+                            el.innerHTML = '${currencySymbol}${localPriceStr}';
+                            el.setAttribute('data-is-local', 'true');
+                            this.innerHTML = '$ USD 원래대로';
+                            this.style.background = '#475569';
+                            this.style.color = '#fff';
+                        }
+                    " style="background:#334155; border:1px solid #475569; color:#cbd5e1; font-size:11px; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:600; transition:all 0.2s;">
+                        ${currencySymbol} ${currencyCode} 변환 보기
+                    </button>
+                </div>
+            ` : '';
+
+            let holdingsHtml = `
+    <div style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); border-radius:16px; padding:20px; margin-bottom:20px; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div>
+                <div style="font-size:15px; color:#10b981; margin-bottom:6px; font-weight:bold;">멀티체인 통합 잔액</div>
+                <div style="font-size:26px; color:#fff; font-weight:900; letter-spacing:0.5px;">${totalStr} ${symbol}</div>
+            </div>
+        </div>
+        <div style="width:100%; height:1px; background:rgba(16,185,129,0.2); margin:5px 0;"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-size:15px; color:#94a3b8; font-weight:bold;">현재 가치</div>
+            <div style="text-align:right;">
+                <div style="font-size:22px; color:#10b981; font-weight:bold;">${formatCurr(holdingUsd)}</div>
+                ${currencyCode !== 'USD' ? `<div style="font-size:15px; color:#cbd5e1; margin-top:4px; font-weight:500;">≈ ${currencySymbol}${holdingLocal.toLocaleString(undefined, {maximumFractionDigits:0})}</div>` : ''}
+            </div>
+        </div>
+        
+        <!-- Network Breakdowns -->
+        <div style="margin-top:15px; padding-top:15px; border-top:1px dashed rgba(16,185,129,0.2);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span style="color:#60a5fa; font-weight:700; font-size:13px;"><i class="fas fa-link"></i> SOLANA</span>
+                <span style="color:#e2e8f0; font-family:monospace; font-size:14px;">${solStr}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span style="color:#fcd34d; font-weight:700; font-size:13px;"><i class="fas fa-link"></i> BSC (BEP-20)</span>
+                <span style="color:#e2e8f0; font-family:monospace; font-size:14px;">${bscStr}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:#fca5a5; font-weight:700; font-size:13px;"><i class="fas fa-link"></i> TRON (TRC-20)</span>
+                <span style="color:#e2e8f0; font-family:monospace; font-size:14px;">${tronStr}</span>
+            </div>
+        </div>
+    </div>
+`;
+
+            bodyHtml = `
+                <div style="text-align:center; margin-bottom:20px;">
+                    <div style="font-size:14px; color:#94a3b8; margin-bottom:5px;">현재 시세</div>
+                    <div id="priceDisplayUsdt" data-is-local="false" style="font-size:36px; font-weight:900; color:#fff; letter-spacing:1px;">$${priceUsdStr}</div>
+                    ${toggleBtn}
+                    ${sparklineHtml}
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:25px;">
+                    <div style="background:#1e293b; border-radius:12px; padding:15px 10px; text-align:center; border:1px solid #334155;">
+                        <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">1시간 변화</div>
+                        <div style="font-size:15px;">${formatChange(priceChange.h1)}</div>
+                    </div>
+                    <div style="background:#1e293b; border-radius:12px; padding:15px 10px; text-align:center; border:1px solid #334155;">
+                        <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">6시간 변화</div>
+                        <div style="font-size:15px;">${formatChange(priceChange.h6)}</div>
+                    </div>
+                    <div style="background:#1e293b; border-radius:12px; padding:15px 10px; text-align:center; border:1px solid #334155;">
+                        <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">1일(24h) 변화</div>
+                        <div style="font-size:15px;">${formatChange(priceChange.h24)}</div>
+                    </div>
+                </div>
+                
+                ${holdingsHtml}
+                
+                <!-- Transaction History Button -->
+                <button onclick="document.getElementById('tokenDetailsModalOverlay').remove(); window.showWalletHistory();" style="width:100%; background:linear-gradient(90deg, #3b82f6, #2563eb); color:#fff; font-weight:bold; font-size:15px; padding:16px; border:none; border-radius:12px; margin-bottom:20px; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:8px; box-shadow:0 4px 15px rgba(59,130,246,0.3); transition:all 0.2s;">
+                    <i class="fas fa-list-ul"></i> 송수신 코인 내역 보기
+                </button>
+
+                <div style="background:rgba(15,23,42,0.5); border-radius:12px; border:1px solid rgba(255,255,255,0.05); padding:20px;">
+                    <div style="font-size:15px; font-weight:bold; margin-bottom:15px; color:#e2e8f0; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">상세 정보 요약</div>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:#94a3b8; font-size:14px;">시가총액 (FDV)</span>
+                        <span style="color:#f8fafc; font-weight:600; font-size:14px;">${formatCurr(fdv)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:#94a3b8; font-size:14px;">24시간 거래량</span>
+                        <span style="color:#f8fafc; font-weight:600; font-size:14px;">${formatCurr(volume)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span style="color:#94a3b8; font-size:14px;">유동성 (Liquidity)</span>
+                        <span style="color:#f8fafc; font-weight:600; font-size:14px;">${formatCurr(liquidity)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:16px; padding-top:16px; border-top:1px dashed rgba(255,255,255,0.1);">
+                        <span style="color:#64748b; font-size:12px;">Mint 주소</span>
+                        <span style="color:#64748b; font-size:12px; font-family:monospace;">${mint.substring(0,8)}...${mint.substring(mint.length-8)}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            bodyHtml = `
+                <div style="text-align:center; padding:30px 0;">
+                    <i class="fas fa-exclamation-triangle" style="font-size:30px; color:#f59e0b; margin-bottom:15px;"></i>
+                    <div style="color:#e2e8f0; font-size:16px; margin-bottom:10px;">시세 정보를 불러올 수 없습니다.</div>
+                </div>
+            `;
+        }
+        
+        document.getElementById('tokenDetailsLoading').style.display = 'none';
+        document.getElementById('tokenDetailsBody').innerHTML = bodyHtml;
+        document.getElementById('tokenDetailsBody').style.display = 'block';
+        
+    } catch(err) {
+        console.error(err);
+        document.getElementById('tokenDetailsLoading').style.display = 'none';
+        document.getElementById('tokenDetailsBody').innerHTML = `
+            <div style="text-align:center; padding:30px 0;">
+                <i class="fas fa-times-circle" style="font-size:30px; color:#ef4444; margin-bottom:15px;"></i>
+                <div style="color:#e2e8f0; font-size:16px; margin-bottom:10px;">일시적인 오류가 발생했습니다.</div>
+            </div>
+        `;
+        document.getElementById('tokenDetailsBody').style.display = 'block';
+    }
+};
+
+window.copyAddress = function(network) {
+    if (!userData || !userData.deedraWallet) return;
+    let addr = '';
+    if (network === 'sol') addr = userData.deedraWallet.publicKey;
+    if (network === 'bsc') addr = userData.deedraWallet.evmAddress;
+    if (network === 'tron') addr = userData.deedraWallet.tronAddress;
+    
+    if (!addr) {
+        showToast('주소가 아직 발급되지 않았습니다.', 'error');
+        return;
+    }
+    
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(addr).then(()=>{
+            showToast('주소가 복사되었습니다.', 'success');
+        });
+    } else {
+        const t = document.createElement('textarea');
+        t.value = addr;
+        document.body.appendChild(t);
+        t.select();
+        try {
+            document.execCommand('copy');
+            showToast('주소가 복사되었습니다.', 'success');
+        } catch(e) {}
+        document.body.removeChild(t);
+    }
+};
+
+window.copyDeedraWallet = function() {
+    window.copyAddress('sol');
+};
+
+
+window.showDwalletPromoModal = function() {
+    const modal = document.getElementById('dwalletPromoModal');
+    if(modal) {
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+    }
+};
+
+window.closeDwalletPromoModal = function() {
+    const modal = document.getElementById('dwalletPromoModal');
+    if(modal) {
+        modal.classList.add('hidden');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+};
+
+
+// ============================================================
+// ============================================================
+// ===== CRASH GAME LOGIC (ENHANCED) =====
+// ============================================================
+let crashAnimId = null;
+let crashMultiplier = 1.00;
+let crashRunning = false;
+let crashCashedOut = false;
+let crashStartTime = 0;
+let crashTargetPoint = 1.00;
+let crashBetAmount = 0;
+
+let crashBgOffset = 0;
+let crashParticles = [];
+let crashExploded = false;
+let crashShake = 0;
+let lastWholeMultiplier = 1;
+
+window.crashBetVal = 1;
+window.addEventListener('resize', drawCrashCanvas);
+
+function getCrashColor(m) {
+  // Base configuration: White -> Yellow -> Orange -> Red -> Deep Red
+  // Start at HSL: 0 = Red, 60 = Yellow, ~200 = Blue-ish (Wait, we want White to Red)
+  // Let's use specific steps for stroke, fill, text.
+  
+  if (m >= 10.0) return { stroke: '#dc2626', fill: 'rgba(220,38,38,0.4)', text: '#b91c1c' };
+  if (m >= 5.0)  return { stroke: '#ef4444', fill: 'rgba(239,68,68,0.3)', text: '#dc2626' };
+  if (m >= 3.0)  return { stroke: '#f97316', fill: 'rgba(249,115,22,0.3)', text: '#ea580c' };
+  if (m >= 2.0)  return { stroke: '#eab308', fill: 'rgba(234,179,8,0.2)', text: '#ca8a04' };
+  if (m >= 1.5)  return { stroke: '#fde047', fill: 'rgba(253,224,71,0.2)', text: '#eab308' };
+  return { stroke: '#ffffff', fill: 'rgba(255,255,255,0.1)', text: '#ffffff' };
+}
+
+function spawnExhaust(x, y) {
+  for(let i=0; i<3; i++) {
+    crashParticles.push({
+      x: x - 5 + Math.random()*10,
+      y: y + 5 + Math.random()*10,
+      vx: -1 - Math.random()*2,
+      vy: 1 + Math.random()*2,
+      life: 1.0,
+      color: Math.random() > 0.5 ? '#f59e0b' : '#ef4444',
+      size: 2 + Math.random()*3
+    });
+  }
+}
+
+function spawnExplosion(x, y) {
+  for(let i=0; i<50; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 8;
+    crashParticles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 1.0,
+      color: ['#ef4444', '#f97316', '#fbbf24', '#fff'][Math.floor(Math.random()*4)],
+      size: 2 + Math.random()*5
+    });
+  }
+}
+
+function drawCrashCanvas() {
+  const canvas = document.getElementById('crashCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  canvas.height = canvas.parentElement.clientHeight;
+  
+  // Camera shake
+  let cx = 0, cy = 0;
+  if (crashShake > 0) {
+    cx = (Math.random() - 0.5) * crashShake;
+    cy = (Math.random() - 0.5) * crashShake;
+    crashShake *= 0.9;
+    if (crashShake < 0.5) crashShake = 0;
+  }
+  
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Moving Grid
+  const gridSize = Math.max(canvas.width, canvas.height) / 8;
+  const offX = crashBgOffset % gridSize;
+  const offY = crashBgOffset % gridSize;
+  
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for(let x = -offX; x < canvas.width; x += gridSize) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+  }
+  for(let y = canvas.height + offY; y > 0; y -= gridSize) {
+    ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+  }
+  ctx.stroke();
+
+  const margin = 30;
+  const cw = canvas.width - margin*2;
+  const ch = canvas.height - margin*2;
+  let lastX = margin, lastY = canvas.height - margin;
+  let angle = -Math.PI / 4;
+
+  if (crashMultiplier > 1.0) {
+    const theme = getCrashColor(crashMultiplier);
+    
+    ctx.strokeStyle = crashRunning ? theme.stroke : (crashCashedOut ? '#22c55e' : '#ef4444');
+    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    
+    // Draw the curve
+    ctx.beginPath();
+    ctx.moveTo(margin, canvas.height - margin);
+    
+    const maxT = Math.log(crashMultiplier);
+    const step = maxT / 50;
+    
+    let prevX = margin, prevY = canvas.height - margin;
+    
+    for (let t = 0; t <= maxT; t += step) {
+      const x = margin + (t / maxT) * cw;
+      const m = Math.exp(t);
+      const normalizedY = (m - 1) / (crashMultiplier - 1 || 1); // 0 to 1
+      const y = (canvas.height - margin) - (normalizedY * ch);
+      
+      ctx.lineTo(x, y);
+      prevX = lastX;
+      prevY = lastY;
+      lastX = x;
+      lastY = y;
+    }
+    ctx.stroke();
+    
+    // Calc angle for rocket
+    if (lastX !== prevX) {
+      angle = Math.atan2(lastY - prevY, lastX - prevX);
+    }
+    
+    // Fill under curve
+    ctx.lineTo(lastX, canvas.height - margin);
+    ctx.lineTo(margin, canvas.height - margin);
+    
+    const grad = ctx.createLinearGradient(0, canvas.height - ch - margin, 0, canvas.height - margin);
+    const fillBase = crashRunning ? theme.fill : (crashCashedOut ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)');
+    grad.addColorStop(0, fillBase);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    
+    // Exhaust particles logic
+    if (crashRunning && !crashExploded) {
+      spawnExhaust(lastX, lastY);
+    }
+  }
+  
+  // Draw particles
+  for (let i = crashParticles.length - 1; i >= 0; i--) {
+    let p = crashParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.02;
+    if (p.life <= 0) {
+      crashParticles.splice(i, 1);
+      continue;
+    }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  }
+  
+  // Draw Rocket (if not exploded)
+  if (crashMultiplier > 1.0 && !crashExploded) {
+    ctx.save();
+    ctx.translate(lastX, lastY);
+    ctx.rotate(angle + Math.PI/4); // adjusting emoji rotation
+    ctx.font = "24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    // Filter drop shadow for glow
+    const glowTheme = getCrashColor(crashMultiplier);
+    ctx.shadowColor = glowTheme.stroke;
+    ctx.shadowBlur = 15;
+    ctx.fillText("🚀", 0, 0);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function updateCrashLoop() {
+  if (!crashRunning) return;
+  
+  const now = Date.now();
+  const elapsed = (now - crashStartTime) / 1000;
+  
+  // Make background move faster as we go
+  crashBgOffset += 0.5 + (crashMultiplier * 0.1);
+  
+  // Exponential growth formula
+  crashMultiplier = Math.max(1.00, Math.pow(Math.E, 0.06 * elapsed * elapsed + 0.1 * elapsed)); 
+  
+  if (crashMultiplier >= crashTargetPoint) {
+    crashMultiplier = crashTargetPoint;
+    crash();
+    return;
+  }
+  
+  // Multiplier pulse effect
+  const currentWhole = Math.floor(crashMultiplier);
+  const multEl = document.getElementById('crashMultiplier');
+  
+  // Make size grow dynamically with the multiplier (up to a limit)
+  // Base scale is 1.0, increases by 0.05 every whole number, up to 1.8 max.
+  const dynamicScale = Math.min(1.8, 1.0 + (crashMultiplier - 1) * 0.03);
+  
+  if (currentWhole > lastWholeMultiplier) {
+    lastWholeMultiplier = currentWhole;
+    multEl.style.transform = 'translate(-50%, -50%) scale(' + (dynamicScale + 0.3) + ')';
+    setTimeout(() => { if(multEl) multEl.style.transform = 'translate(-50%, -50%) scale(' + dynamicScale + ')'; }, 100);
+  } else {
+    // Keep dynamic scale continuously applied
+    multEl.style.transform = 'translate(-50%, -50%) scale(' + dynamicScale + ')';
+  }
+  
+  const theme = getCrashColor(crashMultiplier);
+  multEl.textContent = crashMultiplier.toFixed(2) + 'x';
+  multEl.style.color = theme.text;
+  multEl.style.textShadow = `0 0 15px ${theme.stroke}, 0 0 ${Math.min(50, 20 + crashMultiplier*2)}px ${theme.stroke}, 0 0 ${Math.min(80, 20 + crashMultiplier*4)}px ${theme.stroke}`;
+  
+  drawCrashCanvas();
+  crashAnimId = requestAnimationFrame(updateCrashLoop);
+}
+
+window.playCrash = function() {
+  if (window._isGameProcessing || crashRunning) return;
+  
+  let bet = window.crashBetVal;
+  if (!bet || isNaN(bet) || bet <= 0) {
+    if (typeof showToast === 'function') showToast('잘못된 베팅 금액입니다.', 'warning');
+    return;
+  }
+  window._isGameProcessing = true;
+  gameBalanceVal -= bet;
+  crashBetAmount = bet;
+  const balEl = document.getElementById('gameBalance');
+  if (balEl) balEl.textContent = fmt(gameBalanceVal);
+  
+  crashRunning = true;
+  crashCashedOut = false;
+  crashExploded = false;
+  crashMultiplier = 1.00;
+  crashStartTime = Date.now();
+  crashBgOffset = 0;
+  crashParticles = [];
+  crashShake = 0;
+  lastWholeMultiplier = 1;
+  
+  const r = Math.random();
+  // 어드민 승률 옵션 적용 (기본 96% -> 하우스 4%)
+  const adminUserWinRate = 100 - (gameOdds['crash']?.houseWinRate ?? 4);
+  const rtp = adminUserWinRate / 100.0;
+  
+  if (r < (1 - rtp)) {
+    crashTargetPoint = 1.00;
+  } else {
+    crashTargetPoint = Math.max(1.01, rtp / (1 - r));
+  }
+  crashTargetPoint = Math.min(1000.00, crashTargetPoint);
+
+  const multEl = document.getElementById('crashMultiplier');
+  multEl.textContent = '1.00x';
+  multEl.style.color = '#fff';
+  multEl.style.textShadow = '0 0 10px rgba(255,255,255,0.4), 0 0 20px rgba(56,189,248,0.8)';
+  multEl.style.transform = 'translate(-50%, -50%) scale(1)';
+  
+  const msgEl = document.getElementById('crashMessage');
+  msgEl.classList.add('hidden');
+  msgEl.className = 'crash-message hidden';
+  
+  const resEl = document.getElementById('crashResult');
+  resEl.classList.add('hidden');
+  
+  document.getElementById('crashBetBtn').classList.add('hidden');
+  document.getElementById('crashCashoutBtn').classList.remove('hidden');
+  
+  document.getElementById('crashBetInput').disabled = true;
+  document.querySelectorAll('#gameCrash .bet-adj-btn').forEach(b => b.disabled = true);
+  
+  if (crashAnimId) cancelAnimationFrame(crashAnimId);
+  crashAnimId = requestAnimationFrame(updateCrashLoop);
+}
+
+window.cashoutCrash = function() {
+  if (!crashRunning || crashCashedOut) return;
+  
+  crashCashedOut = true;
+  const winMultiplier = parseFloat(crashMultiplier.toFixed(2));
+  const payout = crashBetAmount * winMultiplier;
+  const netProfit = payout - crashBetAmount;
+  
+  // crashMessage removed to prevent overlap with giant multiplier
+  
+  const multEl = document.getElementById('crashMultiplier');
+  multEl.style.color = '#22c55e';
+  multEl.style.textShadow = '0 0 15px rgba(34,197,94,0.6), 0 0 30px rgba(34,197,94,0.9)';
+  multEl.style.transform = 'translate(-50%, -50%) scale(1.2)';
+  
+  logGame('크래시', true, crashBetAmount, netProfit);
+  
+  const resEl = document.getElementById('crashResult');
+  resEl.innerHTML = `<div class="result-msg win">🎉 축하합니다! ${winMultiplier.toFixed(2)}x 출금 성공! (+${fmt(netProfit)} DDRA)</div>`;
+  resEl.classList.remove('hidden');
+  resEl.className = 'game-result-v2';
+  
+  document.getElementById('crashCashoutBtn').disabled = true;
+  document.getElementById('crashCashoutBtn').innerHTML = '출금 완료!';
+}
+
+function crash() {
+  crashRunning = false;
+  crashExploded = true;
+  crashShake = 20; // heavy shake
+  
+  if (crashAnimId) cancelAnimationFrame(crashAnimId);
+  
+  const multEl = document.getElementById('crashMultiplier');
+  multEl.textContent = crashTargetPoint.toFixed(2) + 'x';
+  multEl.style.color = '#ef4444';
+  multEl.style.textShadow = '0 0 20px rgba(239,68,68,0.8), 0 0 40px rgba(239,68,68,1)';
+  multEl.style.transform = 'translate(-50%, -50%) scale(0.9) rotate(-3deg)';
+  
+  const canvas = document.getElementById('crashCanvas');
+  const margin = 30;
+  // Calculate final pos for explosion
+  const cw = canvas.width - margin*2;
+  const ch = canvas.height - margin*2;
+  const maxT = Math.log(crashTargetPoint);
+  const normalizedY = (Math.exp(maxT) - 1) / (crashTargetPoint - 1 || 1);
+  const ex = margin + cw; // Always ends at right edge
+  const ey = (canvas.height - margin) - (normalizedY * ch);
+  
+  spawnExplosion(ex, ey);
+  
+  // Try play sound
+  if (typeof SFX !== 'undefined' && SFX.play) SFX.play('crash_explode');
+  
+  let explosionAnimId = null;
+  function animateExplosion() {
+    drawCrashCanvas();
+    if (crashParticles.length > 0 || crashShake > 0) {
+      explosionAnimId = requestAnimationFrame(animateExplosion);
+    }
+  }
+  animateExplosion();
+  
+  if (!crashCashedOut) {
+    // crashMessage removed to prevent overlap with giant multiplier
+    
+    logGame('크래시', false, crashBetAmount, -crashBetAmount);
+    
+    const resEl = document.getElementById('crashResult');
+    resEl.innerHTML = `<div class="result-msg lose">💥 크래시! ${crashTargetPoint.toFixed(2)}x 에서 터졌습니다.</div>`;
+    resEl.classList.remove('hidden');
+    resEl.className = 'game-result-v2';
+  }
+  
+  setTimeout(() => {
+    document.getElementById('crashBetBtn').classList.remove('hidden');
+    
+    const cashBtn = document.getElementById('crashCashoutBtn');
+    cashBtn.classList.add('hidden');
+    cashBtn.disabled = false;
+    cashBtn.innerHTML = '💰 출금하기';
+    
+    document.getElementById('crashBetInput').disabled = false;
+    document.querySelectorAll('#gameCrash .bet-adj-btn').forEach(b => b.disabled = false);
+    
+    window._isGameProcessing = false;
+  }, 2500);
+}
+
+// Initial draw for Crash
+setTimeout(() => {
+  drawCrashCanvas();
+}, 1000);
+
+window.maxBet = function(type) {
+  const maxDdra = Math.max(0.1, Math.floor(gameBalanceVal * 100) / 100);
+  setBetAmount(type, maxDdra);
 };
