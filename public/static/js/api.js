@@ -1382,7 +1382,7 @@ export class DedraAPI {
   async replyTicket(adminId, ticketId, reply) {
     try {
       await updateDoc(doc(this.db, 'tickets', ticketId), {
-        reply, repliedAt: serverTimestamp(), repliedBy: adminId, status: 'answered'
+        adminReply: reply, repliedAt: serverTimestamp(), repliedBy: adminId, status: 'answered'
       });
       await this._auditLog(adminId, 'ticket', `문의 답변: ${ticketId}`, { ticketId });
       return ok(true);
