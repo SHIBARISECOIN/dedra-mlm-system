@@ -9190,9 +9190,7 @@ function setupEvents() {
         const btn = document.getElementById('replyTicketBtn');
         btn.disabled=true; btn.textContent='전송 중...';
         // 답변 시 adminReply 필드 업데이트 (기존에는 reply에 덮어써서 AI 답변이 날아감)
-        const r = await window.FB.updateDoc(window.FB.doc(window.FB.db, 'tickets', currentTicket.id), {
-            adminReply: reply, repliedAt: window.FB.serverTimestamp(), repliedBy: currentAdmin.uid, status: 'answered'
-        }).then(() => ({success:true})).catch(e => ({success:false, error:e.message}));
+        const r = await api.replyTicket(currentAdmin.uid, currentTicket.id, reply);
         if (r.success) {
             alert('✅ 답변이 발송되었습니다.');
             closeModal('ticketModal');
