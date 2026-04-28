@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "deedra",
+  "compatibility_date": "2026-03-12",
+  "pages_build_output_dir": "./dist",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PODCAST_BUCKET",
+      "bucket_name": "deedra-podcast"
+    }
+  ]
+}

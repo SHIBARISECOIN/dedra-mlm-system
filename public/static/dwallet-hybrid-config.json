@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "routes": {
+    "freeze": {
+      "title": "프리즈",
+      "subtitle": "모든 대표 코인의 프리즈 상품과 이벤트를 웹에서 실시간으로 운영합니다.",
+      "url": "https://deedra.pages.dev/wallet/freeze",
+      "buttonLabel": "프리즈 웹 열기",
+      "accent": "#BDEBFF",
+      "autoOpen": true
+    },
+    "grow": {
+      "title": "코인 불리기",
+      "subtitle": "광고 리워드, 출석, 미션, 부스터 안내를 웹에서 빠르게 변경합니다.",
+      "url": "https://deedra.pages.dev/wallet/grow",
+      "buttonLabel": "불리기 웹 열기",
+      "accent": "#16C784",
+      "autoOpen": true
+    }
+  }
+}
