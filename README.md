@@ -80,3 +80,4 @@ npx wrangler pages deploy dist --project-name deedra --branch main
 - 웹 지갑 잔액 조회(`public/static/app.v5.js`)의 Solana Direct RPC를 `https://solana-rpc.publicnode.com`로 복구했습니다.
 - 수동 입금 스크립트의 주간 잭팟 티켓 조건을 100 USDT당 1장 기준으로 조정했습니다.
 - Firebase 서비스 계정 JSON 파일은 로컬에는 보존하되 git 추적 대상에서 제거하고 `.gitignore`에 추가했습니다.
+- 홈 화면 `Total Assets` 계산식을 원금 잠금액 + 미투자 USDT 기준으로 정리해 Available USDT(수익 잔액)가 총자산을 깎거나 더하지 않도록 수정했습니다.

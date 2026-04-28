@@ -5155,8 +5155,8 @@ function updateHomeUI() {
   const lockedUsdt = (walletData.totalInvest || 0) + (walletData.bonusInvest || 0); // 투자된 원금 합계
   const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
   const p = deedraPrice || 0.5;
-  // 총 자산 = 투자된 원금 + 잔여 USDT + ROI 수익 (bonusBalance, USDT 기준)
-  const total = lockedUsdt + usdt + bonus;
+  // 총 자산 = 투자된 원금 + 잔여 USDT만 표시합니다. Available USDT(수익)는 별도 카드에서 표시합니다.
+  const total = lockedUsdt + usdt;
 
   const setEl = (id, v) => { 
     const el = document.getElementById(id); 
