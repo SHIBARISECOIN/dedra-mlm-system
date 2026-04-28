@@ -5440,14 +5440,10 @@ async function getDoc(docRef) {
     }
 }
 
-const firebaseConfig = {
-    apiKey: "__FIREBASE_WEB_API_KEY__",
-    authDomain: "dedra-mlm.firebaseapp.com",
-    projectId: "dedra-mlm",
-    storageBucket: "dedra-mlm.firebasestorage.app",
-    messagingSenderId: "990762022325",
-    appId: "1:990762022325:web:1b238ef6eca4ffb4b795fc"
-};
+const firebaseConfig = await fetch('/api/public/firebase-config', { cache: 'no-store' }).then((res) => {
+    if (!res.ok) throw new Error('Firebase config unavailable');
+    return res.json();
+});
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
