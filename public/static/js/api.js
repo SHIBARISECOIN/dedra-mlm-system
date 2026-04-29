@@ -311,7 +311,13 @@ export class DedraAPI {
       
       let bonusUsdt = 0;
       let bonusPct = 0;
-      let originalAmount = parseFloat(tx.amount) || 0;
+      const txCurrency = String(tx.currency || 'USDT').toUpperCase();
+      const rawAmount = parseFloat(tx.amount) || 0;
+      const usdtAmount = parseFloat(tx.amountUsdt ?? tx.usdtValue ?? (txCurrency === 'USDT' ? (tx.actualAmount ?? tx.amount) : 0)) || 0;
+      if (txCurrency !== 'USDT' && usdtAmount <= 0) {
+        throw new Error(`${txCurrency} 감지 입금은 USDT 환산 금액이 없어 수동 승인할 수 없습니다. 먼저 실제 USDT 환산 금액을 확인/보정해 주세요.`);
+      }
+      let originalAmount = usdtAmount || rawAmount;
       let isEligibleForBonus = true;
 
       if (!wSnap.empty) {
@@ -412,6 +418,10 @@ export class DedraAPI {
         status: 'approved', 
         approvedAt: serverTimestamp(), 
         approvedBy: adminId,
+        approvedCurrency: 'USDT',
+        originalCurrency: txCurrency,
+        originalCryptoAmount: txCurrency !== 'USDT' ? rawAmount : null,
+        amountUsdt: originalAmount,
         bonusUsdt: bonusUsdt,
         bonusPct: bonusPct,
         totalCredited: totalAddUsdt,
@@ -466,7 +476,7 @@ export class DedraAPI {
       batch.update(doc(db, 'users', tx.userId), { withdrawSuspended: false });
       
       await batch.commit();
-      await this._auditLog(adminId, 'deposit', `입금 승인 ${tx.amount} USDT`, { txId, userId: tx.userId });
+      await this._auditLog(adminId, 'deposit', `입금 승인 ${originalAmount} USDT`, { txId, userId: tx.userId, originalCurrency: txCurrency, rawAmount });
 
       // 4. [센터/부센터피] (Center & Sub-Center Fee) - 별도 지갑(centerBalance, subCenterBalance) 누적
       try {
@@ -481,7 +491,7 @@ export class DedraAPI {
               const centerFeePct = ratesSnap.exists() ? (Number(ratesSnap.data().rate_centerFee) || 5) : 5;
               const priceSnap = await getDoc(doc(db, 'settings', 'deedraPrice'));
               const dedraRate = priceSnap.exists() ? (Number(priceSnap.data().price) || 0.5) : 0.5;
-              const amount = parseFloat(tx.amount) || 0;
+              const amount = originalAmount;
 
               // 4-1. 센터장 수수료 (centerBalance)
               if (cData.managerId && centerFeePct > 0) {
@@ -548,8 +558,8 @@ export class DedraAPI {
         await this._sendAdminNotification(
           'deposit_success',
           '✅ 입금 수동 승인 완료',
-          `${tx.userEmail || tx.userId} 님의 ${tx.amount} USDT 입금을 수동 승인했습니다.`,
-          { txId, userId: tx.userId, amount: tx.amount }
+          `${tx.userEmail || tx.userId} 님의 ${originalAmount} USDT 입금을 수동 승인했습니다.`,
+          { txId, userId: tx.userId, amount: originalAmount, originalCurrency: txCurrency, rawAmount }
         );
       }
 
@@ -559,13 +569,13 @@ export class DedraAPI {
         const depUser = depUserSnap.exists() ? depUserSnap.data() : {};
         await this.fireAutoRules('deposit_complete', tx.userId, {
           name:   depUser.name || depUser.referralCode || tx.userId,
-          amount: tx.amount || 0,
+          amount: originalAmount || 0,
           rank:   depUser.rank || 'G0',
         }, adminId);
         
         // [신규] 하부 회원이 입금했을 때 상위 추천인들에게 마스킹된 입금 알림 전송
         if (depUserSnap.exists()) {
-          await this.fireReferralDepositNotification(tx.userId, depUser, tx.amount || 0);
+          await this.fireReferralDepositNotification(tx.userId, depUser, originalAmount || 0);
         }
       } catch(e) { console.warn('deposit_complete noti error', e); }
 
@@ -578,7 +588,7 @@ export class DedraAPI {
         if (rates2.enableRankGapBonus && rates2.rankGapRealtimeOnDeposit) {
           const todayStr = new Date().toISOString().slice(0, 10);
           await this._processRankGapBonus(
-            tx.userId, tx.amount || 0, rates2,
+            tx.userId, originalAmount || 0, rates2,
             this.db, `deposit_realtime:${adminId}`, todayStr, null
           );
         }
@@ -634,6 +644,49 @@ export class DedraAPI {
       });
       await this._auditLog(adminId, 'deposit', `입금 거부: ${reason}`, { txId });
       return ok(true);
+    } catch(e) { return err(e); }
+  }
+
+  // ─────────────────────────────────────────────────
+  // [신규] 환불 없이 입금 신청 완전 삭제
+  // - 사용자가 신청하지 않았는데 자동/오류로 들어온 유령 입금 신청을 완전 삭제합니다.
+  // - 잔액/지갑/투자/보너스 일체 건드리지 않습니다 (환불 없음).
+  // - status='pending' 인 거래만 삭제 가능 (이미 승인/거부된 것은 차단).
+  // - 감사 로그(_auditLog)에 어떤 관리자가 어떤 txId를 삭제했는지 기록합니다.
+  // ─────────────────────────────────────────────────
+  async deleteDepositWithoutRefund(txId, adminId, reason = 'ghost_deposit_cleanup') {
+    try {
+      const txRef = doc(this.db, 'transactions', txId);
+      const txSnap = await getDoc(txRef);
+      if (!txSnap.exists()) {
+        return err(new Error('거래를 찾을 수 없습니다.'));
+      }
+      const tx = txSnap.data();
+      if (tx.type !== 'deposit') {
+        return err(new Error('입금 거래만 삭제할 수 있습니다.'));
+      }
+      if (tx.status !== 'pending') {
+        return err(new Error(`이미 처리된 거래는 삭제할 수 없습니다 (현재 상태: ${tx.status}).`));
+      }
+      // 백업용 스냅샷 (감사 로그에 원본 보존)
+      const snapshot = {
+        id: txId,
+        userId: tx.userId || null,
+        userEmail: tx.userEmail || null,
+        amount: tx.amount || null,
+        currency: tx.currency || null,
+        txid: tx.txid || tx.txHash || null,
+        network: tx.network || null,
+        source: tx.source || null,
+        walletType: tx.walletType || null,
+        monitorSource: tx.monitorSource || null,
+        txValidation: tx.txValidation || null,
+        createdAt: tx.createdAt || null
+      };
+      // 실제 삭제 (잔액/지갑 손대지 않음)
+      await deleteDoc(txRef);
+      await this._auditLog(adminId, 'deposit', `입금 신청 환불없이 삭제: ${reason}`, { txId, snapshot });
+      return ok({ deleted: true, snapshot });
     } catch(e) { return err(e); }
   }
 
@@ -831,14 +884,111 @@ export class DedraAPI {
   async failWithdrawalProcessing(txId, adminId, reason = '') {
     try {
       const db = this.db;
-      await updateDoc(doc(db, 'transactions', txId), {
+      const txRef = doc(db, 'transactions', txId);
+      const txSnap = await getDoc(txRef);
+      if (!txSnap.exists()) {
+        return { success: false, error: '거래를 찾을 수 없습니다.' };
+      }
+      const tx = txSnap.data();
+      if (tx.type !== 'withdrawal') {
+        return { success: false, error: '출금 거래만 처리 실패로 마킹할 수 있습니다.' };
+      }
+      // ── 이중 환불 차단: 이미 환불 완료된 건은 재처리하지 않음 ─────────
+      if (tx.refundedAt) {
+        return { success: false, error: '이미 환불 처리된 거래입니다.' };
+      }
+      if (tx.status === 'failed') {
+        return { success: false, error: '이미 송금 실패로 마킹된 거래입니다.' };
+      }
+      if (tx.status === 'approved') {
+        return { success: false, error: '이미 승인 완료된 출금은 실패 처리할 수 없습니다.' };
+      }
+
+      const usdtAmt = Number(tx.amountUsdt || tx.amount || 0);
+      const ticketsToRestore = Number(tx.burnedWeeklyTickets || 0);
+
+      const batch = writeBatch(db);
+
+      // 1) 거래 문서 상태 변경 + 환불 마커 기록 (이력 보존을 위해 삭제는 안 함)
+      batch.update(txRef, {
         status: 'failed',
         processingFailedAt: serverTimestamp(),
-        adminMemo: reason || '송금 실패'
+        processingFailedBy: adminId,
+        adminMemo: reason || '송금 실패',
+        refundedAt: serverTimestamp(),
+        refundedAmount: usdtAmt,
+        refundedBy: adminId
       });
-      return { success: true };
+
+      // 2) 잔액 환불 (rejectWithdrawal 과 동일한 패턴)
+      //    - bonusBalance 복구 (출금 신청 시 차감했던 USDT 환불)
+      //    - totalWithdrawal 차감 (누적 출금액에서 빼기)
+      //    - weeklyTickets 복구 (소진된 잭팟 티켓 되돌리기)
+      const walletRef = doc(db, 'wallets', tx.userId);
+      const wSnap = await getDoc(walletRef);
+      if (wSnap.exists()) {
+        batch.update(walletRef, {
+          bonusBalance: increment(usdtAmt),
+          totalWithdrawal: increment(-usdtAmt),
+          weeklyTickets: increment(ticketsToRestore)
+        });
+      } else {
+        const walletQ = query(collection(db, 'wallets'), where('userId', '==', tx.userId));
+        const wsSnap = await getDocs(walletQ);
+        if (!wsSnap.empty) {
+          batch.update(wsSnap.docs[0].ref, {
+            bonusBalance: increment(usdtAmt),
+            totalWithdrawal: increment(-usdtAmt),
+            weeklyTickets: increment(ticketsToRestore)
+          });
+        }
+      }
+
+      // 3) 회원 알림 발송 (송금 실패 + 환불 안내)
+      const userNotiRef = doc(collection(db, 'notifications'));
+      batch.set(userNotiRef, {
+        userId: tx.userId,
+        title: '⚠️ 출금 송금 실패 안내',
+        message: `회원님의 출금 신청이 송금 단계에서 실패하여 처리가 완료되지 못했습니다.\n사유: ${reason || '송금 실패'}\n\n차감되었던 ${usdtAmt} USDT는 출금 가능 잔액으로 자동 환불되었습니다. 지갑 주소 등을 다시 확인하신 뒤 재신청해 주세요.`,
+        type: 'system',
+        priority: 'high',
+        icon: '⚠️',
+        color: '#ef4444',
+        isRead: false,
+        createdAt: serverTimestamp()
+      });
+
+      await batch.commit();
+
+      // 4) 감사 로그
+      await this._auditLog(adminId, 'withdrawal', `출금 송금 실패 처리 (자동 환불 ${usdtAmt} USDT): ${reason}`, {
+        txId, userId: tx.userId, refundedAmount: usdtAmt, restoredTickets: ticketsToRestore
+      });
+
+      // 5) 관리자 알림
+      try {
+        await this._sendAdminNotification(
+          'withdrawal',
+          '⚠️ 출금 송금 실패 + 자동 환불',
+          `${tx.userEmail || tx.userId} 님의 출금 신청이 송금 실패로 처리되었고, ${usdtAmt} USDT가 자동 환불되었습니다. (사유: ${reason || '송금 실패'})`,
+          { txId, userId: tx.userId, refundedAmount: usdtAmt }
+        );
+      } catch(_) { /* 알림 실패는 본 처리에 영향 없음 */ }
+
+      // 6) 자동 규칙 알림 (실패 시에도 본 처리에는 영향 없음)
+      try {
+        const wdUserSnap = await getDoc(doc(db, 'users', tx.userId));
+        const wdUser = wdUserSnap.exists() ? wdUserSnap.data() : {};
+        await this.fireAutoRules('withdrawal_failed', tx.userId, {
+          name: wdUser.name || wdUser.referralCode || tx.userId,
+          amount: usdtAmt,
+          rank: wdUser.rank || 'G0',
+        }, adminId);
+      } catch(_) {}
+
+      return { success: true, refundedAmount: usdtAmt, restoredTickets: ticketsToRestore };
     } catch(e) {
-      return { success: false };
+      return { success: false, error: e.message || String(e) };
     }
   }
 

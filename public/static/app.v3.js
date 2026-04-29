@@ -6,37 +6,55 @@
 
 // ===== Impersonate Logic =====
 const urlParams = new URLSearchParams(window.location.search);
-const impToken = urlParams.get('impersonate');
+const IMPERSONATION_TOKEN_KEY = 'deedra_pending_impersonation_token';
+const impToken = urlParams.get('impersonate') || sessionStorage.getItem(IMPERSONATION_TOKEN_KEY);
 if (impToken) {
-  // We have a custom token. Let's clear any existing session and sign in.
-  localStorage.removeItem('deedra_session');
-  window.history.replaceState({}, document.title, window.location.pathname); // remove from URL
-  
-  if (window.FB && window.FB.signInWithCustomToken) {
-    window.FB.signInWithCustomToken(window.FB.auth, impToken).then((cred) => {
-      console.log('Impersonation successful:', cred.user.uid);
-      if (typeof window.onAuthReady === 'function') {
-         window.onAuthReady(cred.user);
-      } else {
-         window._pendingAuthUser = cred.user;
-      }
-    }).catch(e => {
-      alert('Impersonation failed: ' + e.message);
-      console.error(e);
-    });
-  } else {
-    // If FB is not fully loaded, wait a bit
+  // 회원 바로보기는 firebase.v3.js에서 전용 Firebase App + 메모리 persistence로 분리된다.
+  // module script 실행 순서상 app.v3.js가 firebase.v3.js보다 먼저 실행될 수 있으므로
+  // 토큰을 sessionStorage에 먼저 보관하고, Firebase 초기화가 전용 모드로 끝난 뒤 로그인한다.
+  sessionStorage.setItem(IMPERSONATION_TOKEN_KEY, impToken);
+  window.DEEDRA_IMPERSONATION_MODE = true;
+  window.DEEDRA_IMPERSONATION_TOKEN = impToken;
+
+  const cleanImpersonationUrl = () => {
+    try {
+      const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+    } catch (_) {}
+  };
+
+  const completeImpersonation = (cred) => {
+    sessionStorage.removeItem(IMPERSONATION_TOKEN_KEY);
+    cleanImpersonationUrl();
+    console.log('Impersonation successful:', cred.user.uid);
+    if (typeof window.onAuthReady === 'function') {
+      window.onAuthReady(cred.user);
+    } else {
+      window._pendingAuthUser = cred.user;
+    }
+  };
+
+  const failImpersonation = (e) => {
+    console.error('[Impersonation failed]', e);
+    cleanImpersonationUrl();
+    alert('Impersonation failed: ' + (e?.message || e));
+  };
+
+  const tryImpersonationLogin = () => {
+    if (!window.FB || !window.FB.signInWithCustomToken || !window.FB.auth) return false;
+    window.FB.signInWithCustomToken(window.FB.auth, impToken)
+      .then(completeImpersonation)
+      .catch(failImpersonation);
+    return true;
+  };
+
+  if (!tryImpersonationLogin()) {
+    let tries = 0;
     const int = setInterval(() => {
-      if (window.FB && window.FB.signInWithCustomToken) {
+      tries++;
+      if (tryImpersonationLogin() || tries >= 150) {
         clearInterval(int);
-        window.FB.signInWithCustomToken(window.FB.auth, impToken).then((cred) => {
-          console.log('Impersonation successful:', cred.user.uid);
-          if (typeof window.onAuthReady === 'function') {
-             window.onAuthReady(cred.user);
-          } else {
-             window._pendingAuthUser = cred.user;
-          }
-        }).catch(e => alert('Impersonation failed: ' + e.message));
+        if (tries >= 150) failImpersonation(new Error('Firebase SDK 준비 시간이 초과되었습니다.'));
       }
     }, 100);
   }
@@ -3886,6 +3904,12 @@ async function initApp() {
     console.log('initApp: showing main screen'); showScreen('main');
     // Restore last visited page
     if (typeof window.switchPage === 'function') window.switchPage(currentPage);
+    if (!sessionStorage.getItem('wity_bangkok_popup_shown')) {
+      sessionStorage.setItem('wity_bangkok_popup_shown', '1');
+      setTimeout(() => {
+        if (typeof window.showWityBangkokLoginPopup === 'function') window.showWityBangkokLoginPopup();
+      }, 900);
+    }
     // 강제 비밀번호 변경 체크
     if (sessionStorage.getItem('deedra_force_pw') === '1' || userData?.forcePwChange === true) {
       const modal = document.getElementById('forcePwModal');
@@ -3998,6 +4022,35 @@ async function check15DayWithdrawal() {
   } catch(e) { console.error(e); }
 }
 
+
+async function refreshCompanyFinanceSnapshot(options = {}) {
+  if (!currentUser || typeof currentUser.getIdToken !== 'function') return null;
+  try {
+    const idToken = await currentUser.getIdToken();
+    const res = await fetch('/api/user/finance-snapshot', {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) throw new Error(data.error || 'finance_snapshot_failed');
+    const snap = data.financeSnapshot || data;
+    window._companyFinanceSnapshot = snap;
+    if (walletData) walletData.companyFinanceSnapshot = snap;
+    return snap;
+  } catch (e) {
+    if (!options.silent) console.warn('[Finance] snapshot refresh failed:', e);
+    return null;
+  }
+}
+
+function scheduleCompanyFinanceSnapshotRefresh() {
+  if (window._companyFinanceSnapshotTimer) clearTimeout(window._companyFinanceSnapshotTimer);
+  window._companyFinanceSnapshotTimer = setTimeout(async () => {
+    const snap = await refreshCompanyFinanceSnapshot({ silent: true });
+    if (snap && typeof updateWalletUI === 'function') updateWalletUI();
+  }, 700);
+}
+
 async function loadWalletData() {
   check15DayWithdrawal();
   const { doc, getDoc, db, onSnapshot } = window.FB;
@@ -4006,15 +4059,20 @@ async function loadWalletData() {
   // 첫 데이터는 동기적으로 가져옴 (초기화 보장)
   const snap = await getDoc(ref);
   walletData = snap.exists() ? snap.data() : { usdtBalance: 0, dedraBalance: 0, bonusBalance: 0 };
-  gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+  await refreshCompanyFinanceSnapshot({ silent: true });
+  const initialFinance = getHomeFinanceSnapshot();
+  gameBalanceVal = Math.floor(((initialFinance.availableUsdt || 0) / (deedraPrice || 0.5)) * 100) / 100;
 
   // 실시간 구독 설정 (입금 승인 시 즉시 반영)
   if (window._walletUnsubscribe) window._walletUnsubscribe();
   window._walletUnsubscribe = onSnapshot(ref, (docSnap) => {
     if (docSnap.exists()) {
       walletData = docSnap.data();
-      gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+      if (window._companyFinanceSnapshot) walletData.companyFinanceSnapshot = window._companyFinanceSnapshot;
+      const liveFinance = getHomeFinanceSnapshot();
+      gameBalanceVal = Math.floor(((liveFinance.availableUsdt || 0) / (deedraPrice || 0.5)) * 100) / 100;
       updateWalletUI(); // UI 갱신 (총자산 등 애니메이션 포함)
+      scheduleCompanyFinanceSnapshotRefresh();
     }
   });
 }
@@ -4104,9 +4162,10 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   if (!walletData) return;
   const p = price || 0.5;
 
-  // 수익잔액(bonusBalance, USDT) → 출금 가능 DDRA 환산
-  const bonus = walletData.bonusBalance || 0;
-  const withdrawableDdra = bonus / p;  // 출금 가능 DDRA = bonusBalance ÷ ddraPrice
+  // 수익잔액(Available USDT) → 출금 가능 DDRA 환산
+  const finance = (typeof getHomeFinanceSnapshot === 'function') ? getHomeFinanceSnapshot() : null;
+  const bonus = finance ? finance.availableUsdt : (walletData.bonusBalance || 0);
+  const withdrawableDdra = bonus / p;  // 출금 가능 DDRA = Available USDT ÷ ddraPrice
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   // splitBonusDdra: USDT 수익의 DDRA 환산 표시
@@ -4118,8 +4177,8 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   setEl('splitDedraUsd',    '≈ $' + fmt(dedraUsd));
   setEl('moreWalletDedraUsd', privacyFmt(fmt(dedraUsd), '≈ $'));
 
-  // 게임 잔액: bonusBalance(USDT) ÷ ddraPrice → DDRA 단위
-  gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+  // 게임 잔액: Available USDT ÷ ddraPrice → DDRA 단위
+  gameBalanceVal = Math.floor(((bonus || 0) / (deedraPrice || 0.5)) * 100) / 100;
   setEl('gameBalanceUsd', '≈ $' + fmt(bonus));
 
   // 출금 모달 DDRA 환산 업데이트
@@ -4840,7 +4899,12 @@ window.handleLogout = async function() {
   if (!confirmed) return;
   const { signOut, auth } = window.FB;
   await signOut(auth);
-  localStorage.removeItem('deedra_session');
+  if (window.DEEDRA_IMPERSONATION_MODE) {
+    sessionStorage.removeItem('deedra_impersonation_session');
+    sessionStorage.removeItem('deedra_pending_impersonation_token');
+  } else {
+    localStorage.removeItem('deedra_session');
+  }
   sessionStorage.removeItem('deedra_wallet_popup_shown');
   currentUser = null; 
   userData = null; 
@@ -4918,6 +4982,66 @@ window.animateValue = function(el, start, end, duration, formatFn) {
   window.requestAnimationFrame(step);
 };
 
+
+function getHomeFinanceSnapshot() {
+  const w = walletData || {};
+  const u = userData || {};
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const round = (v) => Math.round((num(v) + Number.EPSILON) * 1000000) / 1000000;
+  const companySnap = window._companyFinanceSnapshot || w.companyFinanceSnapshot || w.financeSnapshot;
+  if (companySnap && Number.isFinite(Number(companySnap.totalUsdtAssets))) {
+    const lockedUsdt = round(companySnap.lockedUsdt);
+    const uninvestedUsdt = round(companySnap.uninvestedUsdt);
+    const availableUsdt = round(companySnap.availableUsdt);
+    return {
+      lockedUsdt,
+      uninvestedUsdt,
+      availableUsdt,
+      totalUsdtAssets: round(companySnap.totalUsdtAssets ?? (lockedUsdt + uninvestedUsdt + availableUsdt)),
+      promoLockedUsdt: round(companySnap.promoLockedUsdt),
+      ledgerAvailable: availableUsdt,
+      walletAvailable: round(w.bonusBalance),
+      totalEarnings: round(companySnap.totalEarnings),
+      totalWithdrawal: round(companySnap.totalWithdrawal),
+      rejectedWithdrawalIgnored: round(companySnap.rejectedWithdrawalIgnored),
+      profitReinvested: round(companySnap.profitReinvested),
+      source: companySnap.source || 'ledger_recalculated'
+    };
+  }
+
+  // 투자 원금은 잠금 자산으로 고정한다. totalInvest가 있으면 이미 보너스/재투자 원금까지
+  // 포함한 스냅샷으로 보고, 없을 때만 레거시 보조 필드를 더한다.
+  let lockedUsdt = num(w.totalInvest ?? w.totalInvestment ?? u.totalInvested ?? 0);
+  if (!lockedUsdt) lockedUsdt = num(w.lockedUsdt) + num(w.bonusInvest) + num(w.promoLockedUsdt);
+
+  const uninvestedUsdt = num(w.usdtBalance);
+  const walletAvailable = num(w.bonusBalance);
+  const totalEarnings = num(w.totalEarnings ?? w.totalBonus ?? w.bonusEarned);
+  const totalWithdrawal = num(w.totalWithdrawal ?? w.totalWithdraw ?? w.withdrawTotal);
+  const profitReinvested = num(w.bonusInvest) + num(w.autoCompoundTotalInvest) + num(w.profitInvested);
+
+  // Available USDT는 wallets/{uid}.bonusBalance를 정본으로 본다.
+  // 총자산은 원금 + 미투자 + 출금가능 세 칸의 현재 잔액 합계만 표시한다.
+  const hasLedgerTotals = totalEarnings > 0 || totalWithdrawal > 0 || profitReinvested > 0;
+  const ledgerAvailable = hasLedgerTotals ? Math.max(0, round(totalEarnings - totalWithdrawal - profitReinvested)) : walletAvailable;
+  const availableUsdt = walletAvailable;
+
+  return {
+    lockedUsdt: round(lockedUsdt),
+    uninvestedUsdt: round(uninvestedUsdt),
+    availableUsdt: round(availableUsdt),
+    totalUsdtAssets: round(lockedUsdt + uninvestedUsdt + availableUsdt),
+    ledgerAvailable: round(ledgerAvailable),
+    walletAvailable: round(walletAvailable),
+    totalEarnings: round(totalEarnings),
+    totalWithdrawal: round(totalWithdrawal),
+    profitReinvested: round(profitReinvested)
+  };
+}
+
 function updateHomeUI() {
   if (window.renderDeedraWallet) window.renderDeedraWallet();
   setTimeout(() => { try { window.initGlobalMapAnimation && window.initGlobalMapAnimation(); }catch(e){} }, 300);
@@ -4955,13 +5079,13 @@ function updateHomeUI() {
     if (subCenterFeeTab) subCenterFeeTab.style.display = 'none';
   }
 
-
-  const usdt = walletData.usdtBalance || 0;
-  const lockedUsdt = (walletData.totalInvest || 0) + (walletData.bonusInvest || 0); // 투자된 원금 합계 (보너스 포함)
-  const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
+  const homeFinance = getHomeFinanceSnapshot();
+  window._homeFinanceSnapshot = homeFinance;
+  const usdt = homeFinance.uninvestedUsdt;
+  const lockedUsdt = homeFinance.lockedUsdt;
+  const bonus = homeFinance.availableUsdt;
   const p = deedraPrice || 0.5;
-  // 총 자산 = 투자된 원금 + 잔여 USDT만 표시합니다. Available USDT(수익)는 별도 카드에서 표시합니다.
-  const total = lockedUsdt + usdt;
+  const total = homeFinance.totalUsdtAssets;
 
   const setEl = (id, v) => { 
     const el = document.getElementById(id); 
@@ -5098,6 +5222,114 @@ async function loadDDayCard() {
   }
 }
 
+
+// ===== WITY 방콕 글로벌 출정식 고정 공지 =====
+const WITY_BANGKOK_ANNOUNCEMENT_ID = 'wity-bangkok-global-launch-2026';
+const WITY_BANGKOK_ANNOUNCEMENT = {
+  id: WITY_BANGKOK_ANNOUNCEMENT_ID,
+  isPinned: true,
+  isActive: true,
+  createdAt: { seconds: 1778346000 },
+  title: '[공지] WITY 방콕 글로벌 출정식 개최 예정 안내',
+  popupTitle: 'WITY 방콕 글로벌 출정식 안내',
+  popupBody: 'WITY의 첫 공식 글로벌 행사가 2026년 5월 10일 태국 방콕에서 개최됩니다. 이번 행사는 동남아 시장 진출의 출발점이며, 초청 대상자의 항공·교통·숙박 및 기본 행사 참가 비용은 회사가 지원합니다.',
+  content: `WITY 방콕 글로벌 출정식 개최 예정 안내
+
+■ 행사명
+WITY 방콕 글로벌 출정식
+
+■ 일시
+2026년 5월 10일
+
+■ 장소
+Bangkok, Thailand
+호텔 컨벤션 센터 예정 - 정확한 행사장은 추후 확정 공지됩니다.
+
+■ 주요 참석 대상
+- WITY 프로젝트 핵심 관계자
+- 태국 및 동남아시아 라이더 파트너
+- 핵심 협력 파트너
+- D.R.E 프로젝트 활성 기여자
+- 참여도가 높은 멤버십 회원
+
+■ 초청 대상 선정 기준
+초청 대상자는 단순 가입 여부가 아니라 아래 항목을 종합적으로 고려하여 선정됩니다.
+- 프로젝트 참여도 및 활동성
+- D.R.E 프로젝트에 대한 관심과 이해도
+- 멤버십 예치 및 활동 내역
+- 실제 기여도
+- 홍보 및 소개 활동
+- 전체 활동 수준과 향후 리더·파트너로 성장할 가능성
+
+■ 초청자 회사 지원 항목
+공식 초청 대상자로 선정된 분들에게는 아래 기본 비용이 회사 지원 범위에 포함됩니다.
+- 항공권 및 이동 관련 비용
+- 현지 교통
+- 행사 기간 숙박
+- 기본 행사 참여 비용
+
+■ 행사 목적
+이번 출정식은 WITY 모빌리티 플랫폼을 공식적으로 소개하고, D.R.E 프로젝트와 실물 경제를 연결하는 첫 글로벌 공식 행사입니다. 또한 태국을 시작으로 동남아시아 시장 확장을 본격화하는 중요한 출발점이 될 예정입니다.
+
+WITY는 이번 방콕 출정식을 통해 글로벌 파트너, 라이더 생태계, 멤버십 커뮤니티가 함께 성장할 수 있는 기반을 만들어가겠습니다.`
+};
+
+function getWityBangkokAnnouncement() {
+  return { ...WITY_BANGKOK_ANNOUNCEMENT };
+}
+
+function removeWityBangkokPopup() {
+  const old = document.getElementById('wityBangkokPopupOverlay');
+  if (old) old.remove();
+}
+
+window.openWityBangkokAnnouncement = function() {
+  removeWityBangkokPopup();
+  if (typeof window.showAnnouncementDetail === 'function') {
+    window.showAnnouncementDetail(WITY_BANGKOK_ANNOUNCEMENT_ID);
+  }
+};
+
+window.showWityBangkokLoginPopup = function(retryCount = 0) {
+  if (document.getElementById('wityBangkokPopupOverlay')) return;
+  const forcePwModal = document.getElementById('forcePwModal');
+  const forcePwOpen = forcePwModal && !forcePwModal.classList.contains('hidden') && forcePwModal.style.display !== 'none';
+  if (forcePwOpen && retryCount < 8) {
+    setTimeout(() => window.showWityBangkokLoginPopup(retryCount + 1), 1500);
+    return;
+  }
+
+  const ann = getWityBangkokAnnouncement();
+  const overlay = document.createElement('div');
+  overlay.id = 'wityBangkokPopupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;';
+  overlay.innerHTML = `
+    <section role="dialog" aria-modal="true" aria-labelledby="wityBangkokPopupTitle" style="width:100%;max-width:390px;background:linear-gradient(145deg,#111827,#1e1b4b 55%,#0f172a);border:1px solid rgba(129,140,248,.45);border-radius:24px;box-shadow:0 24px 80px rgba(0,0,0,.55);overflow:hidden;color:#fff;">
+      <div style="padding:22px 22px 18px;background:radial-gradient(circle at top right,rgba(56,189,248,.26),transparent 42%),radial-gradient(circle at top left,rgba(168,85,247,.22),transparent 45%);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+          <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;background:rgba(59,130,246,.16);border:1px solid rgba(125,211,252,.35);color:#bae6fd;font-size:12px;font-weight:800;letter-spacing:.2px;">GLOBAL LAUNCH</span>
+          <button type="button" onclick="removeWityBangkokPopup()" aria-label="닫기" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.09);color:#cbd5e1;font-size:16px;cursor:pointer;">×</button>
+        </div>
+        <h2 id="wityBangkokPopupTitle" style="margin:0 0 12px;font-size:22px;line-height:1.28;font-weight:900;letter-spacing:-.6px;">${ann.popupTitle}</h2>
+        <p style="margin:0;color:#dbeafe;font-size:14px;line-height:1.68;word-break:keep-all;">${ann.popupBody}</p>
+      </div>
+      <div style="padding:0 22px 22px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 18px;">
+          <div style="padding:12px;border-radius:14px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.18);">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">DATE</div>
+            <div style="font-size:14px;font-weight:800;color:#f8fafc;">2026-05-10</div>
+          </div>
+          <div style="padding:12px;border-radius:14px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.18);">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">LOCATION</div>
+            <div style="font-size:14px;font-weight:800;color:#f8fafc;">Bangkok, Thailand</div>
+          </div>
+        </div>
+        <button type="button" onclick="window.openWityBangkokAnnouncement()" style="width:100%;border:none;border-radius:16px;padding:15px 16px;background:linear-gradient(135deg,#38bdf8,#6366f1,#8b5cf6);color:#fff;font-size:15px;font-weight:900;box-shadow:0 12px 26px rgba(99,102,241,.35);cursor:pointer;">공지사항 확인하기</button>
+      </div>
+    </section>`;
+  document.body.appendChild(overlay);
+};
+
 // ===== 공지사항 =====
 async function loadAnnouncements() {
   const { collection, query, orderBy, limit, getDocs, db } = window.FB;
@@ -5108,8 +5340,8 @@ async function loadAnnouncements() {
       limit(3)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(a => a.isActive !== false)
+    const items = [getWityBangkokAnnouncement(), ...snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(a => a.isActive !== false && a.id !== WITY_BANGKOK_ANNOUNCEMENT_ID && a.title !== WITY_BANGKOK_ANNOUNCEMENT.title)]
       .sort((a, b) => {
         if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
@@ -5157,8 +5389,8 @@ window.showAnnouncementModal = async function() {
       limit(30)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .filter(a => a.isActive !== false)
+    const items = [getWityBangkokAnnouncement(), ...snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(a => a.isActive !== false && a.id !== WITY_BANGKOK_ANNOUNCEMENT_ID && a.title !== WITY_BANGKOK_ANNOUNCEMENT.title)]
       .sort((a, b) => {
         if ((b.isPinned ? 1 : 0) !== (a.isPinned ? 1 : 0))
           return (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
@@ -5181,6 +5413,13 @@ window.showAnnouncementDetail = async function(id) {
   const bodyEl  = document.getElementById('annDetailBody');
   if (titleEl) titleEl.textContent = t('loading') || '불러오는 중...';
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
+  if (id === WITY_BANGKOK_ANNOUNCEMENT_ID) {
+    const a = getWityBangkokAnnouncement();
+    if (titleEl) titleEl.textContent = '📌 ' + a.title;
+    if (dateEl) dateEl.textContent = '2026-05-10 · Bangkok, Thailand';
+    if (bodyEl) bodyEl.innerHTML = `<div class="ann-detail-content">${String(a.content || '').replace(/\n/g, '<br>')}</div>`;
+    return;
+  }
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
     if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}</div>`; return; }
@@ -5541,6 +5780,307 @@ window.switchTxTab = function(type, el) {
     }
   }
   loadTxHistory(type);
+};
+
+// ===== Fast single-day transaction history override =====
+// 기본 화면은 조회 날짜 하루의 항목별 합계만 표시하고, 상세를 누른 항목만 5개씩 로드한다.
+const FAST_TX_HISTORY_TYPES = ['deposit', 'withdrawal', 'invest', 'direct_bonus', 'rank_bonus', 'rank_matching'];
+
+function fastTxHistoryServerType(type) {
+  if (type === 'all') return 'deposit';
+  if (type === 'roi' || type === 'freeze') return 'invest';
+  return type || 'deposit';
+}
+
+function fastTxHistoryTodayKst() {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function fastTxHistoryEscapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function fastTxHistoryText(key, fallback) {
+  try {
+    const value = typeof t === 'function' ? t(key) : '';
+    return value && value !== key ? value : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function fastTxHistoryTitle(type) {
+  const serverType = fastTxHistoryServerType(type);
+  if (serverType === 'deposit') return fastTxHistoryText('txDeposit', '입금');
+  if (serverType === 'withdrawal') return fastTxHistoryText('txWithdraw', '출금');
+  if (serverType === 'invest') return fastTxHistoryText('txInvest', 'FREEZE');
+  if (serverType === 'direct_bonus') return fastTxHistoryText('txDirectBonus', '추천 수당');
+  if (serverType === 'rank_bonus') return fastTxHistoryText('txRankBonus', '직급 수당');
+  if (serverType === 'rank_matching') return fastTxHistoryText('txRankMatching', '직급 매칭');
+  return serverType;
+}
+
+function fastTxHistoryTypeMeta(type) {
+  const serverType = fastTxHistoryServerType(type);
+  if (serverType === 'deposit') return { icon: 'fa-arrow-down', color: '#10b981', sign: '+', amountColor: '#10b981' };
+  if (serverType === 'withdrawal') return { icon: 'fa-arrow-up', color: '#ef4444', sign: '-', amountColor: '#ef4444' };
+  if (serverType === 'invest') return { icon: 'fa-lock', color: '#8b5cf6', sign: '', amountColor: '#a78bfa' };
+  if (serverType === 'direct_bonus') return { icon: 'fa-user-friends', color: '#ec4899', sign: '+', amountColor: '#ec4899' };
+  if (serverType === 'rank_bonus') return { icon: 'fa-medal', color: '#8b5cf6', sign: '+', amountColor: '#a78bfa' };
+  if (serverType === 'rank_matching') return { icon: 'fa-handshake', color: '#06b6d4', sign: '+', amountColor: '#06b6d4' };
+  return { icon: 'fa-exchange-alt', color: '#94a3b8', sign: '+', amountColor: '#f8fafc' };
+}
+
+function fastTxHistoryItemMeta(tx) {
+  const type = tx.type || '';
+  if (type === 'deposit') return { icon: 'fa-arrow-down', color: '#10b981', title: fastTxHistoryText('txDeposit', '입금'), sign: '+', amountColor: '#10b981' };
+  if (type === 'withdrawal') return { icon: 'fa-arrow-up', color: '#ef4444', title: fastTxHistoryText('txWithdraw', '출금'), sign: '-', amountColor: '#ef4444' };
+  if (type === 'invest') return { icon: 'fa-lock', color: '#8b5cf6', title: fastTxHistoryText('txInvest', 'FREEZE'), sign: '-', amountColor: '#8b5cf6' };
+  if (['roi', 'daily_roi', 'roi_income'].includes(type)) return { icon: 'fa-chart-line', color: '#f59e0b', title: fastTxHistoryText('txDailyRoi', '일일 수익'), sign: '+', amountColor: '#f59e0b' };
+  if (type === 'direct_bonus') return { icon: 'fa-user-friends', color: '#ec4899', title: fastTxHistoryText('txDirectBonus', '추천 수당'), sign: '+', amountColor: '#ec4899' };
+  if (['rank_bonus', 'rank_gap_passthru', 'rank_reward'].includes(type)) return { icon: 'fa-medal', color: '#8b5cf6', title: fastTxHistoryText('txRankBonus', '직급 수당'), sign: '+', amountColor: '#a78bfa' };
+  if (type.includes('matching') || type.includes('override')) return { icon: 'fa-handshake', color: '#06b6d4', title: fastTxHistoryText('txRankMatching', '직급 매칭'), sign: '+', amountColor: '#06b6d4' };
+  return { icon: 'fa-exchange-alt', color: '#94a3b8', title: type || '거래', sign: '+', amountColor: '#f8fafc' };
+}
+
+async function fastTxHistoryAuthToken() {
+  const authObj = window.FB ? window.FB.auth : null;
+  const fbUser = authObj ? authObj.currentUser : null;
+  let idToken = window.FB && window.FB._idToken ? window.FB._idToken : '';
+  if (!idToken && fbUser && typeof fbUser.getIdToken === 'function') {
+    idToken = await fbUser.getIdToken(true);
+  }
+  return idToken || ('local_session_' + Date.now());
+}
+
+function fastTxHistorySelectedDate() {
+  const dateInput = document.getElementById('txHistoryDate');
+  let selectedDate = dateInput ? dateInput.value : '';
+  if (!selectedDate) {
+    selectedDate = fastTxHistoryTodayKst();
+    if (dateInput) dateInput.value = selectedDate;
+  }
+  return selectedDate;
+}
+
+function fastTxHistorySummaryCard(summary, state) {
+  const type = fastTxHistoryServerType(summary.typeFilter);
+  const meta = fastTxHistoryTypeMeta(type);
+  const titleStr = fastTxHistoryTitle(type);
+  const amount = Number(summary.totalSum || 0);
+  const count = Number(summary.count || 0);
+  const isOpen = state.activeDetailType === type;
+  const partialNote = summary.partial ? `<div style="font-size:11px;color:#94a3b8;margin-top:6px;">${fastTxHistoryText('fastPartialNotice', '빠른 조회 모드: 일부 내역 기준입니다.')}</div>` : '';
+  return `
+    <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid ${isOpen ? meta.color : 'rgba(148,163,184,.25)'};border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 4px 15px rgba(0,0,0,.2);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div style="min-width:0;">
+          <div style="font-size:13px;color:#94a3b8;margin-bottom:8px;">${fastTxHistoryEscapeHtml(state.dateFilter)} · ${fastTxHistoryEscapeHtml(titleStr)}</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:18px;font-weight:900;color:#f8fafc;">
+            <i class="fas ${meta.icon}" style="color:${meta.color};"></i>
+            <span>${fastTxHistoryEscapeHtml(titleStr)} 총 ${count.toLocaleString()}건</span>
+          </div>
+          ${partialNote}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:21px;font-weight:900;color:${meta.amountColor};">${meta.sign}${fmt(amount)} USDT</div>
+          <button onclick="loadTxHistoryDetails('${type}', 1)" style="margin-top:8px;background:transparent;border:none;color:#cbd5e1;font-weight:800;cursor:pointer;font-size:12px;">
+            <i class="fas ${isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}" style="margin-right:4px;"></i>상세 보기
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function fastTxHistoryDetailRowsHtml(type, state) {
+  if (state.activeDetailType !== type) return '';
+  const detail = (state.detailsByType && state.detailsByType[type]) || { items: [], page: 0, hasMore: false, loading: false };
+  if (detail.loading && !detail.items.length) {
+    return '<div class="skeleton-item"></div>';
+  }
+  let html = '';
+  const items = detail.items || [];
+  if (!items.length) {
+    html += `<div class="empty-state" style="padding:18px;text-align:center;color:#94a3b8;border:1px dashed var(--border);border-radius:12px;margin-bottom:12px;">${fastTxHistoryEscapeHtml(state.dateFilter)} ${fastTxHistoryEscapeHtml(fastTxHistoryTitle(type))} 상세 내역이 없습니다.</div>`;
+  }
+  items.forEach(tx => {
+    const meta = fastTxHistoryItemMeta(tx);
+    const d = new Date(tx.createdAt);
+    const locale = window.currentLang === 'en' ? 'en-US' : (window.currentLang === 'vi' ? 'vi-VN' : (window.currentLang === 'th' ? 'th-TH' : 'ko-KR'));
+    const dateStr = Number.isNaN(d.getTime()) ? (tx.settlementDate || state.dateFilter || '-') : d.toLocaleString(locale, { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const status = String(tx.status || '').toLowerCase();
+    let statusBadge = '';
+    if (status === 'pending') statusBadge = `<span style="font-size:10px;background:rgba(245,158,11,.14);color:#f59e0b;padding:2px 6px;border-radius:4px;margin-left:4px;">${fastTxHistoryText('txPending', '대기중')}</span>`;
+    else if (status === 'processing' || status === 'processing_lock') statusBadge = `<span style="font-size:10px;background:rgba(59,130,246,.14);color:#3b82f6;padding:2px 6px;border-radius:4px;margin-left:4px;">${fastTxHistoryText('txProcessing', '처리중')}</span>`;
+    const displayAmt = Number(tx.amountUsdt ?? tx.amount ?? 0) || 0;
+    html += `
+      <div class="tx-item" style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:var(--bg2);border-radius:12px;margin-bottom:8px;border:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+          <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;color:${meta.color};font-size:17px;flex-shrink:0;">
+            <i class="fas ${meta.icon}"></i>
+          </div>
+          <div style="min-width:0;">
+            <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;">${fastTxHistoryEscapeHtml(meta.title)} ${statusBadge}</div>
+            <div style="font-size:12px;color:var(--text2);">${fastTxHistoryEscapeHtml(dateStr)}</div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:15px;font-weight:900;color:${meta.amountColor};margin-bottom:4px;">${meta.sign}${fmt(displayAmt)}</div>
+          <div style="font-size:12px;color:var(--text2);">USDT</div>
+        </div>
+      </div>`;
+  });
+  if (detail.loading && items.length) {
+    html += '<div class="skeleton-item"></div>';
+  } else if (detail.hasMore) {
+    html += `<button onclick="loadTxHistoryDetails('${type}', ${Number(detail.page || 1) + 1})" style="width:100%;padding:14px;margin:8px 0 14px;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:12px;font-weight:900;cursor:pointer;">
+      <i class="fas fa-chevron-down" style="margin-right:6px;"></i> 다음 5개 내역 더보기 (${Number(items.length).toLocaleString()} / ${Number(detail.totalCount || 0).toLocaleString()})
+    </button>`;
+  }
+  return html;
+}
+
+function fastRenderTxHistoryDaySummary(state) {
+  const listEl = document.getElementById('txHistoryList');
+  if (!listEl || !state) return;
+  const byType = {};
+  (state.summaries || []).forEach(summary => {
+    byType[fastTxHistoryServerType(summary.typeFilter)] = summary;
+  });
+  const html = FAST_TX_HISTORY_TYPES.map(type => {
+    const summary = byType[type] || { typeFilter: type, totalSum: 0, count: 0 };
+    return fastTxHistorySummaryCard(summary, state) + fastTxHistoryDetailRowsHtml(type, state);
+  }).join('');
+  listEl.innerHTML = html || '<div class="empty-state">거래 내역을 불러올 수 없습니다.</div>';
+}
+
+async function fastTxHistoryRequest(mode, page = 1, typeFilter = '') {
+  const state = window.txHistoryState || {};
+  const idToken = await fastTxHistoryAuthToken();
+  const selectedType = fastTxHistoryServerType(typeFilter || state.activeDetailType || state.typeFilter || 'deposit');
+  const res = await fetch('/api/user/tx-history', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`
+    },
+    body: JSON.stringify({
+      uid: currentUser.uid,
+      typeFilter: selectedType,
+      dateFilter: state.dateFilter || fastTxHistorySelectedDate(),
+      forceLoadAll: false,
+      mode,
+      page
+    })
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Failed to load tx history');
+  return data;
+}
+
+loadTxHistory = async function() {
+  const listEl = document.getElementById('txHistoryList');
+  const tabs = document.getElementById('txTabsContainer');
+  const allPeriodBtn = document.getElementById('txHistoryAllPeriodBtn');
+  if (tabs) tabs.style.display = 'none';
+  if (allPeriodBtn) allPeriodBtn.style.display = 'none';
+  if (listEl) listEl.innerHTML = '<div class="skeleton-item"></div><div class="skeleton-item"></div>';
+
+  try {
+    if (!currentUser || !currentUser.uid) throw new Error('로그인이 필요합니다.');
+    const selectedDate = fastTxHistorySelectedDate();
+    window.txHistoryState = {
+      dateFilter: selectedDate,
+      forceLoadAll: false,
+      activeDetailType: '',
+      detailsByType: {},
+      summaries: []
+    };
+
+    const data = await fastTxHistoryRequest('day-summary', 1);
+    window.txHistoryState = {
+      ...window.txHistoryState,
+      dateFilter: data.date || selectedDate,
+      summaries: data.summaries || data.categories || [],
+      partial: Boolean(data.partial)
+    };
+    fastRenderTxHistoryDaySummary(window.txHistoryState);
+  } catch (err) {
+    console.error('loadTxHistory error:', err);
+    if (listEl) listEl.innerHTML = '<div class="empty-state" style="color:red;font-size:12px;padding:20px;word-break:break-all;"><i class="fas fa-exclamation-triangle"></i><br>Error: ' + err.message + '</div>';
+  }
+};
+
+loadTxHistoryDetails = async function(typeFilter = 'deposit', page = 1) {
+  if (typeof typeFilter === 'number') {
+    page = typeFilter;
+    typeFilter = (window.txHistoryState && window.txHistoryState.activeDetailType) || 'deposit';
+  }
+  const type = fastTxHistoryServerType(typeFilter);
+  try {
+    if (!window.txHistoryState) await loadTxHistory();
+    const existingState = window.txHistoryState || {};
+    const currentDetail = (existingState.detailsByType && existingState.detailsByType[type]) || { items: [], page: 0, hasMore: false, totalCount: 0 };
+    window.txHistoryState = {
+      ...existingState,
+      activeDetailType: type,
+      detailsByType: {
+        ...(existingState.detailsByType || {}),
+        [type]: {
+          ...currentDetail,
+          items: page === 1 ? [] : (currentDetail.items || []),
+          page: page === 1 ? 0 : currentDetail.page,
+          loading: true
+        }
+      }
+    };
+    fastRenderTxHistoryDaySummary(window.txHistoryState);
+
+    const data = await fastTxHistoryRequest('details', page, type);
+    const existingItems = page === 1 ? [] : (currentDetail.items || []);
+    const summary = (window.txHistoryState.summaries || []).find(s => fastTxHistoryServerType(s.typeFilter) === type) || {};
+    window.txHistoryState = {
+      ...window.txHistoryState,
+      activeDetailType: type,
+      detailsByType: {
+        ...(window.txHistoryState.detailsByType || {}),
+        [type]: {
+          items: existingItems.concat(data.items || []),
+          page: data.page || page,
+          pageSize: data.pageSize || 5,
+          hasMore: Boolean(data.hasMore),
+          totalCount: Number(summary.count || 0),
+          loading: false
+        }
+      }
+    };
+    fastRenderTxHistoryDaySummary(window.txHistoryState);
+  } catch (err) {
+    console.error('loadTxHistoryDetails error:', err);
+    if (window.txHistoryState) {
+      window.txHistoryState.detailsByType = window.txHistoryState.detailsByType || {};
+      window.txHistoryState.detailsByType[type] = { items: [], page: 0, hasMore: false, totalCount: 0, loading: false };
+      fastRenderTxHistoryDaySummary(window.txHistoryState);
+    }
+    const listEl = document.getElementById('txHistoryList');
+    if (listEl && !window.txHistoryState) listEl.innerHTML = '<div class="empty-state" style="color:red;font-size:12px;padding:20px;word-break:break-all;"><i class="fas fa-exclamation-triangle"></i><br>Error: ' + err.message + '</div>';
+  }
+};
+
+window.loadTxHistory = loadTxHistory;
+window.loadTxHistoryDetails = loadTxHistoryDetails;
+window.currentTxTab = 'deposit';
+window.switchTxTab = function(type, el) {
+  window.currentTxTab = fastTxHistoryServerType(type);
+  document.querySelectorAll('.tx-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  loadTxHistoryDetails(window.currentTxTab, 1);
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -6060,11 +6600,15 @@ window.submitDeposit = async function() {
 
   if (!amount || amount <= 0) { showToast('입금 금액을 입력하세요.', 'warning'); return; }
   if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
-  
-  // 솔라나 TXID 길이 검증 (일반적으로 88자 주변)
-  if (txid.length < 60) {
-    showToast('TXID 영수증 번호가 너무 짧습니다. 잘리지 않았는지 확인 후 다시 복사해주세요 (솔라나는 88자, 트론·BSC는 64~66자입니다).', 'error');
+
+  // TXID 길이 안내 (체인별로 길이가 다르므로 차단하지 않음. 잘못된 TXID는 관리자/자동 검증 단계에서 거부됨)
+  if (txid.length < 10) {
+    showToast('TXID가 너무 짧습니다. 다시 확인해주세요.', 'warning');
     return;
+  }
+  if (txid.length < 60) {
+    // 안내만 띄우고 신청은 그대로 진행
+    showToast('TXID 길이가 일반적이지 않습니다. 잘못된 경우 관리자 검증에서 거부됩니다.', 'warning');
   }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
@@ -6079,16 +6623,17 @@ window.submitDeposit = async function() {
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     
-    if (btn) btn.textContent = '영수증 검증 중...';
+    if (btn) btn.textContent = '신청 접수 중...';
     
-    // 중복 전송 방지를 위해 프론트엔드 레벨에서 한번 더 체크
-    const { getDocs, query, where, limit } = window.FB;
-    const dupQ = await getDocs(query(collection(db, 'transactions'), where('txid', '==', txid), limit(1)));
-    if (!dupQ.empty) {
-        showToast('이미 처리되었거나 접수된 TXID입니다.', 'error');
-        if (btn) { btn.disabled = false; btn.textContent = origTxt; btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
-        return;
-    }
+    // 중복 TXID 사전 안내 (차단하지 않음. 잘못된 경우 관리자/자동 검증 단계에서 거부됨)
+    try {
+      const { getDocs, query, where, limit } = window.FB;
+      const dupQ = await getDocs(query(collection(db, 'transactions'), where('txid', '==', txid), limit(1)));
+      if (!dupQ.empty) {
+        showToast('동일 TXID가 이미 접수되어 있습니다. 관리자 검증 후 처리됩니다.', 'warning');
+        // 안내만 띄우고 신청은 그대로 진행
+      }
+    } catch (e) { console.warn('Duplicate TXID precheck skipped:', e); }
     
     // 1. 기존처럼 Firestore에 pending 상태로 저장 (유저 권한으로 가능)
     const docRef = await addDoc(collection(db, 'transactions'), {
@@ -6113,13 +6658,37 @@ window.submitDeposit = async function() {
 
     
     // 2. 백엔드(Worker)에 강제로 즉시 검증하라고 핑(Ping) 전송
+    //    클라이언트 번들에 cron secret을 노출하지 않기 위해 사용자 ID 토큰을 사용
     try {
+      const idToken = (currentUser && typeof currentUser.getIdToken === 'function')
+        ? await currentUser.getIdToken().catch(() => '')
+        : '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
       await fetch('/api/solana/check-deposits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-cron-secret': '__CONFIGURE_CRON_SECRET__' }
+        headers,
+        body: JSON.stringify({ trigger: 'user_deposit_submit' })
       });
     } catch (e) {
       console.log('Auto-verify ping failed, will be verified later:', e);
+    }
+
+    // 3. 멀티체인 자동 sweep 트리거 (BSC/TRON USDT 회사 지갑 자동 회수)
+    //    회원이 자신의 BSC/TRON 지갑으로 입금받은 경우 자동 회수 + 입금 트랜잭션 자동 기록
+    try {
+      const idToken2 = (currentUser && typeof currentUser.getIdToken === 'function')
+        ? await currentUser.getIdToken().catch(() => '')
+        : '';
+      if (idToken2) {
+        await fetch('/api/multi/trigger-sweep', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken2 },
+          body: JSON.stringify({ trigger: 'user_deposit_submit' })
+        });
+      }
+    } catch (e) {
+      console.log('Multi-chain sweep ping failed, will be retried later:', e);
     }
 
     closeModal('depositModal');
@@ -6128,9 +6697,15 @@ window.submitDeposit = async function() {
     document.getElementById('depositAmount').value = '';
     document.getElementById('depositTxid').value = '';
   } catch (err) {
-    showToast(t('failPrefix') + err.message, 'error');
+    console.error('[submitDeposit] error:', err);
+    showToast((t('failPrefix') || '실패: ') + (err && err.message ? err.message : '입금 신청 처리 중 오류'), 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = t('btnSubmitDeposit') || '입금 신청'; }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origTxt || t('btnSubmitDeposit') || '입금 신청';
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
   }
 };
 
@@ -13114,6 +13689,18 @@ window.renderDeedraWallet = function() {
                 const ddraEl = document.getElementById('deedraWalletDdraBalance');
                 const solEl = document.getElementById('deedraWalletBalance');
                 
+                if (!data.success) {
+                    const zeroHtml = '0.000000';
+                    if (usdtEl) usdtEl.innerHTML = zeroHtml;
+                    if (ddraEl) ddraEl.innerHTML = zeroHtml;
+                    if (solEl) solEl.innerHTML = '0.0000';
+                    const bnbEl = document.getElementById('deedraWalletBnbBalance');
+                    const trxEl = document.getElementById('deedraWalletTrxBalance');
+                    if (bnbEl) bnbEl.innerHTML = zeroHtml;
+                    if (trxEl) trxEl.innerHTML = zeroHtml;
+                    console.warn('D-WALLET balance fallback to zero:', data.error || data);
+                    return;
+                }
                 if (data.success) {
                     if (solEl && data.sol !== undefined) {
                         solEl.innerHTML = data.sol.toFixed(4);
@@ -14352,179 +14939,84 @@ window.showWalletHistory = async function() {
 
 
 
+window._getDeedraWalletAuthToken = window._getDeedraWalletAuthToken || async function() {
+    let activeUser = null;
+    try { if (window.FB && window.FB.auth && window.FB.auth.currentUser) activeUser = window.FB.auth.currentUser; } catch(e) {}
+    try { if (!activeUser && window.firebase && window.firebase.auth && window.firebase.auth().currentUser) activeUser = window.firebase.auth().currentUser; } catch(e) {}
+    try { if (!activeUser && typeof auth !== 'undefined' && auth.currentUser) activeUser = auth.currentUser; } catch(e) {}
+    try { if (!activeUser && typeof currentUser !== 'undefined' && currentUser) activeUser = currentUser; } catch(e) {}
+    if (activeUser && typeof activeUser.getIdToken === 'function') {
+        try { return await activeUser.getIdToken(); } catch(e) {}
+    }
+    return '';
+};
+
 window._fetchSolanaBalances = async function(publicKey) {
-    // Fetch TRON & BSC Native & USDT Balances
-    let bscUsdt = 0;
-    let bnbBal = 0;
-    let tronUsdt = 0;
-    let trxBal = 0;
-    
-    if (userData && userData.deedraWallet) {
-        const { evmAddress, tronAddress } = userData.deedraWallet;
-        
-        // BSC
-        if (evmAddress) {
-            try {
-                const data = '0x70a08231' + '000000000000000000000000' + evmAddress.substring(2);
-                const res = await fetch('https://bsc-dataseed.binance.org/', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify([
-                        { jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{to: '0x55d398326f99059fF775485246999027B3197955', data: data}, 'latest'] },
-                        { jsonrpc: '2.0', id: 2, method: 'eth_getBalance', params: [evmAddress, 'latest'] }
-                    ])
-                });
-                const json = await res.json();
-                if (Array.isArray(json)) {
-                    if (json[0] && json[0].result) bscUsdt = parseInt(json[0].result, 16) / 1e18;
-                    if (json[1] && json[1].result) bnbBal = parseInt(json[1].result, 16) / 1e18;
-                }
-            } catch(e) { console.error('BSC fetch error', e); }
-        }
-        
-        // TRON
-        if (tronAddress) {
-            try {
-                const res = await fetch(`https://api.trongrid.io/v1/accounts/${tronAddress}`);
-                const json = await res.json();
-                if (json.data && json.data.length > 0) {
-                    const account = json.data[0];
-                    if (account.balance) trxBal = account.balance / 1e6;
-                    const trc20 = account.trc20;
-                    if (trc20) {
-                        for (const token of trc20) {
-                            if (token['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t']) {
-                                tronUsdt = parseInt(token['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t']) / 1e6;
-                            }
-                        }
-                    }
-                }
-            } catch(e) { console.error('TRON fetch error', e); }
-        }
-    }
-    
-    window._multiChainUsdt = { bsc: bscUsdt, tron: tronUsdt, sol: 0 };
-    window._multiChainNative = { bnb: bnbBal, trx: trxBal };
-    
-    if (bscUsdt > 0.5 || tronUsdt > 0.5 || bnbBal > 0.05 || trxBal > 20) {
-        (async () => {
-            try {
-                let authObj = null;
-                if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.getIdToken === 'function') {
-                    authObj = currentUser;
-                } else if (window.FB && window.FB.auth && window.FB.auth.currentUser) {
-                    authObj = window.FB.auth.currentUser;
-                } else if (window.auth && window.auth.currentUser) {
-                    authObj = window.auth.currentUser;
-                }
-                let sweepToken = '';
-                if (authObj && typeof authObj.getIdToken === 'function') {
-                    sweepToken = await authObj.getIdToken();
-                } else if (window.FB && window.FB._idToken) {
-                    sweepToken = window.FB._idToken;
-                }
-                
-                if (sweepToken) {
-                    fetch('/api/multi/trigger-sweep', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (typeof sweepToken !== 'undefined' ? sweepToken : idToken) }
-                    }).catch(()=>{});
-                }
-            } catch(e) {}
-        })();
-    }
+    const wallet = (typeof userData !== 'undefined' && userData && userData.deedraWallet) ? userData.deedraWallet : {};
+    const payload = {
+        publicKey,
+        solanaPublicKey: publicKey,
+        evmAddress: wallet.evmAddress || wallet.bscAddress || '',
+        tronAddress: wallet.tronAddress || ''
+    };
+
+    const normalize = (data, sourceLabel) => {
+        const chain = data.chain || data;
+        const split = chain.usdtByChain || data.usdtByChain || {};
+        const solUsdt = Number(split.solana || split.sol || 0);
+        const bscUsdt = Number(split.bsc || 0);
+        const tronUsdt = Number(split.tron || split.trx || 0);
+        window._latestUsdtBalances = { sol: solUsdt, bsc: bscUsdt, trx: tronUsdt };
+        window._multiChainUsdt = { sol: solUsdt, bsc: bscUsdt, tron: tronUsdt };
+        window._multiChainNative = { bnb: Number(chain.bnb || data.bnb || 0), trx: Number(chain.trx || data.trx || 0) };
+        return {
+            success: true,
+            sol: Number(chain.sol ?? data.sol ?? 0),
+            usdt: Number(chain.usdt ?? data.usdt ?? (solUsdt + bscUsdt + tronUsdt)),
+            ddra: Number(chain.ddra ?? data.ddra ?? 0),
+            bnb: Number(chain.bnb ?? data.bnb ?? 0),
+            trx: Number(chain.trx ?? data.trx ?? 0),
+            usdc: Number(chain.usdc ?? data.usdc ?? 0),
+            balances: chain.balances || data.balances || {},
+            otherTokens: chain.otherTokens || data.otherTokens || [],
+            ledger: data.ledger || null,
+            source: sourceLabel || data.source || 'server_proxy'
+        };
+    };
 
     try {
-        const rpcUrls = [
-            'https://solana-rpc.publicnode.com',
-            'https://api.mainnet-beta.solana.com'
-        ];
-        
-        let solRes, tokenRes, token2022Res;
-        let success = false;
-        
-        for (const rpcUrl of rpcUrls) {
-            try {
-                const [r1, r2, r3] = await Promise.all([
-                    fetch(rpcUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey] })
-                    }).then(r => r.json()),
-                    
-                    fetch(rpcUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          jsonrpc: '2.0', id: 2,
-                          method: 'getTokenAccountsByOwner',
-                          params: [publicKey, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }]
-                        })
-                    }).then(r => r.json()),
-                    
-                    fetch(rpcUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          jsonrpc: '2.0', id: 3,
-                          method: 'getTokenAccountsByOwner',
-                          params: [publicKey, { programId: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' }, { encoding: 'jsonParsed' }]
-                        })
-                    }).then(r => r.json())
-                ]);
-                
-                if (r1 && r1.result !== undefined && !r1.error) {
-                    solRes = r1;
-                    tokenRes = r2;
-                    token2022Res = r3;
-                    success = true;
-                    break;
-                }
-            } catch(e) {
-                console.warn('RPC failed:', rpcUrl, e.message);
-            }
-        }
-        
-        if (!success) {
-            throw new Error('All RPCs failed');
-        }
-        
-        const solBalance = (solRes.result?.value || 0) / 1e9;
-        
-        let usdtBalance = 0;
-        let ddraBalance = 0;
-        let otherTokens = [];
-        
-        const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-        const DDRA_MINT = 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
-        
-        const allTokens = (tokenRes?.result?.value || []).concat(token2022Res?.result?.value || []);
-        
-        allTokens.forEach(item => {
-            const info = item.account?.data?.parsed?.info;
-            if(!info) return;
-            const mint = info.mint;
-            const amount = info.tokenAmount?.uiAmount || 0;
-            
-            if (mint === USDT_MINT) {
-                usdtBalance = amount;
-                if (window._multiChainUsdt) window._multiChainUsdt.sol = amount;
-            } else if (mint === DDRA_MINT) {
-                ddraBalance = amount;
-            } else if (amount > 0) {
-                otherTokens.push({ mint, amount });
-            }
+        // Public blockchain balances must not depend on Firebase auth timing.
+        const res = await fetch('/api/wallet/public-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
-        
-        let totalUsdtBalance = usdtBalance;
-        if (window._multiChainUsdt) {
-            totalUsdtBalance = window._multiChainUsdt.sol + window._multiChainUsdt.bsc + window._multiChainUsdt.tron;
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success !== false) return normalize(data, 'public_chain_proxy');
+        throw new Error(data.error || 'public_wallet_balance_failed');
+    } catch (publicErr) {
+        try {
+            const idToken = await window._getDeedraWalletAuthToken();
+            if (!idToken) throw publicErr;
+            const res = await fetch('/api/wallet/balance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + idToken
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error || data.success === false) throw new Error(data.error || 'wallet_balance_failed');
+            return normalize(data, 'auth_chain_proxy');
+        } catch (authErr) {
+            return {
+                success: false,
+                error: (authErr && authErr.message) || (publicErr && publicErr.message) || 'wallet_balance_failed',
+                sol: 0, usdt: 0, ddra: 0, bnb: 0, trx: 0,
+                otherTokens: []
+            };
         }
-        
-        return { success: true, sol: solBalance, usdt: totalUsdtBalance, ddra: ddraBalance, bnb: window._multiChainNative.bnb, trx: window._multiChainNative.trx, otherTokens };
-    } catch(e) {
-        console.error("fetch solana bal err", e);
-        return { success: false, error: e.message };
     }
 };
 
@@ -15565,9 +16057,6 @@ window.sendDidiMessage = async function() {
         }
     }
 };
-
-
-
 
 
 

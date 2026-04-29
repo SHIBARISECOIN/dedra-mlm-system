@@ -5777,13 +5777,37 @@ window.submitDeposit = async function() {
 
     
     // 2. 백엔드(Worker)에 강제로 즉시 검증하라고 핑(Ping) 전송
+    //    클라이언트 번들에 cron secret을 노출하지 않기 위해 사용자 ID 토큰을 사용
     try {
+      const idToken = (currentUser && typeof currentUser.getIdToken === 'function')
+        ? await currentUser.getIdToken().catch(() => '')
+        : '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
       await fetch('/api/solana/check-deposits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-cron-secret': '__CONFIGURE_CRON_SECRET__' }
+        headers,
+        body: JSON.stringify({ trigger: 'user_deposit_submit' })
       });
     } catch (e) {
       console.log('Auto-verify ping failed, will be verified later:', e);
+    }
+
+    // 3. 멀티체인 자동 sweep 트리거 (BSC/TRON USDT 회사 지갑 자동 회수)
+    //    회원이 자신의 BSC/TRON 지갑으로 입금받은 경우 자동 회수 + 입금 트랜잭션 자동 기록
+    try {
+      const idToken2 = (currentUser && typeof currentUser.getIdToken === 'function')
+        ? await currentUser.getIdToken().catch(() => '')
+        : '';
+      if (idToken2) {
+        await fetch('/api/multi/trigger-sweep', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken2 },
+          body: JSON.stringify({ trigger: 'user_deposit_submit' })
+        });
+      }
+    } catch (e) {
+      console.log('Multi-chain sweep ping failed, will be retried later:', e);
     }
 
     closeModal('depositModal');

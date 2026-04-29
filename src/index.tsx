@@ -1,4 +1,5 @@
-import { debugCheckRoute2 } from "./debug_check2";
+// [SECURITY] Debug routes disabled in production — see src/_disabled/
+// import { debugCheckRoute2 } from "./debug_check2";
 import { runSettle, runSettleDryRun } from './services/settlement';
 import { sweepBscUsdt, sweepTronUsdt, transferBscUsdt, transferTronUsdt } from './services/sweepMulti';
 import bs58 from 'bs58';
@@ -281,6 +282,10 @@ import INDEX_HTML from '../public/index.html?raw'
 const WALLET_PROJECT_HTML = '<html><body>Not Found</body></html>';
 
 const app = new Hono()
+
+// [SECURITY GUARD] /api/debug/* 전체 차단 — 운영 데이터 노출 방지
+// 본체에 산재한 41개 디버그 라우트가 정식 등록 전에 404로 반환되도록 첫 번째 미들웨어로 등록
+app.all('/api/debug/*', (c) => c.json({ error: 'not_found' }, 404));
 
 let GLOBAL_ENV: any = {};
 app.use('*', async (c, next) => {
@@ -2374,362 +2379,6 @@ app.get('/admin.html', (c) => {
 // CORS 문제 없이 클라이언트→백엔드→DexScreener/Jupiter 형태로 중계
 // app.use('/api/price/*', cors())
 
-app.get('/api/debug/leehj001', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const users = await fsQuery('users', adminToken, [], 100000);
-        const user = users.find(u => u.username === 'leehj001');
-        if (!user) return c.json({ error: 'user not found' });
-        
-        const wallet = await fsGet('wallets/' + user.id, adminToken);
-        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'investments' }],
-                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: user.id } } }
-                }
-            })
-        }).then(r => r.json());
-        
-        const bonusesData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'bonuses' }],
-                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: user.id } } },
-                    /* No orderBy to avoid complex index requirements; JS will sort */
-                    limit: 10
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ 
-            user, 
-            wallet: wallet ? firestoreDocToObj(wallet) : null,
-            investments: (invsData[0] && invsData[0].document) ? invsData.map(d => firestoreDocToObj(d.document)) : [],
-            recentBonuses: (bonusesData[0] && bonusesData[0].document) ? bonusesData.map(d => firestoreDocToObj(d.document)) : []
-        });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/fix_invest_tx3', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
-        const docId = 'invtx_' + Date.now();
-        
-        await fsSet('transactions/' + docId, {
-            userId,
-            userEmail: 'korea1@deedra.com',
-            type: 'invest',
-            amount: 2000,
-            currency: 'USDT',
-            productId: 'vb7CsNewjaepbGZBCI3h',
-            productName: '12개월',
-            status: 'done',
-            createdAt: '2026-03-30T10:52:21.643Z'
-        }, adminToken);
-        
-        return c.json({ success: true, message: "Added invest tx via fsSet" });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/fix_invest_tx2', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
-        const docId = 'invtx_' + Date.now();
-        
-        await fsCreateWithId('transactions', docId, {
-            userId,
-            userEmail: 'korea1@deedra.com',
-            type: 'invest',
-            amount: 2000,
-            currency: 'USDT',
-            productId: 'vb7CsNewjaepbGZBCI3h',
-            productName: '12개월',
-            status: 'done',
-            createdAt: '2026-03-30T10:52:21.643Z'
-        }, adminToken);
-        
-        return c.json({ success: true, message: "Added invest tx" });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/fix_invest_tx', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
-        
-        await fsCreateWithId('transactions', {
-            userId,
-            userEmail: 'korea1@deedra.com',
-            type: 'invest',
-            amount: 2000,
-            currency: 'USDT',
-            productId: 'vb7CsNewjaepbGZBCI3h',
-            productName: '12개월',
-            status: 'done',
-            createdAt: '2026-03-30T10:52:21.643Z'
-        }, adminToken);
-        
-        return c.json({ success: true, message: "Added invest tx" });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/fix_korea1_bonus', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
-        
-        // 1. Set country to KR
-        await fsPatch('users/' + userId, { country: 'KR' }, adminToken);
-        
-        // 2. Add 200 to wallet usdtBalance and totalDeposit
-        const wallet = firestoreDocToObj(await fsGet('wallets/' + userId, adminToken));
-        await fsPatch('wallets/' + userId, {
-            usdtBalance: (wallet.usdtBalance || 0) + 200,
-            totalDeposit: (wallet.totalDeposit || 0) + 200
-        }, adminToken);
-        
-        // 3. Fix the transaction
-        await fsPatch('transactions/HKM69b6l3GdNkiFitRh7', {
-            bonusPct: 10,
-            bonusUsdt: 200,
-            totalCredited: 2200,
-            bonusType: 'country'
-        }, adminToken);
-        
-        return c.json({ success: true, message: "Fixed korea1 bonus" });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/korea1_txs', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const txsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'transactions' }],
-                    where: {
-                        fieldFilter: {
-                            field: { fieldPath: 'userId' },
-                            op: 'EQUAL',
-                            value: { stringValue: 'T2ksMhuU59PTD2Su0uRxjZSHmeD2' }
-                        }
-                    }
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ txs: (txsData[0] && txsData[0].document) ? txsData.map(d => firestoreDocToObj(d.document)) : [] });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/cyj0300_bonuses', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const bonusesData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'bonuses' }],
-                    where: {
-                        fieldFilter: {
-                            field: { fieldPath: 'userId' },
-                            op: 'EQUAL',
-                            value: { stringValue: 'qAdGKU772oVGZ0B5PwUEbL3UqSF3' }
-                        }
-                    }
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ bonuses: (bonusesData[0] && bonusesData[0].document) ? bonusesData.map(d => firestoreDocToObj(d.document)) : [] });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/invs2', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'investments' }],
-                    limit: 5
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ investments: invsData.map(d => firestoreDocToObj(d.document)) });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-
-app.get('/api/debug/invest_batch', async (c) => {
-  try {
-    const adminAuth = admin.auth();
-    const db = admin.firestore();
-    
-    const targets = ['pramote8249', 'kkbillionaire89', 'jumbillionaire14'];
-    let results = [];
-
-    // Find 12-month product
-    const configDoc = await db.collection('settings').doc('config').get();
-    let products = configDoc.data()?.products || [];
-    let prod12 = products.find(p => p.name.includes('12개월') || p.days === 365 || p.days === 360);
-    if (!prod12) {
-      prod12 = { id: 'prod_12m', name: '12개월', roi: 0.8, days: 360 };
-    }
-
-    for (const target of targets) {
-      // Find user
-      let uid = null;
-      let email = null;
-      
-      let snap = await db.collection('users').get();
-      snap.forEach(doc => {
-        const d = doc.data();
-        if (d.email && d.email.startsWith(target)) {
-          uid = doc.id;
-          email = d.email;
-        } else if (d.referralCode && d.referralCode.toLowerCase() === target.toLowerCase()) {
-          uid = doc.id;
-          email = d.email;
-        }
-      });
-      
-      if (!uid) {
-        results.push({ target, status: 'Not found' });
-        continue;
-      }
-      
-      // Check if already has 100
-      const invSnap = await db.collection('investments').where('userId', '==', uid).get();
-      let alreadyInvested = false;
-      invSnap.forEach(doc => {
-        if (doc.data().amount === 100) alreadyInvested = true;
-      });
-      
-      if (alreadyInvested) {
-        results.push({ target, uid, email, status: 'Already has $100 investment' });
-        // Still proceed to next just in case
-      }
-      
-      // Add deposit of 100 just to keep records clean (optional but good)
-      const amount = 100;
-      
-      const batch = db.batch();
-      
-      const invRef = db.collection('investments').doc();
-      const now = new Date();
-      const end = new Date(now.getTime() + prod12.days * 86400000);
-      
-      batch.set(invRef, {
-        userId: uid,
-        productId: prod12.id || 'prod_1',
-        productName: prod12.name,
-        amount: amount,
-        amountUsdt: amount,
-        roiPercent: prod12.roi,
-        durationDays: prod12.days,
-        expectedReturn: amount * (prod12.roi / 100),
-        status: 'active',
-        startDate: now,
-        endDate: end,
-        lastSettledAt: now,
-        createdAt: now
-      });
-      
-      // We don't decrement USDT because we are just forcing an investment out of thin air.
-      // But we increase totalInvest and totalDeposit to make it look like they deposited & invested.
-      const walletRef = db.collection('wallets').doc(uid);
-      batch.update(walletRef, {
-        totalInvest: admin.firestore.FieldValue.increment(amount),
-        totalDeposit: admin.firestore.FieldValue.increment(amount)
-      });
-      
-      const userRef = db.collection('users').doc(uid);
-      batch.update(userRef, {
-        totalInvested: admin.firestore.FieldValue.increment(amount)
-      });
-      
-      await batch.commit();
-      
-      // Try to call sync sales internally if possible, or just note it
-      results.push({ target, uid, email, status: 'Success invested 100' });
-    }
-
-    return c.json({ success: true, results });
-  } catch (e) {
-    return c.json({ success: false, error: e.message, stack: e.stack });
-  }
-});
-
-app.get('/api/debug/korea1', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const user = await fsGet('users/T2ksMhuU59PTD2Su0uRxjZSHmeD2', adminToken);
-        const wallet = await fsGet('wallets/T2ksMhuU59PTD2Su0uRxjZSHmeD2', adminToken);
-        
-        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'investments' }],
-                    where: {
-                        fieldFilter: {
-                            field: { fieldPath: 'userId' },
-                            op: 'EQUAL',
-                            value: { stringValue: 'T2ksMhuU59PTD2Su0uRxjZSHmeD2' }
-                        }
-                    }
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ user: firestoreDocToObj(user), wallet: firestoreDocToObj(wallet), investments: invsData.map(d => firestoreDocToObj(d.document)) });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-// app.use('/api/podcast/*', cors())
-
-// DexScreener: 토큰 민트 주소로 가격 조회
 // GET /api/price/dexscreener?mint=<SOLANA_MINT_ADDRESS>
 app.get('/api/price/dexscreener', async (c) => {
   const mint = c.req.query('mint')
@@ -6933,7 +6582,33 @@ app.post('/api/solana/check-deposits', async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}))
     const secret = c.req.header('x-cron-secret') || body.secret
-    if (!isValidCronSecret(secret)) return c.json({ error: 'unauthorized' }, 401)
+
+    // 1) Cron/관리자 시크릿이 유효하면 통과
+    let authorized = isValidCronSecret(secret)
+
+    // 2) 또는 로그인된 사용자(Firebase ID Token)면 통과 — 입금 신청 직후 즉시 검증 트리거 용도
+    //    클라이언트에 시크릿을 노출하지 않기 위해 사용자 토큰으로도 호출 허용
+    if (!authorized) {
+      try {
+        const authHeader = c.req.header('Authorization') || ''
+        const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
+        if (idToken) {
+          const lookupRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken })
+          })
+          const lookup = await lookupRes.json().catch(() => null)
+          if (lookup && Array.isArray(lookup.users) && lookup.users.length > 0) {
+            authorized = true
+          }
+        }
+      } catch (e) {
+        console.warn('[check-deposits] user-token verify failed:', e)
+      }
+    }
+
+    if (!authorized) return c.json({ error: 'unauthorized' }, 401)
 
     const adminToken = await getAdminToken()
     
@@ -10574,152 +10249,6 @@ app.get('/api/admin/debug-pending', async (c) => {
 });
 
 
-app.get('/api/debug/fix_korea1_revert', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const userId = 'T2ksMhuU59PTD2Su0uRxjZSHmeD2';
-        
-        // 1. Set country to TH (Thailand gets 10% bonus, KR does not)
-        // Wait, for korea1, country might still be KR, but we remove the bonus.
-        // Actually, user said: "한국이 무슨 10%보너스가... 태국만 10% 보너스야"
-        
-        // Let's just fix the wallet for korea1: deduct 200 USDT from usdtBalance and totalDeposit
-        const wallet = firestoreDocToObj(await fsGet('wallets/' + userId, adminToken));
-        await fsPatch('wallets/' + userId, {
-            usdtBalance: Math.max(0, (wallet.usdtBalance || 0) - 200),
-            totalDeposit: Math.max(0, (wallet.totalDeposit || 0) - 200)
-        }, adminToken);
-        
-        // Fix the transaction HKM69b6l3GdNkiFitRh7
-        await fsPatch('transactions/HKM69b6l3GdNkiFitRh7', {
-            bonusPct: 0,
-            bonusUsdt: 0,
-            totalCredited: 2000,
-            bonusType: ''
-        }, adminToken);
-        
-        // Update countryBonus settings to TH = 10% instead of KR
-        const cbSnap = await fsGet('settings/countryBonus', adminToken);
-        let rules = cbSnap ? firestoreDocToObj(cbSnap).rules || [] : [];
-        rules = rules.filter(r => r.country !== 'KR');
-        if (!rules.find(r => r.country === 'TH')) {
-            rules.push({ country: 'TH', bonusPct: 10, enabled: true });
-        }
-        await fsSet('settings/countryBonus', { rules }, adminToken);
-        
-        return c.json({ success: true, message: "Reverted korea1 bonus and fixed country bonus to TH" });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-app.get('/api/debug/leehj001', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const users = await fsQuery('users', adminToken, [], 100000);
-        const user = users.find(u => u.username === 'leehj001');
-        if (!user) return c.json({ error: 'user not found' });
-        
-        const wallet = await fsGet('wallets/' + user.id, adminToken);
-        
-        const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'investments' }],
-                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: user.id } } }
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ 
-            user, 
-            wallet: wallet ? firestoreDocToObj(wallet) : null,
-            investments: (invsData[0] && invsData[0].document) ? invsData.map(d => firestoreDocToObj(d.document)) : []
-        });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/leehj001_downlines', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const users = await fsQuery('users', adminToken, [], 100000);
-        
-        const leehj = users.find(u => u.username === 'leehj001');
-        if (!leehj) return c.json({ error: 'leehj001 not found' });
-        
-        const downlines = users.filter(u => u.referredBy === leehj.id);
-        
-        const downlinesWithInvs = [];
-        for (const d of downlines) {
-            const invsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    structuredQuery: {
-                        from: [{ collectionId: 'investments' }],
-                        where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: d.id } } }
-                    }
-                })
-            }).then(r => r.json());
-            
-            downlinesWithInvs.push({
-                user: d,
-                investments: (invsData[0] && invsData[0].document) ? invsData.map(doc => firestoreDocToObj(doc.document)) : []
-            });
-        }
-        
-        return c.json({ downlines: downlinesWithInvs });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/leehj001_txs', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const users = await fsQuery('users', adminToken, [], 100000);
-        const leehj = users.find(u => u.username === 'leehj001');
-        
-        const txsData = await fetch('https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:runQuery', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                structuredQuery: {
-                    from: [{ collectionId: 'transactions' }],
-                    where: { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: leehj.id } } }
-                }
-            })
-        }).then(r => r.json());
-        
-        return c.json({ txs: (txsData[0] && txsData[0].document) ? txsData.map(d => firestoreDocToObj(d.document)) : [] });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/leehj001_sponsors', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const users = await fsQuery('users', adminToken, [], 100000);
-        
-        const downlinesByCode = users.filter(u => 
-            (u.referredByCode && u.referredByCode.toUpperCase() === 'LEEHJ001') || 
-            (u.referredBy && u.referredBy === 'pG7fwOFOz1Z7GVnki2WH5WrHCen1')
-        );
-        
-        return c.json({ downlines: downlinesByCode });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
 
 // ─── Jupiter Swap 실행 ─────────────────────────
 app.post('/api/solana/execute-swap', async (c) => {
@@ -12214,541 +11743,6 @@ app.get('/api/admin/task-skylee', async (c) => {
 
 
 
-app.get('/api/debug/dump_settings', async (c) => {
-    try {
-        const adminToken = await getAdminToken();
-        const sys = await fsGet('settings/system', adminToken);
-        const wal1 = await fsGet('settings/companyWallets', adminToken).catch(()=>null);
-        const wal2 = await fsGet('settings/wallets', adminToken).catch(()=>null);
-        return c.json({
-            sys: sys ? firestoreDocToObj(sys) : null,
-            wal1: wal1 ? firestoreDocToObj(wal1) : null,
-            wal2: wal2 ? firestoreDocToObj(wal2) : null
-        });
-    } catch(e) {
-        return c.json({ error: e.message });
-    }
-});
-
-
-app.get('/api/debug/fix_kyj_5', async (c) => {
-  try {
-    const at = await getAdminToken();
-    const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`;
-    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + at } });
-    const data = await res.json();
-    
-    let k3030 = null;
-    let k30301 = null;
-    let qwer = null;
-    
-    if (data.documents) {
-      for (const d of data.documents) {
-        const id = d.name.split('/').pop();
-        const f = d.fields;
-        if (!f) continue;
-        const loginId = f.loginId?.stringValue || '';
-        const name = f.name?.stringValue || '';
-        const refCode = f.referralCode?.stringValue || '';
-        
-        if (loginId === 'kangyjun3030' || name === '강영준') k3030 = {id, name, loginId, refCode, referredBy: f.referredBy?.stringValue};
-        if (loginId === 'kangyjun30301') k30301 = {id, name, loginId, refCode, referredBy: f.referredBy?.stringValue};
-        if (loginId === 'qwer78451' || name === '장영숙') qwer = {id, name, loginId, refCode, referredBy: f.referredBy?.stringValue};
-      }
-    }
-    
-    const patchRes = [];
-    if (k30301 && k3030) {
-      await fsPatch('users/' + k30301.id, {
-        referredBy: k3030.id,
-        referredByCode: k3030.refCode
-      }, at);
-      patchRes.push('k30301 moved under k3030');
-    }
-    if (k3030 && qwer) {
-       await fsPatch('users/' + k3030.id, {
-        referredBy: qwer.id,
-        referredByCode: qwer.refCode
-      }, at);
-      patchRes.push('k3030 moved under qwer');
-    }
-    
-    return c.json({ success: true, k3030, k30301, qwer, patchRes });
-  } catch(e) {
-    return c.json({ error: e.message, stack: e.stack });
-  }
-});
-
-
-app.get('/api/debug/fix_kyj_6', async (c) => {
-  try {
-    const at = await getAdminToken();
-    const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`;
-    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + at } });
-    const data = await res.json();
-    
-    let matches = [];
-    if (data.documents) {
-      for (const d of data.documents) {
-        const id = d.name.split('/').pop();
-        const f = d.fields;
-        if (!f) continue;
-        const loginId = f.loginId?.stringValue || '';
-        const name = f.name?.stringValue || '';
-        const refCode = f.referralCode?.stringValue || '';
-        
-        if (loginId.includes('kang') || name.includes('강영준') || refCode.includes('kang')) {
-           matches.push({id, name, loginId, refCode, referredBy: f.referredBy?.stringValue, email: f.email?.stringValue});
-        }
-      }
-    }
-    
-    return c.json({ success: true, matches });
-  } catch(e) {
-    return c.json({ error: e.message, stack: e.stack });
-  }
-});
-
-
-app.get('/api/debug/fix_kyj_7', async (c) => {
-  try {
-    const at = await getAdminToken();
-    const url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`;
-    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + at } });
-    const data = await res.json();
-    
-    let matches = [];
-    if (data.documents) {
-      for (const d of data.documents) {
-        const id = d.name.split('/').pop();
-        const f = d.fields;
-        if (!f) continue;
-        const loginId = f.loginId?.stringValue || '';
-        const name = f.name?.stringValue || '';
-        const refCode = f.referralCode?.stringValue || '';
-        const email = f.email?.stringValue || '';
-        
-        if (loginId.includes('3030') || name.includes('3030') || refCode.includes('3030') || email.includes('3030')) {
-           matches.push({id, name, loginId, refCode, referredBy: f.referredBy?.stringValue, email});
-        }
-      }
-    }
-    
-    return c.json({ success: true, matches });
-  } catch(e) {
-    return c.json({ error: e.message, stack: e.stack });
-  }
-});
-
-
-app.get('/api/debug/query_users', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const data = await resp.json();
-    const users = (data.documents || []).map(d => ({
-      id: d.name.split('/').pop(),
-      name: d.fields.name?.stringValue,
-      refCode: d.fields.refCode?.stringValue,
-      referredBy: d.fields.referredBy?.stringValue,
-      email: d.fields.email?.stringValue
-    })).filter(u => (u.refCode && u.refCode.includes('3030')) || (u.name && u.name.includes('강영준')) || (u.name && u.name.includes('장영숙')));
-    
-    return c.json({ users });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/query_all', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const data = await resp.json();
-    const users = (data.documents || []).map(d => ({
-      id: d.name.split('/').pop(),
-      name: d.fields.name?.stringValue,
-      refCode: d.fields.refCode?.stringValue,
-      referredBy: d.fields.referredBy?.stringValue,
-      email: d.fields.email?.stringValue
-    })).filter(u => (u.refCode && u.refCode.includes('3030')) || (u.email && u.email.includes('3030')) || (u.name && u.name.includes('강영준')) || (u.name && u.name.includes('장영숙')));
-    
-    return c.json({ users });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/query_cyj', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const data = await resp.json();
-    const users = (data.documents || []).map(d => ({
-      id: d.name.split('/').pop(),
-      name: d.fields.name?.stringValue,
-      refCode: d.fields.refCode?.stringValue,
-      referredBy: d.fields.referredBy?.stringValue,
-      email: d.fields.email?.stringValue
-    })).filter(u => (u.refCode && /CYJ|3030/i.test(u.refCode)) || (u.email && /CYJ|3030/i.test(u.email)));
-    
-    return c.json({ users });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/query_all_kang', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const data = await resp.json();
-    const users = (data.documents || []).map(d => ({
-      id: d.name.split('/').pop(),
-      name: d.fields.name?.stringValue,
-      refCode: d.fields.refCode?.stringValue,
-      referredBy: d.fields.referredBy?.stringValue,
-      email: d.fields.email?.stringValue
-    })).filter(u => (u.name && u.name.includes('강영준')) || (u.email && u.email.includes('kang')));
-    
-    return c.json({ users });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/dump_users', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const data = await resp.json();
-    const users = (data.documents || []).map(d => ({
-      id: d.name.split('/').pop(),
-      name: d.fields.name?.stringValue,
-      refCode: d.fields.refCode?.stringValue,
-      referredBy: d.fields.referredBy?.stringValue,
-      email: d.fields.email?.stringValue
-    }));
-    
-    return c.json({ users });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/fix_final', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    // find qwer78451@deedra.com
-    let resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users/4oljjUZeNXaIw6Qzi7oQgKwL5Tt1`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const parent = await resp.json();
-    
-    // update 강영준 (E9aXICeKxIOpLYyMcTnDkel5WMy1) referredBy to 4oljjUZeNXaIw6Qzi7oQgKwL5Tt1
-    resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users/E9aXICeKxIOpLYyMcTnDkel5WMy1?updateMask.fieldPaths=referredBy`, {
-      method: 'PATCH',
-      headers: { 
-        Authorization: `Bearer ${adminToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        fields: { referredBy: { stringValue: '4oljjUZeNXaIw6Qzi7oQgKwL5Tt1' } }
-      })
-    });
-    
-    return c.json({ success: true });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/fix_kang_hierarchy', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    let allUsers = [];
-    let pageToken = '';
-    do {
-        let url = `https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`;
-        if (pageToken) url += '&pageToken=' + pageToken;
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${adminToken}` } });
-        const data = await resp.json();
-        if (data.documents) {
-            allUsers = allUsers.concat(data.documents);
-        }
-        pageToken = data.nextPageToken;
-    } while(pageToken);
-    
-    const kangUsers = allUsers.map(d => ({
-      id: d.name.split('/').pop(),
-      name: d.fields.name?.stringValue,
-      email: d.fields.email?.stringValue
-    })).filter(u => u.email && u.email.includes('kangyjun'));
-    
-    // Find specific accounts
-    const jang = allUsers.find(d => d.fields.email?.stringValue === 'qwer78451@deedra.com');
-    const kang3030 = kangUsers.find(u => u.email === 'kangyjun3030@deedra.com');
-    const kang30301 = kangUsers.find(u => u.email === 'kangyjun30301@deedra.com');
-    
-    let result = { kangUsers, jangFound: !!jang, kang3030Found: !!kang3030, kang30301Found: !!kang30301 };
-    
-    if (jang && kang3030 && kang30301) {
-        const jangId = jang.name.split('/').pop();
-        const kang3030Id = kang3030.id;
-        const kang30301Id = kang30301.id;
-        
-        // Update kang3030 -> jang
-        await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users/${kang3030Id}?updateMask.fieldPaths=referredBy`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: { referredBy: { stringValue: jangId } } })
-        });
-        
-        // Update kang30301 -> kang3030
-        await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users/${kang30301Id}?updateMask.fieldPaths=referredBy`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: { referredBy: { stringValue: kang3030Id } } })
-        });
-        
-        result.success = true;
-        result.message = "Updated hierarchy: Jang -> kangyjun3030 -> kangyjun30301";
-    }
-
-    return c.json(result);
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/check_wallets', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const wallets = await fsQuery('wallets', adminToken, [], 100);
-    const wList = wallets.map(w => ({
-      id: w.id,
-      totalInvest: w.totalInvest,
-      totalDeposit: w.totalDeposit,
-      usdtBalance: w.usdtBalance,
-      bonusBalance: w.bonusBalance
-    })).filter(w => w.totalInvest > 0 || w.totalDeposit > 0);
-    
-    return c.json({ wallets: wList });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/force_rank_promo', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const allUsers = await fsQuery('users', adminToken, [], 100000);
-    const wallets = await fsQuery('wallets', adminToken, [], 100000);
-    const investments = await fsQuery('investments', adminToken, [{field:'status',op:'==',value:'active'}], 100000);
-    
-    await autoUpgradeAllRanks(adminToken, allUsers, wallets, investments);
-    
-    return c.json({ success: true, message: "Forced rank promotion" });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/detailed_users', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/users?pageSize=1000`, {
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    const data = await resp.json();
-    const users = (data.documents || []).map(d => ({
-      id: d.name.split('/').pop(),
-      email: d.fields.email?.stringValue,
-      rank: d.fields.rank?.stringValue,
-      networkSales: d.fields.networkSales?.doubleValue || d.fields.networkSales?.integerValue || 0,
-      totalInvested: d.fields.totalInvested?.doubleValue || d.fields.totalInvested?.integerValue || 0
-    })).filter(u => ['qwer78451@deedra.com', 'kangyjun3030@deedra.com', 'kangyjun30301@deedra.com'].includes(u.email));
-    
-    return c.json({ users });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/detailed_users2', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const users = await fsQuery('users', adminToken, [], 10000);
-    
-    const filtered = users.filter(u => ['qwer78451@deedra.com', 'kangyjun3030@deedra.com', 'kangyjun30301@deedra.com'].includes(u.email)).map(u => ({
-      id: u.id,
-      email: u.email,
-      rank: u.rank,
-      networkSales: u.networkSales,
-      totalInvested: u.totalInvested
-    }));
-    
-    return c.json({ users: filtered });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/check_rank_promo', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const rankSetDoc = await fsGet('settings/rankPromotion', adminToken);
-    return c.json({ data: rankSetDoc });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/check_settlement', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    
-    // Fetch recent bonus logs
-    const bonusLogs = await fsQuery('bonusLogs', adminToken, [], 100);
-    
-    // Sort by createdAt descending
-    bonusLogs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-    
-    // Check investments to see lastPaidAt
-    const investments = await fsQuery('investments', adminToken, [{field:'status',op:'==',value:'active'}], 100);
-    const lastPaidDates = investments.map(i => i.lastPaidAt).filter(Boolean);
-    
-    return c.json({ 
-      recentLogs: bonusLogs.slice(0, 20),
-      logCount: bonusLogs.length,
-      lastPaidDates: [...new Set(lastPaidDates)].slice(0, 10)
-    });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/check_invests', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const investments = await fsQuery('investments', adminToken, [], 100);
-    const active = investments.filter(i => i.status === 'active');
-    return c.json({ total: investments.length, active: active.length, sample: active.slice(0, 3) });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/settled_today', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const today = new Date().toISOString().slice(0, 10);
-    const invs = await fsQuery('investments', adminToken, [{field:'status',op:'==',value:'active'}], 1000);
-    const settledToday = invs.filter(i => i.lastSettledAt && i.lastSettledAt.startsWith(today));
-    
-    return c.json({ totalActive: invs.length, settledTodayCount: settledToday.length, sample: settledToday.slice(0, 2) });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/settled_today_js', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const today = new Date().toISOString().slice(0, 10);
-    const invs = await fsQuery('investments', adminToken, [], 10000);
-    const active = invs.filter(i => i.status === 'active');
-    const settledToday = active.filter(i => i.lastSettledAt && i.lastSettledAt.startsWith(today));
-    
-    return c.json({ totalActive: active.length, settledTodayCount: settledToday.length, sample: settledToday.slice(0, 2) });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/check_lock', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const doc = await fsGet('settlements/2026-04-13', adminToken);
-    return c.json({ data: doc });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-app.get('/api/debug/delete_lock', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const resp = await fetch(`https://firestore.googleapis.com/v1/projects/${SERVICE_ACCOUNT.project_id}/databases/(default)/documents/settlements/2026-04-13`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${adminToken}` }
-    });
-    return c.json({ success: resp.ok });
-  } catch(e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/disable_maintenance', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    await fsPatch('settings/system', { maintenanceMode: false, maintenanceMessage: "" }, adminToken);
-    return c.json({ success: true, message: "Maintenance mode disabled" });
-  } catch (e) {
-    return c.json({ error: e.message });
-  }
-});
-
-
-app.get('/api/debug/check_maintenance', async (c) => {
-  try {
-    const adminToken = await getAdminToken();
-    const doc = await fsGet('settings/system', adminToken);
-    return c.json({ success: true, doc });
-  } catch (e) {
-    return c.json({ error: e.message });
-  }
-});
-
-app.get('/api/debug/update_wallets', async (c) => {
-  const adminToken = await getAdminToken();
-  const wallets = [
-    { network: 'Solana (SOL)', address: '9Cix8agTnPSy26JiPGeq7hoBqBQbc8zsaXpmQSBsaTMW' },
-    { network: 'BNB (BEP20)', address: '0x76CbE9826D9720E49b3536E426A125BC4ceD2502' },
-    { network: 'Tron (TRC20)', address: 'TLiG5xwLM7po4ALkAu3iCuNsxrbT9tVUw4' }
-  ];
-  await fsSet('settings/companyWallets', { wallets }, adminToken);
-  return c.json({ success: true, wallets });
-});
-
 
 app.post('/api/multi/direct-deposit', async (c) => {
   try {
@@ -12842,13 +11836,14 @@ app.post('/api/multi/direct-deposit', async (c) => {
   }
 });
 
-import { debugSponsorRoute } from './debug_sponsor';
-import { debugCheckRoute } from './debug_check';
-
-app.get('/api/debug/sponsor-keys', debugSponsorRoute);
-app.get('/api/debug/check-bonuses', debugCheckRoute);
-
-app.route("/api/debug/check-all-bonuses", debugCheckRoute2);
+// [SECURITY] Debug routes disabled in production — sensitive data exposure risk
+// import { debugSponsorRoute } from './debug_sponsor';
+// import { debugCheckRoute } from './debug_check';
+//
+// app.get('/api/debug/sponsor-keys', debugSponsorRoute);
+// app.get('/api/debug/check-bonuses', debugCheckRoute);
+//
+// app.route("/api/debug/check-all-bonuses", debugCheckRoute2);
 
 
 // --- AI Language Helper ---
@@ -13207,18 +12202,32 @@ export default {
         console.error("Weekly jackpot error:", e);
       }
 
-      // ----- 자동 입금 체크 (매 분 실행) -----
+      // ----- 자동 입금 체크 (Solana, 매 5분 실행) -----
       try {
-        console.log("Running auto-deposit check...");
+        console.log("Running auto-deposit check (Solana)...");
         const solanaRes = await app.request('/api/solana/check-deposits', {
           method: 'POST',
           headers: { 'x-cron-secret': getCronSecret(), 'Content-Type': 'application/json' },
           body: JSON.stringify({})
         }, env);
         const txt = await solanaRes.text();
-        console.log("Auto-deposit check result:", txt);
+        console.log("Auto-deposit check result (Solana):", txt);
       } catch(e) {
-        console.error("Auto-deposit error:", e);
+        console.error("Auto-deposit error (Solana):", e);
+      }
+
+      // ----- 자동 입금 체크 (XRP/BTC, 매 5분 실행) -----
+      try {
+        console.log("Running auto-deposit check (XRP/BTC)...");
+        const majorRes = await app.request('/api/cron/check-major-chain-deposits', {
+          method: 'POST',
+          headers: { 'x-cron-secret': getCronSecret(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userLimit: 500, txLimit: 20 })
+        }, env);
+        const txt = await majorRes.text();
+        console.log("Auto-deposit check result (XRP/BTC):", txt);
+      } catch(e) {
+        console.error("Auto-deposit error (XRP/BTC):", e);
       }
       
       try {

@@ -4096,6 +4096,12 @@ async function initApp() {
     console.log('initApp: showing main screen'); showScreen('main');
     // Restore last visited page
     if (typeof window.switchPage === 'function') window.switchPage(currentPage);
+    if (!sessionStorage.getItem('wity_bangkok_popup_shown')) {
+      sessionStorage.setItem('wity_bangkok_popup_shown', '1');
+      setTimeout(() => {
+        if (typeof window.showWityBangkokLoginPopup === 'function') window.showWityBangkokLoginPopup();
+      }, 900);
+    }
     // 강제 비밀번호 변경 체크
     if (sessionStorage.getItem('deedra_force_pw') === '1' || userData?.forcePwChange === true) {
       const modal = document.getElementById('forcePwModal');
@@ -4208,6 +4214,35 @@ async function check15DayWithdrawal() {
   } catch(e) { console.error(e); }
 }
 
+
+async function refreshCompanyFinanceSnapshot(options = {}) {
+  if (!currentUser || typeof currentUser.getIdToken !== 'function') return null;
+  try {
+    const idToken = await currentUser.getIdToken();
+    const res = await fetch('/api/user/finance-snapshot', {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) throw new Error(data.error || 'finance_snapshot_failed');
+    const snap = data.financeSnapshot || data;
+    window._companyFinanceSnapshot = snap;
+    if (walletData) walletData.companyFinanceSnapshot = snap;
+    return snap;
+  } catch (e) {
+    if (!options.silent) console.warn('[Finance] snapshot refresh failed:', e);
+    return null;
+  }
+}
+
+function scheduleCompanyFinanceSnapshotRefresh() {
+  if (window._companyFinanceSnapshotTimer) clearTimeout(window._companyFinanceSnapshotTimer);
+  window._companyFinanceSnapshotTimer = setTimeout(async () => {
+    const snap = await refreshCompanyFinanceSnapshot({ silent: true });
+    if (snap && typeof updateWalletUI === 'function') updateWalletUI();
+  }, 700);
+}
+
 async function loadWalletData() {
   check15DayWithdrawal();
   const { doc, getDoc, db, onSnapshot } = window.FB;
@@ -4216,15 +4251,20 @@ async function loadWalletData() {
   // 첫 데이터는 동기적으로 가져옴 (초기화 보장)
   const snap = await getDoc(ref);
   walletData = snap.exists() ? snap.data() : { usdtBalance: 0, dedraBalance: 0, bonusBalance: 0 };
-  gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+  await refreshCompanyFinanceSnapshot({ silent: true });
+  const initialFinance = getHomeFinanceSnapshot();
+  gameBalanceVal = Math.floor(((initialFinance.availableUsdt || 0) / (deedraPrice || 0.5)) * 100) / 100;
 
   // 실시간 구독 설정 (입금 승인 시 즉시 반영)
   if (window._walletUnsubscribe) window._walletUnsubscribe();
   window._walletUnsubscribe = onSnapshot(ref, (docSnap) => {
     if (docSnap.exists()) {
       walletData = docSnap.data();
-      gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+      if (window._companyFinanceSnapshot) walletData.companyFinanceSnapshot = window._companyFinanceSnapshot;
+      const liveFinance = getHomeFinanceSnapshot();
+      gameBalanceVal = Math.floor(((liveFinance.availableUsdt || 0) / (deedraPrice || 0.5)) * 100) / 100;
       updateWalletUI(); // UI 갱신 (총자산 등 애니메이션 포함)
+      scheduleCompanyFinanceSnapshotRefresh();
     }
   });
 }
@@ -4314,9 +4354,10 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   if (!walletData) return;
   const p = price || 0.5;
 
-  // 수익잔액(bonusBalance, USDT) → 출금 가능 DDRA 환산
-  const bonus = walletData.bonusBalance || 0;
-  const withdrawableDdra = bonus / p;  // 출금 가능 DDRA = bonusBalance ÷ ddraPrice
+  // 수익잔액(Available USDT) → 출금 가능 DDRA 환산
+  const finance = (typeof getHomeFinanceSnapshot === 'function') ? getHomeFinanceSnapshot() : null;
+  const bonus = finance ? finance.availableUsdt : (walletData.bonusBalance || 0);
+  const withdrawableDdra = bonus / p;  // 출금 가능 DDRA = Available USDT ÷ ddraPrice
   const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
 
   // splitBonusDdra: USDT 수익의 DDRA 환산 표시
@@ -4328,8 +4369,8 @@ function updatePriceTicker(price, updatedAt, source, priceChange24h, liveEnabled
   setEl('splitDedraUsd',    '≈ $' + fmt(dedraUsd));
   setEl('moreWalletDedraUsd', privacyFmt(fmt(dedraUsd), '≈ $'));
 
-  // 게임 잔액: bonusBalance(USDT) ÷ ddraPrice → DDRA 단위
-  gameBalanceVal = Math.floor(((walletData.bonusBalance || 0) / (deedraPrice || 0.5)) * 100) / 100;
+  // 게임 잔액: Available USDT ÷ ddraPrice → DDRA 단위
+  gameBalanceVal = Math.floor(((bonus || 0) / (deedraPrice || 0.5)) * 100) / 100;
   setEl('gameBalanceUsd', '≈ $' + fmt(bonus));
 
   // 출금 모달 DDRA 환산 업데이트
@@ -5113,6 +5154,69 @@ window.animateValue = function(el, start, end, duration, formatFn) {
   window.requestAnimationFrame(step);
 };
 
+
+function getHomeFinanceSnapshot() {
+  const w = walletData || {};
+  const u = userData || {};
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const round = (v) => Math.round((num(v) + Number.EPSILON) * 1000000) / 1000000;
+  const companySnap = window._companyFinanceSnapshot || w.companyFinanceSnapshot || w.financeSnapshot;
+  if (companySnap && Number.isFinite(Number(companySnap.totalUsdtAssets))) {
+    const lockedUsdt = round(companySnap.lockedUsdt);
+    const uninvestedUsdt = round(companySnap.uninvestedUsdt);
+    const availableUsdt = round(companySnap.availableUsdt);
+    return {
+      lockedUsdt,
+      uninvestedUsdt,
+      availableUsdt,
+      totalUsdtAssets: round(companySnap.totalUsdtAssets ?? (lockedUsdt + uninvestedUsdt + availableUsdt)),
+      promoLockedUsdt: round(companySnap.promoLockedUsdt),
+      ledgerAvailable: availableUsdt,
+      walletAvailable: round(w.bonusBalance),
+      totalEarnings: round(companySnap.totalEarnings),
+      totalWithdrawal: round(companySnap.totalWithdrawal),
+      rejectedWithdrawalIgnored: round(companySnap.rejectedWithdrawalIgnored),
+      profitReinvested: round(companySnap.profitReinvested),
+      source: companySnap.source || 'ledger_recalculated'
+    };
+  }
+
+  // 투자 원금은 잠금 자산으로 고정한다. totalInvest가 있으면 이미 보너스/재투자 원금까지
+  // 포함한 스냅샷으로 보고, 없을 때만 레거시 보조 필드를 더한다.
+  let lockedUsdt = num(w.totalInvest ?? w.totalInvestment ?? u.totalInvested ?? 0);
+  if (!lockedUsdt) lockedUsdt = num(w.lockedUsdt) + num(w.bonusInvest) + num(w.promoLockedUsdt);
+
+  const uninvestedUsdt = num(w.usdtBalance);
+  const walletAvailable = num(w.bonusBalance);
+  const totalEarnings = num(w.totalEarnings ?? w.totalBonus ?? w.bonusEarned);
+  const totalWithdrawal = num(w.totalWithdrawal ?? w.totalWithdraw ?? w.withdrawTotal);
+  const profitReinvested = num(w.bonusInvest) + num(w.autoCompoundTotalInvest) + num(w.profitInvested);
+
+  // Available USDT는 회사 지갑의 수익 원장 스냅샷(bonusBalance)을 기준으로 한다.
+  // totalEarnings에는 프로모션/관리자 수동 보정이 섞일 수 있으므로 화면 잔고를 임의로 덮어쓰지 않고,
+  // bonusBalance가 없거나 음수로 깨진 레거시 계정에서만 누적 수익-출금-재투자 공식을 fallback으로 쓴다.
+  const hasLedgerTotals = totalEarnings > 0 || totalWithdrawal > 0 || profitReinvested > 0;
+  const ledgerAvailable = hasLedgerTotals ? Math.max(0, round(totalEarnings - totalWithdrawal - profitReinvested)) : walletAvailable;
+  const availableUsdt = (walletAvailable < 0 || (!walletAvailable && ledgerAvailable > 0))
+    ? ledgerAvailable
+    : walletAvailable;
+
+  return {
+    lockedUsdt: round(lockedUsdt),
+    uninvestedUsdt: round(uninvestedUsdt),
+    availableUsdt: round(availableUsdt),
+    totalUsdtAssets: round(lockedUsdt + uninvestedUsdt + availableUsdt),
+    ledgerAvailable: round(ledgerAvailable),
+    walletAvailable: round(walletAvailable),
+    totalEarnings: round(totalEarnings),
+    totalWithdrawal: round(totalWithdrawal),
+    profitReinvested: round(profitReinvested)
+  };
+}
+
 function updateHomeUI() {
   if (window.renderDeedraWallet) window.renderDeedraWallet();
   setTimeout(() => { try { window.initGlobalMapAnimation && window.initGlobalMapAnimation(); }catch(e){} }, 300);
@@ -5150,13 +5254,13 @@ function updateHomeUI() {
     if (subCenterFeeTab) subCenterFeeTab.style.display = 'none';
   }
 
-
-  const usdt = walletData.usdtBalance || 0;
-  const lockedUsdt = (walletData.totalInvest || 0) + (walletData.bonusInvest || 0); // 투자된 원금 합계
-  const bonus = walletData.bonusBalance || 0;  // ROI 수익 적립 (USDT 기준)
+  const homeFinance = getHomeFinanceSnapshot();
+  window._homeFinanceSnapshot = homeFinance;
+  const usdt = homeFinance.uninvestedUsdt;
+  const lockedUsdt = homeFinance.lockedUsdt;
+  const bonus = homeFinance.availableUsdt;
   const p = deedraPrice || 0.5;
-  // 총 자산 = 투자된 원금 + 잔여 USDT만 표시합니다. Available USDT(수익)는 별도 카드에서 표시합니다.
-  const total = lockedUsdt + usdt;
+  const total = homeFinance.totalUsdtAssets;
 
   const setEl = (id, v) => { 
     const el = document.getElementById(id); 
@@ -5293,6 +5397,114 @@ async function loadDDayCard() {
   }
 }
 
+
+// ===== WITY 방콕 글로벌 출정식 고정 공지 =====
+const WITY_BANGKOK_ANNOUNCEMENT_ID = 'wity-bangkok-global-launch-2026';
+const WITY_BANGKOK_ANNOUNCEMENT = {
+  id: WITY_BANGKOK_ANNOUNCEMENT_ID,
+  isPinned: true,
+  isActive: true,
+  createdAt: { seconds: 1778346000 },
+  title: '[공지] WITY 방콕 글로벌 출정식 개최 예정 안내',
+  popupTitle: 'WITY 방콕 글로벌 출정식 안내',
+  popupBody: 'WITY의 첫 공식 글로벌 행사가 2026년 5월 10일 태국 방콕에서 개최됩니다. 이번 행사는 동남아 시장 진출의 출발점이며, 초청 대상자의 항공·교통·숙박 및 기본 행사 참가 비용은 회사가 지원합니다.',
+  content: `WITY 방콕 글로벌 출정식 개최 예정 안내
+
+■ 행사명
+WITY 방콕 글로벌 출정식
+
+■ 일시
+2026년 5월 10일
+
+■ 장소
+Bangkok, Thailand
+호텔 컨벤션 센터 예정 - 정확한 행사장은 추후 확정 공지됩니다.
+
+■ 주요 참석 대상
+- WITY 프로젝트 핵심 관계자
+- 태국 및 동남아시아 라이더 파트너
+- 핵심 협력 파트너
+- D.R.E 프로젝트 활성 기여자
+- 참여도가 높은 멤버십 회원
+
+■ 초청 대상 선정 기준
+초청 대상자는 단순 가입 여부가 아니라 아래 항목을 종합적으로 고려하여 선정됩니다.
+- 프로젝트 참여도 및 활동성
+- D.R.E 프로젝트에 대한 관심과 이해도
+- 멤버십 예치 및 활동 내역
+- 실제 기여도
+- 홍보 및 소개 활동
+- 전체 활동 수준과 향후 리더·파트너로 성장할 가능성
+
+■ 초청자 회사 지원 항목
+공식 초청 대상자로 선정된 분들에게는 아래 기본 비용이 회사 지원 범위에 포함됩니다.
+- 항공권 및 이동 관련 비용
+- 현지 교통
+- 행사 기간 숙박
+- 기본 행사 참여 비용
+
+■ 행사 목적
+이번 출정식은 WITY 모빌리티 플랫폼을 공식적으로 소개하고, D.R.E 프로젝트와 실물 경제를 연결하는 첫 글로벌 공식 행사입니다. 또한 태국을 시작으로 동남아시아 시장 확장을 본격화하는 중요한 출발점이 될 예정입니다.
+
+WITY는 이번 방콕 출정식을 통해 글로벌 파트너, 라이더 생태계, 멤버십 커뮤니티가 함께 성장할 수 있는 기반을 만들어가겠습니다.`
+};
+
+function getWityBangkokAnnouncement() {
+  return { ...WITY_BANGKOK_ANNOUNCEMENT };
+}
+
+function removeWityBangkokPopup() {
+  const old = document.getElementById('wityBangkokPopupOverlay');
+  if (old) old.remove();
+}
+
+window.openWityBangkokAnnouncement = function() {
+  removeWityBangkokPopup();
+  if (typeof window.showAnnouncementDetail === 'function') {
+    window.showAnnouncementDetail(WITY_BANGKOK_ANNOUNCEMENT_ID);
+  }
+};
+
+window.showWityBangkokLoginPopup = function(retryCount = 0) {
+  if (document.getElementById('wityBangkokPopupOverlay')) return;
+  const forcePwModal = document.getElementById('forcePwModal');
+  const forcePwOpen = forcePwModal && !forcePwModal.classList.contains('hidden') && forcePwModal.style.display !== 'none';
+  if (forcePwOpen && retryCount < 8) {
+    setTimeout(() => window.showWityBangkokLoginPopup(retryCount + 1), 1500);
+    return;
+  }
+
+  const ann = getWityBangkokAnnouncement();
+  const overlay = document.createElement('div');
+  overlay.id = 'wityBangkokPopupOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;';
+  overlay.innerHTML = `
+    <section role="dialog" aria-modal="true" aria-labelledby="wityBangkokPopupTitle" style="width:100%;max-width:390px;background:linear-gradient(145deg,#111827,#1e1b4b 55%,#0f172a);border:1px solid rgba(129,140,248,.45);border-radius:24px;box-shadow:0 24px 80px rgba(0,0,0,.55);overflow:hidden;color:#fff;">
+      <div style="padding:22px 22px 18px;background:radial-gradient(circle at top right,rgba(56,189,248,.26),transparent 42%),radial-gradient(circle at top left,rgba(168,85,247,.22),transparent 45%);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+          <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;background:rgba(59,130,246,.16);border:1px solid rgba(125,211,252,.35);color:#bae6fd;font-size:12px;font-weight:800;letter-spacing:.2px;">GLOBAL LAUNCH</span>
+          <button type="button" onclick="removeWityBangkokPopup()" aria-label="닫기" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.09);color:#cbd5e1;font-size:16px;cursor:pointer;">×</button>
+        </div>
+        <h2 id="wityBangkokPopupTitle" style="margin:0 0 12px;font-size:22px;line-height:1.28;font-weight:900;letter-spacing:-.6px;">${ann.popupTitle}</h2>
+        <p style="margin:0;color:#dbeafe;font-size:14px;line-height:1.68;word-break:keep-all;">${ann.popupBody}</p>
+      </div>
+      <div style="padding:0 22px 22px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 18px;">
+          <div style="padding:12px;border-radius:14px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.18);">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">DATE</div>
+            <div style="font-size:14px;font-weight:800;color:#f8fafc;">2026-05-10</div>
+          </div>
+          <div style="padding:12px;border-radius:14px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.18);">
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">LOCATION</div>
+            <div style="font-size:14px;font-weight:800;color:#f8fafc;">Bangkok, Thailand</div>
+          </div>
+        </div>
+        <button type="button" onclick="window.openWityBangkokAnnouncement()" style="width:100%;border:none;border-radius:16px;padding:15px 16px;background:linear-gradient(135deg,#38bdf8,#6366f1,#8b5cf6);color:#fff;font-size:15px;font-weight:900;box-shadow:0 12px 26px rgba(99,102,241,.35);cursor:pointer;">공지사항 확인하기</button>
+      </div>
+    </section>`;
+  document.body.appendChild(overlay);
+};
+
 // ===== 공지사항 =====
 async function loadAnnouncements() {
   const { collection, query, orderBy, limit, getDocs, db } = window.FB;
@@ -5388,6 +5600,13 @@ window.showAnnouncementDetail = async function(id) {
   const bodyEl  = document.getElementById('annDetailBody');
   if (titleEl) titleEl.textContent = t('loading') || '불러오는 중...';
   if (bodyEl)  bodyEl.innerHTML   = '<div class="skeleton-item"></div>';
+  if (id === WITY_BANGKOK_ANNOUNCEMENT_ID) {
+    const a = getWityBangkokAnnouncement();
+    if (titleEl) titleEl.textContent = '📌 ' + a.title;
+    if (dateEl) dateEl.textContent = '2026-05-10 · Bangkok, Thailand';
+    if (bodyEl) bodyEl.innerHTML = `<div class="ann-detail-content">${String(a.content || '').replace(/\n/g, '<br>')}</div>`;
+    return;
+  }
   try {
     const snap = await getDoc(doc(db, 'announcements', id));
     if (!snap.exists()) { if (bodyEl) bodyEl.innerHTML = `<div class="empty-state">${t('emptyNotice') || '공지사항을 찾을 수 없습니다.'}</div>`; return; }
@@ -6659,11 +6878,15 @@ window.submitDeposit = async function() {
 
   if (!amount || amount <= 0) { showToast('입금 금액을 입력하세요.', 'warning'); return; }
   if (!txid) { showToast('TXID를 입력하세요.', 'warning'); return; }
-  
-  // 블록체인 TXID 길이 검증 (Tron/EVM은 64~66자, 솔라나는 88자 주변)
-  if (txid.length < 60) {
-    showToast('TXID(트랜잭션 해시)가 너무 짧습니다. 잘리지 않았는지 확인 후 다시 복사해주세요.', 'error');
+
+  // TXID 길이 안내 (체인별로 길이가 다르므로 차단하지 않음. 잘못된 TXID는 관리자/자동 검증 단계에서 거부됨)
+  if (txid.length < 10) {
+    showToast('TXID가 너무 짧습니다. 다시 확인해주세요.', 'warning');
     return;
+  }
+  if (txid.length < 60) {
+    // 안내만 띄우고 신청은 그대로 진행
+    showToast('TXID 길이가 일반적이지 않습니다. 잘못된 경우 관리자 검증에서 거부됩니다.', 'warning');
   }
 
   const btn = window.event ? (window.event.currentTarget || window.event.target) : null;
@@ -6673,7 +6896,17 @@ window.submitDeposit = async function() {
   try {
     const { addDoc, collection, db, serverTimestamp } = window.FB;
     
-    if (btn) btn.textContent = '영수증 검증 중...';
+    if (btn) btn.textContent = '신청 접수 중...';
+    
+    // 중복 TXID 사전 안내 (차단하지 않음. 잘못된 경우 관리자/자동 검증 단계에서 거부됨)
+    try {
+      const { getDocs, query, where, limit } = window.FB;
+      const dupQ = await getDocs(query(collection(db, 'transactions'), where('txid', '==', txid), limit(1)));
+      if (!dupQ.empty) {
+        showToast('동일 TXID가 이미 접수되어 있습니다. 관리자 검증 후 처리됩니다.', 'warning');
+        // 안내만 띄우고 신청은 그대로 진행
+      }
+    } catch (e) { console.warn('Duplicate TXID precheck skipped:', e); }
     
     // 1. 기존처럼 Firestore에 pending 상태로 저장 (유저 권한으로 가능)
     const docRef = await addDoc(collection(db, 'transactions'), {
@@ -6698,13 +6931,37 @@ window.submitDeposit = async function() {
 
     
     // 2. 백엔드(Worker)에 강제로 즉시 검증하라고 핑(Ping) 전송
+    //    클라이언트 번들에 cron secret을 노출하지 않기 위해 사용자 ID 토큰을 사용
     try {
+      const idToken = (currentUser && typeof currentUser.getIdToken === 'function')
+        ? await currentUser.getIdToken().catch(() => '')
+        : '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
       await fetch('/api/solana/check-deposits', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-cron-secret': '__CONFIGURE_CRON_SECRET__' }
+        headers,
+        body: JSON.stringify({ trigger: 'user_deposit_submit' })
       });
     } catch (e) {
       console.log('Auto-verify ping failed, will be verified later:', e);
+    }
+
+    // 3. 멀티체인 자동 sweep 트리거 (BSC/TRON USDT 회사 지갑 자동 회수)
+    //    회원이 자신의 BSC/TRON 지갑으로 입금받은 경우 자동 회수 + 입금 트랜잭션 자동 기록
+    try {
+      const idToken2 = (currentUser && typeof currentUser.getIdToken === 'function')
+        ? await currentUser.getIdToken().catch(() => '')
+        : '';
+      if (idToken2) {
+        await fetch('/api/multi/trigger-sweep', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken2 },
+          body: JSON.stringify({ trigger: 'user_deposit_submit' })
+        });
+      }
+    } catch (e) {
+      console.log('Multi-chain sweep ping failed, will be retried later:', e);
     }
 
     closeModal('depositModal');
@@ -6713,9 +6970,13 @@ window.submitDeposit = async function() {
     document.getElementById('depositAmount').value = '';
     document.getElementById('depositTxid').value = '';
   } catch (err) {
-    showToast(t('failPrefix') + err.message, 'error');
+    console.error('[submitDeposit] error:', err);
+    showToast((t('failPrefix') || '실패: ') + (err && err.message ? err.message : '입금 신청 처리 중 오류'), 'error');
   } finally {
-    if (btn) { btn.disabled = false; } btn.textContent = t('btnSubmitDeposit');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = origTxt || t('btnSubmitDeposit') || '입금 신청';
+    }
   }
 };
 
@@ -13782,11 +14043,30 @@ window.renderDeedraWallet = function() {
         
         const updateBals = () => {
             window._fetchDeedraWalletCombinedBalance(pubKey).then(data => {
+                const solEl = document.getElementById('deedraWalletBalance');
+                const usdtEl = document.getElementById('deedraWalletUsdtBalance');
+                const usdtEl2 = document.getElementById('deedraWalletUsdtBalance2'); // in case there are multiple
+                const ddraEl = document.getElementById('deedraWalletDdraBalance');
+                const bnbEl = document.getElementById('deedraWalletBnbBalance');
+                const bscBalanceEl = document.getElementById('deedraWalletBscBalance');
+                const trxEl = document.getElementById('deedraWalletTrxBalance');
+                const tronBalanceEl = document.getElementById('deedraWalletTronBalance');
+
+                if (!data || !data.success) {
+                    const zeroHtml = '0.000000';
+                    if (usdtEl) usdtEl.innerHTML = zeroHtml;
+                    if (usdtEl2) usdtEl2.innerHTML = zeroHtml;
+                    if (ddraEl) ddraEl.innerHTML = zeroHtml;
+                    if (solEl) solEl.innerHTML = '0.0000';
+                    if (bnbEl) bnbEl.innerHTML = zeroHtml;
+                    if (bscBalanceEl) bscBalanceEl.innerHTML = zeroHtml;
+                    if (trxEl) trxEl.innerHTML = zeroHtml;
+                    if (tronBalanceEl) tronBalanceEl.innerHTML = zeroHtml;
+                    console.warn('D-WALLET balance fallback to zero:', data && data.error ? data.error : data);
+                    return;
+                }
+
                 if (data.success) {
-                    const solEl = document.getElementById('deedraWalletBalance');
-                    const usdtEl = document.getElementById('deedraWalletUsdtBalance');
-                    const usdtEl2 = document.getElementById('deedraWalletUsdtBalance2'); // in case there are multiple
-                    const ddraEl = document.getElementById('deedraWalletDdraBalance');
                     
                     if (solEl && data.sol !== undefined) {
                         solEl.innerHTML = data.sol.toFixed(4);
@@ -13798,22 +14078,18 @@ window.renderDeedraWallet = function() {
                         usdtEl2.innerHTML = data.usdt.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
                     }
                     
-                    const bnbEl = document.getElementById('deedraWalletBnbBalance');
                     if (bnbEl && data.bnb !== undefined) {
                         bnbEl.innerHTML = data.bnb.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
                     }
-                    const bscEl = document.getElementById('deedraWalletBscBalance');
-                    if (bscEl && data.bsc !== undefined) {
-                        bscEl.innerHTML = data.bsc.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
+                    if (bscBalanceEl && data.bsc !== undefined) {
+                        bscBalanceEl.innerHTML = data.bsc.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
                     }
                     
-                    const trxEl = document.getElementById('deedraWalletTrxBalance');
                     if (trxEl && data.trx !== undefined) {
                         trxEl.innerHTML = data.trx.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
                     }
-                    const tronEl = document.getElementById('deedraWalletTronBalance');
-                    if (tronEl && data.tron !== undefined) {
-                        tronEl.innerHTML = data.tron.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
+                    if (tronBalanceEl && data.tron !== undefined) {
+                        tronBalanceEl.innerHTML = data.tron.toLocaleString(undefined, {minimumFractionDigits:6, maximumFractionDigits:6});
                     }
 
                     if (ddraEl && data.ddra !== undefined) {
@@ -13845,7 +14121,26 @@ window.renderDeedraWallet = function() {
                     // Update swap balance if it's open
                     if (typeof window.renderSwapUI === 'function') window.renderSwapUI();
                 }
-            }).catch(e => { console.error('Balance fetch error', e); showToast('RPC 네트워크 지연으로 잔액을 불러오지 못했습니다. 잠시 후 다시 시도합니다.', 'error'); });
+            }).catch(e => {
+                console.error('Balance fetch error', e);
+                const zeroHtml = '0.000000';
+                const solEl = document.getElementById('deedraWalletBalance');
+                const usdtEl = document.getElementById('deedraWalletUsdtBalance');
+                const usdtEl2 = document.getElementById('deedraWalletUsdtBalance2');
+                const ddraEl = document.getElementById('deedraWalletDdraBalance');
+                const bnbEl = document.getElementById('deedraWalletBnbBalance');
+                const bscBalanceEl = document.getElementById('deedraWalletBscBalance');
+                const trxEl = document.getElementById('deedraWalletTrxBalance');
+                const tronBalanceEl = document.getElementById('deedraWalletTronBalance');
+                if (usdtEl) usdtEl.innerHTML = zeroHtml;
+                if (usdtEl2) usdtEl2.innerHTML = zeroHtml;
+                if (ddraEl) ddraEl.innerHTML = zeroHtml;
+                if (solEl) solEl.innerHTML = '0.0000';
+                if (bnbEl) bnbEl.innerHTML = zeroHtml;
+                if (bscBalanceEl) bscBalanceEl.innerHTML = zeroHtml;
+                if (trxEl) trxEl.innerHTML = zeroHtml;
+                if (tronBalanceEl) tronBalanceEl.innerHTML = zeroHtml;
+            });
         };
         
         updateBals();
@@ -15386,8 +15681,19 @@ window._fetchDeedraWalletCombinedBalance = async function(publicKey) {
     const chain = chainResult.status === 'fulfilled' ? (chainResult.value || {}) : {};
     const ledger = ledgerResult.status === 'fulfilled' ? (ledgerResult.value || {}) : {};
 
-    if (ledger.success) {
-        const split = ledger.chain?.usdtByChain;
+    // DWallet 표시 잔고는 회사 투자 장부와 분리한다.
+    // /api/wallet/balance가 ledger 스냅샷을 내려주더라도 화면에는 온체인 잔고만 사용한다.
+    if (chain.success) {
+        return {
+            ...chain,
+            ledger: ledger.ledger || null,
+            source: 'chain'
+        };
+    }
+
+    if (ledger.success && ledger.source !== 'ledger') {
+        const serverChain = ledger.chain || ledger;
+        const split = serverChain.usdtByChain;
         if (split) {
             window._latestUsdtBalances = {
                 sol: Number(split.solana || 0),
@@ -15396,130 +15702,110 @@ window._fetchDeedraWalletCombinedBalance = async function(publicKey) {
             };
         }
         return {
-            ...chain,
-            ...ledger,
-            sol: Number(ledger.sol ?? chain.sol ?? 0),
-            usdt: Number(ledger.usdt ?? chain.usdt ?? 0),
-            ddra: Number(ledger.ddra ?? chain.ddra ?? 0),
-            bnb: Number(ledger.bnb ?? chain.bnb ?? 0),
-            trx: Number(ledger.trx ?? chain.trx ?? 0),
-            usdc: Number(ledger.usdc ?? chain.usdc ?? 0),
-            balances: ledger.balances || chain.balances || {},
-            otherTokens: ledger.otherTokens || chain.otherTokens || []
+            success: true,
+            sol: Number(serverChain.sol ?? ledger.sol ?? 0),
+            usdt: Number(serverChain.usdt ?? ledger.usdt ?? 0),
+            ddra: Number(serverChain.ddra ?? ledger.ddra ?? 0),
+            bnb: Number(serverChain.bnb ?? ledger.bnb ?? 0),
+            trx: Number(serverChain.trx ?? ledger.trx ?? 0),
+            usdc: Number(serverChain.usdc ?? ledger.usdc ?? 0),
+            balances: serverChain.balances || {},
+            otherTokens: serverChain.otherTokens || ledger.otherTokens || [],
+            ledger: ledger.ledger || null,
+            source: 'chain'
         };
     }
 
-    if (chain.success) return chain;
-    throw new Error(chain.error || ledger.error || 'wallet_balance_failed');
+    return {
+        success: false,
+        error: chain.error || ledger.error || 'wallet_balance_failed',
+        sol: 0,
+        usdt: 0,
+        ddra: 0,
+        bnb: 0,
+        trx: 0,
+        otherTokens: []
+    };
+};
+
+window._getDeedraWalletAuthToken = window._getDeedraWalletAuthToken || async function() {
+    let activeUser = null;
+    try { if (window.FB && window.FB.auth && window.FB.auth.currentUser) activeUser = window.FB.auth.currentUser; } catch(e) {}
+    try { if (!activeUser && window.firebase && window.firebase.auth && window.firebase.auth().currentUser) activeUser = window.firebase.auth().currentUser; } catch(e) {}
+    try { if (!activeUser && typeof auth !== 'undefined' && auth.currentUser) activeUser = auth.currentUser; } catch(e) {}
+    try { if (!activeUser && typeof currentUser !== 'undefined' && currentUser) activeUser = currentUser; } catch(e) {}
+    if (activeUser && typeof activeUser.getIdToken === 'function') {
+        try { return await activeUser.getIdToken(); } catch(e) {}
+    }
+    return '';
 };
 
 window._fetchSolanaBalances = async function(publicKey) {
+    const wallet = (typeof userData !== 'undefined' && userData && userData.deedraWallet) ? userData.deedraWallet : {};
+    const payload = {
+        publicKey,
+        solanaPublicKey: publicKey,
+        evmAddress: wallet.evmAddress || wallet.bscAddress || '',
+        tronAddress: wallet.tronAddress || ''
+    };
+
+    const normalize = (data, sourceLabel) => {
+        const chain = data.chain || data;
+        const split = chain.usdtByChain || data.usdtByChain || {};
+        const solUsdt = Number(split.solana || split.sol || 0);
+        const bscUsdt = Number(split.bsc || 0);
+        const tronUsdt = Number(split.tron || split.trx || 0);
+        window._latestUsdtBalances = { sol: solUsdt, bsc: bscUsdt, trx: tronUsdt };
+        window._multiChainUsdt = { sol: solUsdt, bsc: bscUsdt, tron: tronUsdt };
+        window._multiChainNative = { bnb: Number(chain.bnb || data.bnb || 0), trx: Number(chain.trx || data.trx || 0) };
+        return {
+            success: true,
+            sol: Number(chain.sol ?? data.sol ?? 0),
+            usdt: Number(chain.usdt ?? data.usdt ?? (solUsdt + bscUsdt + tronUsdt)),
+            ddra: Number(chain.ddra ?? data.ddra ?? 0),
+            bnb: Number(chain.bnb ?? data.bnb ?? 0),
+            trx: Number(chain.trx ?? data.trx ?? 0),
+            usdc: Number(chain.usdc ?? data.usdc ?? 0),
+            balances: chain.balances || data.balances || {},
+            otherTokens: chain.otherTokens || data.otherTokens || [],
+            ledger: data.ledger || null,
+            source: sourceLabel || data.source || 'server_proxy'
+        };
+    };
+
     try {
-        const bscAddress = userData && userData.deedraWallet ? (userData.deedraWallet.evmAddress || userData.deedraWallet.bscAddress) : null;
-        const tronAddress = userData && userData.deedraWallet ? userData.deedraWallet.tronAddress : null;
-        
-        let solBalance = 0;
-        let usdtBalance = 0;
-        let ddraBalance = 0;
-        let bnbBalance = 0;
-        let trxBalance = 0;
-        let otherTokens = [];
-
-        // 1. Fetch Solana (SOL, USDT-SPL, DDRA)
-        const rpcUrls = [
-            'https://solana-rpc.publicnode.com'
-        ];
-        
-        let solRes, tokenRes, token2022Res;
-        let success = false;
-        
-        const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
-        const DDRA_MINT = 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
-        
-        for (const rpcUrl of rpcUrls) {
-            try {
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 30000);
-                const [r1, r2, r3] = await Promise.all([
-                    fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey] }), signal: controller.signal }).catch(() => null),
-                    fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getTokenAccountsByOwner', params: [publicKey, { mint: USDT_MINT }, { encoding: 'jsonParsed' }] }), signal: controller.signal }).catch(() => null),
-                    fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'getTokenAccountsByOwner', params: [publicKey, { mint: DDRA_MINT }, { encoding: 'jsonParsed' }] }), signal: controller.signal }).catch(() => null)
-                ]).finally(() => clearTimeout(timer));
-                
-                if (!r1 || !r2 || !r3) throw new Error('RPC connection failed');
-                
-                solRes = await r1.json().catch(() => ({}));
-                tokenRes = await r2.json().catch(() => ({}));
-                token2022Res = await r3.json().catch(() => ({}));
-                
-                if (solRes && solRes.result !== undefined && tokenRes && tokenRes.result !== undefined && !tokenRes.error) {
-                    success = true;
-                    break;
-                }
-            } catch(e) {}
-        }
-        
-        let usdtSol = 0;
-        let usdtBsc = 0;
-        let usdtTrx = 0;
-
-        if (success) {
-            solBalance = (solRes.result?.value || 0) / 1e9;
-            const allTokens = (tokenRes?.result?.value || []).concat(token2022Res?.result?.value || []);
-            
-            for (const t of allTokens) {
-                const info = t.account?.data?.parsed?.info;
-                if (!info) continue;
-                const amt = info.tokenAmount?.uiAmount || 0;
-                if (info.mint === USDT_MINT) { usdtBalance += amt; usdtSol += amt; }
-                else if (info.mint === DDRA_MINT) ddraBalance += amt;
-                else if (amt > 0) otherTokens.push({ mint: info.mint, amount: amt });
-            }
-        }
-
-        // 2. Fetch BSC (BNB, USDT-BEP20)
+        // Public blockchain balances must not depend on Firebase auth timing.
+        const res = await fetch('/api/wallet/public-balance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success !== false) return normalize(data, 'public_chain_proxy');
+        throw new Error(data.error || 'public_wallet_balance_failed');
+    } catch (publicErr) {
         try {
-            if (bscAddress && bscAddress.startsWith('0x')) {
-                const bscRes = await fetch('https://api.bscscan.com/api?module=account&action=balance&address=' + bscAddress + '&tag=latest&apikey=1S25ZNDB4A7PPM6CST8MVD98BFTC1K4SVK');
-                const bscData = await bscRes.json();
-                if (bscData.status === '1') bnbBalance = parseInt(bscData.result) / 1e18;
-
-                const bscTokenRes = await fetch('https://api.bscscan.com/api?module=account&action=tokenbalance&contractaddress=0x55d398326f99059fF775485246999027B3197955&address=' + bscAddress + '&tag=latest&apikey=1S25ZNDB4A7PPM6CST8MVD98BFTC1K4SVK');
-                const bscTokenData = await bscTokenRes.json();
-                if (bscTokenData.status === '1') {
-                    const bAmt = parseInt(bscTokenData.result) / 1e18;
-                    usdtBalance += bAmt;
-                    usdtBsc += bAmt;
-                }
-            }
-        } catch(e) {}
-
-        // 3. Fetch TRON (TRX, USDT-TRC20)
-        try {
-            if (tronAddress && tronAddress.startsWith('T')) {
-                const tronRes = await fetch('https://api.trongrid.io/v1/accounts/' + tronAddress);
-                const tronData = await tronRes.json();
-                if (tronData.success && tronData.data && tronData.data.length > 0) {
-                    trxBalance = (tronData.data[0].balance || 0) / 1e6;
-                    const trc20 = tronData.data[0].trc20 || [];
-                    for (const token of trc20) {
-                        if (token['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t']) {
-                            const tAmt = parseInt(token['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t']) / 1e6;
-                            usdtBalance += tAmt;
-                            usdtTrx += tAmt;
-                            break;
-                        }
-                    }
-                }
-            }
-        } catch(e) {}
-
-        window._latestUsdtBalances = { sol: usdtSol, bsc: usdtBsc, trx: usdtTrx };
-
-        return { success: true, sol: solBalance, usdt: usdtBalance, ddra: ddraBalance, bnb: bnbBalance, trx: trxBalance, otherTokens };
-
-    } catch (err) {
-        return { success: false, error: err.message };
+            const idToken = await window._getDeedraWalletAuthToken();
+            if (!idToken) throw publicErr;
+            const res = await fetch('/api/wallet/balance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + idToken
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error || data.success === false) throw new Error(data.error || 'wallet_balance_failed');
+            return normalize(data, 'auth_chain_proxy');
+        } catch (authErr) {
+            return {
+                success: false,
+                error: (authErr && authErr.message) || (publicErr && publicErr.message) || 'wallet_balance_failed',
+                sol: 0, usdt: 0, ddra: 0, bnb: 0, trx: 0,
+                otherTokens: []
+            };
+        }
     }
 };
 window.toggleAiAssistant = function() {
