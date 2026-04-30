@@ -18,6 +18,60 @@ function roundSettlementAmount(value: any): number {
   return Math.round(n * 1e8) / 1e8;
 }
 
+// [FIX 2026-04-30] 국가 이름/별칭 → ISO 2자리 코드 정규화 (어뷰징 국가 규칙 매칭용)
+const SETTLEMENT_COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  '대한민국': 'KR', '한국': 'KR', 'south korea': 'KR', 'korea': 'KR', 'republic of korea': 'KR', 'kor': 'KR',
+  '베트남': 'VN', 'vietnam': 'VN', 'viet nam': 'VN', 'vnm': 'VN',
+  '중국': 'CN', 'china': 'CN', 'chn': 'CN',
+  '일본': 'JP', 'japan': 'JP', 'jpn': 'JP',
+  '미국': 'US', 'united states': 'US', 'united states of america': 'US', 'usa': 'US',
+  '태국': 'TH', 'thailand': 'TH', 'tha': 'TH',
+  '필리핀': 'PH', 'philippines': 'PH', 'phl': 'PH',
+  '인도네시아': 'ID', 'indonesia': 'ID', 'idn': 'ID',
+  '말레이시아': 'MY', 'malaysia': 'MY', 'mys': 'MY',
+  '싱가포르': 'SG', 'singapore': 'SG', 'sgp': 'SG',
+  '인도': 'IN', 'india': 'IN', 'ind': 'IN',
+  '홍콩': 'HK', 'hong kong': 'HK', 'hkg': 'HK',
+  '대만': 'TW', 'taiwan': 'TW', 'twn': 'TW',
+  '미얀마': 'MM', 'myanmar': 'MM', 'burma': 'MM', 'mmr': 'MM',
+  '캄보디아': 'KH', 'cambodia': 'KH', 'khm': 'KH',
+  '라오스': 'LA', 'laos': 'LA', 'lao': 'LA',
+  '몽골': 'MN', 'mongolia': 'MN', 'mng': 'MN',
+  '러시아': 'RU', 'russia': 'RU', 'rus': 'RU',
+  '독일': 'DE', 'germany': 'DE', 'deu': 'DE',
+  '프랑스': 'FR', 'france': 'FR', 'fra': 'FR',
+  '영국': 'GB', 'united kingdom': 'GB', 'britain': 'GB', 'uk': 'GB', 'gbr': 'GB',
+  '나이지리아': 'NG', 'nigeria': 'NG', 'nga': 'NG',
+  '브라질': 'BR', 'brazil': 'BR', 'bra': 'BR',
+  '멕시코': 'MX', 'mexico': 'MX', 'mex': 'MX',
+  '아랍에미리트': 'AE', 'united arab emirates': 'AE', 'uae': 'AE', 'are': 'AE'
+};
+
+function resolveCountryCodeForUser(u: any): string {
+  // 1) countryCode 필드 우선 (대문자 ISO 2자리로 정규화)
+  const codeRaw = String(u?.countryCode || '').trim();
+  if (codeRaw) {
+    const c = codeRaw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+    if (c.length === 2) return c;
+    if (c.length === 3) {
+      // 3자리 ISO 코드를 2자리로 매핑 (별칭 표 활용)
+      const mapped = SETTLEMENT_COUNTRY_NAME_TO_CODE[c.toLowerCase()];
+      if (mapped) return mapped;
+    }
+  }
+  // 2) country 필드 (이름/별칭)
+  const nameRaw = String(u?.country || '').trim();
+  if (!nameRaw) return '';
+  const lower = nameRaw.toLowerCase();
+  if (SETTLEMENT_COUNTRY_NAME_TO_CODE[lower]) return SETTLEMENT_COUNTRY_NAME_TO_CODE[lower];
+  if (SETTLEMENT_COUNTRY_NAME_TO_CODE[nameRaw]) return SETTLEMENT_COUNTRY_NAME_TO_CODE[nameRaw];
+  // 한글 이름이 그대로 들어온 경우 키로 직접 조회
+  // 그래도 없으면 마지막으로 2자리 알파벳 추출
+  const fallback = nameRaw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+  if (fallback.length === 2) return fallback;
+  return '';
+}
+
 function eligiblePrincipalAmount(inv: any): number {
   const principal = Number(inv?.amount ?? inv?.amountUsdt ?? 0) || 0;
   const autoCompoundPrincipal = Number(inv?.autoCompoundPrincipal || 0) || 0;
@@ -170,10 +224,10 @@ export async function runSettle(c: any, overrideDate?: string | null) {
     const realDepositors = new Set(realDepositTxs.map((t: any) => t.userId));
 
     // [FIX 2026-04-30] uid → countryCode 매핑 (어뷰징 국가 규칙 평가용)
+    // countryCode 누락 / country 이름·별칭 모두 정규화하여 ISO 2자리 코드로 매핑
     const userCountryByUid = new Map<string, string>();
     for (const u of allUsers) {
-      const code = String(u.countryCode || u.country || '')
-        .trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+      const code = resolveCountryCodeForUser(u);
       if (code) userCountryByUid.set(u.id, code);
     }
 
@@ -1123,10 +1177,10 @@ export async function runSettleDryRun(c: any, overrideDate?: string | null, limi
     }
 
     // [FIX 2026-04-30] uid → countryCode 매핑 (어뷰징 국가 규칙 평가용)
+    // countryCode 누락 / country 이름·별칭 모두 정규화하여 ISO 2자리 코드로 매핑
     const userCountryByUid = new Map<string, string>();
     for (const u of allUsers) {
-      const code = String(u.countryCode || u.country || '')
-        .trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+      const code = resolveCountryCodeForUser(u);
       if (code) userCountryByUid.set(u.id, code);
     }
 

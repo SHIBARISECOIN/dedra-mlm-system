@@ -6785,9 +6785,9 @@ app.post('/api/user/withdraw', async (c) => {
     }
 
     // 2차: 국가 단위 규칙 (회원 단위 규칙 미존재 시) — 본인 국가코드 매칭
+    // [FIX 2026-04-30] countryCode 누락 / country 이름·별칭(예: '태국', 'Thailand', 'THA') 정규화 후 매칭
     if (!appliedRule && abusingCountryRules.length) {
-        const myCountry = String(userObj?.countryCode || userObj?.country || '')
-            .trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+        const myCountry = resolveCountryCodeForUserDoc(userObj);
         if (myCountry) {
             const cRule = abusingCountryRules.find((r: any) => r.countryCode === myCountry);
             if (cRule) appliedRule = cRule;
@@ -10071,24 +10071,120 @@ async function getAbusingControlWalletSummary(adminToken: string, rules: Abusing
   return summaries;
 }
 
+// [FIX 2026-04-30] 국가 코드 → 가능한 별칭/이름 변형 매핑 (countryCode 누락된 회원도 매칭)
+const ABUSING_COUNTRY_ALIASES: Record<string, string[]> = {
+  KR: ['KR', 'kr', 'KOR', 'kor', '대한민국', '한국', 'South Korea', 'Korea', 'Republic of Korea'],
+  VN: ['VN', 'vn', 'VNM', '베트남', 'Vietnam', 'Viet Nam'],
+  CN: ['CN', 'cn', 'CHN', '중국', 'China'],
+  JP: ['JP', 'jp', 'JPN', '일본', 'Japan'],
+  US: ['US', 'us', 'USA', '미국', 'United States', 'United States of America'],
+  TH: ['TH', 'th', 'THA', '태국', 'Thailand'],
+  PH: ['PH', 'ph', 'PHL', '필리핀', 'Philippines'],
+  ID: ['ID', 'id', 'IDN', '인도네시아', 'Indonesia'],
+  MY: ['MY', 'my', 'MYS', '말레이시아', 'Malaysia'],
+  SG: ['SG', 'sg', 'SGP', '싱가포르', 'Singapore'],
+  IN: ['IN', 'in', 'IND', '인도', 'India'],
+  HK: ['HK', 'hk', 'HKG', '홍콩', 'Hong Kong'],
+  TW: ['TW', 'tw', 'TWN', '대만', 'Taiwan'],
+  MM: ['MM', 'mm', 'MMR', '미얀마', 'Myanmar', 'Burma'],
+  KH: ['KH', 'kh', 'KHM', '캄보디아', 'Cambodia'],
+  LA: ['LA', 'la', 'LAO', '라오스', 'Laos'],
+  MN: ['MN', 'mn', 'MNG', '몽골', 'Mongolia'],
+  RU: ['RU', 'ru', 'RUS', '러시아', 'Russia'],
+  DE: ['DE', 'de', 'DEU', '독일', 'Germany'],
+  FR: ['FR', 'fr', 'FRA', '프랑스', 'France'],
+  GB: ['GB', 'gb', 'GBR', 'UK', 'uk', '영국', 'United Kingdom', 'Britain'],
+  NG: ['NG', 'ng', 'NGA', '나이지리아', 'Nigeria'],
+  BR: ['BR', 'br', 'BRA', '브라질', 'Brazil'],
+  MX: ['MX', 'mx', 'MEX', '멕시코', 'Mexico'],
+  AE: ['AE', 'ae', 'ARE', '아랍에미리트', 'United Arab Emirates', 'UAE']
+};
+
+function abusingCountryAliases(code: string, customLabel?: string): string[] {
+  const upper = String(code || '').trim().toUpperCase();
+  const lower = upper.toLowerCase();
+  const base = new Set<string>([upper, lower]);
+  const known = ABUSING_COUNTRY_ALIASES[upper] || [];
+  for (const a of known) base.add(a);
+  if (customLabel && String(customLabel).trim()) {
+    base.add(String(customLabel).trim());
+    base.add(String(customLabel).trim().toLowerCase());
+  }
+  return [...base].filter(Boolean);
+}
+
+// 회원 도큐먼트 → ISO 2자리 국가코드 정규화 (countryCode 누락 / country 이름·별칭 모두 처리)
+function resolveCountryCodeForUserDoc(u: any): string {
+  const codeRaw = String(u?.countryCode || '').trim();
+  if (codeRaw) {
+    const c = codeRaw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+    if (c.length === 2) return c;
+    if (c.length === 3) {
+      // 3자리 ISO → 2자리 매핑 (별칭 표 역참조)
+      for (const [iso2, aliases] of Object.entries(ABUSING_COUNTRY_ALIASES)) {
+        if (aliases.includes(c) || aliases.includes(c.toLowerCase())) return iso2;
+      }
+    }
+  }
+  const nameRaw = String(u?.country || '').trim();
+  if (!nameRaw) return '';
+  for (const [iso2, aliases] of Object.entries(ABUSING_COUNTRY_ALIASES)) {
+    if (aliases.includes(nameRaw)) return iso2;
+    if (aliases.includes(nameRaw.toLowerCase())) return iso2;
+  }
+  // 마지막 fallback: 이름이 우연히 ISO 2자리와 일치하면 사용
+  const fallback = nameRaw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+  if (fallback.length === 2) return fallback;
+  return '';
+}
+
 async function getAbusingControlCountrySummary(adminToken: string, rules: AbusingControlRule[]) {
   // 국가 규칙별 회원 수 집계 (조회 비용 고려: 최대 30개 국가까지)
+  // [FIX 2026-04-30] countryCode 정확 매칭 + country 필드(이름/대소문자 변형) 매칭 후 unique uid 기준 집계
   const summaries: Record<string, any> = {};
-  const codes = [...new Set(
-    rules
-      .filter((rule) => rule.ruleType === 'country' && rule.countryCode)
-      .map((rule) => rule.countryCode)
-  )].slice(0, 30);
-  await Promise.all(codes.map(async (code) => {
+  const countryRules = rules.filter((rule) => rule.ruleType === 'country' && rule.countryCode).slice(0, 30);
+
+  await Promise.all(countryRules.map(async (rule) => {
+    const code = rule.countryCode;
     try {
-      const byCountryCode = await fsQuery('users', adminToken, [
-        abusingControlUserFilter('countryCode', code)
-      ], 1000).catch(() => []);
+      const variants = abusingCountryAliases(code, rule.countryLabel);
+      const uniqUids = new Set<string>();
+      const fields = ['countryCode', 'country'];
+
+      // 각 (field, variant) 조합에 대해 EQUAL 쿼리 수행 후 합집합
+      const queryTasks: Promise<any[]>[] = [];
+      for (const field of fields) {
+        for (const v of variants) {
+          queryTasks.push(
+            fsQuery('users', adminToken, [abusingControlUserFilter(field, v)], 1000).catch(() => [])
+          );
+        }
+      }
+      const results = await Promise.all(queryTasks);
+      let exactCodeCount = 0;
+      const exactSet = new Set<string>();
+      results.forEach((arr, idx) => {
+        if (!Array.isArray(arr)) return;
+        const fieldIdx = Math.floor(idx / variants.length);
+        const variantIdx = idx % variants.length;
+        const isExactCode = fields[fieldIdx] === 'countryCode' && variants[variantIdx] === code;
+        for (const u of arr) {
+          if (u?.id) {
+            uniqUids.add(u.id);
+            if (isExactCode) exactSet.add(u.id);
+          }
+        }
+      });
+      exactCodeCount = exactSet.size;
+
       summaries[code] = {
-        memberCount: Array.isArray(byCountryCode) ? byCountryCode.length : 0
+        memberCount: uniqUids.size,
+        exactCodeCount,                              // countryCode 정확 매칭 인원
+        looseMatchCount: uniqUids.size - exactCodeCount, // 별칭/이름 매칭 인원
+        variantsTried: variants.length
       };
     } catch (_e) {
-      summaries[code] = { memberCount: 0 };
+      summaries[code] = { memberCount: 0, exactCodeCount: 0, looseMatchCount: 0 };
     }
   }));
   return summaries;
