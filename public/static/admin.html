@@ -1082,6 +1082,7 @@ canvas{width:100% !important;}
     <div class="menu-item" data-page="deposits" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💰</span>입금 관리</div> <span id="badge-deposits" style="background:var(--orange);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="withdrawals" style="display:flex; justify-content:space-between; align-items:center;"><div style="display:flex; align-items:center;"><span class="menu-icon">💸</span>출금 관리</div> <span id="badge-withdrawals" style="background:var(--red);color:#fff;border-radius:10px;padding:2px 6px;font-size:10px;display:none;">0</span></div>
     <div class="menu-item" data-page="bonus"><span class="menu-icon">🎁</span>보너스 지급</div>
+    <div class="menu-item" data-page="dwallet"><span class="menu-icon">👛</span>D-WALLET 관리</div>
     <div class="menu-item" data-page="settlements"><span class="menu-icon">🧾</span>정산 이력 조회</div>
     <div class="menu-item" data-page="manualAdjust"><span class="menu-icon">✍️</span>임의 입금 관리</div>
 
@@ -1822,6 +1823,87 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
       </div>
     </div>
 
+    <!-- ========================================================== -->
+    <!-- D-WALLET 관리 페이지 (복구 2026-05-01)                          -->
+    <!-- 백엔드 API: POST /api/admin/dwallet-users                      -->
+    <!-- ========================================================== -->
+    <div id="dwalletPage" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div class="page-title" style="margin-bottom:4px;">👛 D-WALLET 관리</div>
+          <div class="page-desc" style="color:#64748b;font-size:13px;">D-WALLET 발급 회원의 다중 체인 주소, DDRA 보유, 권리 상태를 조회·관리합니다.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" id="dwalletReloadBtn"><i class="fas fa-rotate"></i> 새로고침</button>
+          <button class="btn btn-gray btn-sm" id="dwalletExportCsvBtn"><i class="fas fa-file-csv"></i> CSV 내보내기</button>
+        </div>
+      </div>
+
+      <!-- 통계 요약 -->
+      <div id="dwalletStatsRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;">
+        <div class="card" style="padding:14px;">
+          <div style="font-size:12px;color:#64748b;">총 D-WALLET 회원</div>
+          <div id="dwStatTotalUsers" style="font-size:22px;font-weight:700;color:#0f172a;">-</div>
+        </div>
+        <div class="card" style="padding:14px;">
+          <div style="font-size:12px;color:#64748b;">지갑 발급 완료</div>
+          <div id="dwStatWalletsIssued" style="font-size:22px;font-weight:700;color:#0891b2;">-</div>
+        </div>
+        <div class="card" style="padding:14px;">
+          <div style="font-size:12px;color:#64748b;">권리 활성화</div>
+          <div id="dwStatRightsActive" style="font-size:22px;font-weight:700;color:#16a34a;">-</div>
+        </div>
+        <div class="card" style="padding:14px;">
+          <div style="font-size:12px;color:#64748b;">총 DDRA 보유</div>
+          <div id="dwStatTotalDdra" style="font-size:22px;font-weight:700;color:#8b5cf6;">-</div>
+        </div>
+        <div class="card" style="padding:14px;">
+          <div style="font-size:12px;color:#64748b;">총 USDT 환산가치</div>
+          <div id="dwStatTotalValueUsdt" style="font-size:22px;font-weight:700;color:#f59e0b;">-</div>
+        </div>
+      </div>
+
+      <!-- 검색·필터 카드 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header"><span class="card-title">🔍 검색·필터</span></div>
+        <div style="padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+          <div style="flex:2;min-width:220px;">
+            <label style="font-size:12px;color:#64748b;">검색어 (UID, 이메일, 이름, 아이디, 국가, 지갑주소)</label>
+            <input type="text" id="dwalletSearchInput" class="form-input" placeholder="예) bjm7689, alice@…, 7BF…Sol주소" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:160px;">
+            <label style="font-size:12px;color:#64748b;">권리 상태</label>
+            <select id="dwalletRightsFilter" class="form-input" style="width:100%;">
+              <option value="all">전체</option>
+              <option value="active">활성화 (rightsActive)</option>
+              <option value="locked">미활성 (locked)</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label style="font-size:12px;color:#64748b;">표시 한도</label>
+            <select id="dwalletLimitSelect" class="form-input" style="width:100%;">
+              <option value="50">50명</option>
+              <option value="100" selected>100명</option>
+              <option value="200">200명</option>
+              <option value="500">500명</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="dwalletSearchBtn" style="height:40px;"><i class="fas fa-search"></i> 검색</button>
+        </div>
+      </div>
+
+      <!-- 결과 테이블 -->
+      <div class="card">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="card-title">📋 D-WALLET 회원 목록</span>
+          <span id="dwalletRowCount" style="font-size:12px;color:#64748b;">-</span>
+        </div>
+        <div id="dwalletTableWrap" style="overflow-x:auto;">
+          <div class="empty-state" style="padding:40px;text-align:center;color:#94a3b8;">검색 버튼을 눌러 조회하세요.</div>
+        </div>
+      </div>
+    </div>
+
 <div id="noticesPage" class="page">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px;">
         <div>
@@ -1993,10 +2075,34 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
     ══════════════════════════════ -->
     <div id="rankmonitorPage" class="page">
       <div class="page-title">직급 모니터</div>
-      <div class="page-desc" style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="page-desc" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
         <span>전체 회원 직급 현황 및 승격 대상자 확인</span>
-        <button class="btn btn-danger btn-sm" id="runRankAllClearBtn" style="margin-right:8px;">⚠️ 전직원 직급 초기화 및 재심사</button>
-        <button class="btn btn-primary btn-sm" id="runAutoUpgradeBtn">⚡ 자동 승격 실행</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-sm" id="runRecomputeUpgradeBtn"
+            style="background:#8b5cf6;color:#fff;border:none;font-weight:700;"
+            title="전체 회원의 추천인 트리를 따라 매출(networkSales/otherLegSales)을 재계산하고, RANK_REQUIREMENTS 기준으로 자동 승급까지 일괄 처리합니다.">
+            🔄 매출재계산 + 자동승급
+          </button>
+          <button class="btn btn-sm" id="runRankAuditBtn"
+            style="background:#0ea5e9;color:#fff;border:none;font-weight:700;"
+            title="특정 회원(들)의 현재 직급이 적정한지 자동 진단하여 ✅ 유지 / ⚠️ 강등 필요 / 🚀 즉시 승급 가능 판정 보고서를 화면에 표시합니다.">
+            🔍 직급 적정성 감사
+          </button>
+          <button class="btn btn-danger btn-sm" id="runRankAllClearBtn">⚠️ 전직원 직급 초기화 및 재심사</button>
+          <button class="btn btn-primary btn-sm" id="runAutoUpgradeBtn">⚡ 자동 승격 실행</button>
+          <!-- [FIX 2026-05-01 #6] 오늘 정산 롤백 + 재정산 원클릭 버튼 추가 -->
+          <button class="btn btn-sm" id="runTodayRollbackResettleBtn"
+            style="background:#dc2626;color:#fff;border:none;font-weight:700;"
+            title="오늘(KST) 일자 정산을 롤백한 뒤 즉시 재정산합니다. 보너스/지갑 원복 → 재계산 순서로 자동 진행됩니다.">
+            🔄 오늘 정산 롤백 + 재정산
+          </button>
+          <!-- [FIX 2026-05-01 #7] 점검 모드 즉시 해제 (응급용) -->
+          <button class="btn btn-sm" id="maintenanceOffBtn"
+            style="background:#16a34a;color:#fff;border:none;font-weight:700;"
+            title="시스템 유지보수 모드(점검 중 화면)를 즉시 해제합니다. 롤백/재정산 후 점검 모드가 OFF로 복귀하지 않은 경우 사용하세요.">
+            🟢 점검 모드 즉시 해제
+          </button>
+        </div>
       </div>
 
       <!-- 직급별 통계 -->
@@ -3940,17 +4046,167 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
     ══════════════════════════════ -->
     <div id="autobotPage" class="page">
       <div class="page-title" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div><i class="fas fa-robot"></i> 오토봇 (Market Maker) 관리</div>
+        <div><i class="fas fa-robot"></i> 오토봇 관제 센터 (Trading Command Center)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-gray" onclick="loadAutobotSettings()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+          <button class="btn btn-gray" onclick="autobotRefreshAll()"><i class="fas fa-sync-alt"></i> 전체 새로고침</button>
           <button class="btn btn-primary" onclick="saveAutobotSettings()"><i class="fas fa-save"></i> 설정 저장</button>
+          <button class="btn" style="background:#ef4444;color:#fff;" onclick="autobotEmergencyStop()"><i class="fas fa-power-off"></i> 비상정지</button>
         </div>
       </div>
       <div class="page-desc">
-        DDRA 거래량과 유동성을 보조하는 자동 매수·매도 봇 설정입니다. 이 값은 봇 엔진이 읽는 <strong>settings/autobot</strong> 설정으로 저장됩니다.
+        DEEDRA 마켓 메이커 · 트레이딩 봇 관제 센터입니다. 실시간 시세 · 솔라나 지갑 · AI 시그널 · 자동/수동 매매 · 그리드/DCA 전략 · 위험 관리 · 활동 로그를 한 화면에서 통합 운용합니다.
       </div>
       <div id="autobotAlert" class="inline-alert"></div>
 
+      <!-- ① KPI 대시보드 -->
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
+        <div class="card" style="padding:16px;">
+          <div style="font-size:11px;color:#64748b;letter-spacing:0.5px;">봇 상태</div>
+          <div id="kpiBotStatus" style="font-size:22px;font-weight:700;margin-top:6px;color:#64748b;">…</div>
+          <div id="kpiBotStatusSub" style="font-size:11px;color:#94a3b8;margin-top:4px;"></div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div style="font-size:11px;color:#64748b;letter-spacing:0.5px;">DDRA 가격</div>
+          <div id="kpiDdraPrice" style="font-size:22px;font-weight:700;margin-top:6px;color:#3b82f6;">$0.0000</div>
+          <div id="kpiDdraChange" style="font-size:11px;margin-top:4px;">24h —</div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div style="font-size:11px;color:#64748b;letter-spacing:0.5px;">SOL 가격</div>
+          <div id="kpiSolPrice" style="font-size:22px;font-weight:700;margin-top:6px;color:#9333ea;">$0.00</div>
+          <div id="kpiSolChange" style="font-size:11px;margin-top:4px;">24h —</div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div style="font-size:11px;color:#64748b;letter-spacing:0.5px;">오늘 거래 횟수</div>
+          <div id="kpiTradesToday" style="font-size:22px;font-weight:700;margin-top:6px;color:#10b981;">0</div>
+          <div id="kpiTradesLimit" style="font-size:11px;color:#94a3b8;margin-top:4px;">한도 —</div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div style="font-size:11px;color:#64748b;letter-spacing:0.5px;">오늘 거래량</div>
+          <div id="kpiVolumeToday" style="font-size:22px;font-weight:700;margin-top:6px;color:#f59e0b;">0 USDT</div>
+          <div id="kpiVolumeLimit" style="font-size:11px;color:#94a3b8;margin-top:4px;">한도 —</div>
+        </div>
+        <div class="card" style="padding:16px;">
+          <div style="font-size:11px;color:#64748b;letter-spacing:0.5px;">오늘 PnL</div>
+          <div id="kpiPnlToday" style="font-size:22px;font-weight:700;margin-top:6px;color:#0ea5e9;">0</div>
+          <div id="kpiLastTradeAt" style="font-size:11px;color:#94a3b8;margin-top:4px;">최근 거래 —</div>
+        </div>
+      </div>
+
+      <!-- ② 실시간 시세 + 차트 -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <h3 class="card-title" style="margin:0;"><i class="fas fa-chart-line"></i> 실시간 시세 · 가격 차트</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="chartSymbol" class="form-select" style="width:120px;font-size:13px;padding:6px;">
+              <option value="DDRA">DDRA</option>
+              <option value="SOL">SOL</option>
+              <option value="USDT">USDT</option>
+              <option value="USDC">USDC</option>
+            </select>
+            <button class="btn btn-gray" onclick="autobotRecordTickNow()"><i class="fas fa-camera"></i> 가격 스냅샷</button>
+            <button class="btn btn-gray" onclick="autobotLoadCandles()"><i class="fas fa-redo"></i> 차트 갱신</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <canvas id="autobotPriceChart" style="width:100%;height:280px;"></canvas>
+        </div>
+        <div id="autobotTechnical" style="margin-top:12px;font-size:13px;color:#475569;">기술 지표 데이터를 모으는 중입니다. (정확한 RSI/볼린저는 5분 스냅샷 20회 이상부터 표시)</div>
+        <div id="autobotPriceTable" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;"></div>
+      </div>
+
+      <!-- ③ 솔라나 지갑 + 충전 + AI 시그널 -->
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;margin-bottom:20px;">
+        <div class="card">
+          <h3 class="card-title"><i class="fab fa-solana" style="color:#9333ea;"></i> 솔라나 지갑 · 잔고</h3>
+          <div class="form-group">
+            <label class="form-label">트레이딩 지갑 주소</label>
+            <input type="text" id="bot_walletAddress" class="form-input" placeholder="봇이 거래에 사용할 솔라나 지갑 주소">
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">미입력 시 settings/companyWallets.solana 의 첫 주소 사용</div>
+          </div>
+          <button class="btn btn-gray" onclick="autobotLoadWalletBalance()" style="width:100%;"><i class="fas fa-wallet"></i> 잔고 조회</button>
+          <div id="autobotWalletBox" style="margin-top:10px;font-size:13px;background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;font-family:monospace;min-height:90px;">조회 전</div>
+
+          <div style="margin-top:16px;border-top:1px dashed #cbd5e1;padding-top:12px;">
+            <h4 style="margin:0 0 10px 0;font-size:14px;color:#9333ea;"><i class="fas fa-bolt"></i> 봇 지갑 SOL 충전 (스폰서 전송)</h4>
+            <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+              <div style="flex:2;">
+                <label class="form-label" style="font-size:12px;">받는 주소</label>
+                <input type="text" id="bot_rechargeTo" class="form-input" placeholder="자동: 트레이딩 지갑 주소">
+              </div>
+              <div style="flex:1;">
+                <label class="form-label" style="font-size:12px;">수량 (SOL, ≤ 5)</label>
+                <input type="number" id="bot_rechargeAmount" class="form-input" step="0.01" min="0" max="5" value="0.05">
+              </div>
+              <button class="btn btn-primary" onclick="autobotRechargeSol()" style="white-space:nowrap;"><i class="fas fa-plus-circle"></i> 충전</button>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:6px;">SPONSOR_SOL_SECRET 환경변수의 회사 지갑에서 봇 지갑으로 SOL 을 즉시 송금합니다.</div>
+            <div id="autobotRechargeResult" style="margin-top:8px;font-size:12px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title"><i class="fas fa-brain" style="color:#10b981;"></i> AI 시그널 · 추천 액션</h3>
+          <div id="aiSignalBox" style="background:linear-gradient(135deg,#ecfdf5 0%,#dbeafe 100%);padding:16px;border-radius:10px;min-height:160px;">
+            시그널 계산 중…
+          </div>
+          <button class="btn btn-gray" style="margin-top:10px;width:100%;" onclick="autobotLoadAiSignal()"><i class="fas fa-sync-alt"></i> 시그널 재계산</button>
+          <div style="margin-top:12px;">
+            <h4 style="font-size:13px;color:#475569;margin:0 0 8px 0;">⚡ 자동 사이클 1회 실행</h4>
+            <button class="btn btn-primary" style="width:100%;" onclick="autobotRunCycleOnce()"><i class="fas fa-play-circle"></i> 사이클 실행 (가격 스냅샷 + 신호 결정)</button>
+            <div id="autobotCycleResult" style="margin-top:8px;font-size:12px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ④ 수동 트레이드 패널 -->
+      <div class="card" style="margin-bottom:20px;">
+        <h3 class="card-title"><i class="fas fa-exchange-alt" style="color:#f59e0b;"></i> 수동 트레이드 (Jupiter Aggregator)</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end;">
+          <div>
+            <label class="form-label">매도 토큰 (FROM)</label>
+            <select id="trade_from" class="form-select">
+              <option value="USDT">USDT</option>
+              <option value="SOL">SOL</option>
+              <option value="USDC">USDC</option>
+              <option value="DDRA">DDRA</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">매수 토큰 (TO)</label>
+            <select id="trade_to" class="form-select">
+              <option value="DDRA" selected>DDRA</option>
+              <option value="USDT">USDT</option>
+              <option value="SOL">SOL</option>
+              <option value="USDC">USDC</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">수량 (UI 단위)</label>
+            <input type="number" id="trade_amount" class="form-input" step="0.0001" min="0" placeholder="예: 10">
+          </div>
+          <div>
+            <label class="form-label">슬리피지 (bps, 50~5000)</label>
+            <input type="number" id="trade_slippage" class="form-input" step="10" min="50" max="5000" value="100">
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-gray" onclick="autobotGetQuote()" style="flex:1;"><i class="fas fa-search-dollar"></i> 견적</button>
+            <button class="btn btn-primary" onclick="autobotManualTrade()" style="flex:1;"><i class="fas fa-bolt"></i> 즉시 스왑</button>
+          </div>
+        </div>
+        <div id="autobotQuoteBox" style="margin-top:12px;font-size:13px;background:#fffbeb;border:1px solid #fde68a;padding:10px;border-radius:8px;min-height:50px;">견적 조회 전</div>
+        <div id="autobotTradeResult" style="margin-top:8px;font-size:13px;"></div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:6px;">
+          ⚠️ 1회 한도는 maxAmount × 10 USDT 입니다. settings/autobot.walletSecretKey 또는 env AUTOBOT_WALLET_SECRET 가 설정되어 있어야 합니다.
+        </div>
+      </div>
+
+      <!-- ⑤ 전략 프리셋 -->
+      <div class="card" style="margin-bottom:20px;">
+        <h3 class="card-title"><i class="fas fa-rocket" style="color:#ec4899;"></i> 전략 프리셋 (원클릭 적용)</h3>
+        <div id="autobotPresets" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">로딩 중…</div>
+      </div>
+
+      <!-- ⑥ 기본 설정 -->
       <div class="grid grid-cols-2">
         <div class="card">
           <h3 class="card-title">기본 설정</h3>
@@ -3980,6 +4236,16 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
               <label class="form-label">기준 시간 (분)</label>
               <input type="number" id="bot_baseTimeMinute" class="form-input" placeholder="0~59" min="0" max="59">
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">전략 모드</label>
+            <select id="bot_strategy" class="form-select">
+              <option value="natural">natural — 자연스러운 거래량 모방</option>
+              <option value="grid">grid — 격자(상하한) 양면 호가</option>
+              <option value="dca">dca — 분할매수 (DCA)</option>
+              <option value="ai_adaptive">ai_adaptive — AI 시그널 기반 적응형</option>
+            </select>
           </div>
         </div>
 
@@ -4022,7 +4288,87 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
               <input type="number" id="bot_sellProbability" class="form-input" placeholder="0~100" min="0" max="100">
             </div>
           </div>
+
+          <div class="form-group" style="display:flex;gap:10px;margin-top:20px;">
+            <div style="flex:1;">
+              <label class="form-label">기본 슬리피지 (bps)</label>
+              <input type="number" id="bot_slippageBps" class="form-input" step="10" min="50" max="5000" value="100">
+            </div>
+            <div style="flex:1;">
+              <label class="form-label">손절(%)</label>
+              <input type="number" id="bot_stopLossPct" class="form-input" step="0.1" min="0" value="0">
+            </div>
+            <div style="flex:1;">
+              <label class="form-label">익절(%)</label>
+              <input type="number" id="bot_takeProfitPct" class="form-input" step="0.1" min="0" value="0">
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- ⑦ 위험 관리 -->
+      <div class="card" style="margin-top:20px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.18);">
+        <h3 class="card-title" style="color:#ef4444;"><i class="fas fa-shield-alt"></i> 위험 관리 · 한도</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+          <div>
+            <label class="form-label">일 최대 거래량 (USDT)</label>
+            <input type="number" id="bot_maxDailyVolume" class="form-input" step="100" min="0" value="1000">
+          </div>
+          <div>
+            <label class="form-label">일 최대 거래 횟수</label>
+            <input type="number" id="bot_maxDailyTrades" class="form-input" step="1" min="0" value="50">
+          </div>
+          <div>
+            <label class="form-label">스파이크 임계치 (%)</label>
+            <input type="number" id="bot_spikeThresholdPct" class="form-input" step="0.5" min="0" value="5">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding-top:24px;">
+            <input type="checkbox" id="bot_pauseOnSpike" checked>
+            <label for="bot_pauseOnSpike" style="font-size:13px;">스파이크 시 자동 일시정지</label>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-gray" onclick="autobotCheckRisk()"><i class="fas fa-stethoscope"></i> 위험 한도 체크</button>
+          <button class="btn btn-gray" onclick="autobotClearEmergency()"><i class="fas fa-undo"></i> 비상정지 해제</button>
+          <button class="btn btn-gray" onclick="autobotTestTelegram()"><i class="fab fa-telegram"></i> 텔레그램 테스트</button>
+          <button class="btn btn-gray" onclick="autobotClearOldLogs()"><i class="fas fa-broom"></i> 오래된 로그 정리(7일↑)</button>
+        </div>
+        <div id="autobotRiskBox" style="margin-top:10px;font-size:13px;"></div>
+      </div>
+
+      <!-- ⑧ 그리드 / DCA 미리보기 -->
+      <div class="grid grid-cols-2" style="margin-top:20px;">
+        <div class="card">
+          <h3 class="card-title"><i class="fas fa-th"></i> 그리드 트레이딩 미리보기</h3>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+            <div><label class="form-label">중심가</label><input type="number" id="grid_center" class="form-input" step="0.0001" min="0"></div>
+            <div><label class="form-label">상한가</label><input type="number" id="grid_upper" class="form-input" step="0.0001" min="0"></div>
+            <div><label class="form-label">하한가</label><input type="number" id="grid_lower" class="form-input" step="0.0001" min="0"></div>
+            <div><label class="form-label">격자 수</label><input type="number" id="grid_count" class="form-input" step="1" min="2" value="10"></div>
+            <div style="grid-column:1/-1;"><label class="form-label">총 자본 (USDT)</label><input type="number" id="grid_capital" class="form-input" step="10" min="0" value="1000"></div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:10px;width:100%;" onclick="autobotGridPreview()"><i class="fas fa-eye"></i> 격자 시뮬레이션</button>
+          <div id="gridPreviewBox" style="margin-top:10px;font-size:12px;max-height:240px;overflow:auto;"></div>
+        </div>
+        <div class="card">
+          <h3 class="card-title"><i class="fas fa-calendar-alt"></i> DCA 분할매수 플랜 미리보기</h3>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+            <div><label class="form-label">총 자본 (USDT)</label><input type="number" id="dca_capital" class="form-input" step="10" min="0" value="1000"></div>
+            <div><label class="form-label">분할 횟수</label><input type="number" id="dca_steps" class="form-input" step="1" min="1" value="10"></div>
+            <div style="grid-column:1/-1;"><label class="form-label">간격 (분)</label><input type="number" id="dca_interval" class="form-input" step="5" min="1" value="60"></div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:10px;width:100%;" onclick="autobotDcaPreview()"><i class="fas fa-eye"></i> DCA 스케줄 시뮬레이션</button>
+          <div id="dcaPreviewBox" style="margin-top:10px;font-size:12px;max-height:240px;overflow:auto;"></div>
+        </div>
+      </div>
+
+      <!-- ⑨ 활동 로그 -->
+      <div class="card" style="margin-top:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <h3 class="card-title" style="margin:0;"><i class="fas fa-history"></i> 활동 로그 (최근 50건)</h3>
+          <button class="btn btn-gray" onclick="autobotLoadActivities()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+        </div>
+        <div id="autobotActivityList" style="margin-top:12px;max-height:420px;overflow:auto;font-size:13px;">로딩 중…</div>
       </div>
 
       <div class="card" style="margin-top:20px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);">
@@ -4034,9 +4380,6 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         시스템 설정
-    ══════════════════════════════ -->
     <div id="settingsPage" class="page">
       <div class="page-title">시스템 설정</div>
       <div class="page-desc">플랫폼 운영에 필요한 설정을 관리합니다</div>
@@ -5431,16 +5774,28 @@ window.prefetchUserLabels = async function(uids) {
 window.formatUserLabel = function(userId, emailFallback) {
     if (!userId) return '(알 수 없음)';
     const u = window.globalUserCache[userId];
-    // 우선순위: users 캐시의 email > emailFallback(tx.userEmail) > users 캐시의 name + id > userId 8자
+    // 이메일에서 @ 앞부분(local-part)을 추출하는 헬퍼
+    const localPart = (em) => {
+        if (!em || typeof em !== 'string') return '';
+        const at = em.indexOf('@');
+        return at > 0 ? em.slice(0, at) : em;
+    };
+    // 우선순위: users 캐시의 username/referralCode > 이메일 local-part > 이름 > emailFallback > userId 8자
     if (u) {
         const email = u.email || emailFallback || '';
-        if (email) {
-            // 이메일이 있으면 이메일을 메인으로 표시 (이름은 부가)
-            return u.name ? `${email} (${u.name})` : email;
+        const username = u.username || u.referralCode || '';
+        const local = localPart(email);
+        const idLabel = username || local;
+        if (idLabel) {
+            return u.name ? `${idLabel} (${u.name})` : idLabel;
         }
-        return `${u.name || '(이름없음)'} (${u.id || userId.substring(0, 6)})`;
+        return `${u.name || '(이름없음)'} (${userId.substring(0, 6)})`;
     }
-    return emailFallback ? emailFallback : userId.substring(0, 8);
+    if (emailFallback) {
+        const local = localPart(emailFallback);
+        return local || emailFallback;
+    }
+    return userId.substring(0, 8);
 };
 
 
@@ -6991,6 +7346,220 @@ window.runWalletLedgerAudit = async function(target = 'cyj0300', applyFix = fals
 };
 
 // ══════════════════════════════════════════════════
+// D-WALLET 관리 (복구 2026-05-01)
+// 백엔드: POST /api/admin/dwallet-users
+// 응답: { success, total, returned, stats:{totalUsers,walletsIssued,rightsActive,totalDdra,totalValueUsdt}, users:[...] }
+// ══════════════════════════════════════════════════
+window._dwalletLastRows = [];
+
+async function _dwalletAdminHeaders() {
+    // [FIX 2026-05-01] getAutobotAdminHeaders 와 동일한 표준 토큰 획득 패턴으로 통일.
+    // 잘못된 sessionStorage 키 사용으로 401 unauthorized 발생하던 문제 수정.
+    const headers = { 'Content-Type': 'application/json' };
+    try {
+        let token = '';
+        if (typeof currentAdmin !== 'undefined' && currentAdmin && typeof currentAdmin.getIdToken === 'function') {
+            token = await currentAdmin.getIdToken();
+        } else if (window.currentAdmin && typeof window.currentAdmin.getIdToken === 'function') {
+            token = await window.currentAdmin.getIdToken();
+        } else if (window.FB?.auth?.currentUser && typeof window.FB.auth.currentUser.getIdToken === 'function') {
+            token = await window.FB.auth.currentUser.getIdToken();
+        } else if (typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin?.token) {
+            token = _currentSubAdmin.token;
+        } else if (window._adminToken) {
+            token = window._adminToken;
+        }
+        if (token) headers.Authorization = `Bearer ${token}`;
+    } catch (e) {
+        console.warn('[D-WALLET] 관리자 토큰 확인 실패:', e?.message || e);
+    }
+    return headers;
+}
+
+function _dwShorten(addr, head=6, tail=4) {
+    if (!addr) return '';
+    const s = String(addr);
+    if (s.length <= head + tail + 2) return s;
+    return s.slice(0, head) + '…' + s.slice(-tail);
+}
+
+function _dwFmtNum(n, decimals=2) {
+    const v = Number(n || 0);
+    if (!Number.isFinite(v)) return '0';
+    return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function _dwFmtDate(s) {
+    if (!s) return '-';
+    try {
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return String(s).slice(0, 19).replace('T', ' ');
+        return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
+    } catch(_) { return String(s); }
+}
+
+function _dwAddressCell(label, addr) {
+    if (!addr) return `<span style="color:#cbd5e1;">-</span>`;
+    const safe = String(addr).replace(/"/g, '&quot;');
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-family:monospace;font-size:11px;">
+        <span style="color:#0891b2;font-weight:600;">${label}</span>
+        <span title="${safe}">${_dwShorten(addr)}</span>
+        <button class="btn btn-gray btn-xs" style="padding:1px 4px;font-size:10px;" onclick="navigator.clipboard.writeText('${safe}').then(()=>{ if(window.showToast) showToast('주소 복사됨','success'); })"><i class="fas fa-copy"></i></button>
+    </span>`;
+}
+
+async function loadDwalletAdmin() {
+    const wrap = document.getElementById('dwalletTableWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> D-WALLET 회원 조회 중...</div>';
+    const search = (document.getElementById('dwalletSearchInput')?.value || '').trim();
+    const rightsFilter = document.getElementById('dwalletRightsFilter')?.value || 'all';
+    const limitVal = Number(document.getElementById('dwalletLimitSelect')?.value || 100);
+    try {
+        const headers = await _dwalletAdminHeaders();
+        // [FIX 2026-05-01] 토큰 미획득 시 사용자에게 명확한 안내 (401 대신 친절한 메시지)
+        if (!headers.Authorization) {
+            wrap.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:#dc2626;"><i class="fas fa-lock"></i> 관리자 인증 토큰을 가져올 수 없습니다. 다시 로그인 해주세요.</div>';
+            return;
+        }
+        const res = await fetch('/api/admin/dwallet-users', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ search, rightsFilter, limit: limitVal })
+        });
+        // [FIX 2026-05-01] HTTP 상태 코드별 명확한 에러 안내
+        if (res.status === 401) {
+            wrap.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:#dc2626;"><i class="fas fa-lock"></i> 권한이 없습니다 (401). 관리자 계정으로 다시 로그인 해주세요.</div>';
+            return;
+        }
+        if (res.status === 403) {
+            wrap.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:#dc2626;"><i class="fas fa-ban"></i> 접근이 거부되었습니다 (403). 관리자 권한이 필요합니다.</div>';
+            return;
+        }
+        const json = await res.json().catch(() => ({ success: false, error: '응답 파싱 실패' }));
+        if (!json.success) throw new Error(json.error || '조회 실패');
+
+        // 통계 갱신
+        const st = json.stats || {};
+        document.getElementById('dwStatTotalUsers').textContent = (st.totalUsers ?? 0).toLocaleString();
+        document.getElementById('dwStatWalletsIssued').textContent = (st.walletsIssued ?? 0).toLocaleString();
+        document.getElementById('dwStatRightsActive').textContent = (st.rightsActive ?? 0).toLocaleString();
+        document.getElementById('dwStatTotalDdra').textContent = _dwFmtNum(st.totalDdra, 4);
+        document.getElementById('dwStatTotalValueUsdt').textContent = '$' + _dwFmtNum(st.totalValueUsdt, 2);
+
+        const rows = Array.isArray(json.users) ? json.users : [];
+        window._dwalletLastRows = rows;
+        const cnt = document.getElementById('dwalletRowCount');
+        if (cnt) cnt.textContent = `표시 ${rows.length} / 전체 ${json.total ?? rows.length}명`;
+
+        if (!rows.length) {
+            wrap.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:#94a3b8;">조건에 맞는 D-WALLET 회원이 없습니다.</div>';
+            return;
+        }
+
+        let html = `<table class="data-table" style="width:100%;font-size:12px;">
+          <thead><tr style="background:#f1f5f9;">
+            <th style="padding:8px;text-align:left;">회원</th>
+            <th style="padding:8px;text-align:left;">국가/언어</th>
+            <th style="padding:8px;text-align:left;">지갑 주소</th>
+            <th style="padding:8px;text-align:right;">DDRA 보유</th>
+            <th style="padding:8px;text-align:right;">USDT 환산</th>
+            <th style="padding:8px;text-align:center;">권리</th>
+            <th style="padding:8px;text-align:left;">서비스</th>
+            <th style="padding:8px;text-align:left;">최근 업데이트</th>
+          </tr></thead><tbody>`;
+        for (const r of rows) {
+            const label = r.displayId || r.name || (r.email ? r.email.split('@')[0] : (r.uid ? r.uid.slice(0, 6) : '-'));
+            const emailLine = r.email ? `<div style="font-size:11px;color:#64748b;">${r.email}</div>` : '';
+            const country = [r.country, r.countryCode].filter(Boolean).join(' / ') || '-';
+            const lang = r.language || '-';
+            const addrParts = [];
+            if (r.solanaAddress) addrParts.push(_dwAddressCell('SOL', r.solanaAddress));
+            if (r.evmAddress) addrParts.push(_dwAddressCell('EVM', r.evmAddress));
+            if (r.tronAddress) addrParts.push(_dwAddressCell('TRX', r.tronAddress));
+            if (r.xrpAddress) addrParts.push(_dwAddressCell('XRP', r.xrpAddress));
+            if (r.btcAddress) addrParts.push(_dwAddressCell('BTC', r.btcAddress));
+            const addrHtml = addrParts.length ? addrParts.join('<br>') : '<span style="color:#cbd5e1;">미발급</span>';
+            const rightsBadge = r.rightsActive
+                ? '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">활성</span>'
+                : '<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">미활성</span>';
+            const services = Array.isArray(r.services) ? r.services : [];
+            const serviceText = services.length
+                ? services.map(s => `<span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:1px 6px;margin:1px;border-radius:8px;font-size:10px;">${s.name || s.id || ''}${s.unlocked ? ' ✓' : ''}</span>`).join('')
+                : '<span style="color:#cbd5e1;">-</span>';
+            const tier = r.activeTier?.name ? `<div style="font-size:10px;color:#8b5cf6;">${r.activeTier.name}</div>` : '';
+            html += `<tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:8px;"><div style="font-weight:600;color:#0f172a;">${label}</div>${emailLine}<div style="font-size:10px;color:#94a3b8;font-family:monospace;" title="${r.uid || ''}">${_dwShorten(r.uid || '', 6, 4)}</div></td>
+              <td style="padding:8px;">${country}<div style="font-size:11px;color:#64748b;">${lang}</div></td>
+              <td style="padding:8px;">${addrHtml}</td>
+              <td style="padding:8px;text-align:right;font-weight:600;color:#8b5cf6;">${_dwFmtNum(r.ddraBalance, 4)}</td>
+              <td style="padding:8px;text-align:right;color:#f59e0b;">$${_dwFmtNum(r.ddraValueUsdt, 2)}</td>
+              <td style="padding:8px;text-align:center;">${rightsBadge}${tier}</td>
+              <td style="padding:8px;">${serviceText}</td>
+              <td style="padding:8px;font-size:11px;color:#64748b;">${_dwFmtDate(r.dwalletUpdatedAt || r.dwalletCreatedAt || r.createdAt)}</td>
+            </tr>`;
+        }
+        html += '</tbody></table>';
+        wrap.innerHTML = html;
+    } catch (e) {
+        wrap.innerHTML = `<div class="empty-state" style="padding:40px;text-align:center;color:#dc2626;">❌ 조회 실패: ${e.message || e}</div>`;
+        if (window.showToast) showToast('D-WALLET 조회 실패: ' + (e.message || e), 'error');
+    }
+}
+window.loadDwalletAdmin = loadDwalletAdmin;
+
+function _dwExportCsv() {
+    const rows = window._dwalletLastRows || [];
+    if (!rows.length) { if (window.showToast) showToast('내보낼 데이터가 없습니다. 먼저 검색하세요.', 'warning'); return; }
+    const head = ['UID','이름','로그인ID','이메일','전화','국가','국가코드','언어','상태','SOL주소','EVM주소','TRON주소','XRP주소','BTC주소','DDRA보유','USDT환산','권리활성','서비스수','D-WALLET생성일','D-WALLET갱신일'];
+    const esc = (v) => {
+        const s = (v == null ? '' : String(v)).replace(/"/g, '""');
+        return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [head.join(',')];
+    for (const r of rows) {
+        lines.push([
+            r.uid, r.name, r.displayId, r.email, r.phone, r.country, r.countryCode, r.language, r.status,
+            r.solanaAddress, r.evmAddress, r.tronAddress, r.xrpAddress, r.btcAddress,
+            r.ddraBalance, r.ddraValueUsdt,
+            r.rightsActive ? 'Y' : 'N',
+            Array.isArray(r.services) ? r.services.length : 0,
+            r.dwalletCreatedAt, r.dwalletUpdatedAt
+        ].map(esc).join(','));
+    }
+    const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ts = new Date().toISOString().slice(0, 10);
+    a.download = `dwallet-users-${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+}
+window._dwExportCsv = _dwExportCsv;
+
+// 이벤트 바인딩 (DOM 준비 후)
+function _dwalletBindEvents() {
+    const sb = document.getElementById('dwalletSearchBtn');
+    if (sb && !sb._bound) { sb._bound = true; sb.addEventListener('click', () => loadDwalletAdmin()); }
+    const rb = document.getElementById('dwalletReloadBtn');
+    if (rb && !rb._bound) { rb._bound = true; rb.addEventListener('click', () => loadDwalletAdmin()); }
+    const eb = document.getElementById('dwalletExportCsvBtn');
+    if (eb && !eb._bound) { eb._bound = true; eb.addEventListener('click', () => _dwExportCsv()); }
+    const si = document.getElementById('dwalletSearchInput');
+    if (si && !si._bound) {
+        si._bound = true;
+        si.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') loadDwalletAdmin(); });
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _dwalletBindEvents);
+} else {
+    _dwalletBindEvents();
+}
+
+// ══════════════════════════════════════════════════
 // 보너스 지급
 // ══════════════════════════════════════════════════
 async function loadBonusLog() {
@@ -7003,14 +7572,28 @@ async function loadBonusLog() {
             .sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0))
             .slice(0,50);
         if (!rows.length) { wrap.innerHTML = emptyState('보너스 지급 내역 없음'); return; }
+
+        // 회원/지급자 라벨을 위해 users 캐시를 사전 적재
+        try {
+            const allUids = rows.flatMap(r => [r.userId, r.grantedBy]).filter(Boolean);
+            await window.prefetchUserLabels(allUids);
+        } catch (_) { /* ignore — fallback 렌더링 */ }
+
+        const grantedByLabel = (uid) => {
+            if (!uid) return '-';
+            if (uid === 'admin' || uid === 'system') return uid;
+            const lbl = formatUserLabel(uid, null);
+            return lbl || uid.substring(0,10) + '...';
+        };
+
         wrap.innerHTML = `<div class="table-wrap"><table>
           <thead><tr><th>회원 ID</th><th>유형</th><th>금액 (USDT→DDRA)</th><th>사유</th><th>지급자</th><th>일시</th></tr></thead>
           <tbody>${rows.map(r=>`<tr>
-            <td><strong style="color:#2563eb;font-size:13px;">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
+            <td><strong style="color:#2563eb;font-size:13px;" title="${r.userId||''}">${formatUserLabel(r.userId, r.userEmail)}</strong></td>
             <td><span class="badge badge-approved">${r.type==='manual_bonus'?'수동지급':r.type}</span></td>
             <td><strong style="color:var(--success)">${(r.amount||0).toFixed(2)}</strong></td>
             <td>${r.reason||'-'}</td>
-            <td><code style="font-size:11px;">${(r.grantedBy||'-').substring(0,10)}...</code></td>
+            <td><code style="font-size:11px;" title="${r.grantedBy||''}">${grantedByLabel(r.grantedBy)}</code></td>
             <td style="font-size:12px;">${fmtDate(r.createdAt)}</td>
           </tr>`).join('')}</tbody></table></div>`;
     } catch(e) { wrap.innerHTML = emptyState('오류: '+e.message); }
@@ -8845,7 +9428,17 @@ const AUTOBOT_DEFAULTS = {
     tradeToken: 'USDT',
     minWaitMins: 5,
     maxWaitMins: 20,
-    sellProbability: 0
+    sellProbability: 0,
+    // 확장 필드 (2026-04-30)
+    strategy: 'natural',
+    slippageBps: 100,
+    stopLossPct: 0,
+    takeProfitPct: 0,
+    walletAddress: '',
+    maxDailyVolume: 1000,
+    maxDailyTrades: 50,
+    pauseOnSpike: true,
+    spikeThresholdPct: 5
 };
 
 function setAutobotAlert(type, message) {
@@ -8920,7 +9513,34 @@ function applyAutobotSettings(raw = {}) {
     setVal('bot_minWaitMins', Number(data.minWaitMins ?? AUTOBOT_DEFAULTS.minWaitMins));
     setVal('bot_maxWaitMins', Number(data.maxWaitMins ?? AUTOBOT_DEFAULTS.maxWaitMins));
     setVal('bot_sellProbability', Number(data.sellProbability ?? AUTOBOT_DEFAULTS.sellProbability));
+    // 확장 필드
+    setVal('bot_strategy', data.strategy || AUTOBOT_DEFAULTS.strategy);
+    setVal('bot_slippageBps', Number(data.slippageBps ?? AUTOBOT_DEFAULTS.slippageBps));
+    setVal('bot_stopLossPct', Number(data.stopLossPct ?? AUTOBOT_DEFAULTS.stopLossPct));
+    setVal('bot_takeProfitPct', Number(data.takeProfitPct ?? AUTOBOT_DEFAULTS.takeProfitPct));
+    setVal('bot_walletAddress', data.walletAddress || '');
+    setVal('bot_maxDailyVolume', Number(data.maxDailyVolume ?? AUTOBOT_DEFAULTS.maxDailyVolume));
+    setVal('bot_maxDailyTrades', Number(data.maxDailyTrades ?? AUTOBOT_DEFAULTS.maxDailyTrades));
+    setVal('bot_spikeThresholdPct', Number(data.spikeThresholdPct ?? AUTOBOT_DEFAULTS.spikeThresholdPct));
+    const psEl = document.getElementById('bot_pauseOnSpike');
+    if (psEl) psEl.checked = data.pauseOnSpike !== false;
     setAutobotStatus(!!data.enabled);
+    // KPI 보드 상태 업데이트
+    try {
+        const kBs = document.getElementById('kpiBotStatus');
+        const kBsSub = document.getElementById('kpiBotStatusSub');
+        if (kBs) {
+            kBs.textContent = data.enabled ? 'ON · 가동중' : 'OFF · 정지';
+            kBs.style.color = data.enabled ? '#10b981' : '#ef4444';
+        }
+        if (kBsSub) {
+            kBsSub.textContent = data.emergencyStopAt ? '🚨 비상정지: ' + (data.emergencyStopReason || '') : (data.presetApplied ? '프리셋: ' + data.presetApplied : '');
+        }
+        const kTl = document.getElementById('kpiTradesLimit');
+        const kVl = document.getElementById('kpiVolumeLimit');
+        if (kTl) kTl.textContent = '한도 ' + (data.maxDailyTrades || 0);
+        if (kVl) kVl.textContent = '한도 ' + (data.maxDailyVolume || 0) + ' USDT';
+    } catch (_) { /* ignore */ }
 }
 
 function collectAutobotSettings() {
@@ -8934,9 +9554,20 @@ function collectAutobotSettings() {
         tradeToken: document.getElementById('bot_tradeToken')?.value || AUTOBOT_DEFAULTS.tradeToken,
         minWaitMins: Math.round(readAutobotNumber('bot_minWaitMins', AUTOBOT_DEFAULTS.minWaitMins, 1, 1440)),
         maxWaitMins: Math.round(readAutobotNumber('bot_maxWaitMins', AUTOBOT_DEFAULTS.maxWaitMins, 1, 1440)),
-        sellProbability: Math.round(readAutobotNumber('bot_sellProbability', AUTOBOT_DEFAULTS.sellProbability, 0, 100))
+        sellProbability: Math.round(readAutobotNumber('bot_sellProbability', AUTOBOT_DEFAULTS.sellProbability, 0, 100)),
+        // 확장 필드
+        strategy: document.getElementById('bot_strategy')?.value || AUTOBOT_DEFAULTS.strategy,
+        slippageBps: Math.round(readAutobotNumber('bot_slippageBps', AUTOBOT_DEFAULTS.slippageBps, 50, 5000)),
+        stopLossPct: readAutobotNumber('bot_stopLossPct', AUTOBOT_DEFAULTS.stopLossPct, 0, 100),
+        takeProfitPct: readAutobotNumber('bot_takeProfitPct', AUTOBOT_DEFAULTS.takeProfitPct, 0, 1000),
+        walletAddress: (document.getElementById('bot_walletAddress')?.value || '').trim(),
+        maxDailyVolume: readAutobotNumber('bot_maxDailyVolume', AUTOBOT_DEFAULTS.maxDailyVolume, 0, 1e9),
+        maxDailyTrades: Math.round(readAutobotNumber('bot_maxDailyTrades', AUTOBOT_DEFAULTS.maxDailyTrades, 0, 100000)),
+        pauseOnSpike: !!document.getElementById('bot_pauseOnSpike')?.checked,
+        spikeThresholdPct: readAutobotNumber('bot_spikeThresholdPct', AUTOBOT_DEFAULTS.spikeThresholdPct, 0, 100)
     };
     if (!['USDT', 'SOL', 'RANDOM'].includes(payload.tradeToken)) payload.tradeToken = 'USDT';
+    if (!['natural','grid','dca','ai_adaptive'].includes(payload.strategy)) payload.strategy = 'natural';
     if (payload.minAmount > payload.maxAmount) throw new Error('최소 거래 금액이 최대 거래 금액보다 클 수 없습니다.');
     if (payload.minWaitMins > payload.maxWaitMins) throw new Error('최소 대기 시간이 최대 대기 시간보다 클 수 없습니다.');
     return payload;
@@ -9006,6 +9637,498 @@ window.saveAutobotSettings = async function() {
     }
 };
 
+// ════════════════════════════════════════════════════════════════════
+// 오토봇 관제 센터 — 확장 글루 함수 (2026-04-30)
+// ════════════════════════════════════════════════════════════════════
+let __autobotPriceChart = null;
+
+window.autobotRefreshAll = async function() {
+    try {
+        await loadAutobotSettings();
+        await Promise.all([
+            autobotLoadPrices(),
+            autobotLoadStats(),
+            autobotLoadActivities(),
+            autobotLoadAiSignal(),
+            autobotLoadCandles(),
+            autobotLoadPresets(),
+            autobotLoadWalletBalance(),
+        ]);
+        setAutobotAlert('success', '✅ 전체 데이터 갱신 완료');
+        setTimeout(() => setAutobotAlert('', ''), 2000);
+    } catch (e) {
+        setAutobotAlert('error', '새로고침 중 오류: ' + e.message);
+    }
+};
+
+async function autobotApi(path, opts = {}) {
+    const headers = await getAutobotAdminHeaders();
+    const res = await fetch(path, {
+        method: opts.method || 'GET',
+        headers,
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    let json = null;
+    try { json = await res.json(); } catch (_) {}
+    if (!res.ok || (json && json.success === false)) {
+        throw new Error((json && json.error) || `HTTP ${res.status}`);
+    }
+    return json || {};
+}
+
+window.autobotLoadPrices = async function() {
+    try {
+        const json = await autobotApi('/api/admin/autobot/prices');
+        const sol = json.solana || {};
+        const setKpi = (id, sym, color) => {
+            const t = sol[sym];
+            const pEl = document.getElementById(id);
+            if (!pEl) return;
+            if (!t) { pEl.textContent = 'N/A'; return; }
+            const p = Number(t.price || 0);
+            pEl.textContent = '$' + p.toFixed(p < 1 ? 6 : 2);
+            const chId = id.replace('Price', 'Change');
+            const chEl = document.getElementById(chId);
+            if (chEl) {
+                const ch = Number(t.priceChange24h || 0);
+                chEl.textContent = '24h ' + (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%';
+                chEl.style.color = ch >= 0 ? '#10b981' : '#ef4444';
+            }
+        };
+        setKpi('kpiDdraPrice', 'DDRA');
+        setKpi('kpiSolPrice', 'SOL');
+        // 가격 테이블
+        const tbl = document.getElementById('autobotPriceTable');
+        if (tbl) {
+            const rows = [];
+            for (const [sym, t] of Object.entries(sol)) {
+                if (!t) { rows.push(`<div class="card" style="padding:10px;"><b>${sym}</b><div style="color:#94a3b8;font-size:11px;">시세 없음</div></div>`); continue; }
+                const p = Number(t.price || 0);
+                const ch = Number(t.priceChange24h || 0);
+                rows.push(`
+                  <div class="card" style="padding:10px;">
+                    <div style="display:flex;justify-content:space-between;"><b>${sym}</b><span style="font-size:10px;color:#94a3b8;">${t.source||''}</span></div>
+                    <div style="font-size:18px;font-weight:700;color:#0f172a;">$${p.toFixed(p<1?6:2)}</div>
+                    <div style="font-size:11px;color:${ch>=0?'#10b981':'#ef4444'};">24h ${ch>=0?'+':''}${ch.toFixed(2)}%</div>
+                    <div style="font-size:10px;color:#94a3b8;">유동성 $${(Number(t.liquidity||0)/1000).toFixed(1)}K · 24h거래 $${(Number(t.volume24h||0)/1000).toFixed(1)}K</div>
+                  </div>`);
+            }
+            // CEX (코인게코) 추가 표시
+            const cex = json.cex || {};
+            for (const [id, t] of Object.entries(cex)) {
+                const p = Number(t.price || 0);
+                const ch = Number(t.change24h || 0);
+                rows.push(`
+                  <div class="card" style="padding:10px;background:#f1f5f9;">
+                    <div style="display:flex;justify-content:space-between;"><b>${id.toUpperCase()}</b><span style="font-size:10px;color:#94a3b8;">coingecko</span></div>
+                    <div style="font-size:18px;font-weight:700;color:#0f172a;">$${p.toLocaleString(undefined, {maximumFractionDigits: p<1?6:2})}</div>
+                    <div style="font-size:11px;color:${ch>=0?'#10b981':'#ef4444'};">24h ${ch>=0?'+':''}${ch.toFixed(2)}%</div>
+                  </div>`);
+            }
+            tbl.innerHTML = rows.join('');
+        }
+    } catch (e) {
+        console.error('[autobot] loadPrices failed:', e);
+    }
+};
+
+window.autobotLoadStats = async function() {
+    try {
+        const json = await autobotApi('/api/admin/autobot/stats');
+        const s = json.stats || {};
+        const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        setText('kpiTradesToday', String(s.tradesToday || 0));
+        setText('kpiVolumeToday', (s.volumeToday || 0).toLocaleString() + ' USDT');
+        const pnlEl = document.getElementById('kpiPnlToday');
+        if (pnlEl) {
+            const v = Number(s.pnlToday || 0);
+            pnlEl.textContent = (v >= 0 ? '+' : '') + v.toFixed(4);
+            pnlEl.style.color = v >= 0 ? '#10b981' : '#ef4444';
+        }
+        setText('kpiLastTradeAt', '최근 거래 ' + (s.lastTradeAt ? new Date(s.lastTradeAt).toLocaleString('ko-KR') : '—'));
+    } catch (e) {
+        console.error('[autobot] loadStats failed:', e);
+    }
+};
+
+window.autobotLoadActivities = async function() {
+    const list = document.getElementById('autobotActivityList');
+    if (!list) return;
+    try {
+        const json = await autobotApi('/api/admin/autobot/activities?limit=50');
+        const items = json.activities || [];
+        if (!items.length) { list.innerHTML = '<div style="color:#94a3b8;padding:12px;">아직 활동이 없습니다.</div>'; return; }
+        const colorBy = (sev) => ({ success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' }[sev] || '#64748b');
+        const iconBy = (type) => ({
+            trade_buy: '🟢', trade_sell: '🔴', manual_trade: '⚡',
+            deposit: '💰', withdraw: '💸',
+            config_change: '⚙️', signal: '📡', error: '❌', strategy_run: '🤖', info: 'ℹ️',
+        }[type] || '•');
+        list.innerHTML = items.map(a => {
+            const t = a.createdAt ? new Date(a.createdAt).toLocaleString('ko-KR') : '';
+            const explorer = a.txid ? ` <a href="https://solscan.io/tx/${a.txid}" target="_blank" style="font-size:11px;">탐색기</a>` : '';
+            return `
+              <div style="display:flex;gap:10px;padding:8px 6px;border-bottom:1px solid #e2e8f0;">
+                <div style="width:24px;text-align:center;">${iconBy(a.type)}</div>
+                <div style="flex:1;">
+                  <div style="font-weight:500;color:${colorBy(a.severity)};">${a.message || ''}${explorer}</div>
+                  <div style="font-size:11px;color:#94a3b8;">${t} · ${a.type}${a.symbol ? ' · ' + a.symbol : ''}${a.amount ? ' · ' + Number(a.amount).toFixed(4) : ''}</div>
+                </div>
+              </div>`;
+        }).join('');
+    } catch (e) {
+        list.innerHTML = '<div style="color:#ef4444;padding:12px;">로그 조회 실패: ' + e.message + '</div>';
+    }
+};
+
+window.autobotLoadAiSignal = async function() {
+    const box = document.getElementById('aiSignalBox');
+    if (!box) return;
+    try {
+        const sym = document.getElementById('chartSymbol')?.value || 'DDRA';
+        const json = await autobotApi('/api/admin/autobot/ai-signal?symbol=' + encodeURIComponent(sym));
+        const s = json.signal || {};
+        const t = json.tick || {};
+        const actionColor = { BUY_STRONG: '#059669', BUY: '#10b981', HOLD: '#64748b', SELL: '#f97316', SELL_STRONG: '#dc2626' }[s.action] || '#64748b';
+        const reasons = (s.reason || []).map(r => '<li>' + r + '</li>').join('');
+        box.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:11px;color:#475569;letter-spacing:0.5px;">추천 액션 (${sym})</div>
+              <div style="font-size:28px;font-weight:800;color:${actionColor};margin-top:2px;">${s.action || 'HOLD'}</div>
+              <div style="font-size:11px;color:#64748b;">신뢰도 ${((s.confidence||0)*100).toFixed(0)}% · 점수 ${s.score||0}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:#475569;">현재가</div>
+              <div style="font-size:18px;font-weight:700;">$${Number(t.price||0).toFixed(t.price<1?6:2)}</div>
+              <div style="font-size:11px;color:${(t.priceChange24h||0)>=0?'#10b981':'#ef4444'};">24h ${(t.priceChange24h||0)>=0?'+':''}${(t.priceChange24h||0).toFixed(2)}%</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;background:rgba(255,255,255,0.7);padding:8px 10px;border-radius:6px;">
+            <div><b>추천 수량:</b> ${(s.suggestedAmount||0).toFixed(4)} · <b>슬리피지:</b> ${s.suggestedSlippageBps||100} bps</div>
+            <ul style="margin:6px 0 0 16px;padding:0;color:#475569;">${reasons}</ul>
+          </div>`;
+    } catch (e) {
+        box.innerHTML = '<div style="color:#ef4444;">시그널 조회 실패: ' + e.message + '</div>';
+    }
+};
+
+window.autobotLoadCandles = async function() {
+    try {
+        const sym = document.getElementById('chartSymbol')?.value || 'DDRA';
+        const json = await autobotApi('/api/admin/autobot/candles?symbol=' + encodeURIComponent(sym) + '&limit=96');
+        const candles = json.candles || [];
+        const tech = json.technical;
+        const techEl = document.getElementById('autobotTechnical');
+        if (techEl) {
+            if (tech) {
+                const arrow = tech.trend === 'up' ? '🟢 상승' : tech.trend === 'down' ? '🔴 하락' : '⚪ 횡보';
+                techEl.innerHTML = `
+                  <b>${sym} 기술 지표:</b> ${arrow} · RSI14 <b>${tech.rsi14.toFixed(1)}</b>
+                  · SMA20 $${tech.sma20.toFixed(6)} · SMA50 $${tech.sma50.toFixed(6)}
+                  · BB[$${tech.bbLower.toFixed(6)} ~ $${tech.bbUpper.toFixed(6)}]
+                  · MACD ${tech.macdSignal}
+                  <br><span style="color:#475569;">${(tech.signals||[]).join(' · ')}</span>`;
+            } else {
+                techEl.textContent = `데이터 ${candles.length}개 — 정확한 RSI/볼린저는 5분 스냅샷 20회 이상 누적 후 표시됩니다.`;
+            }
+        }
+
+        const cv = document.getElementById('autobotPriceChart');
+        if (!cv || !window.Chart) return;
+        if (__autobotPriceChart) { __autobotPriceChart.destroy(); __autobotPriceChart = null; }
+        const labels = candles.map(c => new Date(c.t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
+        const closes = candles.map(c => c.c);
+        const highs = candles.map(c => c.h);
+        const lows = candles.map(c => c.l);
+        __autobotPriceChart = new Chart(cv.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    { label: '종가', data: closes, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.25, pointRadius: 1 },
+                    { label: '고가', data: highs, borderColor: 'rgba(16,185,129,0.5)', borderWidth: 1, fill: false, pointRadius: 0, borderDash: [4,4] },
+                    { label: '저가', data: lows, borderColor: 'rgba(239,68,68,0.5)', borderWidth: 1, fill: false, pointRadius: 0, borderDash: [4,4] },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' } },
+                scales: { y: { ticks: { callback: (v) => '$' + Number(v).toFixed(6) } } },
+            },
+        });
+    } catch (e) {
+        console.error('[autobot] loadCandles failed:', e);
+    }
+};
+
+window.autobotRecordTickNow = async function() {
+    try {
+        await autobotApi('/api/admin/autobot/record-tick', { method: 'POST', body: { symbols: ['DDRA','SOL','USDT','USDC'] } });
+        if (window.showToast) showToast('📸 가격 스냅샷 기록 완료', 'success');
+        await autobotLoadCandles();
+        await autobotLoadPrices();
+    } catch (e) {
+        setAutobotAlert('error', '스냅샷 실패: ' + e.message);
+    }
+};
+
+window.autobotLoadWalletBalance = async function() {
+    const box = document.getElementById('autobotWalletBox');
+    if (!box) return;
+    try {
+        box.textContent = '조회 중…';
+        const addr = (document.getElementById('bot_walletAddress')?.value || '').trim();
+        const url = '/api/admin/autobot/wallet-balance' + (addr ? '?address=' + encodeURIComponent(addr) : '');
+        const json = await autobotApi(url);
+        const b = json.balance || {};
+        const others = (b.otherTokens || []).slice(0, 5).map(t => `  · ${t.mint?.slice(0,8) || '?'}…  ${Number(t.amount||0).toFixed(4)}`).join('\n');
+        box.textContent =
+            `📍 주소: ${json.address || '(none)'}\n` +
+            `🟣 SOL: ${Number(b.solBalance || 0).toFixed(4)}\n` +
+            `💵 USDT: ${Number(b.usdtBalance || 0).toFixed(4)}\n` +
+            `🟦 DDRA: ${Number(b.ddraBalance || 0).toFixed(4)}\n` +
+            (others ? '기타 토큰:\n' + others : '');
+    } catch (e) {
+        box.textContent = '조회 실패: ' + e.message;
+    }
+};
+
+window.autobotRechargeSol = async function() {
+    const out = document.getElementById('autobotRechargeResult');
+    try {
+        const toAddress = (document.getElementById('bot_rechargeTo')?.value || document.getElementById('bot_walletAddress')?.value || '').trim();
+        const amountSol = Number(document.getElementById('bot_rechargeAmount')?.value || 0);
+        if (!toAddress) throw new Error('받는 주소 필요');
+        if (!(amountSol > 0 && amountSol <= 5)) throw new Error('수량은 0 ~ 5 SOL');
+        if (out) out.innerHTML = '⏳ 송금 중…';
+        const json = await autobotApi('/api/admin/autobot/recharge-sol', { method: 'POST', body: { toAddress, amountSol } });
+        if (out) out.innerHTML = `✅ 충전 완료: ${json.amountSol} SOL → ${toAddress.slice(0,8)}…<br><a href="${json.explorer}" target="_blank">${json.txid?.slice(0,16)}…</a>`;
+        if (window.showToast) showToast('✅ SOL 충전 완료', 'success');
+        await autobotLoadWalletBalance();
+    } catch (e) {
+        if (out) out.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotGetQuote = async function() {
+    const out = document.getElementById('autobotQuoteBox');
+    try {
+        const fromSymbol = document.getElementById('trade_from')?.value;
+        const toSymbol = document.getElementById('trade_to')?.value;
+        const amountUi = Number(document.getElementById('trade_amount')?.value || 0);
+        const slip = Number(document.getElementById('trade_slippage')?.value || 100);
+        if (!fromSymbol || !toSymbol || !(amountUi > 0)) throw new Error('FROM/TO/수량 확인 필요');
+        if (out) out.textContent = '⏳ Jupiter 견적 조회 중…';
+        const json = await autobotApi(`/api/admin/autobot/quote?fromSymbol=${fromSymbol}&toSymbol=${toSymbol}&amountUi=${amountUi}&slippageBps=${slip}`);
+        const q = json.quote || {};
+        const inAmt = Number(q.inAmount || 0) / Math.pow(10, q.inputMint === 'So11111111111111111111111111111111111111112' ? 9 : 6);
+        const outAmt = Number(q.outAmount || 0) / Math.pow(10, q.outputMint === 'So11111111111111111111111111111111111111112' ? 9 : 6);
+        const route = (q.routePlan || []).map(s => s?.swapInfo?.label).filter(Boolean).join(' → ');
+        if (out) out.innerHTML = `<b>${inAmt.toFixed(6)} ${fromSymbol}</b> → <b style="color:#10b981;">${outAmt.toFixed(6)} ${toSymbol}</b><br>
+            <span style="font-size:11px;color:#94a3b8;">슬리피지 ${slip}bps · 영향 ${(Number(q.priceImpactPct||0)*100).toFixed(3)}% · 경로: ${route || '(직접)'}</span>`;
+    } catch (e) {
+        if (out) out.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotManualTrade = async function() {
+    const out = document.getElementById('autobotTradeResult');
+    try {
+        const fromSymbol = document.getElementById('trade_from')?.value;
+        const toSymbol = document.getElementById('trade_to')?.value;
+        const amountUi = Number(document.getElementById('trade_amount')?.value || 0);
+        const slippageBps = Number(document.getElementById('trade_slippage')?.value || 100);
+        if (!fromSymbol || !toSymbol) throw new Error('FROM/TO 확인 필요');
+        if (!(amountUi > 0)) throw new Error('수량 > 0 필요');
+        if (!confirm(`⚠️ 즉시 스왑을 실행합니다.\n\n${amountUi} ${fromSymbol} → ${toSymbol}\n슬리피지 ${slippageBps} bps\n\n진행하시겠습니까?`)) return;
+        if (out) out.innerHTML = '⏳ Jupiter 스왑 실행 중…';
+        const json = await autobotApi('/api/admin/autobot/manual-trade', { method: 'POST', body: { fromSymbol, toSymbol, amountUi, slippageBps } });
+        if (out) out.innerHTML = `✅ 스왑 성공: ${json.inAmount.toFixed(6)} ${fromSymbol} → ${json.outAmount.toFixed(6)} ${toSymbol}<br>
+          <a href="${json.explorer}" target="_blank">${json.txid?.slice(0,16)}…</a>`;
+        if (window.showToast) showToast('✅ 스왑 완료', 'success');
+        await autobotLoadActivities();
+        await autobotLoadStats();
+    } catch (e) {
+        if (out) out.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotEmergencyStop = async function() {
+    try {
+        const reason = prompt('비상정지 사유를 입력하세요 (감사 로그에 기록됩니다):', '관리자 수동 발동');
+        if (reason === null) return;
+        await autobotApi('/api/admin/autobot/emergency-stop', { method: 'POST', body: { reason } });
+        if (window.showToast) showToast('🚨 비상정지 발동 — 봇 OFF', 'success');
+        await loadAutobotSettings();
+        await autobotLoadActivities();
+    } catch (e) {
+        setAutobotAlert('error', '비상정지 실패: ' + e.message);
+    }
+};
+
+window.autobotClearEmergency = async function() {
+    try {
+        await autobotApi('/api/admin/autobot/clear-emergency', { method: 'POST', body: {} });
+        if (window.showToast) showToast('✅ 비상정지 해제', 'success');
+        await loadAutobotSettings();
+    } catch (e) {
+        setAutobotAlert('error', '해제 실패: ' + e.message);
+    }
+};
+
+window.autobotCheckRisk = async function() {
+    const box = document.getElementById('autobotRiskBox');
+    try {
+        const json = await autobotApi('/api/admin/autobot/risk-check');
+        const r = json.risk || {};
+        const s = json.stats || {};
+        const cfg = json.settings || {};
+        const allowed = r.allowed;
+        if (box) box.innerHTML = `
+          <div style="padding:10px;border-radius:6px;background:${allowed ? '#ecfdf5' : '#fef2f2'};border:1px solid ${allowed ? '#a7f3d0' : '#fecaca'};">
+            <b style="color:${allowed ? '#059669' : '#dc2626'};">${allowed ? '✅ 거래 가능' : '⛔ 거래 차단'}</b>
+            ${r.reason ? '<div>사유: ' + r.reason + '</div>' : ''}
+            <div style="margin-top:6px;font-size:12px;color:#475569;">
+              오늘 거래 ${s.tradesToday}/${cfg.maxDailyTrades || '∞'} · 거래량 ${s.volumeToday}/${cfg.maxDailyVolume || '∞'} USDT
+              ${cfg.emergencyStopAt ? '<br>🚨 비상정지: ' + cfg.emergencyStopReason : ''}
+            </div>
+          </div>`;
+    } catch (e) {
+        if (box) box.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotRunCycleOnce = async function() {
+    const out = document.getElementById('autobotCycleResult');
+    try {
+        if (out) out.textContent = '⏳ 사이클 실행 중…';
+        const json = await autobotApi('/api/admin/autobot/run-cycle', { method: 'POST', body: { recordTick: true } });
+        const r = json.result || {};
+        if (out) out.innerHTML = `결정: <b>${r.decision}</b> — ${r.reason}${r.tick ? ' · 가격 $' + Number(r.tick.price).toFixed(6) : ''}`;
+        await autobotLoadActivities();
+        await autobotLoadStats();
+        await autobotLoadCandles();
+    } catch (e) {
+        if (out) out.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotLoadPresets = async function() {
+    const cont = document.getElementById('autobotPresets');
+    if (!cont) return;
+    try {
+        const json = await autobotApi('/api/admin/autobot/presets');
+        const presets = json.presets || {};
+        cont.innerHTML = Object.entries(presets).map(([key, p]) => `
+          <div class="card" style="padding:14px;border:1px solid #e2e8f0;">
+            <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:6px;">${p.label || key}</div>
+            <div style="font-size:11px;color:#64748b;line-height:1.6;">
+              목표 ${p.targetGrowthPct}% · ${p.minAmount}~${p.maxAmount} USDT<br>
+              대기 ${p.minWaitMins}~${p.maxWaitMins}분 · 매도혼합 ${p.sellProbability}%<br>
+              일한도 ${p.maxDailyTrades}회 / ${p.maxDailyVolume} USDT
+            </div>
+            <button class="btn btn-primary btn-xs" style="margin-top:8px;width:100%;" onclick="autobotApplyPreset('${key}')">
+              <i class="fas fa-magic"></i> 이 프리셋 적용
+            </button>
+          </div>`).join('');
+    } catch (e) {
+        cont.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotApplyPreset = async function(key) {
+    if (!confirm(`프리셋 [${key}] 을(를) 적용합니다.\n현재 설정의 한도/슬리피지/매도 혼합 비율 등이 덮어쓰여집니다. 계속하시겠습니까?`)) return;
+    try {
+        await autobotApi('/api/admin/autobot/apply-preset', { method: 'POST', body: { preset: key } });
+        if (window.showToast) showToast('🎯 프리셋 적용 완료', 'success');
+        await loadAutobotSettings();
+    } catch (e) {
+        setAutobotAlert('error', '프리셋 적용 실패: ' + e.message);
+    }
+};
+
+window.autobotTestTelegram = async function() {
+    try {
+        const json = await autobotApi('/api/admin/autobot/test-telegram', { method: 'POST', body: {} });
+        if (json.sent) {
+            if (window.showToast) showToast('✅ 텔레그램 전송 완료', 'success');
+        } else {
+            setAutobotAlert('warning', '텔레그램 전송 실패: ' + (json.reason || '알 수 없음'));
+        }
+    } catch (e) {
+        setAutobotAlert('error', '텔레그램 테스트 실패: ' + e.message);
+    }
+};
+
+window.autobotClearOldLogs = async function() {
+    if (!confirm('7일 이전 활동 로그를 삭제합니다. 계속하시겠습니까?')) return;
+    try {
+        const json = await autobotApi('/api/admin/autobot/clear-logs', { method: 'POST', body: { keepDays: 7 } });
+        if (window.showToast) showToast(`🧹 ${json.deleted || 0}건 삭제`, 'success');
+        await autobotLoadActivities();
+    } catch (e) {
+        setAutobotAlert('error', '로그 정리 실패: ' + e.message);
+    }
+};
+
+window.autobotGridPreview = async function() {
+    const out = document.getElementById('gridPreviewBox');
+    try {
+        const body = {
+            centerPrice: Number(document.getElementById('grid_center')?.value || 0),
+            upperPrice: Number(document.getElementById('grid_upper')?.value || 0),
+            lowerPrice: Number(document.getElementById('grid_lower')?.value || 0),
+            gridCount: Math.round(Number(document.getElementById('grid_count')?.value || 10)),
+            totalCapital: Number(document.getElementById('grid_capital')?.value || 1000),
+        };
+        const json = await autobotApi('/api/admin/autobot/grid-preview', { method: 'POST', body });
+        const lvls = json.levels || [];
+        if (!lvls.length) { if (out) out.innerHTML = '<div style="color:#ef4444;">잘못된 입력 — 상한 > 하한, 격자 ≥ 2 필요</div>'; return; }
+        if (out) out.innerHTML = `
+          <table style="width:100%;font-size:11px;border-collapse:collapse;">
+            <thead><tr style="background:#f1f5f9;"><th style="padding:4px;">#</th><th>가격</th><th>측면</th><th>수량(USDT)</th></tr></thead>
+            <tbody>
+              ${lvls.map(l => `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px;text-align:center;">${l.index+1}</td><td style="text-align:right;">$${l.price.toFixed(6)}</td><td style="text-align:center;color:${l.side==='BUY'?'#10b981':'#ef4444'};">${l.side}</td><td style="text-align:right;">${l.amount.toFixed(2)}</td></tr>`).join('')}
+            </tbody>
+          </table>`;
+    } catch (e) {
+        if (out) out.innerHTML = '❌ ' + e.message;
+    }
+};
+
+window.autobotDcaPreview = async function() {
+    const out = document.getElementById('dcaPreviewBox');
+    try {
+        const body = {
+            totalCapital: Number(document.getElementById('dca_capital')?.value || 1000),
+            steps: Math.round(Number(document.getElementById('dca_steps')?.value || 10)),
+            intervalMins: Math.round(Number(document.getElementById('dca_interval')?.value || 60)),
+        };
+        const json = await autobotApi('/api/admin/autobot/dca-preview', { method: 'POST', body });
+        const plan = json.plan || [];
+        if (!plan.length) { if (out) out.innerHTML = '<div style="color:#ef4444;">잘못된 입력</div>'; return; }
+        if (out) out.innerHTML = `
+          <table style="width:100%;font-size:11px;border-collapse:collapse;">
+            <thead><tr style="background:#f1f5f9;"><th style="padding:4px;">#</th><th>예약 시각</th><th>금액(USDT)</th></tr></thead>
+            <tbody>
+              ${plan.map(p => `<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:4px;text-align:center;">${p.index+1}</td><td>${new Date(p.scheduledAt).toLocaleString('ko-KR')}</td><td style="text-align:right;">${p.amountUsdt.toFixed(4)}</td></tr>`).join('')}
+            </tbody>
+          </table>`;
+    } catch (e) {
+        if (out) out.innerHTML = '❌ ' + e.message;
+    }
+};
+
+// 차트 심볼 변경 시 자동 갱신
+document.addEventListener('change', (ev) => {
+    if (ev.target && ev.target.id === 'chartSymbol') {
+        autobotLoadCandles();
+        autobotLoadAiSignal();
+    }
+});
+
 window.navigateTo = (page) => {
     if (page === 'settings') {
         window._openSettingsWithAuth();
@@ -9017,7 +10140,7 @@ window.navigateTo = (page) => {
     if (menuItem) menuItem.classList.add('active');
     const pageEl = document.getElementById(page+'Page');
     if (page === 'settings') loadSettings();
-    if (page === 'autobot') loadAutobotSettings();
+    if (page === 'autobot') { loadAutobotSettings(); setTimeout(() => { try { autobotRefreshAll(); } catch(_){} }, 300); }
     sessionStorage.setItem('adminCurrentPage', page);
     if (pageEl) pageEl.classList.add('active');
 };
@@ -9040,6 +10163,7 @@ function setupEvents() {
             else if (page==='withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); loadWithdrawRules(); }
             else if (page==='members') { allMembers=[]; loadMembers(); }
             else if (page==='bonus') loadBonusLog();
+            else if (page==='dwallet') { try { loadDwalletAdmin(); } catch(_){} }
             else if (page==='settlements') loadSettlementHistory();
             else if (page==='notices') loadNotices();
             else if (page==='news') loadNews();
@@ -9626,78 +10750,167 @@ function setupEvents() {
         btn.disabled = false; btn.innerHTML = '🔑 비밀번호 변경';
     });
 
-    // ── 보너스 지급 ──
-    // Load products on mount
-    getDocs(collection(db, 'products')).then(snap => {
+    // ── 보너스 지급 (2026-04-30 복원: 서버 API 기반 + 정확한 토스트) ──
+    // 관리자 토큰 헤더 헬퍼 (autobot 의 것과 동일 패턴)
+    async function _bonusAdminHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        try {
+            let token = '';
+            if (typeof currentAdmin !== 'undefined' && currentAdmin && typeof currentAdmin.getIdToken === 'function') {
+                token = await currentAdmin.getIdToken();
+            } else if (window.currentAdmin && typeof window.currentAdmin.getIdToken === 'function') {
+                token = await window.currentAdmin.getIdToken();
+            } else if (window.FB?.auth?.currentUser && typeof window.FB.auth.currentUser.getIdToken === 'function') {
+                token = await window.FB.auth.currentUser.getIdToken();
+            } else if (typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin?.token) {
+                token = _currentSubAdmin.token;
+            } else if (window._adminToken) {
+                token = window._adminToken;
+            }
+            if (token) headers.Authorization = `Bearer ${token}`;
+        } catch (_) { /* ignore */ }
+        return headers;
+    }
+
+    // Load products on mount — 서버 API(/api/admin/bonus/products) 우선, 실패 시 클라이언트 SDK 폴백
+    async function _loadBonusProducts() {
         const select = document.getElementById('bonusProductId');
-        if(!select) return;
-        select.innerHTML = '';
-        snap.forEach(doc => {
-            const p = doc.data();
-            const opt = document.createElement('option');
-            opt.value = doc.id;
-            
-            const r = p.dailyRoi !== undefined ? p.dailyRoi : (p.roiPercent !== undefined ? p.roiPercent : (p.roi || 0));
-            const d = p.duration !== undefined ? p.duration : (p.durationDays !== undefined ? p.durationDays : (p.days || 0));
-            
-            opt.textContent = `${p.name} (${r}% / ${d}일)`;
-            opt.dataset.name = p.name;
-            opt.dataset.roi = r;
-            opt.dataset.days = d;
-            select.appendChild(opt);
-        });
-    }).catch(()=>{});
+        if (!select) return;
+        select.innerHTML = '<option value="">— 상품 로딩 중 —</option>';
+        try {
+            const headers = await _bonusAdminHeaders();
+            const res = await fetch('/api/admin/bonus/products', { headers });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.success && Array.isArray(json.products) && json.products.length) {
+                    select.innerHTML = '';
+                    for (const p of json.products) {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = `${p.name} (${p.roi}% / ${p.days}일)`;
+                        opt.dataset.name = p.name;
+                        opt.dataset.roi = String(p.roi);
+                        opt.dataset.days = String(p.days);
+                        select.appendChild(opt);
+                    }
+                    return;
+                }
+            }
+            throw new Error('server-products-empty');
+        } catch (_e) {
+            // 폴백: 클라이언트 Firestore SDK
+            try {
+                const snap = await getDocs(collection(db, 'products'));
+                select.innerHTML = '';
+                snap.forEach(d => {
+                    const p = d.data();
+                    const r = p.dailyRoi !== undefined ? p.dailyRoi : (p.roiPercent !== undefined ? p.roiPercent : (p.roi || 0));
+                    const days = p.duration !== undefined ? p.duration : (p.durationDays !== undefined ? p.durationDays : (p.days || 0));
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `${p.name} (${r}% / ${days}일)`;
+                    opt.dataset.name = p.name;
+                    opt.dataset.roi = String(r);
+                    opt.dataset.days = String(days);
+                    select.appendChild(opt);
+                });
+                if (!select.options.length) {
+                    select.innerHTML = '<option value="">⚠️ 상품을 찾을 수 없습니다</option>';
+                }
+            } catch (e2) {
+                select.innerHTML = '<option value="">⚠️ 상품 로드 실패</option>';
+                console.warn('[bonus] product load failed:', e2);
+            }
+        }
+    }
+    _loadBonusProducts();
 
     document.getElementById('giveBonusBtn').addEventListener('click', async () => {
         const input = document.getElementById('bonusUserId').value.trim();
-        const amount = document.getElementById('bonusAmount').value;
+        const amountStr = document.getElementById('bonusAmount').value;
+        const amount = parseFloat(amountStr);
         const reason = document.getElementById('bonusReason').value.trim();
         const bonusType = document.getElementById('bonusType').value;
         const prodSelect = document.getElementById('bonusProductId');
-        const prodOption = prodSelect.options[prodSelect.selectedIndex];
-        
-        if (!input||!amount||!reason) { showInlineAlert('bonusAlert','error','모든 항목을 입력하세요.'); return; }
-        
-        let userId = input;
-        // 복합 검색 (UID, email, username, solanaWallet)
-        const userQ = query(collection(db,'users'), where('email','==',input));
-        let usersSnap = await getDocs(userQ);
-        if (usersSnap.empty) {
-            usersSnap = await getDocs(query(collection(db,'users'), where('username','==',input)));
-        }
-        if (usersSnap.empty) {
-            usersSnap = await getDocs(query(collection(db,'users'), where('solanaWallet','==',input)));
-        }
-        if (!usersSnap.empty) {
-            userId = usersSnap.docs[0].id;
-        } else if (input.length > 20) {
-            userId = input; // assume UID
-        } else {
-             showInlineAlert('bonusAlert','error','회원을 찾을 수 없습니다.'); return;
+        const prodOption = prodSelect && prodSelect.selectedIndex >= 0 ? prodSelect.options[prodSelect.selectedIndex] : null;
+
+        if (!input) { showInlineAlert('bonusAlert','error','회원 정보를 입력해주세요.'); return; }
+        if (!Number.isFinite(amount) || amount <= 0) { showInlineAlert('bonusAlert','error','지급 금액을 정확히 입력해주세요.'); return; }
+        if (!reason) { showInlineAlert('bonusAlert','error','지급 사유를 입력해주세요.'); return; }
+
+        // 프리즈 지급일 때 상품 옵션 검증
+        let prodInfo = null;
+        if (bonusType === 'freeze') {
+            if (!prodOption || !prodOption.value) {
+                showInlineAlert('bonusAlert','error','보너스 상품을 선택해주세요.');
+                return;
+            }
+            const roi = parseFloat(prodOption.dataset.roi);
+            const days = parseInt(prodOption.dataset.days);
+            if (!Number.isFinite(roi) || !Number.isFinite(days) || days <= 0) {
+                showInlineAlert('bonusAlert','error','선택한 상품의 ROI/기간 정보가 잘못되었습니다.');
+                return;
+            }
+            prodInfo = { id: prodOption.value, name: prodOption.dataset.name || prodOption.textContent, roi, days };
         }
 
         const btn = document.getElementById('giveBonusBtn');
-        btn.disabled=true; btn.textContent='처리 중...';
-        
-        let prodInfo = null;
-        if (bonusType === 'freeze' && prodOption) {
-            prodInfo = {
-                id: prodOption.value,
-                name: prodOption.dataset.name,
-                roi: parseFloat(prodOption.dataset.roi),
-                days: parseInt(prodOption.dataset.days)
-            };
-        }
+        btn.disabled = true;
+        btn.textContent = '처리 중...';
 
-        const r = await api.giveManualBonus(currentAdmin.uid, userId, amount, reason, bonusType, prodInfo);
-        if (r.success) {
-            showInlineAlert('bonusAlert','success',`✅ ${parseFloat(amount).toFixed(2)} DEDRA가 지급되었습니다.`);
-            document.getElementById('bonusUserId').value='';
-            document.getElementById('bonusAmount').value='';
-            document.getElementById('bonusReason').value='';
-            loadBonusLog();
-        } else { showInlineAlert('bonusAlert','error','❌ '+r.error); }
-        btn.disabled=false; btn.textContent='🎁 보너스 지급';
+        try {
+            const headers = await _bonusAdminHeaders();
+
+            // 1) 서버 측 회원 검색
+            showInlineAlert('bonusAlert','info','🔍 회원 검색 중...');
+            const findRes = await fetch('/api/admin/bonus/find-user?q=' + encodeURIComponent(input), { headers });
+            const findJson = await findRes.json().catch(() => ({}));
+            if (!findRes.ok || !findJson.success) {
+                throw new Error(findJson.error || `회원을 찾을 수 없습니다: "${input}"`);
+            }
+            const userId = findJson.user.uid;
+            const uName = findJson.user.username || findJson.user.email || userId;
+
+            // 2) 보너스 지급
+            showInlineAlert('bonusAlert','info',`💸 ${uName} 에게 ${amount.toFixed(2)} USDT 지급 중...`);
+            const grantRes = await fetch('/api/admin/bonus/grant', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    userId,
+                    amount,
+                    reason,
+                    bonusType,
+                    prodInfo,
+                    adminUid: (typeof currentAdmin !== 'undefined' && currentAdmin?.uid) ? currentAdmin.uid : 'admin'
+                })
+            });
+            const grantJson = await grantRes.json().catch(() => ({}));
+            if (!grantRes.ok || !grantJson.success) {
+                throw new Error(grantJson.error || '보너스 지급 실패');
+            }
+
+            // 3) 정확한 결과 메시지 (USDT 기준 + 상품명 표시)
+            const okMsg = grantJson.message
+                || (bonusType === 'freeze'
+                    ? `✅ ${amount.toFixed(2)} USDT 가 [${prodInfo?.name || ''}] 프리즈 보너스 상품으로 지급되었습니다.`
+                    : `✅ ${amount.toFixed(2)} USDT 가 수익 잔액(보너스)으로 지급되었습니다.`);
+            showInlineAlert('bonusAlert','success', okMsg);
+            if (window.showToast) window.showToast(okMsg, 'success');
+
+            document.getElementById('bonusUserId').value = '';
+            document.getElementById('bonusAmount').value = '';
+            document.getElementById('bonusReason').value = '';
+            try { loadBonusLog(); } catch (_) { /* ignore */ }
+        } catch (e) {
+            const errMsg = '❌ ' + (e.message || '알 수 없는 오류');
+            showInlineAlert('bonusAlert','error', errMsg);
+            if (window.showToast) window.showToast(errMsg, 'error');
+            console.error('[bonus] grant failed:', e);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '🎁 보너스 지급';
+        }
     });
 
     // ── 공지 작성 버튼 ──
@@ -9971,19 +11184,165 @@ function setupEvents() {
     document.getElementById('reloadSettingsBtn').addEventListener('click', loadSettings);
 
     // ── 직급 초기화 및 재심사 ──
+    // [FIX 2026-05-01 #3] 기존 클라이언트 측 Firestore 직접 조작 방식(api.runRankAllClear)은
+    //   백엔드 fallback 기준과 다른 settings/rankPromotion.criteria 직접 조회 방식이라 일관성이
+    //   깨졌다. 잘못된 fallback 으로 G1 으로 잘못 승급된 회원이 클라이언트 강등 로직에서도
+    //   처리되지 않아 G1 인원 폭증 문제 해결 안 됨. → 백엔드 force-rerank-all 엔드포인트를
+    //   호출해 새 기준으로 강등·승급을 모두 적용한다.
     document.getElementById('runRankAllClearBtn').addEventListener('click', async () => {
-        if (!await _adminConfirm('정말 모든 회원의 직급을 G0으로 강등한 후 (수동 설정자 제외) 다시 심사하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.', '⚠️')) return;
+        if (!await _adminConfirm('새 직급 기준에 맞춰 전체 회원의 직급을 강제 재평가합니다.\n\n· 본인 투자 + 소실적 합 기준으로 강등·승급을 모두 적용\n· 관리자/수동 설정자 제외\n· 매출·소실적 수치도 함께 재집계\n\n계속하시겠습니까?', '⚠️')) return;
         const btn = document.getElementById('runRankAllClearBtn');
         btn.disabled = true; btn.textContent = '실행 중...';
-        showToast('초기화 및 재심사를 시작합니다. 잠시만 기다려주세요...', 'info');
-        const res = await api.runRankAllClear(currentAdmin.uid);
-        if (res.success) {
-            showToast('✅ ' + res.data, 'success');
-            await loadRankMonitorPage(); // 새로고침
-        } else {
-            showToast('❌ 실패: ' + res.error, 'error');
+        showToast('전직원 직급 강제 재평가를 시작합니다. 1~2분 소요될 수 있습니다...', 'info');
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            try {
+                let token = '';
+                if (currentAdmin && typeof currentAdmin.getIdToken === 'function') token = await currentAdmin.getIdToken();
+                else if (window.FB?.auth?.currentUser?.getIdToken) token = await window.FB.auth.currentUser.getIdToken();
+                if (token) headers.Authorization = `Bearer ${token}`;
+            } catch (_) {}
+
+            const r = await fetch('/api/admin/rerank-all-strict', { method: 'POST', headers });
+            if (r.status === 401 || r.status === 403) {
+                showToast('❌ 권한이 없습니다. 관리자 계정으로 다시 로그인 해주세요.', 'error');
+                btn.disabled = false; btn.textContent = '⚠️ 전직원 직급 초기화 및 재심사';
+                return;
+            }
+            const d = await r.json().catch(() => ({ success: false, error: '응답 파싱 실패' }));
+            if (d.success) {
+                const msg = `✅ 강제 재평가 완료 — 승급 ${d.upgraded}명, 강등 ${d.downgraded}명, 변동없음 ${d.unchanged}명 / 전체 ${d.total}명`;
+                showToast(msg, 'success');
+                // [FIX 2026-05-01 #5] loadRankMonitorPage 미정의 ReferenceError 수정.
+                //   실제 정의된 함수명은 loadRankMonitor 이며, 캐시 초기화를 위해
+                //   allMembersForRank 를 먼저 비운 뒤 재로드한다.
+                console.log('[rerank-all-strict]', d);
+                if (typeof loadRankMonitor === 'function') {
+                    try { allMembersForRank = []; } catch(_) {}
+                    loadRankMonitor();
+                }
+            } else {
+                showToast('❌ 실패: ' + (d.error || '알 수 없는 오류'), 'error');
+            }
+        } catch (e) {
+            showToast('❌ 네트워크 오류: ' + (e?.message || e), 'error');
         }
         btn.disabled = false; btn.textContent = '⚠️ 전직원 직급 초기화 및 재심사';
+    });
+
+    // [FIX 2026-05-01 #6] 오늘(KST) 정산 롤백 + 재정산 원클릭 버튼
+    //   /api/admin/rollback-and-resettle-multi 통합 엔드포인트 호출.
+    //   adminUid 인증 방식으로 호출하며 dates 배열에 KST 오늘 일자 1건만 전달.
+    document.getElementById('runTodayRollbackResettleBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('runTodayRollbackResettleBtn');
+        // KST(UTC+9) 기준 오늘 일자 계산
+        const now = new Date();
+        const kstMs = now.getTime() + (9 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000);
+        const kst = new Date(kstMs);
+        const todayKst = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth()+1).padStart(2,'0')}-${String(kst.getUTCDate()).padStart(2,'0')}`;
+        const confirmed = await _adminConfirm(
+            `오늘(${todayKst}, KST) 정산을 롤백한 뒤 즉시 재정산합니다.\n\n` +
+            `1) 해당 일자의 모든 보너스를 차감하고 지갑 잔액을 원복합니다.\n` +
+            `2) 매출/소실적 재계산 후 새 직급 기준으로 다시 정산합니다.\n` +
+            `3) 작업 동안 시스템 유지보수 모드가 자동 ON/OFF 됩니다.\n\n` +
+            `소요 시간: 1~3분. 계속하시겠습니까?`,
+            '⚠️'
+        );
+        if (!confirmed) return;
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '실행 중...';
+        showToast(`🔄 ${todayKst} 정산 롤백 + 재정산을 시작합니다. 잠시만 기다려주세요...`, 'info');
+        try {
+            const u = window.currentAdmin || (window.FB && window.FB.auth && window.FB.auth.currentUser) || (window.auth && window.auth.currentUser);
+            if (!u || !u.uid || !u.getIdToken) {
+                showToast('❌ 로그인 사용자 정보를 찾을 수 없습니다. 새로고침 후 다시 시도하세요.', 'error');
+                btn.disabled = false; btn.textContent = originalText;
+                return;
+            }
+            const token = await u.getIdToken();
+            const r = await fetch('/api/admin/rollback-and-resettle-multi', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ adminUid: u.uid, dates: [todayKst], rerun: true, dryRun: false })
+            });
+            if (r.status === 401 || r.status === 403) {
+                const msg = r.status === 401 ? '❌ 권한 인증 실패 (401). 다시 로그인 해주세요.' : '❌ 관리자 권한이 없습니다 (403).';
+                showToast(msg, 'error');
+                btn.disabled = false; btn.textContent = originalText;
+                return;
+            }
+            if (r.status === 409) {
+                const d409 = await r.json().catch(() => ({}));
+                showToast(`❌ 다른 프로세스가 진행 중: ${d409.error || '롤백 락 충돌'}`, 'error');
+                btn.disabled = false; btn.textContent = originalText;
+                return;
+            }
+            const d = await r.json().catch(() => ({ success: false, error: '응답 파싱 실패' }));
+            if (d && d.success !== false) {
+                const rb = (d.rollbackResults && d.rollbackResults[0]) || {};
+                const rs = (d.resettleResults && d.resettleResults[0]) || {};
+                const rbCount = rb.deletedBonuses ?? rb.bonusCount ?? rb.processed ?? '-';
+                const rsCount = rs.bonusCount ?? rs.processed ?? rs.recipients ?? '-';
+                const msg = `✅ ${todayKst} 완료 — 롤백: 보너스 ${rbCount}건 제거 / 재정산: 보너스 ${rsCount}건 생성`;
+                showToast(msg, 'success');
+                console.log('[rollback-and-resettle-multi]', d);
+            } else {
+                showToast('❌ 실패: ' + (d.error || '알 수 없는 오류'), 'error');
+                console.error('[rollback-and-resettle-multi] failed', d);
+            }
+        } catch (e) {
+            showToast('❌ 네트워크 오류: ' + (e?.message || e), 'error');
+            console.error('[rollback-and-resettle-multi] error', e);
+        }
+        btn.disabled = false; btn.textContent = originalText;
+    });
+
+    // [FIX 2026-05-01 #7] 점검 모드 즉시 해제 버튼 (응급용)
+    //   /api/admin/maintenance-off 호출하여 settings/system.maintenanceMode=false 로 패치.
+    document.getElementById('maintenanceOffBtn')?.addEventListener('click', async () => {
+        const btn = document.getElementById('maintenanceOffBtn');
+        const confirmed = await _adminConfirm(
+            '시스템 점검 모드를 즉시 해제합니다.\n\n' +
+            '사용자 접속이 다시 허용되며 점검 화면이 사라집니다.\n' +
+            '진행 중인 작업이 있다면 중단되지 않습니다.\n\n' +
+            '계속하시겠습니까?',
+            '🟢'
+        );
+        if (!confirmed) return;
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '해제 중...';
+        try {
+            const u = window.currentAdmin || (window.FB && window.FB.auth && window.FB.auth.currentUser) || (window.auth && window.auth.currentUser);
+            if (!u || !u.getIdToken) {
+                showToast('❌ 로그인 사용자 정보를 찾을 수 없습니다. 새로고침 후 다시 시도하세요.', 'error');
+                btn.disabled = false; btn.textContent = originalText;
+                return;
+            }
+            const token = await u.getIdToken();
+            const r = await fetch('/api/admin/maintenance-off', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (r.status === 401 || r.status === 403) {
+                showToast(r.status === 401 ? '❌ 권한 인증 실패 (401). 다시 로그인 해주세요.' : '❌ 관리자 권한이 없습니다 (403).', 'error');
+                btn.disabled = false; btn.textContent = originalText;
+                return;
+            }
+            const d = await r.json().catch(() => ({ success: false, error: '응답 파싱 실패' }));
+            if (d && d.success) {
+                showToast('✅ 점검 모드가 해제되었습니다. 사용자 접속이 정상화되었습니다.', 'success');
+                console.log('[maintenance-off]', d);
+            } else {
+                showToast('❌ 실패: ' + (d.error || '알 수 없는 오류'), 'error');
+                console.error('[maintenance-off] failed', d);
+            }
+        } catch (e) {
+            showToast('❌ 네트워크 오류: ' + (e?.message || e), 'error');
+            console.error('[maintenance-off] error', e);
+        }
+        btn.disabled = false; btn.textContent = originalText;
     });
 
     // ── 직급 승격 자동 실행 ──
@@ -9994,10 +11353,215 @@ function setupEvents() {
         btn.disabled=false; btn.textContent='⚡ 자동 승격 실행';
     });
 
+    // [FIX 2026-04-30] 매출재계산 + 자동승급 (소실적 매출 누락 민원 즉시 보정용)
+    // - 추천인 트리를 따라 networkSales/otherLegSales/directReferrals 재집계
+    // - RANK_REQUIREMENTS 기준으로 누적 승급(여러 단계 동시 가능)
+    // - 운영자 요청 시 즉시 실행 가능 (필요할 때마다 누르면 됨)
+    document.getElementById('runRecomputeUpgradeBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('runRecomputeUpgradeBtn');
+        if (!await _adminConfirm('전체 회원의 매출을 재집계하고 직급 자동 승급까지 일괄 실행합니다.\n\n1~2분 소요될 수 있습니다. 계속하시겠습니까?', '🔄')) return;
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '실행 중...';
+        showToast('매출 재집계 및 자동 승급을 시작합니다. 잠시만 기다려주세요...', 'info');
+        try {
+            const u = window.currentAdmin || (window.FB && window.FB.auth && window.FB.auth.currentUser) || (window.auth && window.auth.currentUser);
+            if (!u || !u.getIdToken) {
+                showToast('❌ 로그인 사용자 정보를 찾을 수 없습니다. 새로고침 후 다시 시도하세요.', 'error');
+                btn.disabled = false; btn.textContent = originalText;
+                return;
+            }
+            const t = await u.getIdToken();
+            const r = await fetch('/api/admin/recompute-and-upgrade', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + t }
+            });
+            const d = await r.json();
+            if (d && d.success) {
+                showToast(`✅ 완료 — 승급 ${d.upgraded || 0}명 / 전체 ${d.totalUsers || 0}명`, 'success');
+                console.log('[recompute-and-upgrade]', d);
+                // [FIX 2026-05-01 #5] loadRankMonitorPage 미정의 ReferenceError 수정.
+                //   정의된 함수명 loadRankMonitor 만 사용하도록 단순화.
+                if (typeof loadRankMonitor === 'function') {
+                    try { allMembersForRank = []; } catch(_) {}
+                    loadRankMonitor();
+                }
+            } else {
+                showToast('❌ 실패: ' + (d && d.error ? d.error : '알 수 없는 오류'), 'error');
+                console.error('[recompute-and-upgrade] failed', d);
+            }
+        } catch (e) {
+            showToast('❌ 네트워크 오류: ' + (e && e.message ? e.message : e), 'error');
+            console.error('[recompute-and-upgrade] error', e);
+        }
+        btn.disabled = false; btn.textContent = originalText;
+    });
+
+    // [FIX 2026-04-30] 직급 적정성 감사 버튼
+    // 특정 회원(들)의 현재 직급이 적정한지 자동 진단하여 화면에 보고서 표시
+    document.getElementById('runRankAuditBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('runRankAuditBtn');
+        const input = prompt('감사할 회원 아이디를 입력하세요 (콤마로 구분, 예: hope8980,lkj1529)', 'hope8980,lkj1529');
+        if (!input) return;
+        const usernames = input.split(',').map(s => s.trim()).filter(Boolean).join(',');
+        if (!usernames) { showToast('아이디를 입력해 주세요.', 'warning'); return; }
+
+        btn.disabled = true;
+        const origText = btn.textContent;
+        btn.textContent = '감사 중...';
+        showToast(`📋 ${usernames} 직급 적정성 감사 중... (10~30초 소요)`, 'info');
+
+        try {
+            const u = window.currentAdmin || (window.FB && window.FB.auth && window.FB.auth.currentUser) || (window.auth && window.auth.currentUser);
+            if (!u || !u.getIdToken) {
+                showToast('❌ 로그인 사용자 정보를 찾을 수 없습니다.', 'error');
+                btn.disabled = false; btn.textContent = origText;
+                return;
+            }
+            const t = await u.getIdToken();
+            const r = await fetch('/api/admin/rank-audit?usernames=' + encodeURIComponent(usernames), {
+                headers: { 'Authorization': 'Bearer ' + t }
+            });
+            const d = await r.json();
+            if (!d.success) {
+                showToast('❌ 실패: ' + (d.error || '알 수 없는 오류'), 'error');
+                console.error('[rank-audit] failed', d);
+                btn.disabled = false; btn.textContent = origText;
+                return;
+            }
+            console.log('[rank-audit] result', d);
+            renderRankAuditReport(d.reports || []);
+            showToast('✅ 감사 완료', 'success');
+        } catch (e) {
+            showToast('❌ 네트워크 오류: ' + (e && e.message ? e.message : e), 'error');
+            console.error('[rank-audit] error', e);
+        }
+        btn.disabled = false; btn.textContent = origText;
+    });
+
     // ── 직급 모니터 필터 ──
     document.getElementById('rankMonitorFilter').addEventListener('change', () => {
         renderRankMemberList(document.getElementById('rankMonitorFilter').value);
     });
+}
+
+// ══════════════════════════════════════════════════
+// 직급 적정성 감사 보고서 렌더링
+// ══════════════════════════════════════════════════
+function renderRankAuditReport(reports) {
+    const fmt = (n) => Number(n || 0).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+    const verdictColor = (v) => v && v.indexOf('강등') >= 0 ? '#ef4444'
+                              : v && v.indexOf('승급') >= 0 ? '#10b981'
+                              : v && v.indexOf('적합') >= 0 ? '#0ea5e9' : '#6b7280';
+    const verdictBg = (v) => v && v.indexOf('강등') >= 0 ? '#fef2f2'
+                            : v && v.indexOf('승급') >= 0 ? '#f0fdf4'
+                            : v && v.indexOf('적합') >= 0 ? '#f0f9ff' : '#f9fafb';
+
+    let html = `<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.remove()">`;
+    html += `<div style="background:#fff;border-radius:12px;max-width:1100px;width:100%;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:2px solid #e5e7eb;padding-bottom:12px;">`;
+    html += `<h2 style="margin:0;font-size:20px;font-weight:700;color:#111827;">🔍 직급 적정성 감사 보고서</h2>`;
+    html += `<button onclick="this.closest('div[style*=fixed]').remove()" style="background:#ef4444;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600;">✕ 닫기</button>`;
+    html += `</div>`;
+    html += `<div style="font-size:12px;color:#6b7280;margin-bottom:16px;">생성일: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</div>`;
+
+    for (const r of reports) {
+        if (r.error) {
+            html += `<div style="background:#fef2f2;border:1px solid #ef4444;padding:16px;border-radius:8px;margin-bottom:16px;">`;
+            html += `<div style="font-weight:700;color:#ef4444;">❌ ${r.username} — ${r.error}</div></div>`;
+            continue;
+        }
+        const vColor = verdictColor(r.verdict);
+        const vBg = verdictBg(r.verdict);
+        html += `<div style="border:2px solid ${vColor};border-radius:10px;margin-bottom:20px;overflow:hidden;">`;
+        // 헤더
+        html += `<div style="background:${vBg};padding:14px 18px;border-bottom:1px solid ${vColor};">`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">`;
+        html += `<div><span style="font-size:18px;font-weight:800;color:#111827;">${r.username}</span> <span style="font-size:12px;color:#6b7280;margin-left:8px;">${r.email || ''}</span></div>`;
+        html += `<div style="font-size:18px;font-weight:800;color:${vColor};">${r.verdict}</div>`;
+        html += `</div>`;
+        html += `<div style="margin-top:8px;font-size:13px;color:#374151;font-weight:600;">📌 ${r.action}</div>`;
+        html += `</div>`;
+
+        // 본문 데이터
+        html += `<div style="padding:16px 18px;background:#fff;">`;
+        html += `<table style="width:100%;font-size:13px;border-collapse:collapse;">`;
+        html += `<tr><td style="padding:6px 8px;font-weight:600;color:#6b7280;width:35%;">현재 직급</td><td style="padding:6px 8px;font-weight:700;color:#111827;">${r.currentRank}</td></tr>`;
+        html += `<tr style="background:#f9fafb;"><td style="padding:6px 8px;font-weight:600;color:#6b7280;">본인 누적투자 (totalInvested)</td><td style="padding:6px 8px;">${fmt(r.totalInvested)} USDT</td></tr>`;
+        html += `<tr><td style="padding:6px 8px;font-weight:600;color:#6b7280;">지갑 totalInvest</td><td style="padding:6px 8px;">${fmt(r.selfInvestFromWallet)} USDT</td></tr>`;
+        html += `<tr style="background:#f9fafb;"><td style="padding:6px 8px;font-weight:600;color:#6b7280;">저장된 산하매출 (networkSales)</td><td style="padding:6px 8px;">${fmt(r.storedNetworkSales)} USDT</td></tr>`;
+        const salesDiffColor = Math.abs(r.salesDiff || 0) > 1 ? '#ef4444' : '#10b981';
+        html += `<tr><td style="padding:6px 8px;font-weight:600;color:#6b7280;">재계산 산하매출 (실제 트리)</td><td style="padding:6px 8px;font-weight:700;color:${salesDiffColor};">${fmt(r.computedNetworkSales)} USDT (저장값 대비 ${r.salesDiff >= 0 ? '+' : ''}${fmt(r.salesDiff)})</td></tr>`;
+        html += `<tr style="background:#f9fafb;"><td style="padding:6px 8px;font-weight:600;color:#6b7280;">저장된 소실적 (otherLegSales)</td><td style="padding:6px 8px;">${fmt(r.storedOtherLegSales)} USDT</td></tr>`;
+        const legDiffColor = Math.abs(r.legDiff || 0) > 1 ? '#ef4444' : '#10b981';
+        html += `<tr><td style="padding:6px 8px;font-weight:600;color:#6b7280;">재계산 소실적 (실제 트리)</td><td style="padding:6px 8px;font-weight:700;color:${legDiffColor};">${fmt(r.computedOtherLegSales)} USDT (저장값 대비 ${r.legDiff >= 0 ? '+' : ''}${fmt(r.legDiff)})</td></tr>`;
+        html += `<tr style="background:#f9fafb;"><td style="padding:6px 8px;font-weight:600;color:#6b7280;">직추천 총수 / 활성수</td><td style="padding:6px 8px;">${r.directRefTotal} 명 / <b>${r.directRefActive}</b> 명</td></tr>`;
+        html += `<tr><td style="padding:6px 8px;font-weight:600;color:#6b7280;">최대 라인 매출 / 라인 수</td><td style="padding:6px 8px;">${fmt(r.maxLineSales)} USDT / ${r.lineCount} 개</td></tr>`;
+        html += `</table>`;
+
+        // 현재 직급 정당성
+        if (r.justifyDetail) {
+            const jd = r.justifyDetail;
+            const justifyColor = r.rankJustified ? '#10b981' : '#ef4444';
+            const justifyText = r.rankJustified ? '✅ 충족' : '❌ 미충족';
+            html += `<div style="margin-top:14px;padding:12px;background:${r.rankJustified ? '#f0fdf4' : '#fef2f2'};border-radius:8px;border-left:4px solid ${justifyColor};">`;
+            html += `<div style="font-weight:700;color:${justifyColor};font-size:13px;margin-bottom:6px;">🏛️ 현재 직급(${r.currentRank}) 유지 요건 ${justifyText}</div>`;
+            html += `<div style="font-size:12px;color:#374151;line-height:1.6;">`;
+            html += `· 매출: ${fmt(jd.actualSales)} / ${fmt(jd.requiredSales)} USDT ${jd.salesShortfall > 0 ? `<span style="color:#ef4444;font-weight:700;">(부족 ${fmt(jd.salesShortfall)})</span>` : '<span style="color:#10b981;">✓</span>'}<br>`;
+            html += `· 소실적: ${fmt(jd.actualLeg)} / ${fmt(jd.requiredLeg)} USDT ${jd.legShortfall > 0 ? `<span style="color:#ef4444;font-weight:700;">(부족 ${fmt(jd.legShortfall)})</span>` : '<span style="color:#10b981;">✓</span>'}<br>`;
+            html += `· 직추천 활성: ${jd.actualRef} / ${jd.requiredRef} 명 ${jd.refShortfall > 0 ? `<span style="color:#ef4444;font-weight:700;">(부족 ${jd.refShortfall}명)</span>` : '<span style="color:#10b981;">✓</span>'}`;
+            html += `</div></div>`;
+        }
+
+        // 다음 단계 승급 가능성
+        if (r.promoteGap) {
+            const pg = r.promoteGap;
+            const pColor = r.canPromoteNow ? '#10b981' : '#6b7280';
+            const pBg = r.canPromoteNow ? '#f0fdf4' : '#f9fafb';
+            const pText = r.canPromoteNow ? `🚀 ${pg.nextRank} 즉시 승급 가능` : `📈 ${pg.nextRank} 승급까지 부족`;
+            html += `<div style="margin-top:10px;padding:12px;background:${pBg};border-radius:8px;border-left:4px solid ${pColor};">`;
+            html += `<div style="font-weight:700;color:${pColor};font-size:13px;margin-bottom:6px;">${pText}</div>`;
+            if (!r.canPromoteNow) {
+                html += `<div style="font-size:12px;color:#374151;line-height:1.6;">`;
+                if (pg.salesGap > 0) html += `· 매출 +${fmt(pg.salesGap)} USDT 필요<br>`;
+                if (pg.legGap > 0) html += `· 소실적 +${fmt(pg.legGap)} USDT 필요<br>`;
+                if (pg.refGap > 0) html += `· 직추천 활성 +${pg.refGap}명 필요`;
+                html += `</div>`;
+            }
+            html += `</div>`;
+        }
+
+        // 라인 분포
+        if (r.lineDetail && r.lineDetail.length > 0) {
+            html += `<div style="margin-top:14px;">`;
+            html += `<div style="font-weight:700;font-size:13px;color:#111827;margin-bottom:6px;">📊 라인별 매출 분포 (상위 ${Math.min(r.lineDetail.length, 10)}개)</div>`;
+            html += `<table style="width:100%;font-size:12px;border-collapse:collapse;border:1px solid #e5e7eb;">`;
+            html += `<thead><tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;border:1px solid #e5e7eb;">라인장</th><th style="padding:6px;text-align:center;border:1px solid #e5e7eb;">직급</th><th style="padding:6px;text-align:right;border:1px solid #e5e7eb;">본인투자</th><th style="padding:6px;text-align:right;border:1px solid #e5e7eb;">라인 누적매출</th><th style="padding:6px;text-align:center;border:1px solid #e5e7eb;">활성</th></tr></thead><tbody>`;
+            for (const l of r.lineDetail) {
+                html += `<tr><td style="padding:6px;border:1px solid #e5e7eb;font-family:monospace;">${l.username}</td>`;
+                html += `<td style="padding:6px;text-align:center;border:1px solid #e5e7eb;">${l.rank}</td>`;
+                html += `<td style="padding:6px;text-align:right;border:1px solid #e5e7eb;">${fmt(l.selfInvest)}</td>`;
+                html += `<td style="padding:6px;text-align:right;border:1px solid #e5e7eb;font-weight:700;">${fmt(l.totalLineSales)}</td>`;
+                html += `<td style="padding:6px;text-align:center;border:1px solid #e5e7eb;">${l.active ? '✅' : '⛔'}</td></tr>`;
+            }
+            html += `</tbody></table></div>`;
+        }
+
+        html += `</div></div>`;
+    }
+
+    html += `<div style="margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;font-size:12px;color:#6b7280;line-height:1.6;">`;
+    html += `<b>판정 기준:</b><br>`;
+    html += `• ✅ 현재 직급 유지 적합 — 직급 요건 충족, 다음 단계 일부 부족<br>`;
+    html += `• ⚠️ 강등 필요 — 현재 직급 유지 요건 미충족 (적정 직급으로 조정 권고)<br>`;
+    html += `• 🚀 즉시 승급 가능 — 다음 단계 모든 요건 충족 (승급 처리 권고)<br>`;
+    html += `• 저장값 vs 재계산값 차이가 크면 🔄 매출재계산+자동승급 버튼 1회 실행 권고`;
+    html += `</div>`;
+    html += `</div></div>`;
+
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstChild);
 }
 
 // ══════════════════════════════════════════════════
@@ -15425,6 +16989,7 @@ function _enterSubAdminMode(sa) {
     else if (firstPage === 'deposits') { loadCompanyWallets(); loadDeposits('pending'); }
     else if (firstPage === 'withdrawals') { loadDedraRate(); loadWithdrawals('pending'); loadAutoWithdrawSettings(); loadWithdrawRules(); }
     else if (firstPage === 'bonus') loadBonusLog();
+    else if (firstPage === 'dwallet') { try { loadDwalletAdmin(); } catch(_){} }
     else if (firstPage === 'notices') loadNotices();
     else if (firstPage === 'news') loadNews();
     else if (firstPage === 'auditlog') loadAuditLog();
@@ -18319,11 +19884,99 @@ window.bulkRejectWithdraw = async function() {
 
 window.bulkPhantomWithdrawSingle = async function() {
     const items = getSelectedWithdrawals();
-    if (items.length === 0) return alert('선택된 항목이 없습니다.');
+    if (items.length === 0) {
+        if (window.showToast) window.showToast('선택된 항목이 없습니다.', 'warning');
+        return;
+    }
     
     const validItems = items.filter(it => it.wallet && it.wallet.length > 20);
     const skippedCount = items.length - validItems.length;
-    if (validItems.length === 0) return alert('전송 가능한 항목이 없습니다.');
+    if (validItems.length === 0) {
+        if (window.showToast) window.showToast('전송 가능한 항목이 없습니다.', 'warning');
+        return;
+    }
+    
+    // 🔥 송금 직전 현재 DDRA 시세 재조회 (출금 신청 시점이 아닌 실제 송금 시점 가격 적용)
+    // pair → mint → settings.ddraSolanaMint 순으로 폴백
+    let currentDdraPrice = 0;
+    let priceSource = '';
+    const inputAddr = (document.getElementById('dedraMintInput')?.value?.trim()) ||
+                      (typeof DEEDRA_PAIR_ADDRESS !== 'undefined' ? DEEDRA_PAIR_ADDRESS : '');
+    const mintAddr = (window._settingsCache && window._settingsCache.ddraSolanaMint) ||
+                     'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+    
+    // 1순위: pair 파라미터로 조회 (DexScreener 페어 주소)
+    if (inputAddr) {
+        try {
+            const r1 = await fetch(`/api/price/token?pair=${encodeURIComponent(inputAddr)}`);
+            const d1 = await r1.json();
+            if (d1.success && d1.price > 0) {
+                currentDdraPrice = d1.price;
+                priceSource = d1.source || 'pair';
+                console.log(`✅ [pair] 시세 조회 성공: $${currentDdraPrice.toFixed(6)} (${priceSource})`);
+            } else {
+                console.warn(`⚠️ [pair] 조회 실패: ${d1.error || 'unknown'}`);
+            }
+        } catch(e) { console.warn('[pair] 조회 오류:', e?.message); }
+    }
+    
+    // 2순위: 입력 주소를 mint 파라미터로 조회
+    if (!currentDdraPrice && inputAddr) {
+        try {
+            const r2 = await fetch(`/api/price/token?mint=${encodeURIComponent(inputAddr)}`);
+            const d2 = await r2.json();
+            if (d2.success && d2.price > 0) {
+                currentDdraPrice = d2.price;
+                priceSource = d2.source || 'mint';
+                console.log(`✅ [mint=input] 시세 조회 성공: $${currentDdraPrice.toFixed(6)} (${priceSource})`);
+            } else {
+                console.warn(`⚠️ [mint=input] 조회 실패: ${d2.error || 'unknown'}`);
+            }
+        } catch(e) { console.warn('[mint=input] 조회 오류:', e?.message); }
+    }
+    
+    // 3순위: 설정의 ddraSolanaMint 로 조회
+    if (!currentDdraPrice && mintAddr && mintAddr !== inputAddr) {
+        try {
+            const r3 = await fetch(`/api/price/token?mint=${encodeURIComponent(mintAddr)}`);
+            const d3 = await r3.json();
+            if (d3.success && d3.price > 0) {
+                currentDdraPrice = d3.price;
+                priceSource = d3.source || 'settings_mint';
+                console.log(`✅ [mint=settings] 시세 조회 성공: $${currentDdraPrice.toFixed(6)} (${priceSource})`);
+            } else {
+                console.warn(`⚠️ [mint=settings] 조회 실패: ${d3.error || 'unknown'}`);
+            }
+        } catch(e) { console.warn('[mint=settings] 조회 오류:', e?.message); }
+    }
+    
+    // 시세 갱신 후 캐시·UI 업데이트
+    if (currentDdraPrice > 0) {
+        window._cachedDedraRate = currentDdraPrice;
+        _cachedDedraRate = currentDdraPrice;
+        try {
+            if (typeof _updateDedraRateDisplay === 'function') {
+                _updateDedraRateDisplay(currentDdraPrice, true, priceSource, null);
+            }
+        } catch(_) {}
+    }
+    
+    // 그래도 실패 시 캐시·수동입력으로 폴백
+    if (!currentDdraPrice || currentDdraPrice <= 0) {
+        currentDdraPrice = window._cachedDedraRate || _cachedDedraRate ||
+                           parseFloat(document.getElementById('dedraRateInput')?.value) || 0;
+        if (currentDdraPrice > 0) {
+            priceSource = 'cache_or_manual';
+            console.warn(`⚠️ 실시간 조회 실패, 캐시/수동값 사용: $${currentDdraPrice.toFixed(6)}`);
+        }
+    }
+    
+    if (!currentDdraPrice || currentDdraPrice <= 0) {
+        if (window.showToast) window.showToast('현재 DDRA 시세를 가져올 수 없습니다. 설정에서 시세를 확인하세요.', 'error');
+        if (statusEl) statusEl.textContent = '❌ 현재 DDRA 시세 조회 실패 - 송금 중단';
+        return;
+    }
+    console.log(`🎯 송금 적용 시세: $${currentDdraPrice.toFixed(6)} (source: ${priceSource}) - 모든 항목을 이 시세로 재계산합니다`);
     
     const totalAmount = validItems.reduce((s, it) => s + it.amount, 0).toFixed(4);
     const statusEl = document.getElementById('bulkActionStatus');
@@ -18424,7 +20077,34 @@ window.bulkPhantomWithdrawSingle = async function() {
         
         for (let i = 0; i < validItems.length; i++) {
             const item = validItems[i];
-            if(statusEl) statusEl.textContent = `팬텀 승인 대기... ${i+1}/${validItems.length} (${item.userId})`;
+            
+            // 🔥 현재 시세 기반 DDRA 수량 재계산
+            // 신청 시점(item.amount)이 아닌 송금 직전 현재 시세로 재계산
+            const usdtAmount = Number(item.usdtAmount || 0);
+            let recalculatedDdra = item.amount; // 기본값: 신청 시점 수량
+            let appliedFeeRate = 0;
+            try {
+                // DB에서 출금 신청 원본의 수수료율 조회 (default 0%)
+                const txRes = await fetch(window.FB.endpoint + '/api/fs/get', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._adminToken}` },
+                    body: JSON.stringify({ collection: 'transactions', docId: item.id })
+                });
+                const txData = await txRes.json();
+                if (txData.success && txData.data) {
+                    appliedFeeRate = Number(txData.data.feePct || txData.data.feeRate || 0);
+                }
+            } catch(e) { console.warn('수수료율 조회 실패, 0% 적용:', e?.message); }
+            
+            if (usdtAmount > 0 && currentDdraPrice > 0) {
+                // 총 DDRA = USDT / 현재 시세, 수수료 차감 후 실지급 DDRA
+                const grossDdra = usdtAmount / currentDdraPrice;
+                const feeMultiplier = Math.max(0, 1 - (appliedFeeRate / 100));
+                recalculatedDdra = grossDdra * feeMultiplier;
+                console.log(`📊 [${item.userId}] USDT=${usdtAmount} / 현재시세=$${currentDdraPrice.toFixed(6)} × (1-${appliedFeeRate}%) = ${recalculatedDdra.toFixed(4)} DDRA (원래 ${item.amount.toFixed(4)} → 재계산 ${recalculatedDdra.toFixed(4)})`);
+            }
+            
+            if(statusEl) statusEl.textContent = `팬텀 승인 대기... ${i+1}/${validItems.length} (${item.userId}) ${recalculatedDdra.toFixed(4)} DDRA`;
             
             // 🛑 이중 출금 방지: DB 잠금
             const lockRes = await api.markWithdrawalProcessing(item.id, currentAdmin.uid);
@@ -18485,7 +20165,8 @@ window.bulkPhantomWithdrawSingle = async function() {
                 }));
                 
                 // 실제 토큰 전송 명령 (SPL Token Transfer)
-                const amountToSend = Math.floor(item.amount * Math.pow(10, decimals));
+                // 🔥 현재 시세로 재계산된 DDRA 수량으로 송금
+                const amountToSend = Math.floor(recalculatedDdra * Math.pow(10, decimals));
                 const dataLayout = Buffer.alloc(9);
                 dataLayout.writeUInt8(3, 0); // Transfer instruction index (3)
                 dataLayout.writeBigUInt64LE(BigInt(amountToSend), 1);
@@ -18513,8 +20194,25 @@ window.bulkPhantomWithdrawSingle = async function() {
                     lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
                 }, 'confirmed');
                 
-                // DB 업데이트 (승인 처리)
-                await api.approveWithdrawal(item.id, currentAdmin.uid, signature, 'Phantom 일괄 단건 자동 송금 완료', item.amount);
+                // DB 업데이트 (승인 처리) - 🔥 현재 시세로 재계산된 DDRA 수량 기록
+                await api.approveWithdrawal(item.id, currentAdmin.uid, signature, `Phantom 일괄 단건 자동 송금 완료 (시세 $${currentDdraPrice.toFixed(6)})`, recalculatedDdra);
+                // 추가로 송금 시점 시세와 재계산 정보를 DB에 기록
+                try {
+                    await fetch(window.FB.endpoint + '/api/fs/rawUpdate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._adminToken}` },
+                        body: JSON.stringify({
+                            collection: 'transactions',
+                            docId: item.id,
+                            data: {
+                                ddraPriceAtSend: currentDdraPrice,
+                                amountDdraAtSend: recalculatedDdra,
+                                amountDdraOriginal: item.amount,
+                                priceRecalculatedAt: new Date().toISOString()
+                            }
+                        })
+                    });
+                } catch(metaErr) { console.warn('재계산 메타 기록 실패:', metaErr?.message); }
                 successCount++;
                 markWithdrawalRow(item.id, 'approved', '승인됨', signature);
                 

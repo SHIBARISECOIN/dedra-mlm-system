@@ -518,6 +518,99 @@ export async function runSettle(c: any, overrideDate?: string | null) {
         postStatus.errors.push({ task: 'scheduledBroadcasts', message: e.message || String(e) });
       }
 
+      // [FIX 2026-04-30 B-9] 정산 직후 매출(networkSales/otherLegSales) 자동 재집계
+      // - 투자 즉시 가산(bumpUpline)된 networkSales 누적치 정합성 보정
+      // - autoUpgradeAllRanks 가 최신 매출로 승급 판정하도록 사전 보장
+      postStatus.salesSync = 'pending';
+      try {
+        const freshUsers = await fsQuery('users', adminToken, [], 100000).catch(() => allUsers);
+        const freshWallets = await fsQuery('wallets', adminToken, [], 100000).catch(() => wallets);
+
+        const walletMap: Record<string, number> = {};
+        freshWallets.forEach((w: any) => {
+          walletMap[w.id] = (w.totalInvest !== undefined ? w.totalInvest : w.totalInvested) || 0;
+        });
+
+        const childrenMap: Record<string, string[]> = {};
+        freshUsers.forEach((u: any) => { childrenMap[u.id] = []; });
+        freshUsers.forEach((u: any) => {
+          if (u.referredBy && childrenMap[u.referredBy]) childrenMap[u.referredBy].push(u.id);
+        });
+
+        const nodeStats: Record<string, any> = {};
+        freshUsers.forEach((u: any) => {
+          nodeStats[u.id] = { selfInvest: walletMap[u.id] || 0, networkSales: 0, otherLegSales: 0, computed: false };
+        });
+
+        const computeNetworkSales = (uid: string): number => {
+          if (!nodeStats[uid]) return 0;
+          if (nodeStats[uid].computed) return nodeStats[uid].networkSales;
+          let sales = 0;
+          let maxLegSales = 0;
+          const children = childrenMap[uid] || [];
+          for (const childId of children) {
+            if (nodeStats[childId]) {
+              const childSelf = nodeStats[childId].selfInvest;
+              const childNet = computeNetworkSales(childId);
+              const childTotal = childSelf + childNet;
+              sales += childTotal;
+              if (childTotal > maxLegSales) maxLegSales = childTotal;
+            }
+          }
+          nodeStats[uid].networkSales = sales;
+          nodeStats[uid].otherLegSales = sales - maxLegSales;
+          nodeStats[uid].computed = true;
+          return sales;
+        };
+
+        freshUsers.forEach((u: any) => computeNetworkSales(u.id));
+
+        // 변경분만 patch (불필요한 쓰기 최소화)
+        const syncWrites: any[] = [];
+        for (const u of freshUsers) {
+          const stats = nodeStats[u.id];
+          if (!stats) continue;
+          const currentSelf = u.totalInvested || 0;
+          const currentNet = u.networkSales || 0;
+          const currentOther = u.otherLegSales || 0;
+          if (currentSelf !== stats.selfInvest || currentNet !== stats.networkSales || currentOther !== stats.otherLegSales) {
+            const fields = {
+              totalInvested: toFirestoreValue(stats.selfInvest),
+              networkSales: toFirestoreValue(stats.networkSales),
+              otherLegSales: toFirestoreValue(stats.otherLegSales),
+              salesUpdatedAt: toFirestoreValue(new Date().toISOString())
+            };
+            syncWrites.push({
+              update: {
+                name: `projects/dedra-mlm/databases/(default)/documents/users/${u.id}`,
+                fields
+              },
+              updateMask: { fieldPaths: Object.keys(fields) }
+            });
+          }
+        }
+        if (syncWrites.length > 0) {
+          // batch=20 (B-4 표준)
+          for (let i = 0; i < syncWrites.length; i += 20) {
+            await fsBatchCommit(syncWrites.slice(i, i + 20), adminToken);
+          }
+          // 메모리상 allUsers 도 갱신해 후속 autoUpgradeAllRanks 가 최신 매출로 판정
+          for (const u of allUsers) {
+            const s = nodeStats[u.id];
+            if (s) {
+              u.totalInvested = s.selfInvest;
+              u.networkSales = s.networkSales;
+              u.otherLegSales = s.otherLegSales;
+            }
+          }
+        }
+        postStatus.salesSync = 'done';
+        postStatus.salesSyncCount = syncWrites.length;
+      } catch (e: any) {
+        postStatus.salesSync = 'error';
+        postStatus.errors.push({ task: 'salesSync', message: e.message || String(e) });
+      }
+
       try {
         await autoUpgradeAllRanks(adminToken, allUsers, wallets, activeInvestments);
         postStatus.rankUpgrade = 'done';

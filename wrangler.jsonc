@@ -12,4 +12,8 @@
       "bucket_name": "deedra-podcast"
     }
   ]
+  // [NOTE 2026-04-30] Cloudflare Pages는 wrangler.jsonc의 "triggers" 미지원.
+  // 대신 외부 스케줄러(cron-job.org 등)에서 5분마다 다음 URL을 호출하여 cron 효과를 냄:
+  //   POST https://ddra.io/api/cron/run-all  (헤더: x-cron-secret: <CRON_SECRET>)
+  // 해당 엔드포인트가 자동입금 체크, 매출 재계산+자동 승급, 정산 트리거를 일괄 실행함.
 }

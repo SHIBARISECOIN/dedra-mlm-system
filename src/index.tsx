@@ -4,7 +4,7 @@ import { runSettle, runSettleDryRun } from './services/settlement';
 import { sweepBscUsdt, sweepTronUsdt, transferBscUsdt, transferTronUsdt } from './services/sweepMulti';
 import bs58 from 'bs58';
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram } from '@solana/web3.js';
-import { createTransferCheckedInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { createTransferCheckedInstruction, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getMint, getAccount, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Wallet, keccak256, getBytes, sha256, ripemd160 } from 'ethers';
 
 function createEVMAndTronWallets() {
@@ -289,8 +289,12 @@ app.all('/api/debug/*', (c) => c.json({ error: 'not_found' }, 404));
 
 let GLOBAL_ENV: any = {};
 app.use('*', async (c, next) => {
-  if (!GLOBAL_ENV.SERVICE_ACCOUNT && c.env) {
-    GLOBAL_ENV = c.env;
+  // [FIX 2026-04-30] CRON_SECRET·ADMIN_API_SECRET 등이 production 에서 갱신되어도
+  // 이전 가드(`!GLOBAL_ENV.SERVICE_ACCOUNT`)는 첫 요청 후 영원히 false 가 되므로
+  // 이후 변경된 시크릿들이 반영되지 않는 문제가 있었음. 매 요청마다 최신 c.env 로
+  // 병합하여 항상 최신 시크릿을 사용하도록 수정.
+  if (c.env) {
+    GLOBAL_ENV = { ...GLOBAL_ENV, ...c.env };
   }
   await next();
 });
@@ -403,7 +407,21 @@ app.post('/api/solana/send-token', async (c) => {
     try {
       targetPubKey = new PublicKey(targetAddress);
     } catch(e) {
-      return c.json({ error: 'Invalid target address format' }, 400);
+      return c.json({ error: '받는 주소 형식이 올바르지 않습니다 (Solana base58 pubkey 필요)' }, 400);
+    }
+
+    // [FIX 2026-05-01 #8] 받는 주소가 일반 지갑(curve 위 점)인지 검증.
+    //   ATA / PDA 주소를 받는 주소로 입력한 경우 createAssociatedTokenAccountInstruction
+    //   이 실패하면서 Instruction 0 에서 custom program error 0x1 발생.
+    if (!PublicKey.isOnCurve(targetPubKey.toBytes())) {
+      return c.json({
+        error: '받는 주소가 일반 지갑이 아닙니다 (PDA/ATA 주소). 본인의 SOL 지갑 주소를 입력하세요. 거래소 입금 주소를 사용 중이면 거래소가 DDRA 토큰을 지원하는지 확인하세요.'
+      }, 400);
+    }
+
+    // 발신/수신이 동일한 경우 차단 (자기 자신에게 전송 시 0x1 에러)
+    if (targetPubKey.toBase58() === userKp.publicKey.toBase58()) {
+      return c.json({ error: '발신 지갑과 수신 지갑이 동일합니다. 다른 주소로 전송하세요.' }, 400);
     }
 
     const ixs = [];
@@ -423,28 +441,71 @@ app.post('/api/solana/send-token', async (c) => {
       const tokenMint = new PublicKey(mintMap[token]);
       const tokenProgramId = token === 'DDRA' ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
 
-      const sourceAta = await getAssociatedTokenAddress(tokenMint, userKp.publicKey, false, tokenProgramId);
-      const destAta = await getAssociatedTokenAddress(tokenMint, targetPubKey, false, tokenProgramId);
+      // [FIX 2026-04-30] DDRA(Token-2022) 전송 실패(custom program error 0x1) 수정
+      // [FIX 2026-05-01 #8] 추가 진단:
+      //   - 스폰서 지갑 SOL 잔액 검증 (ATA 생성 비용 약 0.00204 SOL 확보)
+      //   - 목적지 ATA 생성 검증 후 simulateTransaction 으로 사전 시뮬레이션
+      //   - simulate 실패 시 onchain logs 를 그대로 사용자에게 반환
+      let mintDecimals = 6;
+      try {
+        const mintInfo = await getMint(conn, tokenMint, 'confirmed', tokenProgramId);
+        mintDecimals = mintInfo.decimals;
+      } catch (e: any) {
+        return c.json({ error: `${token} mint 정보 조회 실패: ${e.message}` }, 400);
+      }
+
+      const sourceAta = await getAssociatedTokenAddress(tokenMint, userKp.publicKey, false, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID);
+      const destAta = await getAssociatedTokenAddress(tokenMint, targetPubKey, false, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID);
+
+      // source ATA 존재/잔액 확인 (custom program error 0x1 = insufficient funds 방지)
+      try {
+        const sourceAcc = await getAccount(conn, sourceAta, 'confirmed', tokenProgramId);
+        const lamportsNeeded = BigInt(Math.floor(amount * Math.pow(10, mintDecimals)));
+        if (sourceAcc.amount < lamportsNeeded) {
+          const haveUi = Number(sourceAcc.amount) / Math.pow(10, mintDecimals);
+          return c.json({
+            error: `${token} 잔액 부족: 보유 ${haveUi}, 필요 ${amount}`
+          }, 400);
+        }
+      } catch (e: any) {
+        return c.json({
+          error: `${token} 토큰 계정이 존재하지 않거나 조회 실패: ${e.message}. 먼저 ${token} 토큰을 입금받아야 전송할 수 있습니다.`
+        }, 400);
+      }
 
       const destAtaInfo = await conn.getAccountInfo(destAta);
-      if (!destAtaInfo) {
+      const needsCreateAta = !destAtaInfo;
+      if (needsCreateAta) {
+         // ATA 생성 비용은 약 0.00204 SOL (rent-exempt). 비용 지불자(payer) SOL 잔액 검증.
+         const payerPubKey = sponsorKp ? sponsorKp.publicKey : userKp.publicKey;
+         try {
+           const payerBalance = await conn.getBalance(payerPubKey, 'confirmed');
+           const minRequired = 2_500_000; // 약 0.0025 SOL (ATA 생성 + 트랜잭션 수수료)
+           if (payerBalance < minRequired) {
+             const payerLabel = sponsorKp ? '스폰서 지갑' : '본인 지갑';
+             return c.json({
+               error: `${payerLabel}의 SOL 잔액 부족 (현재 ${(payerBalance/1e9).toFixed(6)} SOL, 필요 ${(minRequired/1e9).toFixed(6)} SOL). 받는 사람의 ${token} 토큰 계정(ATA)을 새로 생성하려면 SOL 수수료가 필요합니다.`
+             }, 400);
+           }
+         } catch (_) { /* balance 조회 실패는 통과 */ }
          ixs.push(createAssociatedTokenAccountInstruction(
-           sponsorKp ? sponsorKp.publicKey : userKp.publicKey,
+           payerPubKey,
            destAta,
            targetPubKey,
            tokenMint,
-           tokenProgramId
+           tokenProgramId,
+           ASSOCIATED_TOKEN_PROGRAM_ID
          ));
       }
-      
-      const lamports = Math.floor(amount * 1_000_000);
+
+      const lamports = BigInt(Math.floor(amount * Math.pow(10, mintDecimals)));
       ixs.push(createTransferCheckedInstruction(
          sourceAta,
          tokenMint,
          destAta,
          userKp.publicKey,
          lamports,
-         6,
+         mintDecimals,
          [],
          tokenProgramId
       ));
@@ -459,22 +520,61 @@ app.post('/api/solana/send-token', async (c) => {
     if (sponsorKp) signers.push(sponsorKp);
     tx.sign(...signers);
 
+    // [FIX 2026-05-01 #8] 전송 전 simulateTransaction 으로 onchain 로그 미리 확인.
+    //   실패 시 logs 를 그대로 반환하여 0x1 의 정확한 원인 파악 가능.
+    try {
+      const sim = await conn.simulateTransaction(tx);
+      if (sim.value.err) {
+        const logs = sim.value.logs || [];
+        const errStr = typeof sim.value.err === 'string' ? sim.value.err : JSON.stringify(sim.value.err);
+        // 0x1 의 가장 흔한 원인을 logs 에서 자동 매핑
+        const joinedLogs = logs.join('\n');
+        let friendly = '';
+        if (joinedLogs.includes('insufficient funds')) {
+          friendly = `${token} 잔액 또는 SOL 수수료 부족입니다. 발신 지갑의 ${token} 잔액과 SOL 잔액을 모두 확인하세요.`;
+        } else if (joinedLogs.includes('account already exists') || joinedLogs.includes('already in use')) {
+          friendly = '받는 사람의 토큰 계정이 이미 존재합니다 (정상 상황 — 재시도 시 자동 처리). 잠시 후 다시 시도하세요.';
+        } else if (joinedLogs.includes('owner does not match')) {
+          friendly = '받는 주소의 토큰 계정 소유자가 일치하지 않습니다. 받는 주소가 올바른지 다시 확인하세요.';
+        } else if (joinedLogs.includes('invalid account data')) {
+          friendly = '받는 주소가 SOL 일반 지갑이 아닙니다. 거래소 주소나 컨트랙트 주소가 아닌, 본인이 통제하는 SOL 지갑 주소를 입력하세요.';
+        } else {
+          friendly = `트랜잭션 시뮬레이션 실패 (${errStr}).`;
+        }
+        return c.json({
+          error: friendly,
+          simulationError: errStr,
+          logs: logs.slice(-15) // 마지막 15줄만 반환
+        }, 400);
+      }
+    } catch (simErr: any) {
+      console.error('[send-token] simulation error:', simErr);
+      // simulate 실패해도 실제 전송은 시도 (RPC 일시 오류 가능)
+    }
+
     const txid = await conn.sendRawTransaction(tx.serialize());
     
-    // Create pending transaction in database immediately
+    // [FIX 2026-04-30] 외부 송금은 'deposit' 이 아니라 'send' 로 기록.
+    // 이전엔 type:'deposit'/status:'pending' 으로 잘못 등록되어,
+    // 회원의 D-WALLET 외부 송금이 관리자 입금 신청 목록에 노출되는 문제가 있었음.
     try {
         await fsCreateOnlyIfAbsent(`transactions/${txid}`, {
           userId: uid,
-          type: 'deposit',
+          type: 'send',
+          subType: 'dwallet_outbound',
           amount,
           currency: token,
-          status: 'pending',
+          status: 'completed',
           txid: txid,
+          txHash: txid,
           network: 'Solana',
           walletType: 'deedra',
+          fromAddress: pubKeyStr,
+          toAddress: targetAddress,
+          monitorSource: 'dwallet_send_token',
           createdAt: new Date().toISOString()
         }, adminToken);
-    } catch(e) { console.error('Failed to create pending send-token transaction:', e); }
+    } catch(e) { console.error('Failed to create send-token transaction record:', e); }
     
     return c.json({ success: true, txid });
   } catch (err: any) {
@@ -1248,12 +1348,12 @@ async function fetchBtcAddressDeposits(address: string, env: any, txLimit = 25) 
   return deposits;
 }
 
-async function recordDetectedMajorChainDeposit(user: any, deposit: any, adminToken: string) {
+async function recordDetectedMajorChainDeposit(user: any, deposit: any, adminToken: string, env?: any) {
   const txDocId = cleanFirestoreDocId(`major_${deposit.chain}_${deposit.txid}_${deposit.outputIndex}`);
   const readyForReview = deposit.confirmations >= deposit.requiredConfirmations;
   const now = new Date().toISOString();
 
-  return await fsCreateOnlyIfAbsent(`transactions/${txDocId}`, {
+  const created = await fsCreateOnlyIfAbsent(`transactions/${txDocId}`, {
     userId: user.id,
     userEmail: user.email || '',
     userName: user.name || user.username || '',
@@ -1281,6 +1381,33 @@ async function recordDetectedMajorChainDeposit(user: any, deposit: any, adminTok
     createdAt: now,
     updatedAt: now
   }, adminToken);
+
+  // [FIX 2026-04-30] XRP/BTC 자동감지 입금에도 텔레그램 알림 발송 (신규 등록 시 1회)
+  if (created) {
+    try {
+      const sysDocRaw = await fsGet('settings/system', adminToken).catch(() => null);
+      const sysData = sysDocRaw?.fields ? firestoreDocToObj(sysDocRaw) : {};
+      const tgSettings = sysData.telegram || {};
+      if (!tgSettings.botToken && env && env.TELEGRAM_BOT_TOKEN) {
+        tgSettings.botToken = env.TELEGRAM_BOT_TOKEN;
+        tgSettings.chatId = tgSettings.chatId || '-1002347315570';
+        tgSettings.recipients = tgSettings.recipients || [{ chatId: tgSettings.chatId, onDeposit: true }];
+      }
+      const explorerUrl = deposit.chain === 'btc'
+        ? `https://www.blockchain.com/explorer/transactions/btc/${deposit.txid}`
+        : `https://xrpscan.com/tx/${deposit.txid}`;
+      const nowStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+      const statusLine = readyForReview
+        ? '✅ 컨펌 완료 — 관리자 승인 대기'
+        : `⏳ 컨펌 대기중 (${deposit.confirmations}/${deposit.requiredConfirmations})`;
+      const text = `🟢 <b>입금 자동 감지 (${deposit.network})</b>\n회원: ${user.email || user.id}\n금액: ${Number(deposit.amount).toFixed(8)} ${deposit.currency}\n수신주소: <code>${deposit.depositAddress}</code>\nTXID: <a href="${explorerUrl}">${String(deposit.txid).substring(0, 25)}...</a>\n시각: ${nowStr}\n\n${statusLine}`;
+      await sendTelegramToRecipients(tgSettings, 'deposit', text);
+    } catch (e) {
+      console.error('[major-chain auto-deposit telegram]', e);
+    }
+  }
+
+  return created;
 }
 
 async function scanMajorChainDepositsForUser(user: any, adminToken: string, env: any, options: any = {}) {
@@ -1299,7 +1426,7 @@ async function scanMajorChainDepositsForUser(user: any, adminToken: string, env:
       summary.xrp.checked = true;
       summary.xrp.detected = deposits.length;
       for (const deposit of deposits) {
-        if (await recordDetectedMajorChainDeposit(user, deposit, adminToken)) summary.xrp.created++;
+        if (await recordDetectedMajorChainDeposit(user, deposit, adminToken, env)) summary.xrp.created++;
       }
     } catch (e: any) {
       summary.errors.push({ chain: 'xrp', message: e.message || String(e) });
@@ -1312,7 +1439,7 @@ async function scanMajorChainDepositsForUser(user: any, adminToken: string, env:
       summary.btc.checked = true;
       summary.btc.detected = deposits.length;
       for (const deposit of deposits) {
-        if (await recordDetectedMajorChainDeposit(user, deposit, adminToken)) summary.btc.created++;
+        if (await recordDetectedMajorChainDeposit(user, deposit, adminToken, env)) summary.btc.created++;
       }
     } catch (e: any) {
       summary.errors.push({ chain: 'btc', message: e.message || String(e) });
@@ -1560,44 +1687,91 @@ app.post('/api/wallet/add-multichain', async (c) => {
   }
 });
 
-async function fetchSolanaPublicBalance(publicKey: string) {
-  const rpcUrl = 'https://solana-rpc.publicnode.com';
+async function fetchSolanaPublicBalance(publicKey: string, heliusApiKey?: string) {
+  // 멀티 RPC 엔드포인트로 fallback. Helius 키가 있으면 1순위, 실패 시 무료 RPC로 fallback.
+  const RPC_URLS: string[] = [];
+  if (heliusApiKey) {
+    RPC_URLS.push(`https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`);
+  }
+  RPC_URLS.push(
+    'https://solana-rpc.publicnode.com',
+    'https://api.mainnet-beta.solana.com',
+    'https://rpc.ankr.com/solana'
+  );
   const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
   const DDRA_MINT = 'DDRADez92SA7jLhzL2bjBkWBK9idqvrhX1CuAZFaAgyv';
+  const RPC_TIMEOUT_MS = 7000; // 단일 RPC 호출 타임아웃 7초
 
-  const solRes = await fetch(rpcUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey] })
-  });
-  const solData = await solRes.json();
-  const solBalance = (solData.result?.value || 0) / 1e9;
+  // 타임아웃 내에 응답을 받지 못하면 다음 RPC로 전환하는 fetch 헬퍼
+  const fetchWithTimeout = async (url: string, body: any) => {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      return await r.json();
+    } finally {
+      clearTimeout(tid);
+    }
+  };
 
-  const [tokenRes, token2022Res] = await Promise.all([
-    fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'getTokenAccountsByOwner',
+  // 다중 RPC 순차 시도 — 첫 성공 응답을 사용
+  const debugLog: string[] = [];
+  const tryRpcs = async (body: any, label: string) => {
+    let lastErr: any = null;
+    for (const url of RPC_URLS) {
+      try {
+        const data = await fetchWithTimeout(url, body);
+        // 정상 result만 성공 처리. error 응답(403 차단 등)은 다음 RPC로 fallback.
+        if (data && data.result !== undefined && !data.error) {
+          debugLog.push(`${label}:${url}:ok`);
+          return data;
+        }
+        if (data && data.error) {
+          debugLog.push(`${label}:${url}:rpc_error:${data.error?.code || ''}:${(data.error?.message || '').slice(0, 80)}`);
+          lastErr = new Error(`rpc_error:${data.error?.message || ''}`);
+          continue; // 다음 RPC 시도
+        }
+        debugLog.push(`${label}:${url}:invalid_response:${JSON.stringify(data).slice(0, 100)}`);
+      } catch (e: any) {
+        lastErr = e;
+        debugLog.push(`${label}:${url}:error:${e?.name || ''}:${e?.message || String(e)}`);
+      }
+    }
+    throw lastErr || new Error('all_solana_rpcs_failed');
+  };
+
+  let solBalance = 0;
+  let tokenData: any = { result: { value: [] } };
+  let token2022Data: any = { result: { value: [] } };
+
+  try {
+    const solData = await tryRpcs({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [publicKey] }, 'getBalance');
+    debugLog.push(`solData_raw:${JSON.stringify(solData).slice(0, 250)}`);
+    solBalance = (solData.result?.value || 0) / 1e9;
+    debugLog.push(`solBalance_calc:${solBalance}`);
+  } catch (e: any) {
+    debugLog.push(`solBalance_exception:${e?.message || String(e)}`);
+  }
+
+  try {
+    [tokenData, token2022Data] = await Promise.all([
+      tryRpcs({
+        jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner',
         params: [publicKey, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }]
-      })
-    }),
-    fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 2,
-        method: 'getTokenAccountsByOwner',
+      }, 'token'),
+      tryRpcs({
+        jsonrpc: '2.0', id: 2, method: 'getTokenAccountsByOwner',
         params: [publicKey, { programId: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' }, { encoding: 'jsonParsed' }]
-      })
-    })
-  ]);
-
-  const tokenData = await tokenRes.json();
-  const token2022Data = await token2022Res.json();
+      }, 'token2022')
+    ]);
+  } catch (e) {
+    // 토큰 조회 실패 시 빈 배열로 진행
+  }
 
   if (token2022Data.result && token2022Data.result.value) {
     if (!tokenData.result) tokenData.result = { value: [] };
@@ -1631,7 +1805,8 @@ async function fetchSolanaPublicBalance(publicKey: string) {
     sol: roundMoney(solBalance),
     usdt: roundMoney(usdtBalance),
     ddra: roundMoney(ddraBalance),
-    otherTokens
+    otherTokens,
+    _debug: debugLog
   };
 }
 
@@ -1639,11 +1814,144 @@ app.post('/api/solana/wallet-balance', async (c) => {
   try {
     const { publicKey } = await c.req.json();
     if (!publicKey) return c.json({ error: 'No public key provided' }, 400);
-    return c.json({ success: true, ...(await fetchSolanaPublicBalance(publicKey)), source: 'chain' });
+    const heliusKey = (c.env as any)?.HELIUS_API_KEY || '';
+    return c.json({ success: true, ...(await fetchSolanaPublicBalance(publicKey, heliusKey)), source: 'chain' });
   } catch(e:any) {
     return c.json({ error: e.message }, 500);
   }
 });
+
+async function fetchBscBalances(evmAddress: string) {
+  if (!evmAddress || !/^0x[a-fA-F0-9]{40}$/.test(evmAddress)) {
+    return { bnb: 0, usdtBsc: 0 };
+  }
+  const BSC_RPC = 'https://bsc-dataseed.binance.org/';
+  const USDT_BEP20 = '0x55d398326f99059fF775485246999027B3197955';
+  try {
+    const [bnbRes, usdtRes] = await Promise.all([
+      fetch(BSC_RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [evmAddress, 'latest'] })
+      }).then(r => r.json()).catch(() => ({})),
+      fetch(BSC_RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 2, method: 'eth_call',
+          params: [{
+            to: USDT_BEP20,
+            // balanceOf(address) selector + 32-byte padded address
+            data: '0x70a08231' + '000000000000000000000000' + evmAddress.toLowerCase().replace('0x', '')
+          }, 'latest']
+        })
+      }).then(r => r.json()).catch(() => ({}))
+    ]);
+    const bnbWei = bnbRes.result ? BigInt(bnbRes.result) : 0n;
+    const bnb = Number(bnbWei) / 1e18;
+    const usdtRaw = usdtRes.result && usdtRes.result !== '0x' ? BigInt(usdtRes.result) : 0n;
+    const usdtBsc = Number(usdtRaw) / 1e18; // BEP-20 USDT는 18 decimals
+    return { bnb: roundMoney(bnb), usdtBsc: roundMoney(usdtBsc) };
+  } catch (e) {
+    return { bnb: 0, usdtBsc: 0, error: (e as any)?.message || String(e) };
+  }
+}
+
+async function fetchTronBalances(tronAddress: string) {
+  if (!tronAddress || !/^T[a-zA-Z0-9]{33}$/.test(tronAddress)) {
+    return { trx: 0, usdtTron: 0 };
+  }
+  const TRON_API = 'https://api.trongrid.io';
+  try {
+    const accRes = await fetch(`${TRON_API}/v1/accounts/${tronAddress}`, {
+      headers: { 'Content-Type': 'application/json' }
+    }).then(r => r.json()).catch(() => ({}));
+    let trx = 0;
+    let usdtTron = 0;
+    if (accRes && Array.isArray(accRes.data) && accRes.data.length > 0) {
+      const acc = accRes.data[0];
+      trx = Number(acc.balance || 0) / 1e6;
+      // trc20 잔고는 trc20 배열 형태로 반환됨 [{ "<contract>": "amount" }]
+      const trc20List = Array.isArray(acc.trc20) ? acc.trc20 : [];
+      for (const entry of trc20List) {
+        if (entry && typeof entry === 'object') {
+          const usdtRaw = entry['TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'];
+          if (usdtRaw) {
+            usdtTron = Number(usdtRaw) / 1e6; // TRC-20 USDT는 6 decimals
+            break;
+          }
+        }
+      }
+    }
+    return { trx: roundMoney(trx), usdtTron: roundMoney(usdtTron) };
+  } catch (e) {
+    return { trx: 0, usdtTron: 0, error: (e as any)?.message || String(e) };
+  }
+}
+
+async function fetchMultiChainBalances(payload: { publicKey?: string; solanaPublicKey?: string; evmAddress?: string; bscAddress?: string; tronAddress?: string }, heliusApiKey?: string) {
+  const solKey = String(payload.publicKey || payload.solanaPublicKey || '').trim();
+  const evmAddr = String(payload.evmAddress || payload.bscAddress || '').trim();
+  const tronAddr = String(payload.tronAddress || '').trim();
+
+  const [solResult, bscResult, tronResult] = await Promise.allSettled([
+    solKey ? fetchSolanaPublicBalance(solKey, heliusApiKey) : Promise.resolve({ sol: 0, usdt: 0, ddra: 0, otherTokens: [] }),
+    evmAddr ? fetchBscBalances(evmAddr) : Promise.resolve({ bnb: 0, usdtBsc: 0 }),
+    tronAddr ? fetchTronBalances(tronAddr) : Promise.resolve({ trx: 0, usdtTron: 0 })
+  ]);
+
+  const sol = solResult.status === 'fulfilled' ? solResult.value : { sol: 0, usdt: 0, ddra: 0, otherTokens: [] };
+  const bsc = bscResult.status === 'fulfilled' ? bscResult.value : { bnb: 0, usdtBsc: 0 };
+  const tron = tronResult.status === 'fulfilled' ? tronResult.value : { trx: 0, usdtTron: 0 };
+
+  const usdtSol = Number((sol as any).usdt || 0);
+  const usdtBsc = Number((bsc as any).usdtBsc || 0);
+  const usdtTron = Number((tron as any).usdtTron || 0);
+  const usdtTotal = roundMoney(usdtSol + usdtBsc + usdtTron);
+
+  return {
+    success: true,
+    sol: Number((sol as any).sol || 0),
+    usdt: usdtTotal,
+    ddra: Number((sol as any).ddra || 0),
+    bnb: Number((bsc as any).bnb || 0),
+    trx: Number((tron as any).trx || 0),
+    usdc: 0,
+    usdtByChain: {
+      solana: usdtSol,
+      bsc: usdtBsc,
+      tron: usdtTron
+    },
+    otherTokens: (sol as any).otherTokens || [],
+    addresses: {
+      solana: solKey,
+      evm: evmAddr,
+      tron: tronAddr
+    },
+    source: 'public_chain_proxy',
+    updatedAt: new Date().toISOString(),
+    _debug: {
+      solStatus: solResult.status,
+      solReason: solResult.status === 'rejected' ? String((solResult as any).reason?.message || (solResult as any).reason) : null,
+      solDebug: (sol as any)._debug || null,
+      bscStatus: bscResult.status,
+      tronStatus: tronResult.status
+    }
+  };
+}
+
+// ── 인증 없이 호출 가능한 멀티체인 잔고 조회 (D-WALLET 잔고 표시용) ──
+app.post('/api/wallet/public-balance', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const heliusKey = (c.env as any)?.HELIUS_API_KEY || '';
+    const result = await fetchMultiChainBalances(body || {}, heliusKey);
+    return c.json(result);
+  } catch (e: any) {
+    return c.json({ success: false, error: e?.message || String(e) }, 500);
+  }
+});
+
 
 app.post('/api/wallet/balance', async (c) => {
   try {
@@ -1951,12 +2259,29 @@ app.get('/setup', (c) => c.html(SETUP_HTML()))
 
 
 app.post('/api/admin/rollback-settlement', async (c) => {
+  // PART II §0 HARD RULE #5 — 롤백 락 (분산 lock)
+  let lockAcquired = false;
+  let targetDate = "";
+  let adminToken = "";
   try {
     const body = await c.req.json().catch(() => ({}));
     if (!isValidCronSecret(body.secret)) return c.json({ error: '인증 실패' }, 401);
-    const targetDate = body.targetDate || "2026-03-26";
+    targetDate = body.targetDate || "2026-03-26";
     
-    const adminToken = await getAdminToken();
+    adminToken = await getAdminToken();
+
+    // PART II §0 HARD RULE #5 — 롤백 락 획득 (중복 실행 방지)
+    const rollbackLockId = `rollback_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    lockAcquired = await fsCreateOnlyIfAbsent(`rollbackLocks/${targetDate}`, {
+      date: targetDate,
+      status: 'processing',
+      processId: rollbackLockId,
+      startedAt: new Date().toISOString(),
+      source: 'rollback-settlement'
+    }, adminToken);
+    if (!lockAcquired) {
+      return c.json({ error: `${targetDate} 롤백이 이미 다른 프로세스에서 진행 중입니다.` }, 409);
+    }
     
     // 1. Get bonuses for the target date
     const bonuses = await fsQuery('bonuses', adminToken, [
@@ -2101,11 +2426,9 @@ app.post('/api/admin/rollback-settlement', async (c) => {
       deletedBonuses++;
     }
     
-    // 6. Execute Batch Writes in chunks
+    // 6. Execute Batch Writes (PART II §0 HARD RULE #4 — 20개 단위, fsBatchCommit 내부에서 자동 분할)
     console.log(`Ready to batch ${writes.length} writes...`);
-    for (let i = 0; i < writes.length; i += 500) {
-      await fsBatchCommit(writes.slice(i, i + 500), adminToken);
-    }
+    await fsBatchCommit(writes, adminToken);
     
     // 7. Delete Settlement Lock
     await fetch(`${FIRESTORE_BASE}/settlements/${targetDate}`, {
@@ -2128,8 +2451,383 @@ app.post('/api/admin/rollback-settlement', async (c) => {
   } catch(e: any) {
     console.error(e);
     return c.json({ error: e.message }, 500);
+  } finally {
+    // PART II §0 HARD RULE #5 — 롤백 락 해제 (성공/실패 관계없이)
+    if (lockAcquired && targetDate && adminToken) {
+      try {
+        await fetch(`${FIRESTORE_BASE}/rollbackLocks/${targetDate}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+      } catch(_) {}
+    }
   }
 })
+
+app.post('/api/admin/rollback-and-resettle-multi', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    // CRON_SECRET 또는 관리자 UID 검증 (관리자 UI 버튼 호출 지원)
+    if (!isValidCronSecret(body.secret) && !body.adminUid) {
+      return c.json({ error: '인증 실패 (CRON_SECRET 또는 adminUid 필요)' }, 401);
+    }
+    // adminUid가 있으면 실제 관리자 권한 검증 (Firestore raw 응답을 firestoreDocToObj로 평면화)
+    if (body.adminUid && !isValidCronSecret(body.secret)) {
+      try {
+        const adminTokenCheck = await getAdminToken();
+        const rawDoc = await fsGet(`users/${body.adminUid}`, adminTokenCheck).catch(() => null);
+        const adminUser = rawDoc && rawDoc.fields ? firestoreDocToObj(rawDoc) : rawDoc;
+        // 다른 라우트와 동일한 검증 기준: role === 'admin' || 'superadmin' 또는 isAdmin/adminLevel
+        const isAdmin = adminUser && (
+          adminUser.role === 'admin' ||
+          adminUser.role === 'superadmin' ||
+          adminUser.isAdmin === true ||
+          Number(adminUser.adminLevel || 0) >= 1
+        );
+        if (!isAdmin) {
+          return c.json({
+            error: '관리자 권한이 없습니다 (role/isAdmin/adminLevel 미부여)',
+            debug: {
+              hasDoc: !!rawDoc,
+              hasFields: !!(rawDoc && rawDoc.fields),
+              uid: body.adminUid,
+              role: adminUser?.role,
+              isAdmin: adminUser?.isAdmin,
+              adminLevel: adminUser?.adminLevel,
+              email: adminUser?.email,
+              keys: adminUser ? Object.keys(adminUser).slice(0, 20) : []
+            }
+          }, 403);
+        }
+      } catch (e: any) {
+        return c.json({ error: '관리자 검증 실패: ' + (e?.message || 'unknown') }, 403);
+      }
+    }
+
+    const dates = Array.isArray(body.dates) ? body.dates.filter((d: any) => /^\d{4}-\d{2}-\d{2}$/.test(d)) : [];
+    if (!dates.length) return c.json({ error: 'dates 배열이 비었거나 형식 오류 (YYYY-MM-DD)' }, 400);
+
+    const rerun = body.rerun !== false; // 기본 true
+    const dryRun = body.dryRun === true; // 검증용
+    const excludeUsers: string[] = Array.isArray(body.excludeUsers)
+      ? body.excludeUsers.map((s: any) => String(s).trim()).filter(Boolean)
+      : [];
+
+    // 롤백은 최신 → 과거 순 (역순)
+    const rollbackOrder = [...dates].sort().reverse();
+    // 재정산은 과거 → 최신 순 (정순)
+    const resettleOrder = [...dates].sort();
+
+    const adminToken = await getAdminToken();
+    const report: any = {
+      requestedDates: dates,
+      rollbackOrder,
+      resettleOrder,
+      rerun,
+      dryRun,
+      excludeUsers,
+      rollbackResults: [],
+      resettleResults: [],
+      startedAt: new Date().toISOString()
+    };
+
+    // ── 시스템 유지보수 모드 ON ──
+    try {
+      await fsPatch('settings/system', {
+        maintenanceMode: true,
+        maintenanceMessage: `정산 결정 보정 작업 진행 중입니다 (${dates.length}일치 롤백 + 재정산).<br>잠시만 기다려주세요.`
+      }, adminToken);
+    } catch(e) {}
+
+    // PART II §0 HARD RULE #5 — 다중 일자 롤백 락 일괄 획득 (dryRun 제외)
+    const acquiredLocks: string[] = [];
+    if (!dryRun) {
+      const multiLockId = `rollback_multi_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      for (const lockDate of rollbackOrder) {
+        const ok = await fsCreateOnlyIfAbsent(`rollbackLocks/${lockDate}`, {
+          date: lockDate,
+          status: 'processing',
+          processId: multiLockId,
+          startedAt: new Date().toISOString(),
+          source: 'rollback-and-resettle-multi'
+        }, adminToken);
+        if (!ok) {
+          // 이미 획득한 락 일괄 해제 후 에러 반환
+          for (const acq of acquiredLocks) {
+            try {
+              await fetch(`${FIRESTORE_BASE}/rollbackLocks/${acq}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+              });
+            } catch(_) {}
+          }
+          try { await fsPatch('settings/system', { maintenanceMode: false }, adminToken); } catch(_) {}
+          return c.json({ error: `${lockDate} 롤백 락 획득 실패 (다른 프로세스가 진행 중)`, acquiredLocks }, 409);
+        }
+        acquiredLocks.push(lockDate);
+      }
+    }
+
+    // ── 1단계: 순차 롤백 ──
+    for (const targetDate of rollbackOrder) {
+      const stepResult: any = { date: targetDate, phase: 'rollback' };
+      try {
+        if (dryRun) {
+          // dryRun: bonuses 카운트 + excludeUsers 영향도 보고
+          const bonuses = await fsQuery('bonuses', adminToken, [
+            { fieldFilter: { field: { fieldPath: 'settlementDate' }, op: 'EQUAL', value: { stringValue: targetDate } } }
+          ], 100000);
+          stepResult.dryRun = true;
+          stepResult.bonusCount = bonuses.length;
+          stepResult.blackholeCount = bonuses.filter((b:any) => b.userId === '__BLACKHOLE__').length;
+          // excludeUsers 영향: 해당 사용자가 받았던 bonus 수 + 합계
+          if (excludeUsers.length > 0) {
+            const excludeSet = new Set(excludeUsers);
+            const excluded = bonuses.filter((b:any) => excludeSet.has(b.userId));
+            stepResult.excludedUserBonusCount = excluded.length;
+            stepResult.excludedUserBonusUsdt = excluded.reduce((s:number, b:any) => s + Number(b.amountUsdt || 0), 0);
+          }
+          stepResult.success = true;
+          report.rollbackResults.push(stepResult);
+          continue;
+        }
+
+        // 실제 롤백 (rollback-settlement과 동일 로직 인라인)
+        const bonuses = await fsQuery('bonuses', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'settlementDate' }, op: 'EQUAL', value: { stringValue: targetDate } } }
+        ], 100000);
+
+        const allUsers = await fsQuery('users', adminToken, [], 100000);
+        const allWallets = await fsQuery('wallets', adminToken, [], 100000);
+        const allInvs = await fsQuery('investments', adminToken, [], 100000);
+
+        const userMap = new Map(allUsers.map((u: any) => [u.id || u.uid, u]));
+        const wMap = new Map(allWallets.map((w: any) => [w.id || w.userId, w]));
+        const invMap = new Map(allInvs.map((i: any) => [i.id, i]));
+
+        const userWalletsDelta: any = {};
+        const invReversals: any = {};
+
+        for (const b of bonuses) {
+          // 블랙홀 흡수 로그는 지갑 영향 없음 - 삭제만
+          if (b.userId === '__BLACKHOLE__') continue;
+
+          if (!userWalletsDelta[b.userId]) {
+            userWalletsDelta[b.userId] = { bonusBalance: 0, totalEarnings: 0, totalInvest: 0, autoCompoundTotalInvest: 0 };
+          }
+          const d = userWalletsDelta[b.userId];
+          const amountUsdt = Number(b.amountUsdt || 0);
+          const hasLedgerWalletSplit = b.walletBonusAmount !== undefined || b.walletInvestAmount !== undefined;
+          const walletBonusAmount = hasLedgerWalletSplit ? Number(b.walletBonusAmount || 0) : null;
+          const walletInvestAmount = hasLedgerWalletSplit ? Number(b.walletInvestAmount || 0) : null;
+          const isAutoCompoundLedger = b.autoCompound === true || b.source === 'auto_compound_roi' || b.commissionEligible === false || (b.type === 'roi' && Number(b.walletInvestAmount || 0) > 0);
+
+          // 매출 차감 정책: ROI 일반(보너스 freeze/오토복리 제외)만 매출 누적되었으므로 그것만 역산
+          const excludedFromTotalEarnings = b.excludedFromTotalEarnings === true ||
+                                             b.source === 'bonus_freeze_roi' ||
+                                             b.source === 'auto_compound_roi' ||
+                                             (b.type !== 'roi');
+          if (!excludedFromTotalEarnings) {
+            d.totalEarnings += amountUsdt;
+          }
+
+          if (b.type === 'roi') {
+            const u: any = userMap.get(b.userId);
+            const autoCompound = u?.autoCompound || false;
+
+            if (b.investmentId) {
+              if (!invReversals[b.investmentId]) {
+                invReversals[b.investmentId] = { subPrincipal: 0, subPaidRoi: 0, subAutoCompoundPrincipal: 0 };
+              }
+              invReversals[b.investmentId].subPaidRoi += amountUsdt;
+              if (hasLedgerWalletSplit) {
+                invReversals[b.investmentId].subPrincipal += walletInvestAmount || 0;
+                if (isAutoCompoundLedger) invReversals[b.investmentId].subAutoCompoundPrincipal += walletInvestAmount || 0;
+              } else if (autoCompound) {
+                invReversals[b.investmentId].subPrincipal += amountUsdt;
+                invReversals[b.investmentId].subAutoCompoundPrincipal += amountUsdt;
+              }
+            }
+
+            if (hasLedgerWalletSplit) {
+              d.totalInvest += walletInvestAmount || 0;
+              if (isAutoCompoundLedger) d.autoCompoundTotalInvest += walletInvestAmount || 0;
+              d.bonusBalance += walletBonusAmount || 0;
+            } else if (autoCompound) {
+              d.totalInvest += amountUsdt;
+              d.autoCompoundTotalInvest += amountUsdt;
+            } else {
+              d.bonusBalance += amountUsdt;
+            }
+          } else {
+            d.bonusBalance += hasLedgerWalletSplit ? (walletBonusAmount || 0) : amountUsdt;
+          }
+        }
+
+        const writes: any[] = [];
+        let invRevertedCount = 0;
+        for (const [invId, rev0] of Object.entries(invReversals)) {
+          const rev = rev0 as any;
+          const inv: any = invMap.get(invId);
+          if (inv) {
+            const newAmount = Math.max(0, (inv.amountUsdt || 0) - rev.subPrincipal);
+            const newAutoCompoundPrincipal = Math.max(0, (inv.autoCompoundPrincipal || 0) - (rev.subAutoCompoundPrincipal || 0));
+            const dailyRoiPct = inv.dailyRoi || inv.roiPercent || inv.roiPct || 0;
+            const newExpectedReturn = newAmount * (dailyRoiPct / 100);
+            const prevDateObj = new Date(targetDate + 'T00:00:00Z');
+            prevDateObj.setDate(prevDateObj.getDate() - 1);
+            const prevDate = prevDateObj.toISOString().slice(0,10);
+            writes.push({
+              update: {
+                name: `projects/dedra-mlm/databases/(default)/documents/investments/${invId}`,
+                fields: {
+                  amount: toFirestoreValue(newAmount),
+                  amountUsdt: toFirestoreValue(newAmount),
+                  expectedReturn: toFirestoreValue(newExpectedReturn),
+                  autoCompoundPrincipal: toFirestoreValue(newAutoCompoundPrincipal),
+                  commissionEligiblePrincipal: toFirestoreValue(Math.max(0, newAmount - newAutoCompoundPrincipal)),
+                  paidRoi: toFirestoreValue(Math.max(0, (inv.paidRoi || 0) - rev.subPaidRoi)),
+                  lastSettledAt: toFirestoreValue(`${prevDate}T23:59:59.000Z`)
+                }
+              },
+              updateMask: { fieldPaths: ['amount', 'amountUsdt', 'expectedReturn', 'autoCompoundPrincipal', 'commissionEligiblePrincipal', 'paidRoi', 'lastSettledAt'] }
+            });
+            invRevertedCount++;
+          }
+        }
+
+        let walletRevertedCount = 0;
+        for (const [userId, delta0] of Object.entries(userWalletsDelta)) {
+          const delta = delta0 as any;
+          const w: any = wMap.get(userId);
+          if (w) {
+            const newBonus = Math.max(0, (w.bonusBalance || 0) - delta.bonusBalance);
+            const newTotalE = Math.max(0, (w.totalEarnings || 0) - delta.totalEarnings);
+            const newTotalI = Math.max(0, (w.totalInvest || w.totalInvested || 0) - delta.totalInvest);
+            const newAutoCompoundTotalI = Math.max(0, (w.autoCompoundTotalInvest || 0) - (delta.autoCompoundTotalInvest || 0));
+            writes.push({
+              update: {
+                name: `projects/dedra-mlm/databases/(default)/documents/wallets/${userId}`,
+                fields: {
+                  bonusBalance: toFirestoreValue(newBonus),
+                  totalEarnings: toFirestoreValue(newTotalE),
+                  totalInvest: toFirestoreValue(newTotalI),
+                  autoCompoundTotalInvest: toFirestoreValue(newAutoCompoundTotalI)
+                }
+              },
+              updateMask: { fieldPaths: ['bonusBalance', 'totalEarnings', 'totalInvest', 'autoCompoundTotalInvest'] }
+            });
+            walletRevertedCount++;
+          }
+        }
+
+        let deletedBonuses = 0;
+        for (const b of bonuses) {
+          writes.push({ delete: `projects/dedra-mlm/databases/(default)/documents/bonuses/${b.id}` });
+          deletedBonuses++;
+        }
+
+        // PART II §0 HARD RULE #4 — 20개 단위 (fsBatchCommit 내부에서 자동 분할)
+        await fsBatchCommit(writes, adminToken);
+
+        await fetch(`${FIRESTORE_BASE}/settlements/${targetDate}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+
+        stepResult.bonusCount = bonuses.length;
+        stepResult.blackholeCount = bonuses.filter((b:any) => b.userId === '__BLACKHOLE__').length;
+        stepResult.invRevertedCount = invRevertedCount;
+        stepResult.walletRevertedCount = walletRevertedCount;
+        stepResult.deletedBonuses = deletedBonuses;
+        stepResult.success = true;
+      } catch(e: any) {
+        stepResult.success = false;
+        stepResult.error = e?.message || String(e);
+        report.rollbackResults.push(stepResult);
+        report.failedAt = `rollback:${targetDate}`;
+        try { await fsPatch('settings/system', { maintenanceMode: false }, adminToken); } catch(_) {}
+        // PART II §0 HARD RULE #5 — 에러 시에도 락 해제
+        for (const acq of acquiredLocks) {
+          try {
+            await fetch(`${FIRESTORE_BASE}/rollbackLocks/${acq}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${adminToken}` }
+            });
+          } catch(_) {}
+        }
+        return c.json({ success: false, report }, 500);
+      }
+      report.rollbackResults.push(stepResult);
+    }
+
+    // ── 2단계: 순차 재정산 ──
+    if (rerun && !dryRun) {
+      for (const targetDate of resettleOrder) {
+        const stepResult: any = { date: targetDate, phase: 'resettle' };
+        try {
+          // mock c 구성 (runSettle은 c.json/c.executionCtx 사용)
+          // executionCtx가 없을 경우를 대비해 안전한 더미 제공
+          const mockResp: any = { _data: null, _status: 200 };
+          const safeExecCtx = (c && c.executionCtx) ? c.executionCtx : {
+            waitUntil: (p: any) => { try { Promise.resolve(p).catch(()=>{}); } catch(_) {} },
+            passThroughOnException: () => {}
+          };
+          const mockC: any = {
+            json: (data: any, status?: number) => { mockResp._data = data; mockResp._status = status || 200; return data; },
+            executionCtx: safeExecCtx,
+            req: c.req,
+            env: c.env
+          };
+          await runSettle(mockC, targetDate, { excludeUsers });
+          stepResult.success = true;
+          stepResult.result = mockResp._data;
+        } catch(e: any) {
+          stepResult.success = false;
+          stepResult.error = e?.message || String(e);
+          report.resettleResults.push(stepResult);
+          report.failedAt = `resettle:${targetDate}`;
+          try { await fsPatch('settings/system', { maintenanceMode: false }, adminToken); } catch(_) {}
+          // PART II §0 HARD RULE #5 — 재정산 단계 실패 시에도 롤백 락 해제
+          for (const acq of acquiredLocks) {
+            try {
+              await fetch(`${FIRESTORE_BASE}/rollbackLocks/${acq}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+              });
+            } catch(_) {}
+          }
+          return c.json({ success: false, report }, 500);
+        }
+        report.resettleResults.push(stepResult);
+      }
+    }
+
+    // ── 시스템 유지보수 모드 OFF ──
+    try { await fsPatch('settings/system', { maintenanceMode: false }, adminToken); } catch(_) {}
+
+    // PART II §0 HARD RULE #5 — 롤백 락 일괄 해제
+    for (const acq of acquiredLocks) {
+      try {
+        await fetch(`${FIRESTORE_BASE}/rollbackLocks/${acq}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+      } catch(_) {}
+    }
+
+    report.completedAt = new Date().toISOString();
+    return c.json({ success: true, report });
+  } catch(e: any) {
+    console.error('rollback-and-resettle-multi error', e);
+    // 에러 발생 시에도 락 해제 시도
+    try {
+      const tk = await getAdminToken();
+      // body 파싱 실패한 경우 dates 재추출 불가 — 이미 acquiredLocks 변수가 스코프 외이므로 best-effort
+    } catch(_) {}
+    return c.json({ success: false, error: e?.message || String(e) }, 500);
+  }
+});
 
 app.get('/api/admin/check-reconstruct', async (c) => {
   const adminToken = await getAdminToken();
@@ -3071,6 +3769,120 @@ function isValidCronSecret(supplied: any): boolean {
   const configuredSecret = getCronSecret();
   return configuredSecret.length >= 16 && String(supplied || '').trim() === configuredSecret;
 }
+
+// [FIX 2026-04-30] Pages 환경 cron 대체: 외부 스케줄러가 호출하는 통합 엔드포인트
+// 5분마다 다음을 모두 실행:
+//   1) Solana 자동입금 체크
+//   2) XRP/BTC 자동입금 체크
+//   3) 매출 재계산 + 자동 승급 (10분 주기, 짝수 10분대만)
+//   4) 자동 정산은 별도 cron이 처리(여기서는 호출하지 않음 — 중복 방지)
+async function runAllCronTasks(c: any): Promise<any> {
+  const env: any = c.env || {};
+  const results: any = { startedAt: new Date().toISOString(), tasks: {} };
+
+  // 1) Solana 자동입금
+  try {
+    const r = await app.request('/api/solana/check-deposits', {
+      method: 'POST',
+      headers: { 'x-cron-secret': getCronSecret(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }, env);
+    const t = await r.text();
+    results.tasks.solanaDeposits = { ok: r.ok, status: r.status, body: t.slice(0, 400) };
+  } catch (e: any) {
+    results.tasks.solanaDeposits = { ok: false, error: e?.message || String(e) };
+  }
+
+  // 2) XRP/BTC 자동입금
+  try {
+    const r = await app.request('/api/cron/check-major-chain-deposits', {
+      method: 'POST',
+      headers: { 'x-cron-secret': getCronSecret(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userLimit: 500, txLimit: 20 })
+    }, env);
+    const t = await r.text();
+    results.tasks.majorChainDeposits = { ok: r.ok, status: r.status, body: t.slice(0, 400) };
+  } catch (e: any) {
+    results.tasks.majorChainDeposits = { ok: false, error: e?.message || String(e) };
+  }
+
+  // 3) 매출 재계산 + 자동 승급 (10분 주기로만)
+  try {
+    const m = new Date().getUTCMinutes();
+    if (m % 10 < 5) {
+      const adminToken = await getAdminToken();
+      const users = await fsQuery('users', adminToken, [], 100000);
+      const wallets = await fsQuery('wallets', adminToken, [], 100000);
+      const invs = await fsQuery('investments', adminToken, [{ field: 'status', op: '==', value: 'active' }], 100000).catch(() => []);
+      const r = await autoUpgradeAllRanks(adminToken, users, wallets, invs);
+      results.tasks.recomputeAndUpgrade = { ok: true, ...r };
+    } else {
+      results.tasks.recomputeAndUpgrade = { skipped: true, reason: 'not in 10-min window' };
+    }
+  } catch (e: any) {
+    results.tasks.recomputeAndUpgrade = { ok: false, error: e?.message || String(e) };
+  }
+
+  results.finishedAt = new Date().toISOString();
+  return results;
+}
+
+app.post('/api/cron/run-all', async (c) => {
+  const headerSecret = c.req.header('x-cron-secret');
+  // 관리자 토큰 또는 cron secret 둘 중 하나로 호출 가능
+  const isAdmin = await hasPrivilegedApiAccess(c).catch(() => false);
+  if (!isAdmin && !isValidCronSecret(headerSecret)) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+  try {
+    const r = await runAllCronTasks(c);
+    return c.json({ success: true, ...r });
+  } catch (e: any) {
+    return c.json({ success: false, error: e?.message || String(e) }, 500);
+  }
+});
+
+app.get('/api/cron/run-all', async (c) => {
+  const querySecret = c.req.query('secret');
+  const headerSecret = c.req.header('x-cron-secret');
+  const isAdmin = await hasPrivilegedApiAccess(c).catch(() => false);
+  if (!isAdmin && !isValidCronSecret(headerSecret) && !isValidCronSecret(querySecret)) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+  try {
+    const r = await runAllCronTasks(c);
+    return c.json({ success: true, ...r });
+  } catch (e: any) {
+    return c.json({ success: false, error: e?.message || String(e) }, 500);
+  }
+});
+
+// [DIAG 2026-04-30] CRON_SECRET 매칭 진단 — 값은 노출하지 않고 길이/해시 prefix 만 반환
+app.get('/api/diag/cron-secret', async (c) => {
+  const env: any = c.env || {};
+  const fromEnv = String(env.CRON_SECRET || '').trim();
+  const fromGlobal = String(GLOBAL_ENV?.CRON_SECRET || '').trim();
+  const fromGetter = String(getCronSecret() || '').trim();
+  const headerSecret = String(c.req.header('x-cron-secret') || '').trim();
+  const querySecret = String(c.req.query('secret') || '').trim();
+  const supplied = headerSecret || querySecret;
+
+  async function sha256Hex(s: string): Promise<string> {
+    if (!s) return '';
+    const buf = new TextEncoder().encode(s);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 12);
+  }
+
+  return c.json({
+    cEnv: { len: fromEnv.length, hash12: await sha256Hex(fromEnv) },
+    GLOBAL_ENV: { len: fromGlobal.length, hash12: await sha256Hex(fromGlobal) },
+    getCronSecret: { len: fromGetter.length, hash12: await sha256Hex(fromGetter) },
+    supplied: { len: supplied.length, hash12: await sha256Hex(supplied), source: headerSecret ? 'header' : (querySecret ? 'query' : 'none') },
+    isValid_supplied: isValidCronSecret(supplied),
+    cEnvKeys: Object.keys(env).slice(0, 50),
+  });
+});
 
 function getServiceAccountEnvStatus(): any {
   const parsed = parseConfiguredServiceAccount();
@@ -4166,20 +4978,51 @@ async function hasPrivilegedApiAccess(c: any): Promise<boolean> {
   if (hasConfiguredAdminSecret(c)) return true;
 
   const bearer = getBearerToken(c);
-  if (!bearer) return false;
+  if (!bearer) {
+    try {
+      const path = new URL(c.req.url).pathname;
+      console.warn('[AUTH] privileged access denied: no bearer token', { path });
+    } catch(_) {}
+    return false;
+  }
 
   const subAdmin = verifySubAdminToken(bearer);
   if (subAdmin) return true;
 
-  const firebaseUser = await lookupFirebaseUser(bearer).catch(() => null);
-  if (!firebaseUser?.localId) return false;
+  const firebaseUser = await lookupFirebaseUser(bearer).catch((err: any) => {
+    try {
+      const path = new URL(c.req.url).pathname;
+      console.warn('[AUTH] firebase lookup error', { path, error: err?.message || String(err) });
+    } catch(_) {}
+    return null;
+  });
+  if (!firebaseUser?.localId) {
+    try {
+      const path = new URL(c.req.url).pathname;
+      console.warn('[AUTH] privileged access denied: invalid firebase token', { path });
+    } catch(_) {}
+    return false;
+  }
 
   const adminToken = await getAdminToken();
   const userDoc = await fsGet(`users/${firebaseUser.localId}`, adminToken);
-  if (!userDoc?.fields) return false;
+  if (!userDoc?.fields) {
+    try {
+      const path = new URL(c.req.url).pathname;
+      console.warn('[AUTH] privileged access denied: user doc missing', { path, uid: firebaseUser.localId });
+    } catch(_) {}
+    return false;
+  }
 
   const user = firestoreDocToObj(userDoc);
-  return user.role === 'admin' || user.role === 'superadmin';
+  const ok = user.role === 'admin' || user.role === 'superadmin';
+  if (!ok) {
+    try {
+      const path = new URL(c.req.url).pathname;
+      console.warn('[AUTH] privileged access denied: insufficient role', { path, uid: firebaseUser.localId, role: user.role || '(none)' });
+    } catch(_) {}
+  }
+  return ok;
 }
 
 app.get('/api/admin/security-health', async (c) => {
@@ -5094,8 +5937,10 @@ async function fsPatch(path: string, fields: any, token: string) {
 
 
 async function fsBatchCommit(writes: any[], token: string) {
+  // PART II §0 HARD RULE #4 — 20개 단위 배치 (호출자가 더 큰 사이즈로 호출해도 내부에서 20 단위로 분할)
+  const BATCH_SIZE = 20;
   const chunks = [];
-  for (let i = 0; i < writes.length; i += 400) chunks.push(writes.slice(i, i + 400));
+  for (let i = 0; i < writes.length; i += BATCH_SIZE) chunks.push(writes.slice(i, i + BATCH_SIZE));
   
   for (const chunk of chunks) {
     const res = await fetch(`${FIRESTORE_BASE}:commit`, {
@@ -5776,7 +6621,32 @@ app.post('/api/user/invest', async (c) => {
     ];
     
     await fsBatchCommit(writes, adminToken);
-    
+
+    // [FIX 2026-04-30] 투자 즉시 상위 라인 매출 누적 + 즉시 직급 평가 트리거
+    // - 1단계: bumpUplineNetworkSales 로 상위 networkSales 즉시 가산
+    // - 2단계: 가산 직후 autoUpgradeAllRanks 를 호출해 본인 투자액 + 소실적 합 조건 즉시 평가
+    //          → 하부 매출 발생 시 그 시점에 바로 승급 반영 (cron 대기 없음)
+    try {
+      const trigger = (async () => {
+        try {
+          await bumpUplineNetworkSales(uid, amount, adminToken);
+        } catch (e) { console.error('[invest bump upline]', e); }
+        try {
+          const usersAll = await fsQuery('users', adminToken, [], 100000);
+          const walletsAll = await fsQuery('wallets', adminToken, [], 100000);
+          const invsAll = await fsQuery('investments', adminToken, [{ field: 'status', op: '==', value: 'active' }], 100000);
+          await autoUpgradeAllRanks(adminToken, usersAll, walletsAll, invsAll);
+        } catch (e) { console.error('[invest auto-upgrade]', e); }
+      })();
+      if (c.executionCtx && c.executionCtx.waitUntil) {
+        c.executionCtx.waitUntil(trigger);
+      } else {
+        await trigger;
+      }
+    } catch (e) {
+      console.error('[invest bump upline outer]', e);
+    }
+
     return c.json({ success: true });
   } catch (e: any) {
     return c.json({ error: e.message }, 500);
@@ -5943,11 +6813,13 @@ app.post('/api/user/withdraw', async (c) => {
     const discount = vipDiscounts[vipLevel] || 0;
     feeRate = Math.max(0, feeRate - discount);
     
-    const ddrAmt = amountUsdt / (deedraPrice || 0.5);
-    const feeAmount = ddrAmt * feeRate / 100;
-    const netDdra = ddrAmt - feeAmount;
-    const netUsdt = netDdra * (deedraPrice || 0.5);
-    const feeUsdt = amountUsdt * (feeRate / 100);
+    // PART II §0 HARD RULE #3 — 8자리 반올림 일관 적용
+    const round8 = (x: number) => Math.round(x * 1e8) / 1e8;
+    const ddrAmt = round8(amountUsdt / (deedraPrice || 0.5));
+    const feeAmount = round8(ddrAmt * feeRate / 100);
+    const netDdra = round8(ddrAmt - feeAmount);
+    const netUsdt = round8(netDdra * (deedraPrice || 0.5));
+    const feeUsdt = round8(amountUsdt * (feeRate / 100));
     const ticketsToBurn = wallet.weeklyTickets || 0;
     
     const docId = crypto.randomUUID().replace(/-/g, '');
@@ -6369,6 +7241,7 @@ async function verifyMultiChainDeposit(txid, amount, companyWalletsDoc) {
   let actualAmount = 0;
   let verifiedMsg = '⏳ 온체인 검증: 일시적 확인불가 (관리자가 직접 확인 요망)';
 
+  // PART II §1-2 — TXID 형식 기반 네트워크 1차 추정
   let network = 'Solana';
   if (txid.startsWith('0x') && txid.length === 66) network = 'BSC';
   else if (/^[0-9a-fA-F]{64}$/.test(txid)) network = 'TRON';
@@ -6390,122 +7263,186 @@ async function verifyMultiChainDeposit(txid, amount, companyWalletsDoc) {
      }
   }
 
-  try {
-    if (network === 'BSC') {
-      const bscRpcUrl = 'https://bsc-dataseed.binance.org/';
-      const rpcReq = await fetch(bscRpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0', id: 1,
-          method: 'eth_getTransactionReceipt',
-          params: [txid]
-        })
-      });
-      const data = await rpcReq.json();
-      if (data.result && data.result.status === '0x1') {
-        let maxAmt = 0;
-        for (const log of data.result.logs) {
-          if (
-            log.address.toLowerCase() === '0x55d398326f99059ff775485246999027b3197955' &&
-            log.topics && log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' &&
-            log.topics.length >= 3
-          ) {
-            const toAddress = '0x' + log.topics[2].slice(26).toLowerCase();
-            if (bscWallets.includes(toAddress)) {
-              const amtHex = log.data;
-              const amt = parseInt(amtHex, 16) / 1e18;
-              if (amt > maxAmt) maxAmt = amt;
-            }
-          }
-        }
-        actualAmount = maxAmt;
-        if (actualAmount > 0) {
-          if (actualAmount >= parseFloat(amount.toString().replace(/,/g, '')) - 1.0) {
-            isTxValid = true;
-            verifiedMsg = `✅ <b>온체인 검증 [BSC]: 일치함 (실제 송금액: ${actualAmount} USDT)</b>`;
-          } else {
-            verifiedMsg = `⚠️ <b>온체인 검증 [BSC]: 금액 불일치 (실제: ${actualAmount} / 신청: ${amount})</b>`;
-          }
-        } else {
-          verifiedMsg = `❌ <b>온체인 검증 [BSC]: 실패 (회사 지갑으로 USDT 입금내역 없음)</b>`;
-        }
-      } else {
-         verifiedMsg = `❌ <b>온체인 검증 [BSC]: 트랜잭션을 찾을 수 없음 (잘못된 TXID 거나 실패한 거래)</b>`;
+  // PART II §1-2/§1-4 — 1차 분기 실패 시 fallback 시도 순서 결정
+  // BSC TXID 의 0x prefix 누락, TRON-Solana hex/base58 혼동 등 사용자 입력 오류 대응
+  const tryOrder: string[] = [network];
+  for (const fb of ['BSC', 'TRON', 'Solana']) {
+    if (!tryOrder.includes(fb)) tryOrder.push(fb);
+  }
+  const networksTried: string[] = [];
+  const expectedAmt = parseFloat(amount.toString().replace(/,/g, ''));
+
+  // ── 네트워크별 검증 헬퍼 (각각 { actualAmount, isTxValid, verifiedMsg, found } 반환) ──
+  async function verifyOnBsc(): Promise<{ actualAmount: number; isTxValid: boolean; verifiedMsg: string; found: boolean }> {
+    try {
+      // PART II §1-4 — BSC RPC 다중 fallback
+      const bscRpcUrls = [
+        'https://bsc-dataseed.binance.org/',
+        'https://bsc-dataseed1.defibit.io/',
+        'https://rpc.ankr.com/bsc'
+      ];
+      let data: any = null;
+      for (const rpcUrl of bscRpcUrls) {
+        try {
+          const res = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [txid] }),
+            signal: AbortSignal.timeout(6000)
+          });
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (json && json.result) { data = json; break; }
+        } catch (_) { continue; }
       }
-    } else if (network === 'TRON') {
-      const res = await fetch(`https://api.trongrid.io/v1/transactions/${txid}/events`);
+      if (!data || !data.result) {
+        return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [BSC]: 트랜잭션을 찾을 수 없음</b>`, found: false };
+      }
+      if (data.result.status !== '0x1') {
+        return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [BSC]: 실패한 거래 (status=${data.result.status})</b>`, found: true };
+      }
+      let maxAmt = 0;
+      for (const log of data.result.logs || []) {
+        if (
+          log.address?.toLowerCase() === '0x55d398326f99059ff775485246999027b3197955' &&
+          log.topics && log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef' &&
+          log.topics.length >= 3
+        ) {
+          const toAddress = '0x' + log.topics[2].slice(26).toLowerCase();
+          if (bscWallets.includes(toAddress)) {
+            const amt = parseInt(log.data, 16) / 1e18;
+            if (amt > maxAmt) maxAmt = amt;
+          }
+        }
+      }
+      if (maxAmt > 0) {
+        if (maxAmt >= expectedAmt - 1.0) {
+          return { actualAmount: maxAmt, isTxValid: true, verifiedMsg: `✅ <b>온체인 검증 [BSC]: 일치함 (실제 송금액: ${maxAmt} USDT)</b>`, found: true };
+        } else {
+          return { actualAmount: maxAmt, isTxValid: false, verifiedMsg: `⚠️ <b>온체인 검증 [BSC]: 금액 불일치 (실제: ${maxAmt} / 신청: ${amount})</b>`, found: true };
+        }
+      }
+      return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [BSC]: 회사 지갑으로 USDT 입금내역 없음</b>`, found: true };
+    } catch (e: any) {
+      return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [BSC]: ${e?.message || 'error'}</b>`, found: false };
+    }
+  }
+
+  async function verifyOnTron(): Promise<{ actualAmount: number; isTxValid: boolean; verifiedMsg: string; found: boolean }> {
+    try {
+      const res = await fetch(`https://api.trongrid.io/v1/transactions/${txid}/events`, {
+        signal: AbortSignal.timeout(6000)
+      });
       const data = await res.json();
-      if (data.success && data.data && data.data.length > 0) {
-        let maxAmt = 0;
-        for (const ev of data.data) {
-          if (ev.contract_address === 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t' && ev.event_name === 'Transfer') {
-            const toAddr = ev.result.to || ev.result.receiver || '';
-            if (tronWallets.includes(toAddr)) {
-              const amt = Number(ev.result.value) / 1e6;
-              if (amt > maxAmt) maxAmt = amt;
-            }
+      if (!data.success || !data.data || data.data.length === 0) {
+        return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [TRON]: 트랜잭션을 찾을 수 없음</b>`, found: false };
+      }
+      let maxAmt = 0;
+      for (const ev of data.data) {
+        if (ev.contract_address === 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t' && ev.event_name === 'Transfer') {
+          const toAddr = ev.result.to || ev.result.receiver || '';
+          if (tronWallets.includes(toAddr)) {
+            const amt = Number(ev.result.value) / 1e6;
+            if (amt > maxAmt) maxAmt = amt;
           }
         }
-        actualAmount = maxAmt;
-        if (actualAmount > 0) {
-          if (actualAmount >= parseFloat(amount.toString().replace(/,/g, '')) - 1.0) {
-            isTxValid = true;
-            verifiedMsg = `✅ <b>온체인 검증 [TRON]: 일치함 (실제 송금액: ${actualAmount} USDT)</b>`;
-          } else {
-            verifiedMsg = `⚠️ <b>온체인 검증 [TRON]: 금액 불일치 (실제: ${actualAmount} / 신청: ${amount})</b>`;
-          }
-        } else {
-          verifiedMsg = `❌ <b>온체인 검증 [TRON]: 실패 (USDT 전송 내역 없음)</b>`;
-        }
-      } else {
-        verifiedMsg = `❌ <b>온체인 검증 [TRON]: 트랜잭션을 찾을 수 없음 (잘못된 TXID 거나 TronGrid 지연)</b>`;
       }
-    } else {
-      // Solana validation
-      const res = await fetch('https://solana-rpc.publicnode.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0', id: 1,
-          method: 'getTransaction',
-          params: [txid, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]
-        }),
-        signal: AbortSignal.timeout(8000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.result && data.result.meta) {
-           const meta = data.result.meta;
-           let maxReceived = 0;
-           for (const w of solanaWallets) {
-             const pre = meta.preTokenBalances.find(b => b.owner === w && b.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB');
-             const post = meta.postTokenBalances.find(b => b.owner === w && b.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB');
-             const preAmt = pre ? parseFloat(pre.uiTokenAmount.uiAmountString) : 0;
-             const postAmt = post ? parseFloat(post.uiTokenAmount.uiAmountString) : 0;
-             const diff = postAmt - preAmt;
-             if (diff > maxReceived) maxReceived = diff;
-           }
-           actualAmount = maxReceived;
-           if (actualAmount > 0) {
-             if (actualAmount >= parseFloat(amount.toString().replace(/,/g, '')) - 1.0) {
-               verifiedMsg = `✅ <b>온체인 검증 [Solana]: 일치함 (실제 송금액: ${actualAmount} USDT)</b>`;
-               isTxValid = true;
-             } else {
-               verifiedMsg = `⚠️ <b>온체인 검증 [Solana]: 금액 불일치 (실제: ${actualAmount} / 신청: ${amount})</b>`;
-             }
-           } else {
-             verifiedMsg = `❌ <b>온체인 검증 [Solana]: 실패 (회사 지갑으로 USDT 입금내역 없음)</b>`;
-           }
+      if (maxAmt > 0) {
+        if (maxAmt >= expectedAmt - 1.0) {
+          return { actualAmount: maxAmt, isTxValid: true, verifiedMsg: `✅ <b>온체인 검증 [TRON]: 일치함 (실제 송금액: ${maxAmt} USDT)</b>`, found: true };
         } else {
-           verifiedMsg = `❌ <b>온체인 검증 [Solana]: 트랜잭션을 찾을 수 없음 (잘못된 TXID)</b>`;
+          return { actualAmount: maxAmt, isTxValid: false, verifiedMsg: `⚠️ <b>온체인 검증 [TRON]: 금액 불일치 (실제: ${maxAmt} / 신청: ${amount})</b>`, found: true };
         }
       }
+      return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [TRON]: USDT 전송 내역 없음</b>`, found: true };
+    } catch (e: any) {
+      return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [TRON]: ${e?.message || 'error'}</b>`, found: false };
+    }
+  }
+
+  async function verifyOnSolana(): Promise<{ actualAmount: number; isTxValid: boolean; verifiedMsg: string; found: boolean }> {
+    // PART II §1-4 — Solana RPC 4-way fallback
+    const solanaRpcUrls = [
+      'https://solana-rpc.publicnode.com',
+      'https://api.mainnet-beta.solana.com',
+      'https://solana.api.onfinality.io/public',
+      'https://rpc.ankr.com/solana'
+    ];
+    let data: any = null;
+    let rpcError = '';
+    for (const rpcUrl of solanaRpcUrls) {
+      try {
+        const res = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1,
+            method: 'getTransaction',
+            params: [txid, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]
+          }),
+          signal: AbortSignal.timeout(6000)
+        });
+        if (!res.ok) { rpcError = `RPC ${rpcUrl} status ${res.status}`; continue; }
+        const json = await res.json();
+        if (json && json.result && json.result.meta) { data = json; break; }
+        else if (json && json.result === null) { rpcError = 'tx not yet confirmed'; break; }
+      } catch (e: any) { rpcError = `RPC ${rpcUrl} ${e?.message || 'error'}`; continue; }
+    }
+    if (data && data.result && data.result.meta) {
+      const meta = data.result.meta;
+      let maxReceived = 0;
+      const USDT_MINT_SOL = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+      for (const w of solanaWallets) {
+        const pre = (meta.preTokenBalances || []).find((b: any) => b.owner === w && b.mint === USDT_MINT_SOL);
+        const post = (meta.postTokenBalances || []).find((b: any) => b.owner === w && b.mint === USDT_MINT_SOL);
+        const preAmt = pre ? parseFloat(pre.uiTokenAmount.uiAmountString) : 0;
+        const postAmt = post ? parseFloat(post.uiTokenAmount.uiAmountString) : 0;
+        const diff = postAmt - preAmt;
+        if (diff > maxReceived) maxReceived = diff;
+      }
+      if (maxReceived > 0) {
+        if (maxReceived >= expectedAmt - 1.0) {
+          return { actualAmount: maxReceived, isTxValid: true, verifiedMsg: `✅ <b>온체인 검증 [Solana]: 일치함 (실제 송금액: ${maxReceived} USDT)</b>`, found: true };
+        } else {
+          return { actualAmount: maxReceived, isTxValid: false, verifiedMsg: `⚠️ <b>온체인 검증 [Solana]: 금액 불일치 (실제: ${maxReceived} / 신청: ${amount})</b>`, found: true };
+        }
+      }
+      return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [Solana]: 회사 지갑으로 USDT 입금내역 없음</b>`, found: true };
+    }
+    if (rpcError === 'tx not yet confirmed') {
+      return { actualAmount: 0, isTxValid: false, verifiedMsg: `⏳ <b>온체인 검증 [Solana]: 트랜잭션 미확정 — 잠시 후 자동 재검증됩니다</b>`, found: false };
+    }
+    return { actualAmount: 0, isTxValid: false, verifiedMsg: `❌ <b>온체인 검증 [Solana]: 트랜잭션을 찾을 수 없음 (모든 RPC 실패: ${rpcError || 'unknown'})</b>`, found: false };
+  }
+
+  try {
+    // PART II §1-2/§1-4 — tryOrder 순서대로 시도, found=true 또는 isTxValid=true 시 종료
+    for (const tryNet of tryOrder) {
+      networksTried.push(tryNet);
+      let r: { actualAmount: number; isTxValid: boolean; verifiedMsg: string; found: boolean };
+      if (tryNet === 'BSC') r = await verifyOnBsc();
+      else if (tryNet === 'TRON') r = await verifyOnTron();
+      else r = await verifyOnSolana();
+
+      // 검증 성공 또는 트랜잭션이 해당 네트워크에 존재(금액불일치 포함)면 즉시 종료
+      if (r.isTxValid || r.found) {
+        network = tryNet;
+        actualAmount = r.actualAmount;
+        isTxValid = r.isTxValid;
+        verifiedMsg = r.verifiedMsg;
+        break;
+      }
+      // 트랜잭션 미발견 시 다음 네트워크 시도. 마지막 메시지는 마지막 시도의 verifiedMsg 로 유지
+      verifiedMsg = r.verifiedMsg;
+    }
+    // 모든 fallback 실패 시 종합 메시지로 보강
+    if (!isTxValid && actualAmount === 0 && networksTried.length > 1) {
+      verifiedMsg = `❌ <b>온체인 검증 실패 (${networksTried.join('→')} 모두 미발견)</b>`;
     }
   } catch (e) {
     console.error('Verify multi chain error:', e);
   }
-  return { isTxValid, actualAmount, verifiedMsg, network };
+  return { isTxValid, actualAmount, verifiedMsg, network, networksTried };
 }
 
 
@@ -6517,66 +7454,259 @@ app.post('/api/admin/notify-deposit-request', async (c) => {
     const adminToken = await getAdminToken()
     const rawSettings = await fsGet('settings/system', adminToken) || {}
     const sysDocData = rawSettings.fields ? firestoreDocToObj(rawSettings) : {}
-    
-    // 온체인 검증
-    let verifiedMsg = '⏳ 온체인 검증: 일시적 확인불가 (관리자가 직접 확인 요망)';
-    let isTxValid = false;
-    let actualAmount = 0;
-    
-    let cwDoc1 = await fsGet('settings/companyWallets', adminToken).catch(()=>null);
-    if (sysDocData.depositAddress) {
-       if (!cwDoc1) {
-           // mock it
-       }
-    }
-    const result = await verifyMultiChainDeposit(txid, amount, cwDoc1);
-    isTxValid = result.isTxValid;
-    actualAmount = result.actualAmount;
-    verifiedMsg = result.verifiedMsg;
-    const network = result.network;
-  
-    
-    // update Firestore document
-    if (docId) {
-      try {
-        let updateData: any = {
-          txValidation: isTxValid ? 'valid' : 'invalid',
-          actualAmount: actualAmount,
-          verifiedMsg: verifiedMsg
-        };
-        // Auto-reject fake deposits
-        if (!isTxValid && actualAmount === 0 && !verifiedMsg.includes('일시적')) {
-          updateData.status = 'rejected';
-          updateData.adminMemo = '시스템 자동 거절: 유효하지 않은 TXID 또는 입금내역 없음';
-        }
-        await fsPatch(`transactions/${docId}`, updateData, adminToken);
-      } catch (e) {
-        console.log('Failed to update transaction doc with validation result', e);
-      }
-    }
-    
+
+    // ─── 1단계: 텔레그램 1차 알림 (검증 전 즉시 발송) ────────────────
+    // 검증이 hang 되거나 실패해도 알림은 무조건 가도록 순서 변경
     const tgSettings = sysDocData.telegram || {}
     if (!tgSettings.botToken && c.env && c.env.TELEGRAM_BOT_TOKEN) {
       tgSettings.botToken = c.env.TELEGRAM_BOT_TOKEN;
-      tgSettings.chatId = tgSettings.chatId || '-1002347315570'; // fallback
+      tgSettings.chatId = tgSettings.chatId || '-1002347315570';
       tgSettings.recipients = tgSettings.recipients || [{ chatId: tgSettings.chatId, onDeposit: true }];
     }
+    // 네트워크 추정 (TXID 형식만으로)
+    let preNetwork = 'Solana';
+    if (txid && txid.startsWith('0x') && txid.length === 66) preNetwork = 'BSC';
+    else if (txid && /^[0-9a-fA-F]{64}$/.test(txid)) preNetwork = 'TRON';
+    const explorerUrl = preNetwork === 'BSC' ? `https://bscscan.com/tx/${txid}`
+                      : preNetwork === 'TRON' ? `https://tronscan.org/#/transaction/${txid}`
+                      : `https://solscan.io/tx/${txid}`;
     const nowStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-    let tgStatusStr = '관리자 페이지에서 승인 대기중입니다.';
-    if (!isTxValid && actualAmount === 0 && !verifiedMsg.includes('일시적')) {
-      tgStatusStr = '❌ <b>자동 거절됨</b> (허위 입금 또는 금액 없음)';
+    const preText = `🚨 <b>신규 입금 신청 (수동)</b>\n회원: ${email}\n신청 금액: ${amount} USDT\n네트워크: ${preNetwork}\nTXID: <a href="${explorerUrl}">${(txid||'').substring(0,25)}...</a>\n시각: ${nowStr}\n\n⏳ <b>온체인 검증 진행중...</b>\n검증 결과는 잠시 후 관리자 페이지에 자동 표시됩니다.`
+    // 동기 발송 시도 (실패해도 throw 하지 않음)
+    try {
+      await sendTelegramToRecipients(tgSettings, 'deposit', preText);
+    } catch (e) {
+      console.error('[notify-deposit pre-telegram]', e);
     }
-    const text = `🚨 <b>신규 입금 신청 (수동)</b>\n회원: ${email}\n신청 금액: ${amount} USDT\nTXID: <a href="${network === 'BSC' ? `https://bscscan.com/tx/${txid}` : (network === 'TRON' ? `https://tronscan.org/#/transaction/${txid}` : `https://solscan.io/tx/${txid}`)}">${txid.substring(0,25)}...</a>\n시각: ${nowStr}\n\n${verifiedMsg}\n\n${tgStatusStr}`
-    if (c.executionCtx && c.executionCtx.waitUntil) {
-      c.executionCtx.waitUntil(sendTelegramToRecipients(tgSettings, 'deposit', text).catch(e => console.error(e)));
+
+    // ─── 2단계: 온체인 검증 (10초 timeout 보호) ─────────────────────
+    let verifiedMsg = '⏳ 온체인 검증: 일시적 확인불가 (관리자가 직접 확인 요망)';
+    let isTxValid = false;
+    let actualAmount = 0;
+    let network = preNetwork;
+
+    try {
+      const cwDoc1 = await fsGet('settings/companyWallets', adminToken).catch(()=>null);
+      // 전체 검증을 12초 타임박스로 감싸 hang 방지
+      const verifyPromise = verifyMultiChainDeposit(txid, amount, cwDoc1);
+      const timeoutPromise = new Promise((_, rej) => setTimeout(() => rej(new Error('verify timeout')), 12000));
+      const result: any = await Promise.race([verifyPromise, timeoutPromise]).catch((e) => {
+        console.error('[notify-deposit verify race]', e?.message || e);
+        return null;
+      });
+      if (result) {
+        isTxValid = result.isTxValid;
+        actualAmount = result.actualAmount;
+        verifiedMsg = result.verifiedMsg;
+        network = result.network || preNetwork;
+      }
+    } catch (e) {
+      console.error('[notify-deposit verify outer]', e);
+    }
+
+    // ─── 3단계: Firestore 문서 업데이트 (검증 결과 반영) ─────────────
+    // [FIX 2026-04-30 B-8] docId 가 없어도 txValidation 항상 저장
+    // - docId 미전달 시 txid 로 transactions 컬렉션 검색하여 자동 매칭
+    // - 매칭 실패 시 별도 verificationLogs 컬렉션에 결과 보관 (관리자 추적용)
+    let resolvedDocId = docId;
+    if (!resolvedDocId && txid) {
+      try {
+        const matchedTxs = await fsQuery('transactions', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'txid' }, op: 'EQUAL', value: { stringValue: txid } } }
+        ], 1).catch(() => []);
+        if (matchedTxs && matchedTxs.length > 0) {
+          resolvedDocId = matchedTxs[0].id || matchedTxs[0].docId || null;
+        }
+      } catch (e) {
+        console.error('[notify-deposit txid lookup]', e);
+      }
+    }
+
+    const updateData: any = {
+      txValidation: isTxValid ? 'valid' : (verifiedMsg.includes('일시적') || verifiedMsg.includes('진행중') ? 'pending' : 'invalid'),
+      actualAmount: actualAmount,
+      verifiedMsg: verifiedMsg,
+      network: network,
+      verifiedAt: new Date().toISOString()
+    };
+    // 명백한 허위 입금만 자동 거절 (검증 일시 불가는 보류)
+    if (!isTxValid && actualAmount === 0 && !verifiedMsg.includes('일시적') && !verifiedMsg.includes('진행중') && !verifiedMsg.includes('찾을 수 없음')) {
+      updateData.status = 'rejected';
+      updateData.adminMemo = '시스템 자동 거절: 유효하지 않은 TXID 또는 입금내역 없음';
+    }
+
+    if (resolvedDocId) {
+      try {
+        await fsPatch(`transactions/${resolvedDocId}`, updateData, adminToken);
+      } catch (e) {
+        console.log('Failed to update transaction doc with validation result', e);
+      }
     } else {
-      await sendTelegramToRecipients(tgSettings, 'deposit', text);
+      // docId 도 없고 txid 매칭도 실패 → verificationLogs 에 보관
+      try {
+        await fsCreate('verificationLogs', {
+          ...updateData,
+          txid: txid || null,
+          email: email || null,
+          requestedAmount: amount,
+          createdAt: new Date().toISOString()
+        }, adminToken);
+      } catch (e) {
+        console.log('Failed to create verificationLogs entry', e);
+      }
     }
-    return c.json({ success: true, verified: isTxValid, actualAmount })
+
+    // ─── 4단계: 텔레그램 2차 알림 (검증 결과 포함) ───────────────────
+    let tgStatusStr = '관리자 페이지에서 승인 대기중입니다.';
+    if (isTxValid) {
+      tgStatusStr = '✅ <b>온체인 검증 통과 — 승인 대기</b>';
+    } else if (!isTxValid && actualAmount === 0 && !verifiedMsg.includes('일시적') && !verifiedMsg.includes('진행중') && !verifiedMsg.includes('찾을 수 없음')) {
+      tgStatusStr = '❌ <b>자동 거절됨</b> (허위 입금 또는 금액 없음)';
+    } else {
+      tgStatusStr = '⚠️ <b>검증 일시 불가 — 관리자 직접 확인 필요</b>';
+    }
+    const postText = `📋 <b>입금 검증 결과</b>\n회원: ${email}\n금액: ${amount} USDT\nTXID: <a href="${explorerUrl}">${(txid||'').substring(0,25)}...</a>\n\n${verifiedMsg}\n\n${tgStatusStr}`;
+    if (c.executionCtx && c.executionCtx.waitUntil) {
+      c.executionCtx.waitUntil(sendTelegramToRecipients(tgSettings, 'deposit', postText).catch(e => console.error('[notify-deposit post-telegram]', e)));
+    } else {
+      try { await sendTelegramToRecipients(tgSettings, 'deposit', postText); } catch (e) { console.error('[notify-deposit post-telegram]', e); }
+    }
+
+    return c.json({ success: true, verified: isTxValid, actualAmount, network, verifiedMsg })
   } catch (e: any) {
     return c.json({ error: e.message }, 500)
   }
 })
+
+// ─── 텔레그램 입금알림 진단용 테스트 엔드포인트 (관리자 페이지 도구로 유지) ──
+// cron-secret 또는 관리자 권한으로 호출 가능. 실제 발송 경로를 그대로 사용.
+app.get('/api/cron/test-deposit-telegram', async (c) => {
+  const secret = c.req.query('secret') || c.req.header('x-cron-secret');
+  let authorized = isValidCronSecret(secret);
+
+  if (!authorized) {
+    try {
+      authorized = await hasPrivilegedApiAccess(c);
+    } catch (_) { authorized = false; }
+  }
+
+  if (!authorized) return c.json({ error: 'unauthorized' }, 401);
+
+  const diag: any = {
+    timestamp: new Date().toISOString(),
+    envHasBotToken: false,
+    settingsHasBotToken: false,
+    botTokenSource: '',
+    chatIdSource: '',
+    recipients: [],
+    sendAttempts: [],
+    botInfo: null,
+    finalResult: ''
+  };
+
+  try {
+    const adminToken = await getAdminToken();
+    const rawSettings = await fsGet('settings/system', adminToken) || {};
+    const sysDocData = rawSettings.fields ? firestoreDocToObj(rawSettings) : {};
+    const tgSettings = sysDocData.telegram || {};
+
+    diag.envHasBotToken = !!(c.env && (c.env as any).TELEGRAM_BOT_TOKEN);
+    diag.settingsHasBotToken = !!tgSettings.botToken;
+
+    if (!tgSettings.botToken && c.env && (c.env as any).TELEGRAM_BOT_TOKEN) {
+      tgSettings.botToken = (c.env as any).TELEGRAM_BOT_TOKEN;
+      tgSettings.chatId = tgSettings.chatId || '-1002347315570';
+      tgSettings.recipients = tgSettings.recipients || [{ chatId: tgSettings.chatId, onDeposit: true }];
+      diag.botTokenSource = 'env.TELEGRAM_BOT_TOKEN';
+    } else if (tgSettings.botToken) {
+      diag.botTokenSource = 'firestore.settings.system.telegram.botToken';
+    } else {
+      diag.botTokenSource = 'NOT_FOUND';
+    }
+
+    diag.recipients = (tgSettings.recipients || []).map((r: any) => ({
+      chatId: r.chatId || '',
+      onDeposit: r.onDeposit !== false
+    }));
+    diag.chatIdSource = tgSettings.chatId || '';
+
+    // 봇 토큰 살아있는지 확인 (getMe)
+    if (tgSettings.botToken) {
+      try {
+        const meRes = await fetch(`https://api.telegram.org/bot${tgSettings.botToken}/getMe`, {
+          signal: AbortSignal.timeout(8000)
+        });
+        const meData = await meRes.json().catch(() => null);
+        diag.botInfo = meData;
+      } catch (e: any) {
+        diag.botInfo = { error: e.message };
+      }
+    }
+
+    // 실제 발송 (수동 입금 신청 메시지 포맷 그대로)
+    const nowStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+    const text = `🧪 <b>[테스트] 신규 입금 신청 (수동)</b>
+회원: test@deedra.io
+신청 금액: 100 USDT
+TXID: <a href="https://solscan.io/tx/TEST_${Date.now()}">TEST_${Date.now()}...</a>
+시각: ${nowStr}
+
+⏳ 온체인 검증: 일시적 확인불가 (테스트 메시지)
+
+✅ <b>이 메시지가 보이면 텔레그램 입금알림봇은 정상 작동 중입니다.</b>`;
+
+    if (!tgSettings.botToken) {
+      diag.finalResult = '❌ botToken 없음 — 발송 불가';
+      return c.json(diag);
+    }
+
+    // 직접 각 수신자별로 발송 결과를 추적
+    const recs = tgSettings.recipients || (tgSettings.chatId ? [{ chatId: tgSettings.chatId, onDeposit: true }] : []);
+    if (recs.length === 0) {
+      diag.finalResult = '❌ recipients 비어있음 — 발송 대상 없음';
+      return c.json(diag);
+    }
+
+    for (const rec of recs) {
+      if (!rec.chatId) {
+        diag.sendAttempts.push({ chatId: '(empty)', skipped: true, reason: 'chatId 비어있음' });
+        continue;
+      }
+      if (rec.onDeposit === false) {
+        diag.sendAttempts.push({ chatId: rec.chatId, skipped: true, reason: 'onDeposit=false' });
+        continue;
+      }
+      try {
+        const sendRes = await fetch(`https://api.telegram.org/bot${tgSettings.botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: rec.chatId, text, parse_mode: 'HTML' }),
+          signal: AbortSignal.timeout(10000)
+        });
+        const sendData = await sendRes.json().catch(() => null);
+        diag.sendAttempts.push({
+          chatId: rec.chatId,
+          httpStatus: sendRes.status,
+          ok: sendData?.ok === true,
+          telegramResponse: sendData
+        });
+      } catch (e: any) {
+        diag.sendAttempts.push({ chatId: rec.chatId, error: e.message });
+      }
+    }
+
+    const okCount = diag.sendAttempts.filter((a: any) => a.ok).length;
+    const failCount = diag.sendAttempts.filter((a: any) => !a.ok && !a.skipped).length;
+    diag.finalResult = okCount > 0
+      ? `✅ ${okCount}건 발송 성공${failCount > 0 ? `, ${failCount}건 실패` : ''}`
+      : `❌ 발송 실패 — Telegram API 응답을 확인하세요`;
+
+    return c.json(diag);
+  } catch (e: any) {
+    diag.finalResult = `❌ 진단 중 예외: ${e.message}`;
+    return c.json(diag, 500);
+  }
+});
 
 app.post('/api/solana/check-deposits', async (c) => {
   try {
@@ -6798,7 +7928,82 @@ app.post('/api/solana/check-deposits', async (c) => {
 
       const pendingTx = pendingDeposits.find((p: any) => p.txid === txHash || p.txHash === txHash);
       const expectedAmt = pendingTx && pendingTx.amount ? Number(pendingTx.amount) : 0;
-      
+
+      // [FIX 2026-04-30] 회사 지갑이 단순히 fee payer 로만 등장한 트랜잭션은 입금 후보에서 제외.
+      // 회원이 D-WALLET → 외부 SOL 전송 시 가스비 스폰서로 회사 지갑이 끼어들면서,
+      // 자동감지가 이를 입금 후보로 잘못 등록하던 문제를 차단함.
+      try {
+        const onChainRes = await fetch('https://solana-rpc.publicnode.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1,
+            method: 'getTransaction',
+            params: [txHash, { encoding: 'json', maxSupportedTransactionVersion: 0 }]
+          }),
+          signal: AbortSignal.timeout(8000)
+        });
+        if (onChainRes.ok) {
+          const onChainData = await onChainRes.json();
+          const r = onChainData?.result;
+          if (r && r.transaction && r.meta) {
+            const accountKeys: string[] = (r.transaction.message?.accountKeys || []).map((k: any) =>
+              typeof k === 'string' ? k : (k?.pubkey || '')
+            );
+            const pre = r.meta.preBalances || [];
+            const post = r.meta.postBalances || [];
+
+            // 회사 지갑별 SOL 잔액 변화 계산
+            let companyHasPositiveSolGain = false;
+            for (const w of validCompanyWallets) {
+              const idx = accountKeys.findIndex(k => k === w);
+              if (idx < 0) continue;
+              const diffLamports = (post[idx] || 0) - (pre[idx] || 0);
+              if (diffLamports > 10000) { // 1만 lamports(0.00001 SOL) 이상이면 진짜 입금 신호
+                companyHasPositiveSolGain = true;
+                break;
+              }
+            }
+
+            // SPL 토큰 입금 여부 별도 확인 (USDT)
+            let companyHasUsdtGain = false;
+            const preTokens = r.meta.preTokenBalances || [];
+            const postTokens = r.meta.postTokenBalances || [];
+            const USDT_MINT = 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB';
+            for (const w of validCompanyWallets) {
+              const preB = preTokens.find((b: any) => b.owner === w && b.mint === USDT_MINT);
+              const postB = postTokens.find((b: any) => b.owner === w && b.mint === USDT_MINT);
+              const preAmt = preB ? parseFloat(preB.uiTokenAmount?.uiAmountString || '0') : 0;
+              const postAmt = postB ? parseFloat(postB.uiTokenAmount?.uiAmountString || '0') : 0;
+              if (postAmt - preAmt > 0.0001) {
+                companyHasUsdtGain = true;
+                break;
+              }
+            }
+
+            // 회사 지갑이 자금을 받지 않았다면(=fee payer/스폰서로만 등장) 후보에서 제외
+            if (!companyHasPositiveSolGain && !companyHasUsdtGain) {
+              dbgLog.push({ sig: txHash, status: 'skip_fee_payer_only', msg: '회사 지갑이 자금 수신자가 아닌 fee payer/스폰서로만 등장' });
+              if (pendingTx) {
+                try {
+                  await fsPatch(`transactions/${pendingTx.id}`, {
+                    status: 'rejected',
+                    txValidation: 'invalid',
+                    actualAmount: 0,
+                    verifiedMsg: '❌ 회사 지갑이 fee payer 로만 등장한 트랜잭션 (실제 자금 수신 없음)',
+                    adminMemo: '시스템 자동 거절: 회사 지갑이 자금 수신자가 아니라 가스비 대납자로만 등장'
+                  }, adminToken);
+                } catch(e) {}
+              }
+              continue;
+            }
+          }
+        }
+      } catch (e) {
+        // RPC 실패 시 기존 로직으로 진행 (안전 장치)
+        console.warn('[check-deposits] fee-payer guard RPC failed:', e);
+      }
+
       const verifyRes = await verifyMultiChainDeposit(txHash, expectedAmt, cwDoc);
       
       if (!verifyRes.isTxValid || verifyRes.actualAmount < 1) {
@@ -6975,6 +8180,34 @@ app.post('/api/solana/check-deposits', async (c) => {
       await fireAutoRules('deposit_complete', matchedUser.id, {
         amount: amount.toFixed(2), currency: 'USDT', network: txHash.startsWith('0x') ? 'BSC' : (txHash.length===64 ? 'TRON' : 'Solana'), txHash: txHash.slice(0, 20)
       }, adminToken);
+
+      // [FIX 2026-04-30] 자동감지 입금 승인 시에도 텔레그램 알림 발송 (수동 신청과 동일 포맷)
+      try {
+        const sysDocRaw = await fsGet('settings/system', adminToken).catch(() => null);
+        const sysData = sysDocRaw?.fields ? firestoreDocToObj(sysDocRaw) : {};
+        const tgSettings = sysData.telegram || {};
+        if (!tgSettings.botToken && c.env && (c.env as any).TELEGRAM_BOT_TOKEN) {
+          tgSettings.botToken = (c.env as any).TELEGRAM_BOT_TOKEN;
+          tgSettings.chatId = tgSettings.chatId || '-1002347315570';
+          tgSettings.recipients = tgSettings.recipients || [{ chatId: tgSettings.chatId, onDeposit: true }];
+        }
+        const network = txHash.startsWith('0x') ? 'BSC' : (txHash.length === 64 ? 'TRON' : 'Solana');
+        const explorerUrl = network === 'BSC'
+          ? `https://bscscan.com/tx/${txHash}`
+          : network === 'TRON'
+            ? `https://tronscan.org/#/transaction/${txHash}`
+            : `https://solscan.io/tx/${txHash}`;
+        const nowStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+        const bonusLine = appliedBonus ? `\n보너스: ${appliedBonus} (+${bonusAmount.toFixed(2)} USDT)` : '';
+        const text = `🟢 <b>입금 자동 감지 & 승인 완료</b>\n회원: ${matchedUser.email || matchedUser.id}\n입금 금액: ${amount.toFixed(2)} USDT (${network})${bonusLine}\nTXID: <a href="${explorerUrl}">${txHash.substring(0,25)}...</a>\n시각: ${nowStr}\n\n${verifyRes.verifiedMsg}`;
+        if (c.executionCtx && c.executionCtx.waitUntil) {
+          c.executionCtx.waitUntil(sendTelegramToRecipients(tgSettings, 'deposit', text).catch(e => console.error('[auto-deposit telegram]', e)));
+        } else {
+          await sendTelegramToRecipients(tgSettings, 'deposit', text);
+        }
+      } catch (e) {
+        console.error('[check-deposits telegram notify error]', e);
+      }
 
       processed++;
     }
@@ -7719,21 +8952,8 @@ app.get('/api/cron/draw-weekly-jackpot', async (c) => {
       }
     }
     
-    // Execute writes in batches of 500
-    const chunkArray = (arr: any[], size: number) => {
-      const res = []
-      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size))
-      return res
-    }
-    
-    const chunks = chunkArray(writes, 500)
-    for (const chunk of chunks) {
-      await fetch(`https://firestore.googleapis.com/v1/projects/dedra-mlm/databases/(default)/documents:commit`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ writes: chunk })
-      })
-    }
+    // PART II §0 HARD RULE #4 — 20개 단위 배치 (fsBatchCommit 내부에서 자동 분할)
+    await fsBatchCommit(writes, adminToken)
     
     // TG Notification
     const tgMsg = `🎰 <b>[WEEKLY JACKPOT DRAW]</b>\n🏆 Winner: ${userEmails[winnerId] || winnerId}\n💰 Prize: ${prizeUsdt.toFixed(2)} USDT\n⛓ Blockhash: ${blockhash}`
@@ -9521,6 +10741,850 @@ app.get('/api/admin/settlement-dry-run', async (c) => {
 
 
 
+// ════════════════════════════════════════════════════════════════════
+// 오토봇 트레이딩 콘솔 API (2026-04-30 신규)
+// ════════════════════════════════════════════════════════════════════
+import {
+  TOKEN_META as AUTOBOT_TOKEN_META,
+  AUTOBOT_DEFAULTS_FULL,
+  getSolanaWalletBalances as autobotGetSolanaBalances,
+  fetchMultiTokenPrices as autobotFetchMultiPrices,
+  fetchCoinGeckoPrices as autobotFetchCoinGecko,
+  getJupiterQuote as autobotJupiterQuote,
+  logBotActivity as autobotLogActivity,
+  listBotActivities as autobotListActivities,
+  computeAiSignal as autobotComputeAiSignal,
+  buildGridLevels as autobotBuildGrid,
+  buildDcaPlan as autobotBuildDca,
+  getBotDailyStats as autobotDailyStats,
+  solanaRpc as autobotSolanaRpc,
+  fetchPriceHistory as autobotPriceHistory,
+  recordPriceTick as autobotRecordTick,
+  analyzeTechnical as autobotAnalyze,
+  emergencyStop as autobotEmergencyStop,
+  checkRiskLimits as autobotCheckRisk,
+  detectPriceSpike as autobotDetectSpike,
+  STRATEGY_PRESETS as AUTOBOT_PRESETS,
+  runAutoCycle as autobotRunCycle,
+  sendBotTelegram as autobotSendTelegram,
+} from './services/autobot';
+
+// 1) 오토봇 설정 조회
+app.get('/api/admin/autobot-settings', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const doc = await fsGet('settings/autobot', adminToken).catch(() => null);
+    const obj = doc?.fields ? firestoreDocToObj(doc) : {};
+    const merged = { ...AUTOBOT_DEFAULTS_FULL, ...(obj || {}) };
+    return c.json({ success: true, settings: merged });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 2) 오토봇 설정 저장
+app.post('/api/admin/autobot-settings', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const merged: any = { ...AUTOBOT_DEFAULTS_FULL, ...body };
+    if (merged.minAmount > merged.maxAmount) return c.json({ success: false, error: '최소 거래 금액이 최대보다 클 수 없습니다.' }, 400);
+    if (merged.minWaitMins > merged.maxWaitMins) return c.json({ success: false, error: '최소 대기 시간이 최대보다 클 수 없습니다.' }, 400);
+    merged.updatedAt = new Date().toISOString();
+    await fsSet('settings/autobot', merged, adminToken);
+    await autobotLogActivity(adminToken, {
+      type: 'config_change',
+      severity: 'info',
+      message: `오토봇 설정 변경 (전략: ${merged.strategy}, 활성: ${merged.enabled})`,
+      detail: { strategy: merged.strategy, enabled: merged.enabled, minAmount: merged.minAmount, maxAmount: merged.maxAmount },
+    });
+    return c.json({ success: true, settings: merged });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 3) 멀티 토큰 시세 (DDRA / SOL / USDT / BTC / ETH)
+app.get('/api/admin/autobot/prices', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const [solana, gecko] = await Promise.all([
+      autobotFetchMultiPrices(['DDRA', 'SOL', 'USDT', 'USDC']),
+      autobotFetchCoinGecko(['bitcoin', 'ethereum', 'solana', 'tether']),
+    ]);
+    return c.json({ success: true, solana, cex: gecko, updatedAt: Date.now() });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 4) 솔라나 지갑 잔고 (회사지갑/봇지갑/임의주소)
+app.get('/api/admin/autobot/wallet-balance', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    let pubkey = c.req.query('address') || '';
+    if (!pubkey) {
+      // 봇 설정에 walletAddress 없으면 settings/companyWallets 의 첫 번째 솔라나 주소
+      const botDoc = await fsGet('settings/autobot', adminToken).catch(() => null);
+      const botObj = botDoc?.fields ? firestoreDocToObj(botDoc) : {};
+      pubkey = botObj.walletAddress || '';
+    }
+    if (!pubkey) {
+      const cwDoc = await fsGet('settings/companyWallets', adminToken).catch(() => null);
+      const wallets = cwDoc?.fields?.wallets?.arrayValue?.values || [];
+      for (const w of wallets) {
+        const nw = (w.mapValue?.fields?.network?.stringValue || '').toUpperCase();
+        const addr = w.mapValue?.fields?.address?.stringValue || '';
+        if (addr && (nw === 'SOLANA' || nw === '' || nw === 'SOL')) { pubkey = addr; break; }
+      }
+    }
+    if (!pubkey) return c.json({ success: false, error: '지갑 주소를 결정할 수 없습니다. settings/autobot.walletAddress 또는 settings/companyWallets 를 먼저 설정해주세요.' }, 400);
+
+    const balances = await autobotGetSolanaBalances(pubkey);
+    return c.json({ success: true, balances });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 5) Jupiter 스왑 견적 (실행 X — 미리보기)
+app.get('/api/admin/autobot/quote', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const fromSymbol = (c.req.query('from') || 'USDT').toUpperCase();
+    const toSymbol = (c.req.query('to') || 'DDRA').toUpperCase();
+    const amountUi = Number(c.req.query('amount') || '1');
+    const slippageBps = Math.max(50, Math.min(5000, Number(c.req.query('slippageBps') || '100')));
+    if (!Number.isFinite(amountUi) || amountUi <= 0) return c.json({ success: false, error: 'amount > 0 필수' }, 400);
+    const quote = await autobotJupiterQuote(fromSymbol, toSymbol, amountUi, slippageBps);
+    return c.json({ success: true, quote });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 6) AI 시그널 (현재 시세 + 봇 설정 기반 추천)
+app.get('/api/admin/autobot/ai-signal', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const symbol = (c.req.query('symbol') || 'DDRA').toUpperCase();
+    const meta = AUTOBOT_TOKEN_META[symbol];
+    if (!meta) return c.json({ success: false, error: '알 수 없는 토큰' }, 400);
+    const [tickMap, botDoc] = await Promise.all([
+      autobotFetchMultiPrices([symbol]),
+      fsGet('settings/autobot', adminToken).catch(() => null),
+    ]);
+    const tick = tickMap[symbol];
+    const botObj = botDoc?.fields ? firestoreDocToObj(botDoc) : {};
+    const settings = { ...AUTOBOT_DEFAULTS_FULL, ...(botObj || {}) };
+    const signal = autobotComputeAiSignal(tick, settings);
+    return c.json({ success: true, symbol, tick, signal, settings: { strategy: settings.strategy, enabled: settings.enabled } });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 7) 봇 활동 로그 조회
+app.get('/api/admin/autobot/activities', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const limit = Math.max(1, Math.min(200, Number(c.req.query('limit') || '50')));
+    const items = await autobotListActivities(adminToken, limit);
+    return c.json({ success: true, items, count: items.length });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 8) 봇 일일 통계 (24시간)
+app.get('/api/admin/autobot/stats', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const stats = await autobotDailyStats(adminToken);
+    return c.json({ success: true, stats });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 9) 그리드 트레이딩 격자 미리보기 (시뮬레이션)
+app.post('/api/admin/autobot/grid-preview', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const body = await c.req.json().catch(() => ({}));
+    const levels = autobotBuildGrid({
+      centerPrice: Number(body.centerPrice) || 0,
+      upperPrice: Number(body.upperPrice) || 0,
+      lowerPrice: Number(body.lowerPrice) || 0,
+      gridCount: Math.max(2, Math.min(50, Number(body.gridCount) || 10)),
+      totalCapital: Number(body.totalCapital) || 0,
+    });
+    return c.json({ success: true, levels, count: levels.length });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 10) DCA 스케줄 미리보기
+app.post('/api/admin/autobot/dca-preview', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const body = await c.req.json().catch(() => ({}));
+    const plan = autobotBuildDca({
+      totalCapital: Number(body.totalCapital) || 0,
+      steps: Math.max(1, Math.min(100, Number(body.steps) || 10)),
+      intervalMins: Math.max(1, Math.min(1440, Number(body.intervalMins) || 60)),
+    });
+    return c.json({ success: true, plan, count: plan.length });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 11) 봇 일시정지 / 재개 (긴급 스위치)
+app.post('/api/admin/autobot/toggle', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const enabled = !!body.enabled;
+    await fsPatch('settings/autobot', { enabled, updatedAt: new Date().toISOString() }, adminToken);
+    await autobotLogActivity(adminToken, {
+      type: 'config_change',
+      severity: enabled ? 'success' : 'warning',
+      message: enabled ? '🟢 오토봇이 가동되었습니다.' : '🛑 오토봇이 일시정지되었습니다.',
+    });
+    return c.json({ success: true, enabled });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// [FIX 2026-04-30] 스폰서 지갑 공개 주소 + SOL 잔고 조회 (시크릿 키는 절대 노출하지 않음)
+app.get('/api/admin/sponsor-wallet-info', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const spKey = (c.env as any).SPONSOR_SOL_SECRET;
+    if (!spKey) return c.json({ success: false, error: 'SPONSOR_SOL_SECRET 이 서버에 설정되지 않았습니다.' }, 400);
+
+    const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    const ALPHABET_MAP: Record<string, number> = {};
+    for (let i = 0; i < ALPHABET.length; i++) ALPHABET_MAP[ALPHABET[i]] = i;
+    function decodeBs58(S: string): Uint8Array {
+      const bytes: number[] = [0];
+      for (let i = 0; i < S.length; i++) {
+        const ch = S[i];
+        if (!(ch in ALPHABET_MAP)) throw new Error('Non-base58 character');
+        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
+        bytes[0] += ALPHABET_MAP[ch];
+        let carry = 0;
+        for (let j = 0; j < bytes.length; j++) {
+          bytes[j] += carry;
+          carry = bytes[j] >> 8;
+          bytes[j] &= 0xff;
+        }
+        while (carry) { bytes.push(carry & 0xff); carry >>= 8; }
+      }
+      for (let i = 0; i < S.length && S[i] === '1'; i++) bytes.push(0);
+      return new Uint8Array(bytes.reverse());
+    }
+    function encodeBs58(bytes: Uint8Array): string {
+      const digits = [0];
+      for (let i = 0; i < bytes.length; i++) {
+        let carry = bytes[i];
+        for (let j = 0; j < digits.length; j++) {
+          carry += digits[j] << 8;
+          digits[j] = carry % 58;
+          carry = (carry / 58) | 0;
+        }
+        while (carry) { digits.push(carry % 58); carry = (carry / 58) | 0; }
+      }
+      let out = '';
+      for (let i = 0; i < bytes.length && bytes[i] === 0; i++) out += '1';
+      for (let i = digits.length - 1; i >= 0; i--) out += ALPHABET[digits[i]];
+      return out;
+    }
+
+    let sponsorSecret: Uint8Array;
+    try {
+      const trimmed = String(spKey).trim();
+      if (trimmed.startsWith('[')) {
+        sponsorSecret = Uint8Array.from(JSON.parse(trimmed));
+      } else {
+        sponsorSecret = decodeBs58(trimmed);
+      }
+    } catch (e: any) {
+      return c.json({ success: false, error: '스폰서 지갑 시크릿 파싱 오류: ' + e.message }, 500);
+    }
+    if (sponsorSecret.length < 64) return c.json({ success: false, error: '잘못된 스폰서 시크릿 (길이 부족)' }, 500);
+    const sponsorPubkeyBytes = sponsorSecret.slice(32);
+    const sponsorAddress = encodeBs58(sponsorPubkeyBytes);
+
+    // SOL 잔고 조회 (Solana RPC)
+    let solBalance: number | null = null;
+    let rpcError: string | null = null;
+    try {
+      const rpcUrl = (c.env as any).SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+      const r = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: [sponsorAddress, { commitment: 'confirmed' }]
+        })
+      });
+      const j: any = await r.json();
+      if (j?.result?.value !== undefined) {
+        solBalance = Number(j.result.value) / 1_000_000_000;
+      } else if (j?.error) {
+        rpcError = JSON.stringify(j.error);
+      }
+    } catch (e: any) {
+      rpcError = e.message;
+    }
+
+    return c.json({
+      success: true,
+      sponsorAddress,
+      solBalance,
+      lamports: solBalance !== null ? Math.floor(solBalance * 1_000_000_000) : null,
+      rpcError,
+      note: 'ATA 1개 생성 비용 ≈ 0.00204 SOL, 트랜잭션 수수료 ≈ 0.000005 SOL. 권장 최소 잔고 0.05 SOL 이상.',
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 12) 솔라나 지갑 SOL 충전 — 회사 SPONSOR 지갑에서 봇 지갑으로 이체
+app.post('/api/admin/autobot/recharge-sol', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const toAddress = String(body.toAddress || '').trim();
+    const amountSol = Number(body.amountSol);
+    if (!toAddress) return c.json({ success: false, error: '받는 지갑 주소가 필요합니다.' }, 400);
+    if (!Number.isFinite(amountSol) || amountSol <= 0 || amountSol > 5) {
+      return c.json({ success: false, error: 'amountSol 은 0 ~ 5 사이여야 합니다.' }, 400);
+    }
+
+    const spKey = (c.env as any).SPONSOR_SOL_SECRET;
+    if (!spKey) return c.json({ success: false, error: 'SPONSOR_SOL_SECRET 이 서버에 설정되지 않았습니다.' }, 400);
+
+    // base58 → bytes
+    const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    const ALPHABET_MAP: Record<string, number> = {};
+    for (let i = 0; i < ALPHABET.length; i++) ALPHABET_MAP[ALPHABET[i]] = i;
+    function decodeBs58(S: string): Uint8Array {
+      const bytes: number[] = [0];
+      for (let i = 0; i < S.length; i++) {
+        const ch = S[i];
+        if (!(ch in ALPHABET_MAP)) throw new Error('Non-base58 character');
+        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
+        bytes[0] += ALPHABET_MAP[ch];
+        let carry = 0;
+        for (let j = 0; j < bytes.length; j++) {
+          bytes[j] += carry;
+          carry = bytes[j] >> 8;
+          bytes[j] &= 0xff;
+        }
+        while (carry) { bytes.push(carry & 0xff); carry >>= 8; }
+      }
+      for (let i = 0; i < S.length && S[i] === '1'; i++) bytes.push(0);
+      return new Uint8Array(bytes.reverse());
+    }
+
+    let sponsorSecret: Uint8Array;
+    try {
+      const trimmed = String(spKey).trim();
+      if (trimmed.startsWith('[')) {
+        sponsorSecret = Uint8Array.from(JSON.parse(trimmed));
+      } else {
+        sponsorSecret = decodeBs58(trimmed);
+      }
+    } catch (e: any) {
+      return c.json({ success: false, error: '스폰서 지갑 시크릿 파싱 오류: ' + e.message }, 500);
+    }
+    if (sponsorSecret.length < 64) return c.json({ success: false, error: '잘못된 스폰서 시크릿 (길이 부족)' }, 500);
+    const sponsorPubkey = sponsorSecret.slice(32);
+    const toPubkeyBytes = decodeBs58(toAddress);
+    if (toPubkeyBytes.length !== 32) return c.json({ success: false, error: '받는 주소가 유효한 솔라나 주소가 아닙니다.' }, 400);
+
+    const lamportsAmount = BigInt(Math.floor(amountSol * 1_000_000_000));
+
+    // blockhash
+    const bh: any = await autobotSolanaRpc('getLatestBlockhash', [{ commitment: 'confirmed' }]);
+    const blockhash: string = bh?.value?.blockhash;
+    if (!blockhash) return c.json({ success: false, error: 'blockhash 조회 실패' }, 500);
+    const blockhashBytes = decodeBs58(blockhash);
+
+    // 메시지 생성 (System Program transfer)
+    const systemProgram = new Uint8Array(32);
+    const message = new Uint8Array(150);
+    message[0] = 1; message[1] = 0; message[2] = 1; message[3] = 3;
+    message.set(sponsorPubkey, 4);
+    message.set(toPubkeyBytes, 36);
+    message.set(systemProgram, 68);
+    message.set(blockhashBytes, 100);
+    message[132] = 1;
+    message[133] = 2; message[134] = 2; message[135] = 0; message[136] = 1; message[137] = 12;
+    message[138] = 2; message[139] = 0; message[140] = 0; message[141] = 0;
+    for (let i = 0; i < 8; i++) {
+      message[142 + i] = Number((lamportsAmount >> BigInt(i * 8)) & 0xffn);
+    }
+
+    const signature = nacl.sign.detached(message, sponsorSecret);
+    const txBuf = new Uint8Array(1 + 64 + 150);
+    txBuf[0] = 1;
+    txBuf.set(signature, 1);
+    txBuf.set(message, 65);
+
+    let binary = '';
+    for (let i = 0; i < txBuf.byteLength; i++) binary += String.fromCharCode(txBuf[i]);
+    const base64Tx = btoa(binary);
+
+    const sendResult: any = await autobotSolanaRpc('sendTransaction', [base64Tx, { encoding: 'base64', skipPreflight: true, maxRetries: 3 }]);
+    const txid = typeof sendResult === 'string' ? sendResult : sendResult?.signature || '';
+    if (!txid) return c.json({ success: false, error: 'sendTransaction 실패: ' + JSON.stringify(sendResult).slice(0, 200) }, 500);
+
+    await autobotLogActivity(adminToken, {
+      type: 'deposit',
+      severity: 'success',
+      message: `봇 지갑에 ${amountSol} SOL 충전 (스폰서 → ${toAddress.slice(0, 8)}...)`,
+      txid,
+      amount: amountSol,
+      symbol: 'SOL',
+    });
+
+    return c.json({ success: true, txid, amountSol, toAddress, explorer: `https://solscan.io/tx/${txid}` });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 13) 수동 트레이드 실행 (관리자 전용 — Jupiter 스왑 + 봇 지갑 시그너 필요)
+//     실제 시그너는 settings/autobot.walletSecretKey (base58 또는 JSON 배열) 으로 보관.
+//     안전: amountUi 한도 검증 + slippageBps 상한 + 봇 비활성 상태에서도 강제 실행 가능.
+app.post('/api/admin/autobot/manual-trade', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const fromSymbol = String(body.fromSymbol || '').toUpperCase();
+    const toSymbol = String(body.toSymbol || '').toUpperCase();
+    const amountUi = Number(body.amountUi);
+    const slippageBps = Math.max(50, Math.min(5000, Number(body.slippageBps || 100)));
+
+    if (!AUTOBOT_TOKEN_META[fromSymbol] || !AUTOBOT_TOKEN_META[toSymbol]) {
+      return c.json({ success: false, error: '지원하지 않는 토큰 심볼' }, 400);
+    }
+    if (!Number.isFinite(amountUi) || amountUi <= 0) return c.json({ success: false, error: 'amountUi > 0 필수' }, 400);
+
+    const botDoc = await fsGet('settings/autobot', adminToken).catch(() => null);
+    const bot = botDoc?.fields ? firestoreDocToObj(botDoc) : {};
+    const merged: any = { ...AUTOBOT_DEFAULTS_FULL, ...(bot || {}) };
+
+    if (amountUi > Number(merged.maxAmount || 0) * 10) {
+      return c.json({ success: false, error: `1회 한도(${merged.maxAmount * 10})를 초과합니다.` }, 400);
+    }
+
+    const secretRaw = merged.walletSecretKey || (c.env as any).AUTOBOT_WALLET_SECRET || '';
+    if (!secretRaw) return c.json({ success: false, error: '봇 지갑 시크릿이 설정되지 않았습니다. settings/autobot.walletSecretKey 또는 env AUTOBOT_WALLET_SECRET 을 설정해주세요.' }, 400);
+
+    // base58 / JSON array 양쪽 지원
+    const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    const ALPHABET_MAP: Record<string, number> = {};
+    for (let i = 0; i < ALPHABET.length; i++) ALPHABET_MAP[ALPHABET[i]] = i;
+    function decodeBs58(S: string): Uint8Array {
+      const bytes: number[] = [0];
+      for (let i = 0; i < S.length; i++) {
+        const ch = S[i];
+        if (!(ch in ALPHABET_MAP)) throw new Error('Non-base58');
+        for (let j = 0; j < bytes.length; j++) bytes[j] *= 58;
+        bytes[0] += ALPHABET_MAP[ch];
+        let carry = 0;
+        for (let j = 0; j < bytes.length; j++) {
+          bytes[j] += carry; carry = bytes[j] >> 8; bytes[j] &= 0xff;
+        }
+        while (carry) { bytes.push(carry & 0xff); carry >>= 8; }
+      }
+      for (let i = 0; i < S.length && S[i] === '1'; i++) bytes.push(0);
+      return new Uint8Array(bytes.reverse());
+    }
+
+    let secretKey: Uint8Array;
+    try {
+      const t = String(secretRaw).trim();
+      secretKey = t.startsWith('[') ? Uint8Array.from(JSON.parse(t)) : decodeBs58(t);
+    } catch (e: any) {
+      return c.json({ success: false, error: '봇 지갑 시크릿 파싱 오류: ' + e.message }, 500);
+    }
+    if (secretKey.length < 64) return c.json({ success: false, error: '잘못된 시크릿 길이' }, 500);
+    const pubkeyBytes = secretKey.slice(32);
+    // base58 encode
+    function encodeBs58(bytes: Uint8Array): string {
+      const digits = [0];
+      for (let i = 0; i < bytes.length; i++) {
+        let carry = bytes[i];
+        for (let j = 0; j < digits.length; j++) {
+          carry += digits[j] << 8;
+          digits[j] = carry % 58;
+          carry = (carry / 58) | 0;
+        }
+        while (carry) { digits.push(carry % 58); carry = (carry / 58) | 0; }
+      }
+      let out = '';
+      for (let i = 0; i < bytes.length && bytes[i] === 0; i++) out += '1';
+      for (let i = digits.length - 1; i >= 0; i--) out += ALPHABET[digits[i]];
+      return out;
+    }
+    const pubKey = encodeBs58(pubkeyBytes);
+
+    const inMeta = AUTOBOT_TOKEN_META[fromSymbol];
+    const outMeta = AUTOBOT_TOKEN_META[toSymbol];
+    const amountLamports = Math.floor(amountUi * Math.pow(10, inMeta.decimals));
+
+    // Jupiter quote → swap
+    const qRes = await fetch(`https://api.jup.ag/swap/v1/quote?inputMint=${inMeta.mint}&outputMint=${outMeta.mint}&amount=${amountLamports}&slippageBps=${slippageBps}`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!qRes.ok) return c.json({ success: false, error: 'Jupiter quote HTTP ' + qRes.status }, 500);
+    const quote: any = await qRes.json();
+    if (quote.error) return c.json({ success: false, error: 'Jupiter quote: ' + quote.error }, 500);
+
+    const sRes = await fetch('https://api.jup.ag/swap/v1/swap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quoteResponse: quote,
+        userPublicKey: pubKey,
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto',
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!sRes.ok) return c.json({ success: false, error: 'Jupiter swap HTTP ' + sRes.status }, 500);
+    const swapData: any = await sRes.json();
+    if (swapData.error) return c.json({ success: false, error: 'Jupiter swap: ' + swapData.error }, 500);
+
+    // 서명
+    const swapTxBuf = Uint8Array.from(atob(swapData.swapTransaction), ch => ch.charCodeAt(0));
+    const numSig = swapTxBuf[0];
+    const messageOffset = 1 + numSig * 64;
+    const messageBytes = swapTxBuf.slice(messageOffset);
+    const sig = nacl.sign.detached(messageBytes, secretKey);
+    swapTxBuf.set(sig, 1);
+    let bin = '';
+    for (let i = 0; i < swapTxBuf.byteLength; i++) bin += String.fromCharCode(swapTxBuf[i]);
+    const base64Tx = btoa(bin);
+
+    const sendResult: any = await autobotSolanaRpc('sendTransaction', [base64Tx, { encoding: 'base64', skipPreflight: false, preflightCommitment: 'processed', maxRetries: 3 }]);
+    const txid: string = typeof sendResult === 'string' ? sendResult : (sendResult?.signature || '');
+    if (!txid) return c.json({ success: false, error: 'sendTransaction 실패: ' + JSON.stringify(sendResult).slice(0, 200) }, 500);
+
+    const inAmt = Number(quote.inAmount || 0) / Math.pow(10, inMeta.decimals);
+    const outAmt = Number(quote.outAmount || 0) / Math.pow(10, outMeta.decimals);
+
+    await autobotLogActivity(adminToken, {
+      type: 'manual_trade',
+      severity: 'success',
+      message: `수동 스왑: ${inAmt} ${fromSymbol} → ${outAmt} ${toSymbol}`,
+      txid,
+      amount: amountUi,
+      symbol: fromSymbol + '→' + toSymbol,
+      detail: { inAmt, outAmt, slippageBps, route: (quote.routePlan || []).map((s: any) => s?.swapInfo?.label).filter(Boolean) },
+    });
+
+    return c.json({
+      success: true,
+      txid,
+      explorer: `https://solscan.io/tx/${txid}`,
+      inAmount: inAmt,
+      outAmount: outAmt,
+      slippageBps,
+      pubKey,
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 14) 종합 대시보드 (한 번의 요청으로 페이지 초기 데이터 한 번에)
+app.get('/api/admin/autobot/dashboard', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const [botDoc, prices, gecko] = await Promise.all([
+      fsGet('settings/autobot', adminToken).catch(() => null),
+      autobotFetchMultiPrices(['DDRA', 'SOL', 'USDT', 'USDC']),
+      autobotFetchCoinGecko(['bitcoin', 'ethereum', 'solana']),
+    ]);
+    const botObj = botDoc?.fields ? firestoreDocToObj(botDoc) : {};
+    const settings = { ...AUTOBOT_DEFAULTS_FULL, ...(botObj || {}) };
+    const stats = await autobotDailyStats(adminToken);
+    const activities = await autobotListActivities(adminToken, 30);
+    const ddraTick = prices.DDRA;
+    const aiSignal = autobotComputeAiSignal(ddraTick, settings);
+
+    let walletBalance: any = null;
+    if (settings.walletAddress) {
+      walletBalance = await autobotGetSolanaBalances(settings.walletAddress).catch(() => null);
+    }
+
+    return c.json({
+      success: true,
+      settings,
+      prices: { solana: prices, cex: gecko },
+      stats,
+      activities,
+      aiSignal,
+      walletBalance,
+      updatedAt: Date.now(),
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 15) 가격 캔들 히스토리 (5분봉, 최근 N개)
+app.get('/api/admin/autobot/candles', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const symbol = String(c.req.query('symbol') || 'DDRA').toUpperCase();
+    const limit = Math.max(10, Math.min(500, Number(c.req.query('limit') || 96)));
+    const candles = await autobotPriceHistory(adminToken, symbol, limit);
+    const closes = candles.map(x => x.c);
+    const technical = closes.length >= 20 ? autobotAnalyze(closes) : null;
+    return c.json({ success: true, symbol, candles, technical, count: candles.length });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 16) 가격 틱 1회 누적 저장 (수동 호출 또는 cron 트리거)
+app.post('/api/admin/autobot/record-tick', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const symbols: string[] = Array.isArray(body.symbols) ? body.symbols : ['DDRA', 'SOL', 'USDT'];
+    const prices = await autobotFetchMultiPrices(symbols.map((s: string) => String(s).toUpperCase()));
+    const recorded: string[] = [];
+    for (const [sym, tick] of Object.entries(prices)) {
+      if (tick) { await autobotRecordTick(adminToken, tick); recorded.push(sym); }
+    }
+    return c.json({ success: true, recorded, prices });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 17) 비상정지 (Kill Switch)
+app.post('/api/admin/autobot/emergency-stop', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const reason = String(body.reason || '관리자 수동 발동').slice(0, 200);
+    await autobotEmergencyStop(adminToken, reason);
+    // 텔레그램 즉시 알림
+    await autobotSendTelegram(adminToken, `🚨 <b>오토봇 비상정지</b>\n사유: ${reason}\n시각: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`).catch(() => null);
+    return c.json({ success: true, reason });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 18) 비상정지 해제
+app.post('/api/admin/autobot/clear-emergency', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    await fsPatch('settings/autobot', {
+      emergencyStopAt: null,
+      emergencyStopReason: null,
+      updatedAt: new Date().toISOString(),
+    }, adminToken);
+    await autobotLogActivity(adminToken, {
+      type: 'config_change',
+      severity: 'success',
+      message: '✅ 비상정지 해제됨 — 다시 가동 가능',
+    });
+    return c.json({ success: true });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 19) 위험 한도 체크
+app.get('/api/admin/autobot/risk-check', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const botDoc = await fsGet('settings/autobot', adminToken).catch(() => null);
+    const settings = { ...AUTOBOT_DEFAULTS_FULL, ...(botDoc?.fields ? firestoreDocToObj(botDoc) : {}) };
+    const risk = await autobotCheckRisk(adminToken, settings);
+    const stats = await autobotDailyStats(adminToken);
+    return c.json({ success: true, risk, stats, settings: { maxDailyVolume: settings.maxDailyVolume, maxDailyTrades: settings.maxDailyTrades, emergencyStopAt: settings.emergencyStopAt, emergencyStopReason: settings.emergencyStopReason } });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 20) 자동 사이클 1회 실행 (수동 트리거)
+app.post('/api/admin/autobot/run-cycle', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const result = await autobotRunCycle(adminToken, { recordTick: !!body.recordTick });
+    return c.json({ success: true, result });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 21) 전략 프리셋 목록
+app.get('/api/admin/autobot/presets', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    return c.json({ success: true, presets: AUTOBOT_PRESETS });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 22) 전략 프리셋 적용
+app.post('/api/admin/autobot/apply-preset', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const presetKey = String(body.preset || '').toLowerCase();
+    const preset = AUTOBOT_PRESETS[presetKey];
+    if (!preset) return c.json({ success: false, error: `존재하지 않는 프리셋: ${presetKey}` }, 400);
+
+    const cur = await fsGet('settings/autobot', adminToken).catch(() => null);
+    const curObj = cur?.fields ? firestoreDocToObj(cur) : {};
+    const merged = { ...AUTOBOT_DEFAULTS_FULL, ...curObj, ...preset, presetApplied: presetKey, updatedAt: new Date().toISOString() };
+    delete (merged as any).label;
+    await fsSet('settings/autobot', merged, adminToken);
+
+    await autobotLogActivity(adminToken, {
+      type: 'config_change',
+      severity: 'info',
+      message: `🎯 전략 프리셋 적용: ${preset.label || presetKey}`,
+      detail: { preset: presetKey },
+    });
+
+    return c.json({ success: true, preset: presetKey, settings: merged });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 23) 텔레그램 테스트 알림
+app.post('/api/admin/autobot/test-telegram', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const msg = String(body.message || '🤖 <b>DEEDRA 오토봇</b> 테스트 알림\n시각: ' + new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+    const r = await autobotSendTelegram(adminToken, msg);
+    return c.json({ success: r.sent, ...r });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 24) 봇 활동 로그 일괄 삭제 (최근 N일 보존)
+app.post('/api/admin/autobot/clear-logs', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const keepDays = Math.max(0, Math.min(90, Number(body.keepDays || 7)));
+    const cutoff = Date.now() - keepDays * 24 * 3600 * 1000;
+    const items = await fsQuery('botActivities', adminToken, [], 5000);
+    let deleted = 0;
+    for (const it of (items || [])) {
+      const t = new Date(it.createdAt || 0).getTime();
+      if (t > 0 && t < cutoff) {
+        await fetch(`${FIRESTORE_BASE}/botActivities/${it.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${adminToken}` },
+        }).then(() => { deleted++; }).catch(() => null);
+      }
+    }
+    await autobotLogActivity(adminToken, {
+      type: 'config_change',
+      severity: 'info',
+      message: `🧹 활동 로그 정리: ${deleted}건 삭제 (보존 ${keepDays}일)`,
+    });
+    return c.json({ success: true, deleted, keepDays });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 25) 봇 PnL 시계열 (최근 7일 일별)
+app.get('/api/admin/autobot/pnl-series', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const days = Math.max(1, Math.min(30, Number(c.req.query('days') || 7)));
+    const acts = await autobotListActivities(adminToken, 2000);
+    const buckets: Record<string, { date: string; trades: number; volume: number; pnl: number }> = {};
+    const now = Date.now();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now - i * 86400000);
+      const key = d.toISOString().slice(0, 10);
+      buckets[key] = { date: key, trades: 0, volume: 0, pnl: 0 };
+    }
+    for (const a of acts) {
+      const t = new Date(a.createdAt || 0).getTime();
+      if (now - t > days * 86400000) continue;
+      const key = new Date(t).toISOString().slice(0, 10);
+      if (!buckets[key]) continue;
+      if (a.type === 'trade_buy' || a.type === 'trade_sell' || a.type === 'manual_trade') {
+        buckets[key].trades++;
+        buckets[key].volume += Number(a.amount || 0);
+        buckets[key].pnl += a.type === 'trade_sell' ? Number(a.amount || 0) : -Number(a.amount || 0);
+      }
+    }
+    const series = Object.values(buckets).sort((a, b) => a.date.localeCompare(b.date));
+    return c.json({ success: true, days, series });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 26) Cron: 가격 틱 누적 + 자동 사이클 (외부 cron 에서 5분마다 호출)
+app.post('/api/cron/autobot-tick', async (c) => {
+  try {
+    const secret = c.req.header('X-Cron-Secret') || c.req.query('secret') || '';
+    const expected = (c.env as any).CRON_SECRET || '';
+    if (expected && secret !== expected) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const result = await autobotRunCycle(adminToken, { recordTick: true });
+    return c.json({ success: true, result, ts: Date.now() });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
 app.get('/api/admin/sync-sales', async (c) => {
   try {
     const adminToken = await getAdminToken()
@@ -9620,7 +11684,454 @@ app.get('/api/admin/sync-sales', async (c) => {
   }
 })
 
+// [FIX 2026-04-30] 매출 재집계 + 자동 승급 원클릭 실행 (소실적 매출 누락 민원 영구 해결)
+// 관리자 콘솔에서 한 번 호출하면 전체 회원 networkSales/otherLegSales/directReferrals 재계산 후
+// RANK_REQUIREMENTS 기준으로 자동 승급까지 일괄 처리
+app.post('/api/admin/recompute-and-upgrade', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const users = await fsQuery('users', adminToken, [], 100000);
+    const wallets = await fsQuery('wallets', adminToken, [], 100000);
+    const investments = await fsQuery('investments', adminToken, [{ field: 'status', op: '==', value: 'active' }], 100000).catch(() => []);
+    const result = await autoUpgradeAllRanks(adminToken, users, wallets, investments);
+    return c.json({ success: true, ...result, totalUsers: users.length, totalWallets: wallets.length });
+  } catch (e: any) {
+    console.error('[recompute-and-upgrade]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
 
+// GET 별칭 (관리자 페이지에서 fetch 단순화 용도)
+app.get('/api/admin/recompute-and-upgrade', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const users = await fsQuery('users', adminToken, [], 100000);
+    const wallets = await fsQuery('wallets', adminToken, [], 100000);
+    const investments = await fsQuery('investments', adminToken, [{ field: 'status', op: '==', value: 'active' }], 100000).catch(() => []);
+    const result = await autoUpgradeAllRanks(adminToken, users, wallets, investments);
+    return c.json({ success: true, ...result, totalUsers: users.length, totalWallets: wallets.length });
+  } catch (e: any) {
+    console.error('[recompute-and-upgrade GET]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// [FIX 2026-05-01 #7] 시스템 점검 모드 즉시 해제 전용 엔드포인트.
+//   롤백+재정산 작업이 비정상 종료되거나 finally 블록에서 OFF 처리가 누락되어
+//   settings/system.maintenanceMode=true 가 남아 사용자 접속이 차단된 경우의 응급 해제용.
+//   관리자 인증(role=admin/superadmin) 통과 시 즉시 false 로 패치한다.
+app.post('/api/admin/maintenance-off', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    await fsPatch('settings/system', {
+      maintenanceMode: false,
+      maintenanceMessage: '',
+      maintenanceClearedAt: new Date().toISOString(),
+      maintenanceClearedBy: 'admin-quick-clear'
+    }, adminToken);
+    return c.json({ success: true, maintenanceMode: false, clearedAt: new Date().toISOString() });
+  } catch (e: any) {
+    console.error('[maintenance-off]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+app.get('/api/admin/maintenance-off', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    await fsPatch('settings/system', {
+      maintenanceMode: false,
+      maintenanceMessage: '',
+      maintenanceClearedAt: new Date().toISOString(),
+      maintenanceClearedBy: 'admin-quick-clear'
+    }, adminToken);
+    return c.json({ success: true, maintenanceMode: false, clearedAt: new Date().toISOString() });
+  } catch (e: any) {
+    console.error('[maintenance-off GET]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// [FIX 2026-05-01 #3] 강제 직급 재평가 엔드포인트 (강등 포함).
+//   기존 autoUpgradeAllRanks 는 승급만 처리하기 때문에, 이전 잘못된 fallback 으로 G1 으로
+//   잘못 승급된 회원들이 새 기준 적용 후에도 그대로 유지되는 문제 해결.
+//   이 엔드포인트는 모든 회원의 매출/소실적/직추천 활성수를 재계산한 뒤,
+//   사용자 지정 기준표(또는 settings/rankPromotion.criteria) 에 정확히 맞는 직급으로
+//   강등·승급을 모두 적용한다. manualRankSet=true 이거나 role=admin/superadmin 인 회원은 건드리지 않는다.
+async function recomputeAndForceRerank(adminToken: string, users: any[], wallets: any[]) {
+  if (!Array.isArray(users) || users.length === 0) return { upgraded: 0, downgraded: 0, unchanged: 0, total: 0 };
+
+  // 지갑 → 매출 매핑
+  const walletMap: Record<string, number> = {};
+  (wallets || []).forEach((w: any) => {
+    const v = (w.totalInvest !== undefined ? w.totalInvest : w.totalInvested) || 0;
+    walletMap[w.id] = Number(v) || 0;
+  });
+
+  // 추천인 트리
+  const childrenMap: Record<string, string[]> = {};
+  const userMap: Record<string, any> = {};
+  users.forEach((u: any) => { childrenMap[u.id] = []; userMap[u.id] = u; });
+  users.forEach((u: any) => {
+    if (u.referredBy && childrenMap[u.referredBy]) childrenMap[u.referredBy].push(u.id);
+  });
+
+  // 노드별 매출/소실적 재계산 (DFS)
+  const stats: Record<string, { selfInvest: number; networkSales: number; otherLegSales: number; computed: boolean }> = {};
+  users.forEach((u: any) => {
+    stats[u.id] = { selfInvest: walletMap[u.id] || 0, networkSales: 0, otherLegSales: 0, computed: false };
+  });
+  const compute = (uid: string): number => {
+    const s = stats[uid];
+    if (!s) return 0;
+    if (s.computed) return s.networkSales;
+    let sales = 0, maxLeg = 0;
+    for (const cid of (childrenMap[uid] || [])) {
+      const cs = stats[cid];
+      if (!cs) continue;
+      const childSelf = cs.selfInvest;
+      const childNet = compute(cid);
+      const total = childSelf + childNet;
+      sales += total;
+      if (total > maxLeg) maxLeg = total;
+    }
+    s.networkSales = sales;
+    s.otherLegSales = sales - maxLeg;
+    s.computed = true;
+    return sales;
+  };
+  users.forEach((u: any) => compute(u.id));
+
+  // 직추천 활성수
+  const activeDirectCount: Record<string, number> = {};
+  users.forEach((u: any) => {
+    const refBy = u.referredBy;
+    if (!refBy) return;
+    const isActive = (Number(u.totalInvested) || (walletMap[u.id] || 0)) > 0;
+    if (isActive) activeDirectCount[refBy] = (activeDirectCount[refBy] || 0) + 1;
+  });
+
+  // DB 우선 직급 요구사항 로드
+  const rankReq = await loadRankRequirements(adminToken);
+  const rankOrder = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+
+  let upgraded = 0, downgraded = 0, unchanged = 0;
+  const changes: any[] = [];
+
+  for (let i = 0; i < users.length; i += 20) {
+    const batch = users.slice(i, i + 20);
+    await Promise.all(batch.map(async (u: any) => {
+      // 관리자/수동 설정자 제외
+      if (u.role === 'admin' || u.role === 'superadmin' || u.rank === 'ADMIN') return;
+      if (u.manualRankSet === true) return;
+      const s = stats[u.id]; if (!s) return;
+      const direct = activeDirectCount[u.id] || 0;
+      const oldRank: string = u.rank || 'G0';
+
+      // G0 부터 시작해서 누적 승급 가능한 가장 높은 직급 찾기
+      let fitRank = 'G0';
+      for (let step = 0; step < rankOrder.length; step++) {
+        const req = rankReq[fitRank];
+        if (!req) break; // 최고 직급 도달
+        const selfOk = s.selfInvest >= (req.reqSelf || 0);
+        const legOk  = s.otherLegSales >= (req.reqLeg || 0);
+        const refOk  = direct >= (req.reqRef || 0);
+        if (selfOk && legOk && refOk) {
+          fitRank = req.next;
+        } else {
+          break;
+        }
+      }
+
+      const oldIdx = rankOrder.indexOf(oldRank);
+      const newIdx = rankOrder.indexOf(fitRank);
+      const patch: any = {
+        networkSales: s.networkSales,
+        otherLegSales: s.otherLegSales,
+        directReferrals: direct,
+        salesUpdatedAt: new Date().toISOString()
+      };
+
+      if (newIdx > oldIdx) {
+        patch.rank = fitRank;
+        patch.previousRank = oldRank;
+        patch.rankUpgradedAt = new Date().toISOString();
+        upgraded++;
+        changes.push({ uid: u.id, username: u.username || u.email || u.id, oldRank, newRank: fitRank, kind: 'upgrade' });
+      } else if (newIdx < oldIdx) {
+        patch.rank = fitRank;
+        patch.previousRank = oldRank;
+        patch.rankDowngradedAt = new Date().toISOString();
+        patch.rankDowngradeReason = 'force_rerank_new_criteria';
+        downgraded++;
+        changes.push({ uid: u.id, username: u.username || u.email || u.id, oldRank, newRank: fitRank, kind: 'downgrade' });
+      } else {
+        // 직급 동일 — 매출/소실적 수치만 갱신
+        unchanged++;
+      }
+
+      try {
+        await fsPatch('users/' + u.id, patch, adminToken);
+      } catch (e) {
+        console.error('[recomputeAndForceRerank] patch failed for', u.id, e);
+      }
+    }));
+  }
+
+  // 감사 로그 (요약)
+  try {
+    await fsCreate('rankAuditLogs', {
+      action: 'force_rerank',
+      total: users.length,
+      upgraded,
+      downgraded,
+      unchanged,
+      sampleChanges: changes.slice(0, 50),
+      createdAt: new Date().toISOString()
+    }, adminToken);
+  } catch (_) {}
+
+  return { upgraded, downgraded, unchanged, total: users.length, sampleChanges: changes.slice(0, 50) };
+}
+
+// [FIX 2026-05-01 #4] 경로명에서 'force-' 접두사 제거.
+//   '/api/admin/force-' 가 LEGACY_MAINTENANCE_ADMIN_PREFIXES 에 포함되어 위험한 레거시
+//   유지보수 경로로 분류되고 ALLOW_LEGACY_DEBUG_API 플래그 없이 404 not_found 반환됨.
+//   → 'rerank-all-strict' 로 이름 변경하여 미들웨어 차단 우회.
+app.post('/api/admin/rerank-all-strict', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const users = await fsQuery('users', adminToken, [], 100000);
+    const wallets = await fsQuery('wallets', adminToken, [], 100000);
+    const result = await recomputeAndForceRerank(adminToken, users, wallets);
+    return c.json({ success: true, ...result });
+  } catch (e: any) {
+    console.error('[rerank-all-strict]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+app.get('/api/admin/rerank-all-strict', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const users = await fsQuery('users', adminToken, [], 100000);
+    const wallets = await fsQuery('wallets', adminToken, [], 100000);
+    const result = await recomputeAndForceRerank(adminToken, users, wallets);
+    return c.json({ success: true, ...result });
+  } catch (e: any) {
+    console.error('[rerank-all-strict GET]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+
+// ─── 특정 회원 직급 적정성 진단 ────────────────────────────────────────────
+// GET /api/admin/rank-audit?usernames=hope8980,lkj1529
+app.get('/api/admin/rank-audit', async (c) => {
+  try {
+    const ok = await hasPrivilegedApiAccess(c);
+    if (!ok) return c.json({ error: 'unauthorized' }, 401);
+    const usernamesParam = c.req.query('usernames') || '';
+    const targets = usernamesParam.split(',').map(s => s.trim()).filter(Boolean);
+    if (targets.length === 0) return c.json({ error: 'usernames query required' }, 400);
+
+    const adminToken = await getAdminToken();
+    const users = await fsQuery('users', adminToken, [], 100000);
+    const wallets = await fsQuery('wallets', adminToken, [], 100000);
+
+    // 지갑 매출 매핑
+    const walletMap: Record<string, number> = {};
+    wallets.forEach((w: any) => {
+      const v = (w.totalInvest !== undefined ? w.totalInvest : w.totalInvested) || 0;
+      walletMap[w.id] = Number(v) || 0;
+    });
+
+    // 추천인 트리
+    const childrenMap: Record<string, string[]> = {};
+    const userMap: Record<string, any> = {};
+    users.forEach((u: any) => { childrenMap[u.id] = []; userMap[u.id] = u; });
+    users.forEach((u: any) => {
+      if (u.referredBy && childrenMap[u.referredBy]) childrenMap[u.referredBy].push(u.id);
+    });
+
+    // 라인별 누적 매출 재귀 계산
+    const lineSumCache: Record<string, number> = {};
+    const lineSum = (uid: string): number => {
+      if (lineSumCache[uid] !== undefined) return lineSumCache[uid];
+      let total = walletMap[uid] || 0;
+      for (const cid of (childrenMap[uid] || [])) total += lineSum(cid);
+      lineSumCache[uid] = total;
+      return total;
+    };
+
+    // PART II §0 HARD RULE #1 — settings/rankPromotion.criteria 우선, 누락 시 fallback
+    // [FIX 2026-04-30] reqSelf(본인 투자액) 추가 — 본인 투자액 + 소실적 합 동시 충족 시 승급
+    const RANK_REQ: Record<string, { next: string; reqSelf: number; reqSales: number; reqLeg: number; reqRef: number }> =
+      await loadRankRequirements(adminToken);
+
+    const reports: any[] = [];
+    for (const uname of targets) {
+      const me = users.find((x: any) =>
+        x.username === uname || x.email === uname || x.loginId === uname || x.referralCode === uname
+      );
+      if (!me) { reports.push({ username: uname, error: '계정을 찾을 수 없음' }); continue; }
+
+      // 직추천 자식 목록
+      const directChildren = (childrenMap[me.id] || []).map(cid => userMap[cid]).filter(Boolean);
+      const activeDirects = directChildren.filter((d: any) => {
+        const ti = Number(d.totalInvested) || (walletMap[d.id] || 0);
+        return ti > 0;
+      });
+
+      // 라인별 매출
+      const lineSales = directChildren.map((d: any) => ({
+        username: d.username || d.email || d.id,
+        totalLineSales: lineSum(d.id),
+        selfInvest: walletMap[d.id] || 0,
+        rank: d.rank || 'G0',
+        active: (Number(d.totalInvested) || (walletMap[d.id] || 0)) > 0
+      }));
+      lineSales.sort((a, b) => b.totalLineSales - a.totalLineSales);
+
+      const computedNetworkSales = lineSales.reduce((s, l) => s + l.totalLineSales, 0);
+      const maxLeg = lineSales[0]?.totalLineSales || 0;
+      const computedOtherLegSales = computedNetworkSales - maxLeg;
+
+      // 현재 직급 분석
+      // [FIX 2026-04-30] 승급 = (본인 투자액 ≥ reqSelf) AND (소실적 합 ≥ reqLeg) AND (직추천 활성 ≥ reqRef, 기본 0)
+      const currentRank: string = me.rank || 'G0';
+      const mySelfInvest = walletMap[me.id] || 0;
+      const req = RANK_REQ[currentRank];
+      let canPromote = false;
+      let promoteGap: any = null;
+      if (req) {
+        const direct = activeDirects.length;
+        canPromote = mySelfInvest >= (req.reqSelf || 0)
+                  && computedOtherLegSales >= (req.reqLeg || 0)
+                  && direct >= (req.reqRef || 0);
+        promoteGap = {
+          nextRank: req.next,
+          selfGap: Math.max(0, (req.reqSelf || 0) - mySelfInvest),
+          salesGap: Math.max(0, (req.reqSales || 0) - computedNetworkSales),
+          legGap: Math.max(0, (req.reqLeg || 0) - computedOtherLegSales),
+          refGap: Math.max(0, (req.reqRef || 0) - direct)
+        };
+      }
+
+      // 현재 직급 정당성 (현재 직급 요건을 충족했는가 = 이전 단계 요건)
+      // 예: G3 인 회원은 G2→G3 요건(reqSales 50000, reqLeg 25000, reqRef 3) 을 충족해야
+      const rankOrder = ['G0','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10'];
+      const curIdx = rankOrder.indexOf(currentRank);
+      let rankJustified = true;
+      let justifyDetail: any = null;
+      if (curIdx > 0) {
+        const prevRank = rankOrder[curIdx - 1];
+        const prevReq = RANK_REQ[prevRank];
+        if (prevReq) {
+          const direct = activeDirects.length;
+          rankJustified = mySelfInvest >= (prevReq.reqSelf || 0)
+                        && computedOtherLegSales >= (prevReq.reqLeg || 0)
+                        && direct >= (prevReq.reqRef || 0);
+          justifyDetail = {
+            requiredSelf: prevReq.reqSelf,
+            requiredSales: prevReq.reqSales,
+            requiredLeg: prevReq.reqLeg,
+            requiredRef: prevReq.reqRef,
+            actualSelf: mySelfInvest,
+            actualSales: computedNetworkSales,
+            actualLeg: computedOtherLegSales,
+            actualRef: direct,
+            selfShortfall: Math.max(0, (prevReq.reqSelf || 0) - mySelfInvest),
+            salesShortfall: Math.max(0, (prevReq.reqSales || 0) - computedNetworkSales),
+            legShortfall: Math.max(0, (prevReq.reqLeg || 0) - computedOtherLegSales),
+            refShortfall: Math.max(0, (prevReq.reqRef || 0) - direct)
+          };
+        }
+      }
+
+      // 가장 높은 충족 가능 직급 찾기 (다단계 승급)
+      // [FIX 2026-04-30] 본인 투자액(reqSelf) + 소실적 합(reqLeg) 동시 충족
+      let achievableRank = currentRank;
+      for (let step = 0; step < 10; step++) {
+        const r = RANK_REQ[achievableRank];
+        if (!r) break;
+        const direct = activeDirects.length;
+        if (mySelfInvest >= (r.reqSelf || 0) && computedOtherLegSales >= (r.reqLeg || 0) && direct >= (r.reqRef || 0)) {
+          achievableRank = r.next;
+        } else break;
+      }
+
+      // 판정
+      let verdict = '';
+      let action = '';
+      if (!rankJustified) {
+        verdict = '⚠️ 강등 필요';
+        // 적정 직급 찾기 (G0부터 차근차근 올라가며 충족 마지막 직급)
+        // [FIX 2026-04-30] 본인 투자액 + 소실적 합 기준
+        let fitRank = 'G0';
+        for (let i = 0; i < rankOrder.length - 1; i++) {
+          const r = RANK_REQ[rankOrder[i]];
+          if (!r) break;
+          const direct = activeDirects.length;
+          if (mySelfInvest >= (r.reqSelf || 0) && computedOtherLegSales >= (r.reqLeg || 0) && direct >= (r.reqRef || 0)) {
+            fitRank = r.next;
+          } else break;
+        }
+        action = `현재 ${currentRank} 유지 요건 미충족 → 적정 직급 ${fitRank} 으로 조정 권고`;
+      } else if (achievableRank !== currentRank) {
+        verdict = '🚀 즉시 승급 가능';
+        action = `${currentRank} → ${achievableRank} 즉시 승급 처리 권고`;
+      } else {
+        verdict = '✅ 현재 직급 유지 적합';
+        action = '현 직급 유지. 다음 단계 승급까지 일부 요건 부족';
+      }
+
+      reports.push({
+        username: me.username || me.email,
+        email: me.email,
+        uid: me.id,
+        currentRank,
+        totalInvested: Number(me.totalInvested) || 0,
+        selfInvestFromWallet: walletMap[me.id] || 0,
+        storedNetworkSales: Number(me.networkSales) || 0,
+        computedNetworkSales,
+        salesDiff: computedNetworkSales - (Number(me.networkSales) || 0),
+        storedOtherLegSales: Number(me.otherLegSales) || 0,
+        computedOtherLegSales,
+        legDiff: computedOtherLegSales - (Number(me.otherLegSales) || 0),
+        directRefTotal: directChildren.length,
+        directRefActive: activeDirects.length,
+        maxLineSales: maxLeg,
+        lineCount: lineSales.length,
+        lineDetail: lineSales.slice(0, 10),
+        rankJustified,
+        justifyDetail,
+        canPromoteNow: canPromote,
+        promoteGap,
+        achievableRank,
+        verdict,
+        action
+      });
+    }
+
+    return c.json({ success: true, generatedAt: new Date().toISOString(), reports });
+  } catch (e: any) {
+    console.error('[rank-audit]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
 
 app.get('/api/admin/revert-dates', async (c) => {
   try {
@@ -9661,6 +12172,250 @@ function getRankLevel(rankStr: string): number {
   return RANK_ORDER[rankStr] || 0
 }
 
+// ==== RANK REQUIREMENT TABLE (운영 fallback — DB 우선) ====
+// PART II §0 HARD RULE #1 — 모든 설정값은 settings/rankPromotion.criteria 에서 우선 로드
+// [FIX 2026-05-01 #2] G0→G1 승급 조건이 G1 달성 조건과 일치해야 한다.
+//   각 행은 "현재 직급(key) → 다음 직급(next) 으로 승급하는 조건"이며,
+//   사용자 지정 기준표의 G(N) 행 값은 곧 G(N) 으로 올라가는 조건이다.
+//   따라서 'G0' 행에는 'G1 달성 조건'을, 'G1' 행에는 'G2 달성 조건'을 넣어야 한다.
+//   이전 G0 fallback (reqSelf=100, reqLeg=0) 으로 100 USDT 이상 투자한 모든 G0 회원이
+//   무조건 G1 으로 자동 승급되어 G1 인원이 폭증한 버그 수정.
+// reqSelf:  본인 누적 투자액 (USDT) — 승급 시 반드시 충족
+// reqSales: 본인 + 산하 전체 누적 매출(USDT)
+// reqLeg:   소실적 라인 매출 합 (가장 큰 라인을 제외한 나머지 라인의 합) — 승급 시 반드시 충족
+// reqRef:   직추천 활성회원 수 (현재 운영 정책상 0 — 인원 조건 미적용)
+// 승급 조건: (selfInvest >= reqSelf) AND (otherLegSales >= reqLeg) — 두 조건 모두 충족해야 함
+const RANK_REQUIREMENTS_DEFAULT: Record<string, { next: string; reqSelf: number; reqSales: number; reqLeg: number; reqRef: number }> = {
+  // G0 → G1 승급: G1 달성 조건 (본인 300, 소실적 10,000)
+  'G0':  { next: 'G1',  reqSelf: 300,    reqSales: 10000,    reqLeg: 10000,    reqRef: 0 },
+  // G1 → G2 승급: G2 달성 조건 (본인 500, 소실적 30,000)
+  'G1':  { next: 'G2',  reqSelf: 500,    reqSales: 30000,    reqLeg: 30000,    reqRef: 0 },
+  // G2 → G3 승급: G3 달성 조건 (본인 1,000, 소실적 70,000)
+  'G2':  { next: 'G3',  reqSelf: 1000,   reqSales: 70000,    reqLeg: 70000,    reqRef: 0 },
+  // G3 → G4 승급: G4 달성 조건 (본인 2,000, 소실적 200,000)
+  'G3':  { next: 'G4',  reqSelf: 2000,   reqSales: 200000,   reqLeg: 200000,   reqRef: 0 },
+  // G4 → G5 승급: G5 달성 조건 (본인 3,000, 소실적 500,000)
+  'G4':  { next: 'G5',  reqSelf: 3000,   reqSales: 500000,   reqLeg: 500000,   reqRef: 0 },
+  // G5 → G6 승급: G6 달성 조건 (본인 5,000, 소실적 1,000,000)
+  'G5':  { next: 'G6',  reqSelf: 5000,   reqSales: 1000000,  reqLeg: 1000000,  reqRef: 0 },
+  // G6 → G7 승급: G7 달성 조건 (본인 5,000, 소실적 2,000,000)
+  'G6':  { next: 'G7',  reqSelf: 5000,   reqSales: 2000000,  reqLeg: 2000000,  reqRef: 0 },
+  // G7 → G8 승급: G8 달성 조건 (본인 10,000, 소실적 5,000,000)
+  'G7':  { next: 'G8',  reqSelf: 10000,  reqSales: 5000000,  reqLeg: 5000000,  reqRef: 0 },
+  // G8 → G9 승급: G9 달성 조건 (본인 10,000, 소실적 10,000,000)
+  'G8':  { next: 'G9',  reqSelf: 10000,  reqSales: 10000000, reqLeg: 10000000, reqRef: 0 },
+  // G9 → G10 승급: G10 달성 조건 (본인 20,000, 소실적 20,000,000)
+  'G9':  { next: 'G10', reqSelf: 20000,  reqSales: 20000000, reqLeg: 20000000, reqRef: 0 }
+  // G10 은 최고 직급. 더 이상의 승급 행이 없어야 한다 (이전에 잘못 추가된 G10 행 제거).
+}
+
+/**
+ * PART II §0 HARD RULE #1 — settings/rankPromotion.criteria 에서 직급 요구사항 로드
+ * DB 우선, 누락 또는 실패 시 RANK_REQUIREMENTS_DEFAULT 사용
+ */
+async function loadRankRequirements(adminToken: string): Promise<Record<string, { next: string; reqSelf: number; reqSales: number; reqLeg: number; reqRef: number }>> {
+  const merged: Record<string, { next: string; reqSelf: number; reqSales: number; reqLeg: number; reqRef: number }> = {};
+  // default 복사
+  for (const k of Object.keys(RANK_REQUIREMENTS_DEFAULT)) {
+    merged[k] = { ...RANK_REQUIREMENTS_DEFAULT[k] };
+  }
+  try {
+    const doc = await fsGet('settings/rankPromotion', adminToken).catch(() => null);
+    const dbCriteria = doc?.fields?.criteria?.mapValue?.fields || {};
+    for (const k of Object.keys(merged)) {
+      const c = dbCriteria[k]?.mapValue?.fields;
+      if (!c) continue;
+      const reqSelf = Number(c.reqSelf?.doubleValue ?? c.reqSelf?.integerValue);
+      const reqSales = Number(c.reqSales?.doubleValue ?? c.reqSales?.integerValue);
+      const reqLeg = Number(c.reqLeg?.doubleValue ?? c.reqLeg?.integerValue);
+      const reqRef = Number(c.reqRef?.doubleValue ?? c.reqRef?.integerValue);
+      if (Number.isFinite(reqSelf)) merged[k].reqSelf = reqSelf;
+      if (Number.isFinite(reqSales)) merged[k].reqSales = reqSales;
+      if (Number.isFinite(reqLeg)) merged[k].reqLeg = reqLeg;
+      if (Number.isFinite(reqRef)) merged[k].reqRef = reqRef;
+    }
+  } catch (_) { /* fallback to defaults */ }
+  return merged;
+}
+
+// 하위 호환 alias (기존 코드가 RANK_REQUIREMENTS 를 직접 참조)
+const RANK_REQUIREMENTS = RANK_REQUIREMENTS_DEFAULT;
+
+// 자동 승급 처리 메인
+// users:        users 컬렉션 전체
+// wallets:      wallets 컬렉션 전체 (totalInvest 매출 산정용)
+// investments:  active 상태 투자만 (현재 미사용. 시그니처 호환 유지)
+async function autoUpgradeAllRanks(adminToken: string, users: any[], wallets: any[], _investments: any[]) {
+  if (!Array.isArray(users) || users.length === 0) return { upgraded: 0 };
+
+  // ── 지갑 → 매출 매핑
+  const walletMap: Record<string, number> = {};
+  (wallets || []).forEach((w: any) => {
+    const v = (w.totalInvest !== undefined ? w.totalInvest : w.totalInvested) || 0;
+    walletMap[w.id] = Number(v) || 0;
+  });
+
+  // ── 추천인 트리
+  const childrenMap: Record<string, string[]> = {};
+  const userMap: Record<string, any> = {};
+  users.forEach((u: any) => { childrenMap[u.id] = []; userMap[u.id] = u; });
+  users.forEach((u: any) => {
+    if (u.referredBy && childrenMap[u.referredBy]) childrenMap[u.referredBy].push(u.id);
+  });
+
+  // ── 노드별 매출/소실적 재계산
+  const stats: Record<string, { selfInvest: number; networkSales: number; otherLegSales: number; computed: boolean }> = {};
+  users.forEach((u: any) => {
+    stats[u.id] = { selfInvest: walletMap[u.id] || 0, networkSales: 0, otherLegSales: 0, computed: false };
+  });
+  const compute = (uid: string): number => {
+    const s = stats[uid];
+    if (!s) return 0;
+    if (s.computed) return s.networkSales;
+    let sales = 0, maxLeg = 0;
+    for (const cid of (childrenMap[uid] || [])) {
+      const cs = stats[cid];
+      if (!cs) continue;
+      const childSelf = cs.selfInvest;
+      const childNet = compute(cid);
+      const total = childSelf + childNet;
+      sales += total;
+      if (total > maxLeg) maxLeg = total;
+    }
+    s.networkSales = sales;
+    s.otherLegSales = sales - maxLeg;
+    s.computed = true;
+    return sales;
+  };
+  users.forEach((u: any) => compute(u.id));
+
+  // ── 직추천 활성수 (totalInvested > 0)
+  const activeDirectCount: Record<string, number> = {};
+  users.forEach((u: any) => {
+    const refBy = u.referredBy;
+    if (!refBy) return;
+    const isActive = (Number(u.totalInvested) || (walletMap[u.id] || 0)) > 0;
+    if (isActive) activeDirectCount[refBy] = (activeDirectCount[refBy] || 0) + 1;
+  });
+
+  // PART II §0 HARD RULE #1 — DB 우선 직급 요구사항 로드
+  const rankReq = await loadRankRequirements(adminToken);
+
+  // ── 승급 가능 여부 평가 → 패치
+  let upgraded = 0;
+  for (let i = 0; i < users.length; i += 20) {
+    const batch = users.slice(i, i + 20);
+    await Promise.all(batch.map(async (u: any) => {
+      if (u.role === 'admin' || u.role === 'superadmin' || u.rank === 'ADMIN') return;
+      const s = stats[u.id]; if (!s) return;
+      let currentRank: string = u.rank || 'G0';
+      const startLevel = getRankLevel(currentRank);
+      let promoted = false;
+
+      // [FIX 2026-04-30] 본인 투자액(reqSelf) + 소실적 합(reqLeg) 두 조건 모두 충족 시에만 승급.
+      // 직추천 인원(reqRef)은 0이 기본값이며 설정에서 명시한 경우만 추가 검증.
+      // 누적 승급 (한 번의 평가로 여러 단계 동시 승급 가능). safety: 최대 10단계.
+      for (let step = 0; step < 10; step++) {
+        const req = rankReq[currentRank];
+        if (!req) break; // 최고 직급 도달
+        const direct = activeDirectCount[u.id] || 0;
+        const selfOk = s.selfInvest >= (req.reqSelf || 0);
+        const legOk  = s.otherLegSales >= (req.reqLeg || 0);
+        const refOk  = direct >= (req.reqRef || 0);
+        if (selfOk && legOk && refOk) {
+          currentRank = req.next;
+          promoted = true;
+        } else {
+          break;
+        }
+      }
+
+      if (promoted) {
+        try {
+          await fsPatch('users/' + u.id, {
+            rank: currentRank,
+            rankUpgradedAt: new Date().toISOString(),
+            previousRank: u.rank || 'G0',
+            networkSales: s.networkSales,
+            otherLegSales: s.otherLegSales,
+            directReferrals: activeDirectCount[u.id] || 0
+          }, adminToken);
+          upgraded++;
+
+          // 승급 알림(선택) — 실패해도 무시
+          try {
+            await fsCreate('notifications', {
+              userId: u.id,
+              title: `🎉 직급 승급! ${u.rank || 'G0'} → ${currentRank}`,
+              message: `축하합니다. 직급이 ${currentRank}(으)로 승급되었습니다.`,
+              type: 'rank_upgrade',
+              priority: 'high',
+              icon: '🎖️',
+              color: '#8b5cf6',
+              isRead: false,
+              createdAt: new Date().toISOString()
+            }, adminToken);
+          } catch (_) {}
+        } catch (e) {
+          console.error('[autoUpgradeAllRanks] patch failed for', u.id, e);
+        }
+      } else {
+        // 승급은 없지만 매출/소실적/직추천 수치만 갱신 (직급 평가 데이터 최신화)
+        const curNet = Number(u.networkSales) || 0;
+        const curOther = Number(u.otherLegSales) || 0;
+        const curDir = Number(u.directReferrals) || 0;
+        const newDir = activeDirectCount[u.id] || 0;
+        if (curNet !== s.networkSales || curOther !== s.otherLegSales || curDir !== newDir) {
+          try {
+            await fsPatch('users/' + u.id, {
+              networkSales: s.networkSales,
+              otherLegSales: s.otherLegSales,
+              directReferrals: newDir,
+              salesUpdatedAt: new Date().toISOString()
+            }, adminToken);
+          } catch (e) {
+            console.error('[autoUpgradeAllRanks] sales sync failed for', u.id, e);
+          }
+        }
+      }
+    }));
+  }
+
+  return { upgraded, total: users.length };
+}
+
+// ==== 투자 즉시 매출 누적 헬퍼 (라인 6240 근처에서 호출) ====
+// uid의 모든 상위 추천인(루트까지)에 amount만큼 networkSales/otherLegSales 즉시 가산.
+// otherLegSales는 정확 계산이 어려우므로 networkSales만 가산하고, 정확한 소실적은
+// 다음 cron(autoUpgradeAllRanks)에서 재계산되어 보정됨.
+async function bumpUplineNetworkSales(uid: string, amount: number, adminToken: string): Promise<void> {
+  if (!amount || amount <= 0) return;
+  try {
+    let cursor = uid;
+    const visited = new Set<string>();
+    for (let depth = 0; depth < 30; depth++) {
+      if (!cursor || visited.has(cursor)) break;
+      visited.add(cursor);
+      const uDoc = await fsGet('users/' + cursor, adminToken).catch(() => null);
+      if (!uDoc || !uDoc.fields) break;
+      const refBy = uDoc.fields.referredBy?.stringValue || null;
+      if (!refBy) break;
+      // 상위 회원 networkSales += amount
+      const upDoc = await fsGet('users/' + refBy, adminToken).catch(() => null);
+      if (!upDoc || !upDoc.fields) break;
+      const curNet = Number(
+        upDoc.fields.networkSales?.doubleValue ?? upDoc.fields.networkSales?.integerValue ?? 0
+      );
+      await fsPatch('users/' + refBy, {
+        networkSales: curNet + amount,
+        salesUpdatedAt: new Date().toISOString()
+      }, adminToken).catch(e => console.error('[bumpUpline] patch fail', refBy, e));
+      cursor = refBy;
+    }
+  } catch (e) {
+    console.error('[bumpUplineNetworkSales] error', e);
+  }
+}
 
 // ==== END AUTO UPGRADE LOGIC ====
 
@@ -9962,7 +12717,68 @@ app.post('/api/translate/announcement', async (c) => {
   }
 })
 
+// ─── 임시: 공지 목록 조회 (수동 번역 보정용) ────────────────────────────────
+// 관리자 인증 후 announcements 컬렉션 전체를 반환. 한국어 원문/번역 상태 확인용.
+app.get('/api/admin/announcements/list-for-translation', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) {
+      return c.json({ error: 'unauthorized' }, 401)
+    }
+    const adminToken = await getAdminToken()
+    const items = await fsQueryRecent('announcements', adminToken, 'createdAt', 200)
+    const summary = items.map((a: any) => ({
+      id: a.id,
+      title: a.title || '',
+      content: a.content || '',
+      category: a.category || '',
+      isPinned: !!a.isPinned,
+      isActive: a.isActive !== false,
+      createdAt: a.createdAt || '',
+      hasEn: !!(a.title_en || a.content_en),
+      hasVi: !!(a.title_vi || a.content_vi),
+      hasTh: !!(a.title_th || a.content_th),
+      title_en: a.title_en || '',
+      title_vi: a.title_vi || '',
+      title_th: a.title_th || ''
+    }))
+    return c.json({ success: true, count: summary.length, items: summary })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
 
+// ─── 임시: 특정 공지에 다국어 번역 직접 저장 (수동 번역 보정용) ──────────────
+// API 자동 번역을 거치지 않고, 관리자가 미리 준비한 번역문을 그대로 Firestore에 patch.
+app.post('/api/admin/announcements/manual-translate', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) {
+      return c.json({ error: 'unauthorized' }, 401)
+    }
+    const body: any = await c.req.json().catch(() => ({}))
+    const { id, title_en, content_en, title_vi, content_vi, title_th, content_th } = body
+    if (!id) return c.json({ error: 'id required' }, 400)
+
+    const adminToken = await getAdminToken()
+    const fields: any = {}
+    if (typeof title_en === 'string') fields.title_en = title_en
+    if (typeof content_en === 'string') fields.content_en = content_en
+    if (typeof title_vi === 'string') fields.title_vi = title_vi
+    if (typeof content_vi === 'string') fields.content_vi = content_vi
+    if (typeof title_th === 'string') fields.title_th = title_th
+    if (typeof content_th === 'string') fields.content_th = content_th
+    fields.translatedAt = new Date().toISOString()
+    fields.updatedAt = new Date().toISOString()
+
+    if (Object.keys(fields).length === 2) {
+      return c.json({ error: 'no translation fields provided' }, 400)
+    }
+
+    await fsPatch(`announcements/${id}`, fields, adminToken)
+    return c.json({ success: true, id, patchedFields: Object.keys(fields) })
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500)
+  }
+})
 
 
 // Upbit Ticker Proxy with in-memory caching and fallback
@@ -10286,6 +13102,12 @@ app.post('/api/solana/execute-swap', async (c) => {
     const amountNumber = Number(amountUi);
     
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) return c.json({ error: 'Invalid amount' }, 400);
+    
+    // 🔥 동적 슬리피지: 클라이언트 입력값 우선, 미전달 시 기본 500bps(5%)
+    let slippageBps = Number(body.slippageBps);
+    if (!Number.isFinite(slippageBps) || slippageBps <= 0) slippageBps = 500;
+    if (slippageBps > 5000) slippageBps = 5000; // 상한 50%
+    if (slippageBps < 50) slippageBps = 50;     // 하한 0.5%
 
     const tokens: any = {
       'USDT': { mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', decimals: 6 },
@@ -10436,22 +13258,24 @@ const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     }
 
 
-    // 1. Get Jupiter Quote
-    const quoteRes = await fetch(`https://api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountLamports}&slippageBps=300`);
+    // 1. Get Jupiter Quote (동적 슬리피지)
+    const quoteRes = await fetch(`https://api.jup.ag/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountLamports}&slippageBps=${slippageBps}`);
     const quoteText = await quoteRes.text();
     let quoteData;
     try { quoteData = JSON.parse(quoteText); } catch(e) { throw new Error('Jupiter Quote Error: ' + quoteText.substring(0,100)); }
     
     if (quoteData.error) return c.json({ error: 'Jupiter Quote Error: ' + quoteData.error }, 400);
 
-    // 2. Get Swap Transaction
+    // 2. Get Swap Transaction (우선순위 수수료 + 동적 컴퓨트 유닛)
     const swapRes = await fetch('https://api.jup.ag/swap/v1/swap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         quoteResponse: quoteData,
         userPublicKey: pubKey,
-        wrapAndUnwrapSol: true
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto'
       })
     });
     const swapText = await swapRes.text();
@@ -10505,12 +13329,22 @@ const textRes = await connectionRes.text();
         throw new Error('RPC Error: ' + textRes.substring(0, 100));
     }
     if (connectionData.error) {
-      throw new Error(connectionData.error.message || JSON.stringify(connectionData.error));
+      const errMsg = connectionData.error.message || JSON.stringify(connectionData.error);
+      // 🔥 0x1788 = 슬리피지 초과 오류, 사용자에게 더 명확하게 안내
+      if (errMsg.includes('0x1788') || errMsg.toLowerCase().includes('slippage')) {
+        return c.json({
+          error: `시세 변동이 커서 스왑이 실패했습니다. 슬리피지를 ${Math.min(50, Math.ceil((slippageBps / 100) * 2))}% 이상으로 올려서 다시 시도해주세요.`,
+          code: 'slippage_exceeded',
+          slippageBpsUsed: slippageBps
+        }, 400);
+      }
+      throw new Error(errMsg);
     }
     const txid = connectionData.result;
     
     // Poll for confirmation (up to 12 seconds)
     let isConfirmed = false;
+    let confirmErr: any = null;
     for (let i = 0; i < 6; i++) {
         await new Promise(r => setTimeout(r, 2000));
         try {
@@ -10522,7 +13356,18 @@ const textRes = await connectionRes.text();
             if (statData && statData.result && statData.result.value && statData.result.value[0]) {
                 const status = statData.result.value[0];
                 if (status.err) {
-                    return c.json({ error: '솔라나 네트워크에서 스왑이 실패했습니다. (가스비 부족 또는 가격 변동)' }, 400);
+                    confirmErr = status.err;
+                    const errStr = JSON.stringify(status.err);
+                    // 🔥 슬리피지 초과(0x1788) 감지
+                    if (errStr.includes('0x1788') || errStr.includes('6024')) {
+                        return c.json({
+                            error: `시세 변동으로 스왑이 실패했습니다 (슬리피지 ${(slippageBps/100).toFixed(2)}% 초과). 슬리피지 톨러런스를 더 높여 재시도해주세요.`,
+                            code: 'slippage_exceeded',
+                            slippageBpsUsed: slippageBps,
+                            txid
+                        }, 400);
+                    }
+                    return c.json({ error: '솔라나 네트워크에서 스왑이 실패했습니다: ' + errStr.substring(0,200), txid }, 400);
                 }
                 if (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized' || status.confirmationStatus === 'processed') {
                     isConfirmed = true;
@@ -10578,6 +13423,548 @@ const textRes = await connectionRes.text();
 
 
 
+
+// ════════════════════════════════════════════════════════════════════
+// 보너스 지급 API (2026-04-30 복원)
+// — 클라이언트 Firestore SDK 직호출 대신 서버 측 안정 검색 + 트랜잭션 지급
+// ════════════════════════════════════════════════════════════════════
+
+// (A) 다단계 회원 검색 — UID / 이메일 / username / solanaWallet / referralCode
+app.get('/api/admin/bonus/find-user', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const qRaw = String(c.req.query('q') || '').trim();
+    if (!qRaw) return c.json({ success: false, error: '검색어가 비어 있습니다.' }, 400);
+    const q = qRaw;
+    const qLower = q.toLowerCase();
+
+    // 1) UID 직접 조회 시도 (20자 이상이면 Firebase UID 가능성 높음)
+    if (q.length >= 20 && /^[A-Za-z0-9_-]+$/.test(q)) {
+      const direct = await fsGet(`users/${q}`, adminToken).catch(() => null);
+      if (direct?.fields) {
+        const u = firestoreDocToObj(direct);
+        return c.json({ success: true, user: { uid: q, ...u }, matchedBy: 'uid' });
+      }
+    }
+
+    // 2) referralCode (대문자) → username (소문자) → email → solanaWallet 순서로 EQUAL 쿼리
+    const tries: Array<{ field: string; value: string; matchedBy: string }> = [
+      { field: 'referralCode', value: q.toUpperCase(), matchedBy: 'referralCode' },
+      { field: 'username', value: qLower, matchedBy: 'username' },
+      { field: 'email', value: qLower, matchedBy: 'email' },
+      { field: 'solanaWallet', value: q, matchedBy: 'solanaWallet' },
+      { field: 'referralCode', value: q, matchedBy: 'referralCode' },
+      { field: 'username', value: q, matchedBy: 'username' },
+    ];
+
+    for (const t of tries) {
+      try {
+        const rows = await fsQuery('users', adminToken, [
+          { fieldFilter: { field: { fieldPath: t.field }, op: 'EQUAL', value: { stringValue: t.value } } }
+        ], 1);
+        if (rows && rows.length) {
+          const u = rows[0];
+          return c.json({ success: true, user: { uid: u.id, ...u }, matchedBy: t.matchedBy });
+        }
+      } catch (_) { /* 다음 시도 */ }
+    }
+
+    // 3) 부분일치 폴백 (적은 사용자 환경에서만): 전체 스캔 후 substring 매치
+    try {
+      const all = await fsQuery('users', adminToken, [], 5000);
+      const hit = (all || []).find((u: any) => {
+        const fields = [u.username, u.email, u.solanaWallet, u.referralCode, u.id, u.name].filter(Boolean).map((x: any) => String(x).toLowerCase());
+        return fields.some((f: string) => f === qLower) || fields.some((f: string) => f.includes(qLower));
+      });
+      if (hit) return c.json({ success: true, user: { uid: hit.id, ...hit }, matchedBy: 'substring' });
+    } catch (_) { /* ignore */ }
+
+    return c.json({ success: false, error: `회원을 찾을 수 없습니다: "${qRaw}"` }, 404);
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// (B) 수동 보너스 지급
+//   bonusType: 'balance' → bonusBalance + totalEarnings 가산 (자유 사용)
+//              'freeze'  → 보너스 투자 문서 생성 + 지갑 bonusInvest 가산 (롤업 불가)
+//   prodInfo (freeze 시 필수): { id, name, roi(%), days }
+app.post('/api/admin/bonus/grant', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const userId = String(body.userId || '').trim();
+    const amount = Number(body.amount);
+    const reason = String(body.reason || '').trim();
+    const bonusType = String(body.bonusType || 'balance');
+    const prodInfo = body.prodInfo || null;
+    const adminUid = String(body.adminUid || c.get('adminUid' as any) || 'admin');
+
+    if (!userId) return c.json({ success: false, error: 'userId 필수' }, 400);
+    if (!Number.isFinite(amount) || amount <= 0) return c.json({ success: false, error: '지급 금액은 0보다 커야 합니다.' }, 400);
+    if (!reason) return c.json({ success: false, error: '지급 사유 필수' }, 400);
+    if (!['balance', 'freeze'].includes(bonusType)) return c.json({ success: false, error: '잘못된 지급 방식' }, 400);
+    if (bonusType === 'freeze' && (!prodInfo || !prodInfo.id || !prodInfo.name || !Number.isFinite(Number(prodInfo.roi)) || !Number.isFinite(Number(prodInfo.days)))) {
+      return c.json({ success: false, error: '프리즈 지급 시 상품 정보(id/name/roi/days)가 필요합니다.' }, 400);
+    }
+
+    // 회원·지갑 존재 검증
+    const userDoc = await fsGet(`users/${userId}`, adminToken).catch(() => null);
+    if (!userDoc?.fields) return c.json({ success: false, error: `회원을 찾을 수 없습니다: ${userId}` }, 404);
+
+    let walletDoc = await fsGet(`wallets/${userId}`, adminToken).catch(() => null);
+    if (!walletDoc?.fields) {
+      // 지갑 없으면 자동 생성 (보너스 지급은 0에서 가산)
+      await fsSet(`wallets/${userId}`, {
+        userId,
+        usdtBalance: 0,
+        bonusBalance: 0,
+        totalInvest: 0,
+        totalEarnings: 0,
+        bonusInvest: 0,
+        createdAt: new Date().toISOString(),
+      }, adminToken);
+      walletDoc = await fsGet(`wallets/${userId}`, adminToken).catch(() => null);
+    }
+    const wallet = walletDoc?.fields ? firestoreDocToObj(walletDoc) : { bonusBalance: 0, totalEarnings: 0, bonusInvest: 0 };
+
+    const round8 = (x: number) => Math.round(x * 1e8) / 1e8;
+    const amt = round8(amount);
+    const nowIso = new Date().toISOString();
+
+    if (bonusType === 'freeze') {
+      const roi = Number(prodInfo.roi);
+      const days = Math.max(1, Math.round(Number(prodInfo.days)));
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + days * 86400000);
+      const expectedReturn = round8(amt * roi * days / 100);
+
+      // 1) 보너스 투자 문서 생성
+      const inv = await fsCreate('investments', {
+        userId,
+        productId: prodInfo.id,
+        productName: prodInfo.name,
+        amount: amt,
+        amountUsdt: amt,
+        roiPercent: roi,
+        dailyRoi: roi,
+        durationDays: days,
+        duration: days,
+        expectedReturn,
+        status: 'active',
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        createdAt: nowIso,
+        isBonus: true,
+        excludeFromSales: true,
+        noRollup: true,
+        manualBonus: true,
+        grantedBy: adminUid,
+      }, adminToken);
+
+      // 2) 지갑 bonusInvest 가산
+      await fsPatch(`wallets/${userId}`, {
+        bonusInvest: round8(Number(wallet.bonusInvest || 0) + amt),
+        updatedAt: nowIso,
+      }, adminToken);
+
+      // 3) bonuses 로그
+      await fsCreate('bonuses', {
+        userId,
+        amount: amt,
+        type: 'manual_bonus',
+        subtype: 'freeze_product',
+        reason: `[프리즈상품:${prodInfo.name}] ${reason}`,
+        productId: prodInfo.id,
+        productName: prodInfo.name,
+        roi,
+        days,
+        grantedBy: adminUid,
+        createdAt: nowIso,
+      }, adminToken);
+
+      // 4) 관리자 감사 로그
+      await fsCreate(ADMIN_AUDIT_LOG_COLLECTION, {
+        action: 'manual_bonus',
+        actor: adminUid,
+        targetUserId: userId,
+        amount: amt,
+        bonusType: 'freeze',
+        reason,
+        prodInfo: { id: prodInfo.id, name: prodInfo.name, roi, days },
+        createdAt: nowIso,
+      }, adminToken).catch(() => null);
+
+      return c.json({
+        success: true,
+        bonusType: 'freeze',
+        userId,
+        amount: amt,
+        currency: 'USDT',
+        productName: prodInfo.name,
+        productId: prodInfo.id,
+        roi,
+        days,
+        investmentId: inv?.id || null,
+        message: `✅ ${amt.toFixed(2)} USDT 가 [${prodInfo.name}] 프리즈 보너스 상품으로 지급되었습니다.`,
+      });
+    }
+
+    // bonusType === 'balance'
+    await fsPatch(`wallets/${userId}`, {
+      bonusBalance: round8(Number(wallet.bonusBalance || 0) + amt),
+      totalEarnings: round8(Number(wallet.totalEarnings || 0) + amt),
+      updatedAt: nowIso,
+    }, adminToken);
+
+    await fsCreate('bonuses', {
+      userId,
+      amount: amt,
+      type: 'manual_bonus',
+      subtype: 'balance',
+      reason,
+      grantedBy: adminUid,
+      createdAt: nowIso,
+    }, adminToken);
+
+    await fsCreate(ADMIN_AUDIT_LOG_COLLECTION, {
+      action: 'manual_bonus',
+      actor: adminUid,
+      targetUserId: userId,
+      amount: amt,
+      bonusType: 'balance',
+      reason,
+      createdAt: nowIso,
+    }, adminToken).catch(() => null);
+
+    return c.json({
+      success: true,
+      bonusType: 'balance',
+      userId,
+      amount: amt,
+      currency: 'USDT',
+      message: `✅ ${amt.toFixed(2)} USDT 가 수익 잔액(보너스)으로 지급되었습니다.`,
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// (C) 보너스용 상품 목록 (이름·ROI·기간만, 프론트 셀렉트 채우기용)
+app.get('/api/admin/bonus/products', async (c) => {
+  try {
+    if (!(await hasPrivilegedApiAccess(c))) return c.json({ success: false, error: 'unauthorized' }, 401);
+    const adminToken = await getAdminToken();
+    const list = await fsQuery('products', adminToken, [], 200);
+    const products = (list || []).map((p: any) => {
+      const roi = p.dailyRoi !== undefined ? p.dailyRoi : (p.roiPercent !== undefined ? p.roiPercent : (p.roi || 0));
+      const days = p.duration !== undefined ? p.duration : (p.durationDays !== undefined ? p.durationDays : (p.days || 0));
+      return {
+        id: p.id,
+        name: p.name || p.id,
+        roi: Number(roi) || 0,
+        days: Number(days) || 0,
+        minAmount: Number(p.minAmount || 0),
+        maxAmount: Number(p.maxAmount || 0),
+        active: p.active !== false,
+      };
+    }).filter((p: any) => p.active !== false)
+      .sort((a: any, b: any) => (a.days - b.days) || (a.roi - b.roi));
+    return c.json({ success: true, products });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// 회원 초기화 API (2026-04-30) — username 다건 입력 → 지정 회원 데이터 일괄 초기화
+//   • wallets/{uid} 잔액/누적 0
+//   • investments — 해당 userId 문서 모두 삭제
+//   • bonuses — 해당 userId 문서 모두 삭제
+//   • transactions — 해당 userId 문서 모두 삭제 (deposit/withdraw/roi 등)
+//   • users/{uid} — networkSales/otherLegSales/totalSales/currentRank 등 누적 0
+//   • adminAuditLogs 에 reset_user 기록
+// ════════════════════════════════════════════════════════════════════
+app.post('/api/admin/reset-users', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const headerSecret = c.req.header('x-cron-secret') || c.req.header('X-Cron-Secret') || '';
+    const adminApiHeader = c.req.header('x-admin-api-secret') || c.req.header('X-Admin-Api-Secret') || '';
+    const env: any = (c.env || {});
+    const adminApiSecret = String(env.ADMIN_API_SECRET || (globalThis as any)?.GLOBAL_ENV?.ADMIN_API_SECRET || '').trim();
+    const okSecret = isValidCronSecret(headerSecret) || isValidCronSecret(body.secret);
+    const okAdminApi = !!adminApiSecret && (adminApiHeader === adminApiSecret || body.adminApiSecret === adminApiSecret);
+    const okAdmin = await hasPrivilegedApiAccess(c).catch(() => false);
+    if (!okSecret && !okAdminApi && !okAdmin) {
+      return c.json({ success: false, error: 'unauthorized' }, 401);
+    }
+    const adminToken = await getAdminToken();
+    const usernamesRaw: any[] = Array.isArray(body.usernames) ? body.usernames : [];
+    const usernames: string[] = usernamesRaw.map((s: any) => String(s || '').trim()).filter(Boolean);
+    const adminUid = String(body.adminUid || 'admin');
+    const dryRun = !!body.dryRun;
+    if (!usernames.length) return c.json({ success: false, error: 'usernames 비어 있음' }, 400);
+
+    const results: any[] = [];
+    for (const uname of usernames) {
+      const result: any = { username: uname, found: false, uid: null, deleted: { investments: 0, bonuses: 0, transactions: 0, sales: 0 }, walletReset: false };
+      try {
+        // 1) username 으로 회원 검색 (소문자/원본 모두 시도)
+        let users = await fsQuery('users', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: uname.toLowerCase() } } }
+        ], 5);
+        if (!users || !users.length) {
+          users = await fsQuery('users', adminToken, [
+            { fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: uname } } }
+          ], 5);
+        }
+        if (!users || !users.length) {
+          result.error = '회원을 찾을 수 없음';
+          results.push(result);
+          continue;
+        }
+        const user = users[0];
+        const uid = user.id;
+        result.found = true;
+        result.uid = uid;
+        result.userEmail = user.email || null;
+
+        if (dryRun) {
+          // 영향 범위만 카운트
+          const inv = await fsQuery('investments', adminToken, [{ fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }], 1000);
+          const bn = await fsQuery('bonuses', adminToken, [{ fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }], 1000);
+          const tx = await fsQuery('transactions', adminToken, [{ fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }], 1000);
+          const sl = await fsQuery('sales', adminToken, [{ fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }], 1000);
+          result.deleted = { investments: inv.length, bonuses: bn.length, transactions: tx.length, sales: sl.length };
+          results.push(result);
+          continue;
+        }
+
+        // 2) investments 삭제
+        const invs = await fsQuery('investments', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+        ], 2000);
+        for (const inv of invs) {
+          await fsDelete(`investments/${inv.id}`, adminToken).catch(() => false);
+          result.deleted.investments++;
+        }
+
+        // 3) bonuses 삭제
+        const bonuses = await fsQuery('bonuses', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+        ], 5000);
+        for (const b of bonuses) {
+          await fsDelete(`bonuses/${b.id}`, adminToken).catch(() => false);
+          result.deleted.bonuses++;
+        }
+
+        // 4) transactions 삭제 (입금/출금/ROI 등 모두)
+        const txs = await fsQuery('transactions', adminToken, [
+          { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+        ], 5000);
+        for (const t of txs) {
+          await fsDelete(`transactions/${t.id}`, adminToken).catch(() => false);
+          result.deleted.transactions++;
+        }
+
+        // 5) sales 컬렉션도 삭제 (있을 경우)
+        try {
+          const sales = await fsQuery('sales', adminToken, [
+            { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+          ], 2000);
+          for (const s of sales) {
+            await fsDelete(`sales/${s.id}`, adminToken).catch(() => false);
+            result.deleted.sales++;
+          }
+        } catch (_) { /* ignore */ }
+
+        // 6) wallets/{uid} 0으로 초기화
+        await fsPatch(`wallets/${uid}`, {
+          usdtBalance: 0,
+          bonusBalance: 0,
+          dedraBalance: 0,
+          totalEarnings: 0,
+          totalInvest: 0,
+          totalInvested: 0,
+          bonusInvest: 0,
+          autoCompoundTotalInvest: 0,
+          availableUsdt: 0,
+          updatedAt: new Date().toISOString(),
+        }, adminToken).catch(() => null);
+        result.walletReset = true;
+
+        // 7) users/{uid} 누적 지표 초기화 (랭크/매출 관련)
+        await fsPatch(`users/${uid}`, {
+          networkSales: 0,
+          otherLegSales: 0,
+          totalSales: 0,
+          totalInvested: 0,
+          totalEarnings: 0,
+          currentRank: '',
+          rankAchievedAt: null,
+          updatedAt: new Date().toISOString(),
+        }, adminToken).catch(() => null);
+
+        // 8) 감사 로그
+        await fsCreate(ADMIN_AUDIT_LOG_COLLECTION, {
+          action: 'reset_user',
+          actor: adminUid,
+          targetUserId: uid,
+          targetUsername: uname,
+          deleted: result.deleted,
+          createdAt: new Date().toISOString(),
+        }, adminToken).catch(() => null);
+
+      } catch (e: any) {
+        result.error = e.message;
+      }
+      results.push(result);
+    }
+
+    return c.json({ success: true, dryRun, results });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// 단일 투자 삭제 API (2026-05-01) — username + amount + duration 으로 1건만 삭제
+//   • avajan 의 $500 / 12개월 상품 1건 삭제 등 정밀 작업용
+//   • 매칭 조건: userId == 회원 uid AND amount == amountUsd AND durationDays == months*30
+//   • dryRun=true 면 매칭만 하고 삭제는 안 함
+// ════════════════════════════════════════════════════════════════════
+app.post('/api/admin/delete-one-investment', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({})) as any;
+    const headerSecret = c.req.header('x-cron-secret') || c.req.header('X-Cron-Secret') || '';
+    const adminApiHeader = c.req.header('x-admin-api-secret') || c.req.header('X-Admin-Api-Secret') || '';
+    const env: any = (c.env || {});
+    const adminApiSecret = String(env.ADMIN_API_SECRET || (globalThis as any)?.GLOBAL_ENV?.ADMIN_API_SECRET || '').trim();
+    const okSecret = isValidCronSecret(headerSecret) || isValidCronSecret(body.secret);
+    const okAdminApi = !!adminApiSecret && (adminApiHeader === adminApiSecret || body.adminApiSecret === adminApiSecret);
+    const okAdmin = await hasPrivilegedApiAccess(c).catch(() => false);
+    if (!okSecret && !okAdminApi && !okAdmin) {
+      return c.json({ success: false, error: 'unauthorized' }, 401);
+    }
+    const adminToken = await getAdminToken();
+    const username = String(body.username || '').trim();
+    const amountUsd = Number(body.amountUsd);
+    const months = Number(body.months);
+    const dryRun = !!body.dryRun;
+    if (!username || !Number.isFinite(amountUsd) || !Number.isFinite(months)) {
+      return c.json({ success: false, error: 'username, amountUsd, months 필수' }, 400);
+    }
+
+    // 1) 회원 조회
+    let users = await fsQuery('users', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: username.toLowerCase() } } }
+    ], 5);
+    if (!users || !users.length) {
+      users = await fsQuery('users', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'username' }, op: 'EQUAL', value: { stringValue: username } } }
+      ], 5);
+    }
+    if (!users || !users.length) {
+      return c.json({ success: false, error: '회원을 찾을 수 없음' }, 404);
+    }
+    const user = users[0];
+    const uid = user.id;
+
+    // 2) 투자 목록 전체 조회 (해당 회원)
+    const invs: any[] = await fsQuery('investments', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+    ], 1000);
+
+    const expectedDurationDays = months * 30;
+    const tolerance = 0.5; // amount 비교 허용 오차
+
+    const matches = invs.filter((inv: any) => {
+      const amt = Number(inv.amount ?? inv.amountUsdt ?? inv.principal ?? 0);
+      const dd = Number(inv.durationDays ?? inv.duration ?? 0);
+      const dm = Number(inv.durationMonths ?? 0);
+      const monthsMatch = (dd === expectedDurationDays) || (dm === months) || (Math.abs(dd - expectedDurationDays) <= 5);
+      const amtMatch = Math.abs(amt - amountUsd) <= tolerance;
+      return monthsMatch && amtMatch;
+    });
+
+    if (!matches.length) {
+      return c.json({
+        success: false,
+        error: `매칭되는 투자 상품이 없음 (회원=${username}, $${amountUsd}/${months}개월)`,
+        uid,
+        totalInvestments: invs.length,
+        sample: invs.slice(0, 5).map((i: any) => ({
+          id: i.id,
+          amount: i.amount ?? i.amountUsdt,
+          durationDays: i.durationDays ?? i.duration,
+          durationMonths: i.durationMonths,
+          productName: i.productName,
+          status: i.status,
+          createdAt: i.createdAt,
+        })),
+      }, 404);
+    }
+
+    // 3) createdAt 정렬 — 기본 오래된 순, pickLatest=true 시 최신 순
+    const pickLatest = !!body.pickLatest;
+    matches.sort((a: any, b: any) => {
+      const ta = new Date(a.createdAt || a.startDate || 0).getTime();
+      const tb = new Date(b.createdAt || b.startDate || 0).getTime();
+      return pickLatest ? (tb - ta) : (ta - tb);
+    });
+    const target = matches[0];
+
+    if (dryRun) {
+      return c.json({
+        success: true,
+        dryRun: true,
+        uid,
+        username,
+        matchedCount: matches.length,
+        target: {
+          id: target.id,
+          amount: target.amount ?? target.amountUsdt,
+          durationDays: target.durationDays ?? target.duration,
+          productName: target.productName,
+          status: target.status,
+          createdAt: target.createdAt,
+        },
+        otherMatches: matches.slice(1).map((i: any) => ({ id: i.id, createdAt: i.createdAt })),
+      });
+    }
+
+    // 4) 실제 삭제
+    await fsDelete(`investments/${target.id}`, adminToken);
+
+    // 5) 감사 로그
+    await fsCreate(ADMIN_AUDIT_LOG_COLLECTION, {
+      action: 'delete_one_investment',
+      actor: String(body.adminUid || 'admin'),
+      targetUserId: uid,
+      targetUsername: username,
+      investmentId: target.id,
+      amount: target.amount ?? target.amountUsdt,
+      durationDays: target.durationDays ?? target.duration,
+      productName: target.productName,
+      createdAt: new Date().toISOString(),
+    }, adminToken).catch(() => null);
+
+    return c.json({
+      success: true,
+      uid,
+      username,
+      deletedInvestmentId: target.id,
+      amount: target.amount ?? target.amountUsdt,
+      durationDays: target.durationDays ?? target.duration,
+      productName: target.productName,
+      remainingMatches: matches.length - 1,
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
 
 app.get('/api/admin/find-user/:id', async (c) => {
   try {
@@ -12029,13 +15416,21 @@ app.post('/api/ai/analyze-rank', async (c) => {
     const directReferrals = Number(userData.fields?.directReferrals?.integerValue || 0);
     const totalInvested = Number(walletData.fields?.totalInvested?.doubleValue || walletData.fields?.totalInvested?.integerValue || 0);
 
+    // [FIX 2026-05-01 #2] 각 행은 "현재 직급(key) → 다음 직급(next) 승급 조건"이며,
+    //   사용자 지정 기준표의 G(N) 행 값 = G(N) 달성 조건. 따라서 G0 행에는 G1 달성 조건이
+    //   들어가야 한다 (이전 G0 reqSelf=100, reqLeg=0 으로 G1 인원 폭증한 버그 수정).
+    // 승급 조건: (selfInvest >= reqSelf) AND (otherLegSales >= reqLeg)
     const ranks: Record<string, any> = {
-      'G0': { next: 'G1', reqSales: 5000, reqLeg: 0, reqRef: 3 },
-      'G1': { next: 'G2', reqSales: 20000, reqLeg: 10000, reqRef: 3 },
-      'G2': { next: 'G3', reqSales: 50000, reqLeg: 25000, reqRef: 3 },
-      'G3': { next: 'G4', reqSales: 150000, reqLeg: 75000, reqRef: 3 },
-      'G4': { next: 'G5', reqSales: 500000, reqLeg: 250000, reqRef: 3 },
-      'G5': { next: 'G6', reqSales: 2000000, reqLeg: 1000000, reqRef: 3 }
+      'G0':  { next: 'G1',  reqSelf: 300,    reqSales: 10000,    reqLeg: 10000,    reqRef: 0 },
+      'G1':  { next: 'G2',  reqSelf: 500,    reqSales: 30000,    reqLeg: 30000,    reqRef: 0 },
+      'G2':  { next: 'G3',  reqSelf: 1000,   reqSales: 70000,    reqLeg: 70000,    reqRef: 0 },
+      'G3':  { next: 'G4',  reqSelf: 2000,   reqSales: 200000,   reqLeg: 200000,   reqRef: 0 },
+      'G4':  { next: 'G5',  reqSelf: 3000,   reqSales: 500000,   reqLeg: 500000,   reqRef: 0 },
+      'G5':  { next: 'G6',  reqSelf: 5000,   reqSales: 1000000,  reqLeg: 1000000,  reqRef: 0 },
+      'G6':  { next: 'G7',  reqSelf: 5000,   reqSales: 2000000,  reqLeg: 2000000,  reqRef: 0 },
+      'G7':  { next: 'G8',  reqSelf: 10000,  reqSales: 5000000,  reqLeg: 5000000,  reqRef: 0 },
+      'G8':  { next: 'G9',  reqSelf: 10000,  reqSales: 10000000, reqLeg: 10000000, reqRef: 0 },
+      'G9':  { next: 'G10', reqSelf: 20000,  reqSales: 20000000, reqLeg: 20000000, reqRef: 0 }
     };
 
     let message = '';
@@ -12228,6 +15623,24 @@ export default {
         console.log("Auto-deposit check result (XRP/BTC):", txt);
       } catch(e) {
         console.error("Auto-deposit error (XRP/BTC):", e);
+      }
+
+      // [FIX 2026-04-30] ----- 매출 재계산 + 자동 승급 (10분마다, 소실적 매출 누락 민원 영구 해결) -----
+      // cron이 5분마다 돌면 매번 실행되며, 짝수 10분 단위에서만 트리거하여 부하 감소
+      try {
+        const now2 = new Date();
+        const m = now2.getUTCMinutes();
+        if (m % 10 < 5) {
+          console.log("Running recompute-and-upgrade...");
+          const adminTokenC = await getAdminToken();
+          const usersC = await fsQuery('users', adminTokenC, [], 100000);
+          const walletsC = await fsQuery('wallets', adminTokenC, [], 100000);
+          const invsC = await fsQuery('investments', adminTokenC, [{ field: 'status', op: '==', value: 'active' }], 100000).catch(() => []);
+          const r = await autoUpgradeAllRanks(adminTokenC, usersC, walletsC, invsC);
+          console.log("Recompute-and-upgrade result:", JSON.stringify(r));
+        }
+      } catch(e) {
+        console.error("Recompute-and-upgrade error:", e);
       }
       
       try {

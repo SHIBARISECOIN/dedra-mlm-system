@@ -5271,7 +5271,139 @@ Bangkok, Thailand
 ■ 행사 목적
 이번 출정식은 WITY 모빌리티 플랫폼을 공식적으로 소개하고, D.R.E 프로젝트와 실물 경제를 연결하는 첫 글로벌 공식 행사입니다. 또한 태국을 시작으로 동남아시아 시장 확장을 본격화하는 중요한 출발점이 될 예정입니다.
 
-WITY는 이번 방콕 출정식을 통해 글로벌 파트너, 라이더 생태계, 멤버십 커뮤니티가 함께 성장할 수 있는 기반을 만들어가겠습니다.`
+WITY는 이번 방콕 출정식을 통해 글로벌 파트너, 라이더 생태계, 멤버십 커뮤니티가 함께 성장할 수 있는 기반을 만들어가겠습니다.`,
+
+  // ===== English =====
+  title_en: '[Notice] Announcement of the Upcoming WITY Bangkok Global Launch Ceremony',
+  popupTitle_en: 'WITY Bangkok Global Launch Ceremony',
+  popupBody_en: "WITY's first official global event will be held on May 10, 2026 in Bangkok, Thailand. This event marks the starting point of our expansion into the Southeast Asian market. For invited guests, the company will cover flights, local transportation, accommodation, and basic event participation costs.",
+  content_en: `Announcement of the Upcoming WITY Bangkok Global Launch Ceremony
+
+■ Event Name
+WITY Bangkok Global Launch Ceremony
+
+■ Date
+May 10, 2026
+
+■ Venue
+Bangkok, Thailand
+A hotel convention center (to be confirmed) — the exact venue will be announced later.
+
+■ Key Attendees
+- Core members of the WITY project
+- Rider partners from Thailand and Southeast Asia
+- Strategic partners
+- Active contributors to the D.R.E project
+- Highly engaged membership members
+
+■ Selection Criteria for Invitees
+Invitees are selected based on a comprehensive review of the following criteria, not simply on membership registration:
+- Project participation and activity level
+- Interest in and understanding of the D.R.E project
+- Membership deposit and activity history
+- Actual contributions
+- Promotion and referral activities
+- Overall activity level and potential to grow into a future leader/partner
+
+■ Items Covered by the Company for Invitees
+The following basic costs will be covered by the company for officially invited participants:
+- Airfare and travel-related expenses
+- Local transportation
+- Accommodation during the event
+- Basic event participation fees
+
+■ Purpose of the Event
+This launch ceremony will officially introduce the WITY mobility platform and serve as the first global event connecting the D.R.E project with the real economy. Starting from Thailand, it will also be an important starting point for full-scale expansion into the Southeast Asian market.
+
+Through this Bangkok launch, WITY will build a foundation where global partners, the rider ecosystem, and the membership community can grow together.`,
+
+  // ===== Vietnamese =====
+  title_vi: '[Thông báo] Thông tin về Lễ Ra mắt Toàn cầu WITY tại Bangkok sắp tới',
+  popupTitle_vi: 'Lễ Ra mắt Toàn cầu WITY tại Bangkok',
+  popupBody_vi: 'Sự kiện toàn cầu chính thức đầu tiên của WITY sẽ được tổ chức vào ngày 10 tháng 5 năm 2026 tại Bangkok, Thái Lan. Đây là điểm khởi đầu cho việc mở rộng sang thị trường Đông Nam Á. Đối với những khách mời được chọn, công ty sẽ hỗ trợ chi phí vé máy bay, di chuyển, lưu trú và phí tham dự cơ bản.',
+  content_vi: `Thông tin về Lễ Ra mắt Toàn cầu WITY tại Bangkok sắp tới
+
+■ Tên sự kiện
+Lễ Ra mắt Toàn cầu WITY tại Bangkok
+
+■ Thời gian
+Ngày 10 tháng 5 năm 2026
+
+■ Địa điểm
+Bangkok, Thái Lan
+Dự kiến tại trung tâm hội nghị khách sạn — địa điểm chính xác sẽ được thông báo sau.
+
+■ Đối tượng tham dự chính
+- Nhân sự cốt lõi của dự án WITY
+- Đối tác tài xế tại Thái Lan và Đông Nam Á
+- Đối tác hợp tác chiến lược
+- Người đóng góp tích cực cho dự án D.R.E
+- Thành viên có mức độ tham gia cao
+
+■ Tiêu chí lựa chọn khách mời
+Khách mời được lựa chọn dựa trên đánh giá tổng hợp các tiêu chí sau, không chỉ đơn thuần dựa vào việc đã đăng ký thành viên:
+- Mức độ tham gia và hoạt động trong dự án
+- Sự quan tâm và hiểu biết về dự án D.R.E
+- Lịch sử ký gửi và hoạt động thành viên
+- Đóng góp thực tế
+- Hoạt động quảng bá và giới thiệu
+- Tổng thể mức độ hoạt động và tiềm năng phát triển thành lãnh đạo/đối tác trong tương lai
+
+■ Các hạng mục công ty hỗ trợ cho khách mời
+Các chi phí cơ bản sau sẽ được công ty hỗ trợ cho những người được mời chính thức:
+- Vé máy bay và chi phí di chuyển liên quan
+- Phương tiện đi lại tại địa phương
+- Chỗ ở trong thời gian sự kiện
+- Phí tham dự sự kiện cơ bản
+
+■ Mục đích của sự kiện
+Lễ ra mắt lần này sẽ chính thức giới thiệu nền tảng di chuyển WITY và là sự kiện toàn cầu đầu tiên kết nối dự án D.R.E với nền kinh tế thực. Bắt đầu từ Thái Lan, đây cũng sẽ là điểm khởi đầu quan trọng để mở rộng toàn diện ra thị trường Đông Nam Á.
+
+Thông qua Lễ ra mắt tại Bangkok lần này, WITY sẽ xây dựng nền tảng để các đối tác toàn cầu, hệ sinh thái tài xế và cộng đồng thành viên cùng phát triển.`,
+
+  // ===== Thai =====
+  title_th: '[ประกาศ] แจ้งกำหนดการจัดงานเปิดตัวระดับโลก WITY ที่กรุงเทพฯ',
+  popupTitle_th: 'งานเปิดตัวระดับโลก WITY ที่กรุงเทพฯ',
+  popupBody_th: 'งานระดับโลกอย่างเป็นทางการครั้งแรกของ WITY จะจัดขึ้นในวันที่ 10 พฤษภาคม 2026 ที่กรุงเทพฯ ประเทศไทย งานนี้ถือเป็นจุดเริ่มต้นของการขยายตลาดสู่เอเชียตะวันออกเฉียงใต้ สำหรับผู้ได้รับเชิญ บริษัทจะสนับสนุนค่าตั๋วเครื่องบิน การเดินทาง ที่พัก และค่าเข้าร่วมงานพื้นฐาน',
+  content_th: `แจ้งกำหนดการจัดงานเปิดตัวระดับโลก WITY ที่กรุงเทพฯ
+
+■ ชื่องาน
+งานเปิดตัวระดับโลก WITY ที่กรุงเทพฯ
+
+■ วันที่
+10 พฤษภาคม 2026
+
+■ สถานที่
+กรุงเทพฯ ประเทศไทย
+ศูนย์ประชุมในโรงแรม (อยู่ระหว่างการยืนยัน) — สถานที่จัดงานที่แน่ชัดจะแจ้งให้ทราบในภายหลัง
+
+■ ผู้เข้าร่วมหลัก
+- บุคลากรหลักของโครงการ WITY
+- พันธมิตรไรเดอร์ในประเทศไทยและเอเชียตะวันออกเฉียงใต้
+- พันธมิตรความร่วมมือเชิงกลยุทธ์
+- ผู้มีส่วนร่วมที่กระตือรือร้นในโครงการ D.R.E
+- สมาชิกที่มีส่วนร่วมสูง
+
+■ เกณฑ์การคัดเลือกผู้ได้รับเชิญ
+ผู้ได้รับเชิญจะถูกคัดเลือกโดยพิจารณาจากเกณฑ์ต่อไปนี้อย่างครอบคลุม ไม่ใช่เพียงแค่การลงทะเบียนเป็นสมาชิก:
+- ระดับการมีส่วนร่วมและกิจกรรมในโครงการ
+- ความสนใจและความเข้าใจในโครงการ D.R.E
+- ประวัติการฝากและกิจกรรมของสมาชิก
+- การมีส่วนร่วมที่แท้จริง
+- กิจกรรมการประชาสัมพันธ์และการแนะนำ
+- ระดับกิจกรรมโดยรวมและศักยภาพในการเติบโตเป็นผู้นำ/พันธมิตรในอนาคต
+
+■ รายการที่บริษัทสนับสนุนสำหรับผู้ได้รับเชิญ
+ค่าใช้จ่ายพื้นฐานต่อไปนี้จะรวมอยู่ในขอบเขตการสนับสนุนของบริษัทสำหรับผู้ที่ได้รับเชิญอย่างเป็นทางการ:
+- ค่าตั๋วเครื่องบินและค่าใช้จ่ายในการเดินทาง
+- การคมนาคมในพื้นที่
+- ที่พักในช่วงงาน
+- ค่าเข้าร่วมงานพื้นฐาน
+
+■ วัตถุประสงค์ของงาน
+งานเปิดตัวครั้งนี้จะแนะนำแพลตฟอร์มการเดินทาง WITY อย่างเป็นทางการ และเป็นงานระดับโลกครั้งแรกที่เชื่อมโยงโครงการ D.R.E กับเศรษฐกิจจริง โดยเริ่มจากประเทศไทย งานนี้จะเป็นจุดเริ่มต้นที่สำคัญในการขยายตลาดอย่างเต็มรูปแบบสู่เอเชียตะวันออกเฉียงใต้
+
+ด้วยงานเปิดตัวที่กรุงเทพฯ ครั้งนี้ WITY จะสร้างรากฐานที่ทำให้พันธมิตรระดับโลก ระบบนิเวศไรเดอร์ และชุมชนสมาชิกสามารถเติบโตไปด้วยกันได้`
 };
 
 function getWityBangkokAnnouncement() {
@@ -5300,6 +5432,16 @@ window.showWityBangkokLoginPopup = function(retryCount = 0) {
   }
 
   const ann = getWityBangkokAnnouncement();
+  const _lang = (typeof currentLang !== 'undefined') ? currentLang : 'ko';
+  const _popupTitle = (_lang !== 'ko' && ann['popupTitle_' + _lang]) ? ann['popupTitle_' + _lang] : ann.popupTitle;
+  const _popupBody  = (_lang !== 'ko' && ann['popupBody_'  + _lang]) ? ann['popupBody_'  + _lang] : ann.popupBody;
+  const _btnLabel = ({
+    ko: '공지사항 확인하기',
+    en: 'View Announcement',
+    vi: 'Xem thông báo',
+    th: 'ดูประกาศ'
+  })[_lang] || '공지사항 확인하기';
+  const _closeAria = ({ ko:'닫기', en:'Close', vi:'Đóng', th:'ปิด' })[_lang] || '닫기';
   const overlay = document.createElement('div');
   overlay.id = 'wityBangkokPopupOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.82);backdrop-filter:blur(8px);z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;';
@@ -5308,10 +5450,10 @@ window.showWityBangkokLoginPopup = function(retryCount = 0) {
       <div style="padding:22px 22px 18px;background:radial-gradient(circle at top right,rgba(56,189,248,.26),transparent 42%),radial-gradient(circle at top left,rgba(168,85,247,.22),transparent 45%);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
           <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:999px;background:rgba(59,130,246,.16);border:1px solid rgba(125,211,252,.35);color:#bae6fd;font-size:12px;font-weight:800;letter-spacing:.2px;">GLOBAL LAUNCH</span>
-          <button type="button" onclick="removeWityBangkokPopup()" aria-label="닫기" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.09);color:#cbd5e1;font-size:16px;cursor:pointer;">×</button>
+          <button type="button" onclick="removeWityBangkokPopup()" aria-label="${_closeAria}" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.09);color:#cbd5e1;font-size:16px;cursor:pointer;">×</button>
         </div>
-        <h2 id="wityBangkokPopupTitle" style="margin:0 0 12px;font-size:22px;line-height:1.28;font-weight:900;letter-spacing:-.6px;">${ann.popupTitle}</h2>
-        <p style="margin:0;color:#dbeafe;font-size:14px;line-height:1.68;word-break:keep-all;">${ann.popupBody}</p>
+        <h2 id="wityBangkokPopupTitle" style="margin:0 0 12px;font-size:22px;line-height:1.28;font-weight:900;letter-spacing:-.6px;">${_popupTitle}</h2>
+        <p style="margin:0;color:#dbeafe;font-size:14px;line-height:1.68;word-break:keep-all;">${_popupBody}</p>
       </div>
       <div style="padding:0 22px 22px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 0 18px;">
@@ -5324,7 +5466,7 @@ window.showWityBangkokLoginPopup = function(retryCount = 0) {
             <div style="font-size:14px;font-weight:800;color:#f8fafc;">Bangkok, Thailand</div>
           </div>
         </div>
-        <button type="button" onclick="window.openWityBangkokAnnouncement()" style="width:100%;border:none;border-radius:16px;padding:15px 16px;background:linear-gradient(135deg,#38bdf8,#6366f1,#8b5cf6);color:#fff;font-size:15px;font-weight:900;box-shadow:0 12px 26px rgba(99,102,241,.35);cursor:pointer;">공지사항 확인하기</button>
+        <button type="button" onclick="window.openWityBangkokAnnouncement()" style="width:100%;border:none;border-radius:16px;padding:15px 16px;background:linear-gradient(135deg,#38bdf8,#6366f1,#8b5cf6);color:#fff;font-size:15px;font-weight:900;box-shadow:0 12px 26px rgba(99,102,241,.35);cursor:pointer;">${_btnLabel}</button>
       </div>
     </section>`;
   document.body.appendChild(overlay);
