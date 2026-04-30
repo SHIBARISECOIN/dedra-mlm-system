@@ -10234,9 +10234,13 @@ app.get('/api/admin/notices-paged', async (c) => {
     const limitRaw = parseInt(c.req.query('limit') || '5', 10);
     const limit = Math.max(1, Math.min(50, isFinite(limitRaw) ? limitRaw : 5));
     const cursorRaw = c.req.query('cursor') || '';
-    const cursorSec = cursorRaw ? Number(cursorRaw) : 0;
+    // [FIX 2026-04-30 v2] cursor는 offset(스킵 건수)로 동작.
+    //   첫 호출: cursor=null → offset=0
+    //   다음 호출: cursor=이미 받은 건수 누계 → offset=N
+    // 이전 timestampValue startAt 방식은 동시에 같은 createdAt 가진 문서가
+    // 있을 때 누락/중복이 발생할 수 있어 단순 offset 방식으로 교체.
+    const offsetNum = cursorRaw ? Math.max(0, parseInt(cursorRaw, 10) || 0) : 0;
 
-    // Firestore runQuery: orderBy createdAt desc, limit N, [startAfter cursor]
     const structuredQuery: any = {
       from: [{ collectionId: 'announcements' }],
       orderBy: [
@@ -10245,13 +10249,8 @@ app.get('/api/admin/notices-paged', async (c) => {
       ],
       limit
     };
-    if (cursorSec && isFinite(cursorSec) && cursorSec > 0) {
-      structuredQuery.startAt = {
-        values: [
-          { timestampValue: new Date(cursorSec * 1000).toISOString() }
-        ],
-        before: false
-      };
+    if (offsetNum > 0) {
+      structuredQuery.offset = offsetNum;
     }
 
     const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
@@ -10268,29 +10267,29 @@ app.get('/api/admin/notices-paged', async (c) => {
     }
     const arr: any[] = await res.json();
     const items: any[] = [];
-    let lastCreatedAt: any = null;
     for (const row of (arr || [])) {
       if (!row?.document) continue;
       const docPath: string = row.document.name || '';
       const id = docPath.split('/').pop() || '';
       const fields = row.document.fields || {};
       const obj = firestoreDocToObj({ fields });
-      // createdAt 객체 보존 (프론트에서 sort/표시용)
       const ca = fields.createdAt?.timestampValue;
       const caSec = ca ? Math.floor(new Date(ca).getTime() / 1000) : 0;
-      lastCreatedAt = caSec || lastCreatedAt;
       items.push({
         id,
         ...obj,
         createdAt: caSec ? { seconds: caSec, _iso: ca } : (obj.createdAt || null)
       });
     }
+    // 다음 페이지 커서 = 현재까지 처리된 누적 offset
+    const nextOffset = offsetNum + items.length;
     return c.json({
       success: true,
       items,
       count: items.length,
       hasMore: items.length === limit,
-      nextCursor: lastCreatedAt || null
+      nextCursor: items.length === limit ? nextOffset : null,
+      offset: offsetNum
     });
   } catch (e: any) {
     return c.json({ success: false, error: e.message }, 500);
