@@ -9647,6 +9647,104 @@ app.post('/api/admin/unlock-settlement', async (c) => {
   }
 })
 
+// ==========================================
+// [API] 정산 이력 조회 (페이지네이션)
+// [FIX 2026-04-30] 기존 SDK 방식의 getSettlementHistory()는 orderBy 없이
+//   limit(30)만 적용하여 Firestore가 임의의 순서로 30건만 반환 → 일부 날짜 누락.
+//   서버 측에서 date desc 정렬 + offset 페이징으로 안정적으로 반환.
+// ==========================================
+app.get('/api/admin/settlements-paged', async (c) => {
+  try {
+    const adminToken = await getAdminToken()
+    const limitRaw = parseInt(c.req.query('limit') || '30', 10)
+    const limit = Math.max(1, Math.min(200, isFinite(limitRaw) ? limitRaw : 30))
+    const cursorRaw = c.req.query('cursor') || ''
+    const offsetNum = cursorRaw ? Math.max(0, parseInt(cursorRaw, 10) || 0) : 0
+
+    const structuredQuery: any = {
+      from: [{ collectionId: 'settlements' }],
+      orderBy: [
+        { field: { fieldPath: 'date' }, direction: 'DESCENDING' },
+        { field: { fieldPath: '__name__' }, direction: 'DESCENDING' }
+      ],
+      limit
+    }
+    if (offsetNum > 0) {
+      structuredQuery.offset = offsetNum
+    }
+
+    const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ structuredQuery })
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return c.json({ success: false, error: `Firestore runQuery failed: ${res.status} ${text.slice(0, 200)}` }, 500)
+    }
+    const arr: any[] = await res.json()
+    const items: any[] = []
+    for (const row of (arr || [])) {
+      if (!row?.document) continue
+      const docPath: string = row.document.name || ''
+      const id = docPath.split('/').pop() || ''
+      const fields = row.document.fields || {}
+      const obj = firestoreDocToObj({ fields })
+      items.push({ id, ...obj })
+    }
+    // date 필드가 비어 있어 정렬에서 누락된 문서를 안전하게 보강:
+    // 만약 첫 페이지인데 결과 수가 적으면 fallback으로 컬렉션 전체 listDocuments 보조 호출.
+    let fallbackUsed = false
+    if (offsetNum === 0 && items.length < Math.min(limit, 5)) {
+      try {
+        const listRes = await fetch(`${FIRESTORE_BASE}/settlements?pageSize=200`, {
+          headers: { Authorization: `Bearer ${adminToken}` }
+        })
+        if (listRes.ok) {
+          const listJson: any = await listRes.json()
+          const docs = listJson.documents || []
+          const seen = new Set(items.map(it => it.id))
+          for (const d of docs) {
+            const dPath: string = d.name || ''
+            const did = dPath.split('/').pop() || ''
+            if (!did || seen.has(did)) continue
+            const obj = firestoreDocToObj({ fields: d.fields || {} })
+            items.push({ id: did, ...obj })
+          }
+          // date 또는 id (=YYYY-MM-DD) 기준 desc 정렬
+          items.sort((a, b) => {
+            const da = String(a.date || a.id || '')
+            const db = String(b.date || b.id || '')
+            if (da > db) return -1
+            if (da < db) return 1
+            return 0
+          })
+          // limit 적용
+          items.length = Math.min(items.length, limit)
+          fallbackUsed = true
+        }
+      } catch(_) {}
+    }
+
+    const nextOffset = offsetNum + items.length
+    return c.json({
+      success: true,
+      data: items,
+      items,
+      count: items.length,
+      hasMore: !fallbackUsed && items.length === limit,
+      nextCursor: (!fallbackUsed && items.length === limit) ? nextOffset : null,
+      offset: offsetNum,
+      fallbackUsed
+    })
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500)
+  }
+})
+
 
 
 // ==========================================

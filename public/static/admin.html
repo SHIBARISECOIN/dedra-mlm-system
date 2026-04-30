@@ -15895,67 +15895,175 @@ async function toggleSettlementHistory() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// 정산 이력 (Settlement History) — 서버 페이지네이션
+// [FIX 2026-04-30] 기존 SDK 직접 호출은 orderBy 미사용 + limit(30) 으로
+//   임의 30건만 반환 → 4/16 이후 누락. 서버 측 /api/admin/settlements-paged
+//   (date desc + offset 페이징 + listDocuments fallback) 사용으로 교체.
+// ══════════════════════════════════════════════════════════════
+let _settlementsAll = [];
+let _settlementsCursor = null;
+let _settlementsHasMore = false;
+let _settlementsLoading = false;
+const SETTLEMENT_PAGE_SIZE = 30;
+
+async function _fetchSettlementsPage(cursor, pageSize) {
+  const headers = { 'Content-Type': 'application/json' };
+  try {
+    let token = '';
+    if (typeof currentAdmin !== 'undefined' && currentAdmin && typeof currentAdmin.getIdToken === 'function') {
+      token = await currentAdmin.getIdToken();
+    } else if (window.currentAdmin && typeof window.currentAdmin.getIdToken === 'function') {
+      token = await window.currentAdmin.getIdToken();
+    } else if (window.FB?.auth?.currentUser && typeof window.FB.auth.currentUser.getIdToken === 'function') {
+      token = await window.FB.auth.currentUser.getIdToken();
+    } else if (typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin?.token) {
+      token = _currentSubAdmin.token;
+    } else if (window._adminToken) {
+      token = window._adminToken;
+    }
+    if (token) headers.Authorization = 'Bearer ' + token;
+  } catch (_) {}
+  const params = new URLSearchParams();
+  params.set('limit', String(pageSize || SETTLEMENT_PAGE_SIZE));
+  if (cursor) params.set('cursor', String(cursor));
+  const res = await fetch('/api/admin/settlements-paged?' + params.toString(), { headers });
+  return await res.json();
+}
+
+function _renderSettlementHistoryList() {
+  const listEl = document.getElementById('settlementHistoryList2') || document.getElementById('settlementHistoryList');
+  if (!listEl) return;
+  const records = _settlementsAll;
+  if (!records.length) {
+    listEl.innerHTML = '<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">정산 이력이 없습니다.</div>';
+    return;
+  }
+  const itemsHtml = records.map(rec => {
+    let dtHTML = '';
+    if (rec.details && typeof rec.details === 'object') {
+      const d = rec.details;
+      dtHTML = `
+        <div style="margin-top:10px;padding:10px;background:#fff;border-radius:8px;border:1px dashed #e2e8f0;">
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600;">[세부 지급 내역]</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:8px;">
+            <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+              <div style="font-size:10px;color:#64748b;">데일리 수익(ROI)</div>
+              <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.roiAmount||0).toFixed(2)} USDT</div>
+            </div>
+            <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+              <div style="font-size:10px;color:#64748b;">추천 수당</div>
+              <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.directBonus||0).toFixed(2)} USDT</div>
+            </div>
+            <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+              <div style="font-size:10px;color:#64748b;">직급 롤업</div>
+              <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.rankRollup||0).toFixed(2)} USDT</div>
+            </div>
+            <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
+              <div style="font-size:10px;color:#64748b;">직급 매칭</div>
+              <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.rankMatching||0).toFixed(2)} USDT</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    const dateStr = rec.date || rec.id || '-';
+    return `
+    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;background:#f1f5f9;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+        <div style="font-weight:700;font-size:14px;color:#1e293b;">
+          📅 ${dateStr}
+          <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${rec.status==='done'?'#dcfce7':'#fef08a'};color:${rec.status==='done'?'#166534':'#854d0e'};">${rec.status==='done'?'완료':'진행중/기타'}</span>
+        </div>
+        <div style="font-size:11px;color:#64748b;">총 ${rec.totalUsers||0}건 처리 (스킵 ${rec.skippedCount||0})</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:#374151;font-weight:600;">
+        <span>💰 총 정산 지급액: <span style="color:#047857;">${(rec.totalPaid||rec.totalRoiAmount||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} USDT</span></span>
+        <span style="font-size:11px;color:#64748b;font-weight:400;margin-top:2px;">⏱ 소요시간: ${rec.duration ? (rec.duration/1000).toFixed(1)+'초' : '-'}</span>
+      </div>
+      ${dtHTML}
+    </div>`;
+  }).join('');
+
+  // 푸터 (더 보기 / 전체 로드된 상태 표시)
+  let footerHtml = `<div style="margin-top:8px;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <div style="font-size:12px;color:#64748b;">현재 ${records.length}건 로드됨</div>
+    <div style="display:flex;gap:8px;">`;
+  if (_settlementsHasMore) {
+    footerHtml += `<button id="settlementLoadMoreBtn" onclick="loadMoreSettlements()" style="padding:8px 18px;border-radius:8px;background:#6366f1;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;">⬇️ 더보기 (${SETTLEMENT_PAGE_SIZE}건씩)</button>`;
+    footerHtml += `<button onclick="loadAllSettlements()" style="padding:8px 18px;border-radius:8px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:13px;font-weight:600;cursor:pointer;">📜 전체 보기</button>`;
+  } else {
+    footerHtml += `<span style="font-size:12px;color:#16a34a;font-weight:600;">✅ 모든 정산 이력이 로드되었습니다</span>`;
+  }
+  footerHtml += `</div></div>`;
+
+  listEl.innerHTML = itemsHtml + footerHtml;
+}
+
 async function loadSettlementHistory() {
+  if (_settlementsLoading) return;
   const listEl = document.getElementById('settlementHistoryList2') || document.getElementById('settlementHistoryList');
   if (!listEl) return;
   listEl.innerHTML = '<div class="loading" style="padding:20px;"><div class="spinner"></div></div>';
+  _settlementsLoading = true;
+  _settlementsAll = [];
+  _settlementsCursor = null;
+  _settlementsHasMore = false;
+  const t0 = Date.now();
   try {
-    const r = await api.getSettlementHistory();
-    const records = r.success ? r.data : [];
-    if (!records.length) {
-      listEl.innerHTML = '<div style="padding:16px;color:#94a3b8;font-size:13px;text-align:center;">정산 이력이 없습니다.</div>';
+    const r = await _fetchSettlementsPage(null, SETTLEMENT_PAGE_SIZE);
+    if (!r || !r.success) {
+      listEl.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:12px;">이력 조회 오류: ${r?.error || '응답 없음'}</div>`;
       return;
     }
-    
-    listEl.innerHTML = records.map(rec => {
-      let dtHTML = '';
-      if (rec.details && typeof rec.details === 'object') {
-        const d = rec.details;
-        dtHTML = `
-          <div style="margin-top:10px;padding:10px;background:#fff;border-radius:8px;border:1px dashed #e2e8f0;">
-            <div style="font-size:11px;color:#64748b;margin-bottom:6px;font-weight:600;">[세부 지급 내역]</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));gap:8px;">
-              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;">데일리 수익(ROI)</div>
-                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.roiAmount||0).toFixed(2)} USDT</div>
-              </div>
-              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;">추천 수당</div>
-                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.directBonus||0).toFixed(2)} USDT</div>
-              </div>
-              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;">직급 롤업</div>
-                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.rankRollup||0).toFixed(2)} USDT</div>
-              </div>
-              <div style="padding:6px;background:#f8fafc;border-radius:6px;text-align:center;">
-                <div style="font-size:10px;color:#64748b;">직급 매칭</div>
-                <div style="font-weight:700;color:#0f172a;font-size:12px;">${(d.rankMatching||0).toFixed(2)} USDT</div>
-              </div>
-            </div>
-          </div>
-        `;
-      }
-      return `
-      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;background:#f1f5f9;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <div style="font-weight:700;font-size:14px;color:#1e293b;">
-            📅 ${rec.date} 
-            <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${rec.status==='done'?'#dcfce7':'#fef08a'};color:${rec.status==='done'?'#166534':'#854d0e'};">${rec.status==='done'?'완료':'진행중/기타'}</span>
-          </div>
-          <div style="font-size:11px;color:#64748b;">총 ${rec.totalUsers||0}건 처리 (스킵 ${rec.skippedCount||0})</div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:#374151;font-weight:600;">
-          <span>💰 총 정산 지급액: <span style="color:#047857;">${(rec.totalPaid||rec.totalRoiAmount||0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} USDT</span></span>
-          <span style="font-size:11px;color:#64748b;font-weight:400;margin-top:2px;">⏱ 소요시간: ${rec.duration ? (rec.duration/1000).toFixed(1)+'초' : '-'}</span>
-        </div>
-        ${dtHTML}
-      </div>`;
-    }).join('');
-
+    const items = Array.isArray(r.data) ? r.data : (Array.isArray(r.items) ? r.items : []);
+    _settlementsAll = items;
+    _settlementsCursor = r.nextCursor || null;
+    _settlementsHasMore = !!r.hasMore;
+    console.log('[settlements] 1st page loaded in', Date.now() - t0, 'ms', { count: items.length, hasMore: _settlementsHasMore, fallbackUsed: !!r.fallbackUsed });
+    _renderSettlementHistoryList();
   } catch(e) {
     listEl.innerHTML = `<div style="color:#dc2626;font-size:13px;padding:12px;">이력 조회 오류: ${e.message}</div>`;
+  } finally {
+    _settlementsLoading = false;
   }
 }
+
+window.loadMoreSettlements = async function() {
+  if (_settlementsLoading || !_settlementsHasMore || _settlementsCursor === null) return;
+  _settlementsLoading = true;
+  const btn = document.getElementById('settlementLoadMoreBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 불러오는 중...'; }
+  try {
+    const r = await _fetchSettlementsPage(_settlementsCursor, SETTLEMENT_PAGE_SIZE);
+    if (r && r.success) {
+      const items = Array.isArray(r.data) ? r.data : (Array.isArray(r.items) ? r.items : []);
+      const seen = new Set(_settlementsAll.map(s => s.id || s.date));
+      for (const item of items) {
+        const key = item.id || item.date;
+        if (!seen.has(key)) _settlementsAll.push(item);
+      }
+      _settlementsCursor = r.nextCursor || null;
+      _settlementsHasMore = !!r.hasMore;
+      _renderSettlementHistoryList();
+    } else {
+      showToast('❌ 추가 로드 실패: ' + (r?.error || '응답 없음'), 'error');
+    }
+  } catch(e) {
+    showToast('❌ 추가 로드 실패: ' + (e?.message || e), 'error');
+  } finally {
+    _settlementsLoading = false;
+  }
+};
+
+window.loadAllSettlements = async function() {
+  if (!confirm('전체 정산 이력을 불러옵니다. 데이터가 많을 경우 시간이 다소 걸릴 수 있습니다. 계속하시겠습니까?')) return;
+  let safety = 50; // 50 * 30 = 1500건 안전장치
+  while (_settlementsHasMore && _settlementsCursor !== null && safety-- > 0) {
+    await loadMoreSettlements();
+  }
+  showToast('✅ 모든 정산 이력을 불러왔습니다. (총 ' + _settlementsAll.length + '건)', 'success');
+};
 
 // ══════════════════════════════════════════════════
 // 센터 관리 (Center Management)
