@@ -326,6 +326,15 @@ app.use('*', async (c, next) => {
     return;
   }
 
+  // [FIX 2026-04-30] 화이트리스트 조회 전용 엔드포인트는 미들웨어 우회
+  // (엔드포인트 내부에서 화이트리스트 검증 + 조회 전용 처리)
+  if (path === '/api/admin/earnings-audit-public'
+      || path === '/api/admin/bonus-daily-public'
+      || path === '/api/admin/bonus-correction-public') {
+    await next();
+    return;
+  }
+
   const isMaintenancePath = isDangerousLegacyApiPath(path);
   if (isMaintenancePath && !hasExplicitMaintenanceApiAccess(c)) {
     return c.json({ error: 'not_found' }, 404);
@@ -12129,6 +12138,711 @@ app.get('/api/admin/rank-audit', async (c) => {
     return c.json({ success: true, generatedAt: new Date().toISOString(), reports });
   } catch (e: any) {
     console.error('[rank-audit]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// ─── 특정 회원 수익 정합성 진단 ────────────────────────────────────────────
+// [FIX 2026-04-30] 수익금 과다 산정 민원 분석 전용
+// [FIX 2026-04-30] 민원 처리용 화이트리스트 조회 전용 엔드포인트 (수정 불가)
+// 화이트리스트된 두 계정(moodo9569, saba3476@deedra.com)만 분석 가능
+// 조회 전용이며 데이터베이스를 수정하지 않음
+const EARNINGS_AUDIT_WHITELIST = new Set([
+  'moodo9569',
+  'saba3476@deedra.com',
+  'saba3476',
+]);
+
+app.get('/api/admin/earnings-audit-public', async (c) => {
+  try {
+    const usernamesParam = c.req.query('usernames') || '';
+    const targets = usernamesParam.split(',').map(s => s.trim()).filter(Boolean);
+    if (!targets.length) return c.json({ success: false, error: 'usernames query required' }, 400);
+    // 화이트리스트 검증 — 다른 계정은 조회 불가
+    for (const t of targets) {
+      if (!EARNINGS_AUDIT_WHITELIST.has(t.toLowerCase())) {
+        return c.json({ success: false, error: `'${t}' 는 화이트리스트에 없음 (조회 불가)` }, 403);
+      }
+    }
+    // 내부 핸들러로 위임
+    const url = new URL(c.req.url);
+    url.pathname = '/api/admin/earnings-audit';
+    return await earningsAuditHandler(c, targets);
+  } catch (e: any) {
+    console.error('[earnings-audit-public]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// [FIX 2026-04-30] 보너스 일자별 상세 분석 — 중복/과다 발생 패턴 식별
+app.get('/api/admin/bonus-daily-public', async (c) => {
+  try {
+    const usernamesParam = c.req.query('usernames') || '';
+    const targets = usernamesParam.split(',').map(s => s.trim()).filter(Boolean);
+    if (!targets.length) return c.json({ success: false, error: 'usernames query required' }, 400);
+    for (const t of targets) {
+      if (!EARNINGS_AUDIT_WHITELIST.has(t.toLowerCase())) {
+        return c.json({ success: false, error: `'${t}' 는 화이트리스트에 없음` }, 403);
+      }
+    }
+    const adminToken = await getAdminToken();
+    const result: any[] = [];
+    for (const uname of targets) {
+      const lower = uname.toLowerCase();
+      const tryQuery = async (field: string, value: string) =>
+        await fsQuery('users', adminToken, [
+          { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }
+        ], 5);
+      let users = await tryQuery('username', lower);
+      if (!users.length) users = await tryQuery('email', lower);
+      if (!users.length) users = await tryQuery('email', uname);
+      if (!users.length) { result.push({ query: uname, error: 'not found' }); continue; }
+      const uid = users[0].id;
+      const bonuses: any[] = await fsQuery('bonuses', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+      ], 10000);
+
+      // 일자별 + 타입별 집계
+      const byDayType: Record<string, Record<string, { count: number; sum: number }>> = {};
+      for (const b of bonuses) {
+        const ts = b.createdAt || b.date || b.timestamp || '';
+        const day = String(ts).slice(0, 10) || 'unknown';
+        const type = String(b.type || 'unknown');
+        if (!byDayType[day]) byDayType[day] = {};
+        if (!byDayType[day][type]) byDayType[day][type] = { count: 0, sum: 0 };
+        byDayType[day][type].count++;
+        byDayType[day][type].sum += Number(b.amountUsdt ?? b.amount ?? 0) || 0;
+      }
+      const days = Object.keys(byDayType).sort();
+      const dailyRows = days.map(day => {
+        const types = byDayType[day];
+        const total = Object.values(types).reduce((s, v) => s + v.sum, 0);
+        return {
+          day,
+          total: Math.round(total * 100) / 100,
+          breakdown: Object.fromEntries(
+            Object.entries(types).map(([t, v]) => [t, { count: v.count, sum: Math.round(v.sum * 100) / 100 }])
+          ),
+        };
+      });
+
+      // 오늘(KST)과 어제 데이터 별도 추출
+      const nowKst = new Date(Date.now() + 9 * 3600 * 1000);
+      const todayKst = nowKst.toISOString().slice(0, 10);
+      const yest = new Date(nowKst.getTime() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+      result.push({
+        query: uname, uid, username: users[0].username,
+        totalBonusCount: bonuses.length,
+        daysCount: days.length,
+        firstDay: days[0], lastDay: days[days.length - 1],
+        todayKst, yest,
+        todayRow: dailyRows.find(r => r.day === todayKst) || null,
+        yestRow: dailyRows.find(r => r.day === yest) || null,
+        last10Days: dailyRows.slice(-10),
+        first5Days: dailyRows.slice(0, 5),
+      });
+    }
+    return c.json({ success: true, generatedAt: new Date().toISOString(), result });
+  } catch (e: any) {
+    console.error('[bonus-daily-public]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// [FIX 2026-04-30] 화이트리스트 전용 보너스 차감 엔드포인트
+// 사용자 허가 후 moodo9569, saba3476 두 계정의 오늘분 과다 발생액 차감
+// POST /api/admin/bonus-correction-public
+//   body: { username, amount (양수 = 차감량), reason }
+app.post('/api/admin/bonus-correction-public', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({})) as any;
+    const username = String(body.username || '').trim().toLowerCase();
+    const amount = Number(body.amount);
+    const reason = String(body.reason || '2026-04-30 정산 중복 발생액 정정');
+    const dryRun = !!body.dryRun;
+
+    if (!username) return c.json({ success: false, error: 'username 필수' }, 400);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) {
+      return c.json({ success: false, error: 'amount 는 0~10,000 사이 양수' }, 400);
+    }
+    if (!EARNINGS_AUDIT_WHITELIST.has(username)) {
+      return c.json({ success: false, error: `'${username}' 화이트리스트에 없음` }, 403);
+    }
+
+    const adminToken = await getAdminToken();
+
+    // 1) 회원 검색
+    const tryQuery = async (field: string, value: string) =>
+      await fsQuery('users', adminToken, [
+        { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }
+      ], 5);
+    let users = await tryQuery('username', username);
+    if (!users.length) users = await tryQuery('email', username);
+    if (!users.length) return c.json({ success: false, error: '회원 없음' }, 404);
+    const user = users[0];
+    const uid = user.id;
+
+    // 2) 지갑 조회 (출금가능금액 = usdtBalance + bonusBalance)
+    const walletDoc = await fsGet(`wallets/${uid}`, adminToken);
+    const w = walletDoc && !walletDoc.error ? walletDoc : {};
+    const curUsdt = Number(w.usdtBalance || 0);
+    const curBonus = Number(w.bonusBalance || 0);
+    const curEarn = Number(w.totalEarnings || 0);
+    const curWithdrawable = curUsdt + curBonus;
+
+    // [FIX 2026-04-30] 출금가능금액에서 차감 — bonusBalance 우선 소진, 부족 시 usdtBalance
+    const fromBonus = Math.min(amount, curBonus);
+    const fromUsdt = Math.min(amount - fromBonus, curUsdt);
+    const totalDeducted = fromBonus + fromUsdt;
+    const newBonus = Math.max(0, curBonus - fromBonus);
+    const newUsdt = Math.max(0, curUsdt - fromUsdt);
+    const newEarn = Math.max(0, curEarn - amount); // 누적수익도 동일액 차감
+    const clamped = amount > curWithdrawable;
+
+    if (dryRun) {
+      return c.json({
+        success: true,
+        dryRun: true,
+        uid, username: user.username,
+        before: {
+          usdtBalance: curUsdt,
+          bonusBalance: curBonus,
+          totalEarnings: curEarn,
+          withdrawable: curWithdrawable,
+        },
+        after: {
+          usdtBalance: newUsdt,
+          bonusBalance: newBonus,
+          totalEarnings: newEarn,
+          withdrawable: newUsdt + newBonus,
+        },
+        plannedDeduction: amount,
+        deductionBreakdown: { fromBonus, fromUsdt },
+        effectiveDeduction: totalDeducted,
+        clamped,
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 3) 지갑 patch (usdtBalance + bonusBalance + totalEarnings 동시 차감)
+    await fsPatch(`wallets/${uid}`, {
+      usdtBalance: newUsdt,
+      bonusBalance: newBonus,
+      totalEarnings: newEarn,
+      updatedAt: nowIso,
+    }, adminToken);
+
+    // 4) 보너스 정정 ledger 생성 (negative entry, type=settlement_correction)
+    await fsCreate('bonuses', {
+      userId: uid,
+      amount: -amount,
+      amountUsdt: -amount,
+      type: 'settlement_correction',
+      source: 'manual_correction',
+      reason,
+      correctionDate: '2026-04-30',
+      deductedFromBonus: fromBonus,
+      deductedFromUsdt: fromUsdt,
+      grantedBy: 'admin_request',
+      createdAt: nowIso,
+      commissionEligible: false,
+    }, adminToken);
+
+    // 5) memberEditLogs 에 지갑 변동 기록 (관리자 페이지 추적용)
+    if (fromUsdt > 0) {
+      await fsCreate('memberEditLogs', {
+        userId: uid,
+        field: 'usdtBalance',
+        oldVal: curUsdt,
+        newVal: newUsdt,
+        actor: 'admin_request',
+        reason: `${reason} (usdtBalance 차감)`,
+        createdAt: nowIso,
+      }, adminToken).catch(() => null);
+    }
+    if (fromBonus > 0) {
+      await fsCreate('memberEditLogs', {
+        userId: uid,
+        field: 'bonusBalance',
+        oldVal: curBonus,
+        newVal: newBonus,
+        actor: 'admin_request',
+        reason: `${reason} (bonusBalance 차감)`,
+        createdAt: nowIso,
+      }, adminToken).catch(() => null);
+    }
+
+    // 6) 감사 로그
+    await fsCreate(ADMIN_AUDIT_LOG_COLLECTION, {
+      action: 'bonus_correction',
+      actor: 'admin_request',
+      targetUserId: uid,
+      targetUsername: user.username,
+      amount: -amount,
+      reason,
+      before: { usdtBalance: curUsdt, bonusBalance: curBonus, totalEarnings: curEarn, withdrawable: curWithdrawable },
+      after: { usdtBalance: newUsdt, bonusBalance: newBonus, totalEarnings: newEarn, withdrawable: newUsdt + newBonus },
+      deductionBreakdown: { fromBonus, fromUsdt },
+      createdAt: nowIso,
+    }, adminToken).catch(() => null);
+
+    return c.json({
+      success: true,
+      uid, username: user.username,
+      before: { usdtBalance: curUsdt, bonusBalance: curBonus, totalEarnings: curEarn, withdrawable: curWithdrawable },
+      after: { usdtBalance: newUsdt, bonusBalance: newBonus, totalEarnings: newEarn, withdrawable: newUsdt + newBonus },
+      deducted: amount,
+      deductionBreakdown: { fromBonus, fromUsdt },
+      effectiveDeduction: totalDeducted,
+      clamped,
+      reason,
+    });
+  } catch (e: any) {
+    console.error('[bonus-correction-public]', e);
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 공통 분석 핸들러 함수 (인증 외 로직)
+async function earningsAuditHandler(c: any, targets: string[]) {
+  const adminToken = await getAdminToken();
+  const reports: any[] = [];
+
+  for (const uname of targets) {
+    // 1) 회원 검색
+    const lower = uname.toLowerCase();
+    let users: any[] = [];
+    const tryQuery = async (field: string, value: string) => {
+      return await fsQuery('users', adminToken, [
+        { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }
+      ], 5);
+    };
+    users = await tryQuery('username', lower);
+    if (!users.length) users = await tryQuery('username', uname);
+    if (!users.length) users = await tryQuery('email', lower);
+    if (!users.length) users = await tryQuery('email', uname);
+    if (!users.length) users = await tryQuery('loginId', uname);
+    if (!users.length) users = await tryQuery('referralCode', uname);
+    if (!users.length) {
+      reports.push({ query: uname, error: '계정을 찾을 수 없음' });
+      continue;
+    }
+    const user = users[0];
+    const uid = user.id;
+
+    const wallet = await fsGet(`wallets/${uid}`, adminToken).catch(() => null);
+    const w = wallet && !wallet.error ? wallet : {};
+    const bonuses: any[] = await fsQuery('bonuses', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+    ], 10000);
+    const invs: any[] = await fsQuery('investments', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+    ], 1000);
+    const txOut: any[] = await fsQuery('transactions', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+    ], 5000);
+    const txIn: any[] = await fsQuery('transactions', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'toUserId' }, op: 'EQUAL', value: { stringValue: uid } } }
+    ], 5000);
+    const edits: any[] = await fsQuery('memberEditLogs', adminToken, [
+      { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+    ], 1000);
+
+    const byType: Record<string, { count: number; sum: number }> = {};
+    const bySource: Record<string, { count: number; sum: number }> = {};
+    let totalBonusSum = 0, roiSum = 0, directSum = 0, rankSum = 0, matchingSum = 0, manualSum = 0, autoCompoundSum = 0;
+    const suspiciousLedgers: any[] = [];
+
+    for (const b of bonuses) {
+      const amt = Number(b.amountUsdt ?? b.amount ?? 0) || 0;
+      const t = String(b.type || 'unknown');
+      const src = String(b.source || 'unknown');
+      if (!byType[t]) byType[t] = { count: 0, sum: 0 };
+      byType[t].count++; byType[t].sum += amt;
+      if (!bySource[src]) bySource[src] = { count: 0, sum: 0 };
+      bySource[src].count++; bySource[src].sum += amt;
+
+      const isAutoCompound = b.autoCompound === true || src === 'auto_compound_roi' || (t === 'roi' && Number(b.walletInvestAmount || 0) > 0);
+      if (isAutoCompound) autoCompoundSum += amt;
+      else totalBonusSum += amt;
+
+      if (t === 'roi' || t === 'daily_roi' || t === 'roi_income') roiSum += amt;
+      else if (t === 'direct_bonus') directSum += amt;
+      else if (t === 'rank_bonus' || t === 'rank_gap_passthru' || t === 'rank_reward') rankSum += amt;
+      else if (t === 'rank_matching' || t === 'matching_bonus') matchingSum += amt;
+      else if (t === 'manual_bonus') manualSum += amt;
+
+      if (amt >= 1000) {
+        suspiciousLedgers.push({
+          id: b.id, type: t, source: src, amount: amt,
+          createdAt: b.createdAt || b.date,
+          note: b.note || b.memo || '',
+          relatedInvestmentId: b.investmentId || b.relatedInvestmentId || null,
+        });
+      }
+    }
+
+    let totalDeposit = 0, totalWithdrawal = 0, pendingWd = 0, totalSent = 0, totalReceived = 0;
+    for (const t of txOut) {
+      const amt = Number(t.amountUsdt ?? t.amount ?? 0) || 0;
+      if (t.type === 'deposit' && t.status === 'completed') totalDeposit += amt;
+      if (t.type === 'withdrawal' && t.status !== 'rejected' && t.status !== 'failed') {
+        totalWithdrawal += amt;
+        if (t.status === 'pending') pendingWd++;
+      }
+      if (t.type === 'transfer') totalSent += amt;
+    }
+    for (const t of txIn) {
+      const amt = Number(t.amountUsdt ?? t.amount ?? 0) || 0;
+      if (t.type === 'transfer') totalReceived += amt;
+    }
+
+    const investmentSummary = invs.map((i: any) => {
+      const amount = Number(i.amount ?? i.amountUsdt ?? i.principal ?? 0) || 0;
+      const dd = Number(i.durationDays ?? i.duration ?? 0) || 0;
+      const dailyRoi = Number(i.dailyRoi ?? i.roi ?? 0) || 0;
+      const expectedTotalRoi = amount * dailyRoi * dd / 100;
+      return {
+        id: i.id, amount, durationDays: dd, dailyRoi,
+        expectedTotalRoi: Math.round(expectedTotalRoi * 100) / 100,
+        status: i.status, createdAt: i.createdAt, productName: i.productName,
+        settledDays: Number(i.settledDays || 0),
+        accumulatedRoi: Number(i.accumulatedRoi || 0),
+      };
+    });
+    const totalInvested = investmentSummary.reduce((s, v) => s + v.amount, 0);
+    const expectedRoiTotal = investmentSummary.reduce((s, v) => s + v.expectedTotalRoi, 0);
+
+    let manualBonusEdit = 0, manualUsdtEdit = 0;
+    for (const e of edits) {
+      if (e.field === 'bonusBalance') manualBonusEdit += (Number(e.newVal) - Number(e.oldVal)) || 0;
+      else if (e.field === 'usdtBalance') manualUsdtEdit += (Number(e.newVal) - Number(e.oldVal)) || 0;
+    }
+
+    const walletStored = {
+      usdtBalance: Number(w.usdtBalance || 0),
+      bonusBalance: Number(w.bonusBalance || 0),
+      totalEarnings: Number(w.totalEarnings || 0),
+      totalDeposit: Number(w.totalDeposit || 0),
+      totalWithdrawal: Number(w.totalWithdrawal || 0),
+      totalInvest: Number(w.totalInvest ?? w.totalInvested ?? 0),
+    };
+    const earningsDiff = walletStored.totalEarnings - totalBonusSum;
+    const investDiff = walletStored.totalInvest - totalInvested;
+    const roiRecoveredPct = totalInvested > 0 ? (roiSum / totalInvested * 100) : 0;
+    const totalEarningsPct = totalInvested > 0 ? (totalBonusSum / totalInvested * 100) : 0;
+
+    const flags: string[] = [];
+    if (Math.abs(earningsDiff) > 1) flags.push(`⚠️ totalEarnings 불일치 (저장 ${walletStored.totalEarnings} vs 계산 ${totalBonusSum.toFixed(2)})`);
+    if (Math.abs(investDiff) > 1) flags.push(`⚠️ totalInvest 불일치 (저장 ${walletStored.totalInvest} vs 계산 ${totalInvested})`);
+    if (totalBonusSum > expectedRoiTotal * 3 && totalBonusSum > 1000) flags.push(`🚨 수익금이 이론 최대 ROI의 3배 초과`);
+    if (manualSum > 0) flags.push(`✏️ 관리자 수동 보너스 지급 ${manualSum.toFixed(2)}`);
+    if (manualBonusEdit !== 0) flags.push(`✏️ bonusBalance 수동 편집 ${manualBonusEdit.toFixed(2)}`);
+    if (manualUsdtEdit !== 0) flags.push(`✏️ usdtBalance 수동 편집 ${manualUsdtEdit.toFixed(2)}`);
+    if (autoCompoundSum > 0) flags.push(`🔁 자동 재투자 ROI ${autoCompoundSum.toFixed(2)}`);
+    if (totalEarningsPct > 200) flags.push(`🚨 누적 수익률 ${totalEarningsPct.toFixed(1)}%`);
+    if (suspiciousLedgers.length) flags.push(`💰 1,000+ 거액 보너스 ${suspiciousLedgers.length}건`);
+
+    reports.push({
+      query: uname, uid, username: user.username, email: user.email,
+      rank: user.rank || 'G0', createdAt: user.createdAt,
+      totalInvested_user: Number(user.totalInvested || 0),
+      wallet: walletStored,
+      computed: {
+        totalInvested_fromInvestments: totalInvested,
+        expectedTotalRoi_ifFullyMatured: Math.round(expectedRoiTotal * 100) / 100,
+        totalBonusSum_excludingAutoCompound: Math.round(totalBonusSum * 100) / 100,
+        autoCompoundSum: Math.round(autoCompoundSum * 100) / 100,
+        roiSum: Math.round(roiSum * 100) / 100,
+        directSum: Math.round(directSum * 100) / 100,
+        rankSum: Math.round(rankSum * 100) / 100,
+        matchingSum: Math.round(matchingSum * 100) / 100,
+        manualSum: Math.round(manualSum * 100) / 100,
+        totalDeposit: Math.round(totalDeposit * 100) / 100,
+        totalWithdrawal: Math.round(totalWithdrawal * 100) / 100,
+        pendingWithdrawals: pendingWd,
+        totalSent: Math.round(totalSent * 100) / 100,
+        totalReceived: Math.round(totalReceived * 100) / 100,
+        manualBonusEdit: Math.round(manualBonusEdit * 100) / 100,
+        manualUsdtEdit: Math.round(manualUsdtEdit * 100) / 100,
+        roiRecoveredPct: Math.round(roiRecoveredPct * 100) / 100,
+        totalEarningsPct: Math.round(totalEarningsPct * 100) / 100,
+        earningsDiff: Math.round(earningsDiff * 100) / 100,
+        investDiff: Math.round(investDiff * 100) / 100,
+      },
+      bonusByType: byType,
+      bonusBySource: bySource,
+      investments: investmentSummary,
+      suspiciousLedgers: suspiciousLedgers.slice(0, 30),
+      memberEdits: edits.slice(0, 20).map((e: any) => ({
+        field: e.field, oldVal: e.oldVal, newVal: e.newVal,
+        actor: e.actor || e.adminUid,
+        createdAt: e.createdAt || e.timestamp,
+        reason: e.reason || e.note || '',
+      })),
+      flags,
+      bonusCount: bonuses.length,
+      investmentCount: invs.length,
+      txCount: txOut.length + txIn.length,
+      editCount: edits.length,
+    });
+  }
+
+  return c.json({ success: true, generatedAt: new Date().toISOString(), reports });
+}
+
+// GET /api/admin/earnings-audit?usernames=moodo9569,saba3476@deedra.com
+app.get('/api/admin/earnings-audit', async (c) => {
+  try {
+    // [FIX 2026-04-30] cron secret / admin api secret 으로도 접근 가능
+    const headerSecret = c.req.header('x-cron-secret') || c.req.header('X-Cron-Secret') || '';
+    const querySecret = c.req.query('secret') || '';
+    const adminApiHeader = c.req.header('x-admin-api-secret') || c.req.header('X-Admin-Api-Secret') || '';
+    const env: any = (c.env || {});
+    const adminApiSecret = String(env.ADMIN_API_SECRET || (globalThis as any)?.GLOBAL_ENV?.ADMIN_API_SECRET || '').trim();
+    const okSecret = isValidCronSecret(headerSecret) || isValidCronSecret(querySecret);
+    const okAdminApi = !!adminApiSecret && (adminApiHeader === adminApiSecret || c.req.query('adminApiSecret') === adminApiSecret);
+    const okAdmin = await hasPrivilegedApiAccess(c).catch(() => false);
+    if (!okSecret && !okAdminApi && !okAdmin) {
+      return c.json({ success: false, error: 'unauthorized' }, 401);
+    }
+    const usernamesParam = c.req.query('usernames') || '';
+    const targets = usernamesParam.split(',').map(s => s.trim()).filter(Boolean);
+    if (!targets.length) return c.json({ success: false, error: 'usernames query required' }, 400);
+
+    const adminToken = await getAdminToken();
+    const reports: any[] = [];
+
+    for (const uname of targets) {
+      // 1) 회원 검색 (username / email / loginId / referralCode)
+      const lower = uname.toLowerCase();
+      let users: any[] = [];
+      const tryQuery = async (field: string, value: string) => {
+        return await fsQuery('users', adminToken, [
+          { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }
+        ], 5);
+      };
+      users = await tryQuery('username', lower);
+      if (!users.length) users = await tryQuery('username', uname);
+      if (!users.length) users = await tryQuery('email', lower);
+      if (!users.length) users = await tryQuery('email', uname);
+      if (!users.length) users = await tryQuery('loginId', uname);
+      if (!users.length) users = await tryQuery('referralCode', uname);
+      if (!users.length) {
+        reports.push({ query: uname, error: '계정을 찾을 수 없음' });
+        continue;
+      }
+      const user = users[0];
+      const uid = user.id;
+
+      // 2) 지갑 조회
+      const wallet = await fsGet(`wallets/${uid}`, adminToken).catch(() => null);
+      const w = wallet && !wallet.error ? (wallet.fields ? wallet : wallet) : {};
+
+      // 3) 보너스 전체 조회 (해당 회원)
+      const bonuses: any[] = await fsQuery('bonuses', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+      ], 10000);
+
+      // 4) 투자 전체 조회
+      const invs: any[] = await fsQuery('investments', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+      ], 1000);
+
+      // 5) 거래 내역 (입출금/이체)
+      const txOut: any[] = await fsQuery('transactions', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+      ], 5000);
+      const txIn: any[] = await fsQuery('transactions', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'toUserId' }, op: 'EQUAL', value: { stringValue: uid } } }
+      ], 5000);
+
+      // 6) 수동 편집 로그
+      const edits: any[] = await fsQuery('memberEditLogs', adminToken, [
+        { fieldFilter: { field: { fieldPath: 'userId' }, op: 'EQUAL', value: { stringValue: uid } } }
+      ], 1000);
+
+      // ───── 보너스 분류 집계 ─────
+      const byType: Record<string, { count: number; sum: number }> = {};
+      const bySource: Record<string, { count: number; sum: number }> = {};
+      let totalBonusSum = 0;
+      let roiSum = 0;
+      let directSum = 0;
+      let rankSum = 0;
+      let matchingSum = 0;
+      let manualSum = 0;
+      let autoCompoundSum = 0;
+      let suspiciousLedgers: any[] = [];
+
+      for (const b of bonuses) {
+        const amt = Number(b.amountUsdt ?? b.amount ?? 0) || 0;
+        const t = String(b.type || 'unknown');
+        const src = String(b.source || 'unknown');
+        if (!byType[t]) byType[t] = { count: 0, sum: 0 };
+        byType[t].count++;
+        byType[t].sum += amt;
+        if (!bySource[src]) bySource[src] = { count: 0, sum: 0 };
+        bySource[src].count++;
+        bySource[src].sum += amt;
+
+        const isAutoCompound = b.autoCompound === true || src === 'auto_compound_roi' || (t === 'roi' && Number(b.walletInvestAmount || 0) > 0);
+        if (isAutoCompound) autoCompoundSum += amt;
+        else totalBonusSum += amt;
+
+        if (t === 'roi' || t === 'daily_roi' || t === 'roi_income') roiSum += amt;
+        else if (t === 'direct_bonus') directSum += amt;
+        else if (t === 'rank_bonus' || t === 'rank_gap_passthru' || t === 'rank_reward') rankSum += amt;
+        else if (t === 'rank_matching' || t === 'matching_bonus') matchingSum += amt;
+        else if (t === 'manual_bonus') manualSum += amt;
+
+        // 의심 패턴: 동일 일자에 동일 금액 다중 발생 / 비정상 거액
+        if (amt >= 1000) {
+          suspiciousLedgers.push({
+            id: b.id,
+            type: t,
+            source: src,
+            amount: amt,
+            createdAt: b.createdAt || b.date,
+            note: b.note || b.memo || '',
+            relatedInvestmentId: b.investmentId || b.relatedInvestmentId || null,
+          });
+        }
+      }
+
+      // ───── 입출금 집계 ─────
+      let totalDeposit = 0, totalWithdrawal = 0, pendingWd = 0, totalSent = 0, totalReceived = 0;
+      for (const t of txOut) {
+        const amt = Number(t.amountUsdt ?? t.amount ?? 0) || 0;
+        if (t.type === 'deposit' && t.status === 'completed') totalDeposit += amt;
+        if (t.type === 'withdrawal' && t.status !== 'rejected' && t.status !== 'failed') {
+          totalWithdrawal += amt;
+          if (t.status === 'pending') pendingWd++;
+        }
+        if (t.type === 'transfer') totalSent += amt;
+      }
+      for (const t of txIn) {
+        const amt = Number(t.amountUsdt ?? t.amount ?? 0) || 0;
+        if (t.type === 'transfer') totalReceived += amt;
+      }
+
+      // ───── 투자 ROI 이론값 계산 ─────
+      const investmentSummary = invs.map((i: any) => {
+        const amount = Number(i.amount ?? i.amountUsdt ?? i.principal ?? 0) || 0;
+        const dd = Number(i.durationDays ?? i.duration ?? 0) || 0;
+        const dailyRoi = Number(i.dailyRoi ?? i.roi ?? 0) || 0;
+        const expectedTotalRoi = amount * dailyRoi * dd / 100;
+        return {
+          id: i.id,
+          amount,
+          durationDays: dd,
+          dailyRoi,
+          expectedTotalRoi: Math.round(expectedTotalRoi * 100) / 100,
+          status: i.status,
+          createdAt: i.createdAt,
+          productName: i.productName,
+          settledDays: Number(i.settledDays || 0),
+          accumulatedRoi: Number(i.accumulatedRoi || 0),
+        };
+      });
+      const totalInvested = investmentSummary.reduce((s, v) => s + v.amount, 0);
+      const expectedRoiTotal = investmentSummary.reduce((s, v) => s + v.expectedTotalRoi, 0);
+
+      // ───── 수동 편집 영향 ─────
+      let manualBonusEdit = 0, manualUsdtEdit = 0;
+      for (const e of edits) {
+        if (e.field === 'bonusBalance') {
+          manualBonusEdit += (Number(e.newVal) - Number(e.oldVal)) || 0;
+        } else if (e.field === 'usdtBalance') {
+          manualUsdtEdit += (Number(e.newVal) - Number(e.oldVal)) || 0;
+        }
+      }
+
+      // ───── 지갑 저장값 vs 계산값 비교 ─────
+      const walletStored = {
+        usdtBalance: Number(w.usdtBalance || 0),
+        bonusBalance: Number(w.bonusBalance || 0),
+        totalEarnings: Number(w.totalEarnings || 0),
+        totalDeposit: Number(w.totalDeposit || 0),
+        totalWithdrawal: Number(w.totalWithdrawal || 0),
+        totalInvest: Number(w.totalInvest ?? w.totalInvested ?? 0),
+      };
+
+      // 정합성 점검: 보너스 합계가 totalEarnings 와 일치하는지
+      const earningsDiff = walletStored.totalEarnings - totalBonusSum;
+      const investDiff = walletStored.totalInvest - totalInvested;
+
+      // ROI 비율 (얼마나 회수했나)
+      const roiRecoveredPct = totalInvested > 0 ? (roiSum / totalInvested * 100) : 0;
+      const totalEarningsPct = totalInvested > 0 ? (totalBonusSum / totalInvested * 100) : 0;
+
+      // 판정
+      const flags: string[] = [];
+      if (Math.abs(earningsDiff) > 1) flags.push(`⚠️ totalEarnings 불일치 (저장 ${walletStored.totalEarnings} vs 계산 ${totalBonusSum.toFixed(2)})`);
+      if (Math.abs(investDiff) > 1) flags.push(`⚠️ totalInvest 불일치 (저장 ${walletStored.totalInvest} vs 계산 ${totalInvested})`);
+      if (totalBonusSum > expectedRoiTotal * 3 && totalBonusSum > 1000) flags.push(`🚨 수익금이 이론 최대 ROI의 3배 초과 (${totalBonusSum.toFixed(2)} > ${(expectedRoiTotal * 3).toFixed(2)})`);
+      if (manualSum > 0) flags.push(`✏️ 관리자 수동 보너스 지급 ${manualSum.toFixed(2)} USDT`);
+      if (manualBonusEdit !== 0) flags.push(`✏️ bonusBalance 수동 편집 누계 ${manualBonusEdit.toFixed(2)}`);
+      if (manualUsdtEdit !== 0) flags.push(`✏️ usdtBalance 수동 편집 누계 ${manualUsdtEdit.toFixed(2)}`);
+      if (autoCompoundSum > 0) flags.push(`🔁 자동 재투자(복리) ROI ${autoCompoundSum.toFixed(2)} (totalEarnings 비반영 정상)`);
+      if (totalEarningsPct > 200) flags.push(`🚨 누적 수익률 ${totalEarningsPct.toFixed(1)}% — 비정상 고수익`);
+      if (suspiciousLedgers.length) flags.push(`💰 1,000 USDT 이상 거액 보너스 ${suspiciousLedgers.length}건`);
+
+      reports.push({
+        query: uname,
+        uid,
+        username: user.username,
+        email: user.email,
+        rank: user.rank || 'G0',
+        createdAt: user.createdAt,
+        totalInvested_user: Number(user.totalInvested || 0),
+        wallet: walletStored,
+        computed: {
+          totalInvested_fromInvestments: totalInvested,
+          expectedTotalRoi_ifFullyMatured: Math.round(expectedRoiTotal * 100) / 100,
+          totalBonusSum_excludingAutoCompound: Math.round(totalBonusSum * 100) / 100,
+          autoCompoundSum: Math.round(autoCompoundSum * 100) / 100,
+          roiSum: Math.round(roiSum * 100) / 100,
+          directSum: Math.round(directSum * 100) / 100,
+          rankSum: Math.round(rankSum * 100) / 100,
+          matchingSum: Math.round(matchingSum * 100) / 100,
+          manualSum: Math.round(manualSum * 100) / 100,
+          totalDeposit: Math.round(totalDeposit * 100) / 100,
+          totalWithdrawal: Math.round(totalWithdrawal * 100) / 100,
+          pendingWithdrawals: pendingWd,
+          totalSent: Math.round(totalSent * 100) / 100,
+          totalReceived: Math.round(totalReceived * 100) / 100,
+          manualBonusEdit: Math.round(manualBonusEdit * 100) / 100,
+          manualUsdtEdit: Math.round(manualUsdtEdit * 100) / 100,
+          roiRecoveredPct: Math.round(roiRecoveredPct * 100) / 100,
+          totalEarningsPct: Math.round(totalEarningsPct * 100) / 100,
+          earningsDiff: Math.round(earningsDiff * 100) / 100,
+          investDiff: Math.round(investDiff * 100) / 100,
+        },
+        bonusByType: byType,
+        bonusBySource: bySource,
+        investments: investmentSummary,
+        suspiciousLedgers: suspiciousLedgers.slice(0, 30),
+        memberEdits: edits.slice(0, 20).map((e: any) => ({
+          field: e.field,
+          oldVal: e.oldVal,
+          newVal: e.newVal,
+          actor: e.actor || e.adminUid,
+          createdAt: e.createdAt || e.timestamp,
+          reason: e.reason || e.note || '',
+        })),
+        flags,
+        bonusCount: bonuses.length,
+        investmentCount: invs.length,
+        txCount: txOut.length + txIn.length,
+        editCount: edits.length,
+      });
+    }
+
+    return c.json({ success: true, generatedAt: new Date().toISOString(), reports });
+  } catch (e: any) {
+    console.error('[earnings-audit]', e);
     return c.json({ success: false, error: e.message }, 500);
   }
 });

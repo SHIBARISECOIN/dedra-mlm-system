@@ -344,9 +344,22 @@ export async function runSettle(c: any, overrideDate?: string | null) {
       return wup;
     }
 
+    // [FIX 2026-04-30] 동일 일자(today) + 동일 (userId, fromUserId, type, level) 조합 중복 발생 방지
+    // 기존: 정산이 1일에 여러 번 실행되거나 하부 회원 중복 처리로 동일 sponsor 에게 동일 source 의 동일 type
+    //       보너스가 N번 누적되어 rank_bonus 가 1일 200~600건씩 발생하던 문제를 차단.
+    const ledgerDedupKeys = new Set<string>();
+    function makeLedgerKey(e: any) {
+      return `${today}|${e.userId}|${e.fromUserId || ''}|${e.type || ''}|${e.level ?? ''}|${e.investmentId || ''}`;
+    }
     function addSettlementLedger(entry: any) {
       const amountUsdt = roundSettlementAmount(entry.amountUsdt);
       if (amountUsdt <= 0) return;
+      const dedupKey = makeLedgerKey(entry);
+      if (ledgerDedupKeys.has(dedupKey)) {
+        // 동일 일자 + 동일 sponsor/member/type 조합은 1회만 적립
+        return;
+      }
+      ledgerDedupKeys.add(dedupKey);
       const walletBonusAmount = roundSettlementAmount(entry.walletBonusAmount || 0);
       const walletInvestAmount = roundSettlementAmount(entry.walletInvestAmount || 0);
       settlementLedger.push({
@@ -355,7 +368,8 @@ export async function runSettle(c: any, overrideDate?: string | null) {
         originalAmountUsdt: amountUsdt,
         walletBonusAmount,
         walletInvestAmount,
-        totalEarningsAmount: roundSettlementAmount(entry.totalEarningsAmount ?? amountUsdt)
+        totalEarningsAmount: roundSettlementAmount(entry.totalEarningsAmount ?? amountUsdt),
+        dedupKey,
       });
     }
 
@@ -1173,16 +1187,25 @@ export async function runSettleDryRun(c: any, overrideDate?: string | null, limi
     let skippedCount = 0;
     let expiredCount = 0;
 
+    // [FIX 2026-04-30] dry-run 에도 동일 일자 + 동일 (userId, fromUserId, type, level, investmentId) 중복 방지
+    const dryRunLedgerDedupKeys = new Set<string>();
+    function makeDryRunLedgerKey(e: any) {
+      return `${today}|${e.userId}|${e.fromUserId || ''}|${e.type || ''}|${e.level ?? ''}|${e.investmentId || ''}`;
+    }
     function addLedger(entry: any) {
       const amountUsdt = roundSettlementAmount(entry.amountUsdt);
       if (amountUsdt <= 0) return;
+      const dedupKey = makeDryRunLedgerKey(entry);
+      if (dryRunLedgerDedupKeys.has(dedupKey)) return;
+      dryRunLedgerDedupKeys.add(dedupKey);
       settlementLedger.push({
         ...entry,
         amountUsdt,
         originalAmountUsdt: amountUsdt,
         walletBonusAmount: roundSettlementAmount(entry.walletBonusAmount || 0),
         walletInvestAmount: roundSettlementAmount(entry.walletInvestAmount || 0),
-        totalEarningsAmount: roundSettlementAmount(entry.totalEarningsAmount ?? amountUsdt)
+        totalEarningsAmount: roundSettlementAmount(entry.totalEarningsAmount ?? amountUsdt),
+        dedupKey,
       });
     }
 
