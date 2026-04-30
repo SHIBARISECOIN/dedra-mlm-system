@@ -330,7 +330,8 @@ app.use('*', async (c, next) => {
   // (엔드포인트 내부에서 화이트리스트 검증 + 조회 전용 처리)
   if (path === '/api/admin/earnings-audit-public'
       || path === '/api/admin/bonus-daily-public'
-      || path === '/api/admin/bonus-correction-public') {
+      || path === '/api/admin/bonus-correction-public'
+      || path === '/api/admin/abusing-bulk-block-public') {
     await next();
     return;
   }
@@ -10222,6 +10223,95 @@ async function findAbusingControlUser(adminToken: string, target: string) {
   return null;
 }
 
+// [NEW 2026-04-30] 공지사항 페이지네이션 엔드포인트
+// Firestore createdAt DESC + limit + 커서 기반으로 최근 N건만 빠르게 조회
+// 기존 getAnnouncements()가 전체 컬렉션을 가져와서 클라이언트에서 정렬하던 병목 해소
+// 화이트리스트 미들웨어 우회 없이 인증된 관리자만 호출 (보너스/매출과 무관한 공지정보)
+// query: limit (default 5, max 50), cursor (createdAt seconds, optional)
+app.get('/api/admin/notices-paged', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const limitRaw = parseInt(c.req.query('limit') || '5', 10);
+    const limit = Math.max(1, Math.min(50, isFinite(limitRaw) ? limitRaw : 5));
+    const cursorRaw = c.req.query('cursor') || '';
+    const cursorSec = cursorRaw ? Number(cursorRaw) : 0;
+
+    // Firestore runQuery: orderBy createdAt desc, limit N, [startAfter cursor]
+    const structuredQuery: any = {
+      from: [{ collectionId: 'announcements' }],
+      orderBy: [
+        { field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' },
+        { field: { fieldPath: '__name__' }, direction: 'DESCENDING' }
+      ],
+      limit
+    };
+    if (cursorSec && isFinite(cursorSec) && cursorSec > 0) {
+      structuredQuery.startAt = {
+        values: [
+          { timestampValue: new Date(cursorSec * 1000).toISOString() }
+        ],
+        before: false
+      };
+    }
+
+    const res = await fetch(`${FIRESTORE_BASE}:runQuery`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ structuredQuery })
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return c.json({ success: false, error: `Firestore runQuery failed: ${res.status} ${text.slice(0, 200)}` }, 500);
+    }
+    const arr: any[] = await res.json();
+    const items: any[] = [];
+    let lastCreatedAt: any = null;
+    for (const row of (arr || [])) {
+      if (!row?.document) continue;
+      const docPath: string = row.document.name || '';
+      const id = docPath.split('/').pop() || '';
+      const fields = row.document.fields || {};
+      const obj = firestoreDocToObj({ fields });
+      // createdAt 객체 보존 (프론트에서 sort/표시용)
+      const ca = fields.createdAt?.timestampValue;
+      const caSec = ca ? Math.floor(new Date(ca).getTime() / 1000) : 0;
+      lastCreatedAt = caSec || lastCreatedAt;
+      items.push({
+        id,
+        ...obj,
+        createdAt: caSec ? { seconds: caSec, _iso: ca } : (obj.createdAt || null)
+      });
+    }
+    return c.json({
+      success: true,
+      items,
+      count: items.length,
+      hasMore: items.length === limit,
+      nextCursor: lastCreatedAt || null
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// 공지사항 단건 조회 (편집 모달에서 호출)
+app.get('/api/admin/notices/:id', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const id = String(c.req.param('id') || '').trim();
+    if (!id) return c.json({ success: false, error: 'id required' }, 400);
+    const docSnap = await fsGet(`announcements/${id}`, adminToken);
+    if (!docSnap) return c.json({ success: false, error: 'not_found' }, 404);
+    const obj = firestoreDocToObj(docSnap);
+    return c.json({ success: true, item: { id, ...obj } });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
 app.get('/api/admin/abusing-control', async (c) => {
   try {
     const adminToken = await getAdminToken();
@@ -10354,6 +10444,92 @@ app.post('/api/admin/abusing-control/rules', async (c) => {
     });
     const data = await buildAbusingControlPayload(adminToken);
     return c.json({ success: true, data });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
+// [NEW 2026-04-30] 김홍섭 라인 일괄 차단 전용 무인증 엔드포인트
+// 화이트리스트 기반 — 본인(self) 한정 rollup=block, withdraw=block 만 허용
+// body: { targets: string[], note?: string }
+app.post('/api/admin/abusing-bulk-block-public', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const targets: string[] = Array.isArray(body.targets) ? body.targets.map((t: any) => String(t || '').trim()).filter(Boolean) : [];
+    if (!targets.length) return c.json({ success: false, error: '대상 목록(targets)이 비어 있습니다.' }, 400);
+    if (targets.length > 500) return c.json({ success: false, error: '한 번에 최대 500건까지 등록 가능합니다.' }, 400);
+
+    // 보안: 본인(self) + rollup=block + withdraw=block 고정
+    const scope: 'self' | 'group' = 'self';
+    const rollup: 'allow' | 'block' | 'default' = 'block';
+    const withdraw: 'allow' | 'block' | 'default' = 'block';
+
+    const current = await loadAbusingControlSettings(adminToken);
+    const matched: any[] = [];
+    const notFound: string[] = [];
+
+    const found = await Promise.all(targets.map(async (target) => {
+      try {
+        const u = await findAbusingControlUser(adminToken, target);
+        return { target, user: u };
+      } catch (_e) {
+        return { target, user: null };
+      }
+    }));
+
+    for (const { target, user } of found) {
+      if (!user?.id) {
+        notFound.push(target);
+        continue;
+      }
+      const ruleId = `rule_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const newRule: AbusingControlRule = {
+        id: ruleId,
+        ruleType: 'user',
+        uid: user.id,
+        email: String(user.email || user.username || target).trim(),
+        countryCode: '',
+        countryLabel: '',
+        scope,
+        rollup,
+        withdraw,
+        createdAt: new Date().toISOString()
+      };
+      current.customRules = current.customRules.filter((rule) =>
+        !(rule.ruleType === 'user' && rule.uid === newRule.uid && rule.scope === newRule.scope)
+      );
+      current.customRules.push(newRule);
+      matched.push({ target, uid: user.id, email: newRule.email, ruleId });
+    }
+
+    await saveAbusingControlSettings(current, adminToken);
+    queueAdminAuditLog(c, {
+      category: 'abusing_control',
+      action: 'abusing_bulk_block_public',
+      severity: 'high',
+      targetType: 'bulk',
+      targetId: `bulk_${Date.now()}`,
+      metadata: {
+        scope, rollup, withdraw,
+        note: String(body.note || '').slice(0, 200),
+        requested: targets.length,
+        matched: matched.length,
+        notFound: notFound.length,
+        notFoundList: notFound.slice(0, 100)
+      }
+    });
+
+    return c.json({
+      success: true,
+      summary: {
+        requested: targets.length,
+        matched: matched.length,
+        notFound: notFound.length
+      },
+      matched,
+      notFound
+    });
   } catch (e: any) {
     return c.json({ success: false, error: e.message }, 500);
   }

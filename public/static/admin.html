@@ -7740,19 +7740,106 @@ async function loadBonusLog() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// 공지사항 (Notices) — Premium
+// 공지사항 (Notices) — Premium (페이지네이션 효율화)
+// [FIX 2026-04-30] 기존 getAnnouncements()가 전체 컬렉션을 한 번에 받아서
+// 클라이언트에서 정렬하던 병목(10분 이상) 해소.
+// /api/admin/notices-paged?limit=5 로 최근 5건씩 점진 로드.
 // ══════════════════════════════════════════════════════════════
 let _allNotices = [];
 let _noticeCatFilter = '';
+let _noticeNextCursor = null;     // 다음 페이지 커서 (createdAt seconds)
+let _noticeHasMore = false;       // 추가 페이지 존재 여부
+let _noticeLoading = false;       // 중복 호출 방지
+const NOTICE_PAGE_SIZE = 5;       // 한 번에 가져올 건수
+
+async function _fetchNoticesPage(cursor, pageSize) {
+    const headers = { 'Content-Type': 'application/json' };
+    try {
+        let token = '';
+        if (typeof currentAdmin !== 'undefined' && currentAdmin && typeof currentAdmin.getIdToken === 'function') {
+            token = await currentAdmin.getIdToken();
+        } else if (window.currentAdmin && typeof window.currentAdmin.getIdToken === 'function') {
+            token = await window.currentAdmin.getIdToken();
+        } else if (window.FB?.auth?.currentUser && typeof window.FB.auth.currentUser.getIdToken === 'function') {
+            token = await window.FB.auth.currentUser.getIdToken();
+        } else if (typeof _currentSubAdmin !== 'undefined' && _currentSubAdmin?.token) {
+            token = _currentSubAdmin.token;
+        } else if (window._adminToken) {
+            token = window._adminToken;
+        }
+        if (token) headers.Authorization = 'Bearer ' + token;
+    } catch (_) {}
+    const params = new URLSearchParams();
+    params.set('limit', String(pageSize || NOTICE_PAGE_SIZE));
+    if (cursor) params.set('cursor', String(cursor));
+    const res = await fetch('/api/admin/notices-paged?' + params.toString(), { headers });
+    return await res.json();
+}
 
 async function loadNotices() {
+    if (_noticeLoading) return;
+    _noticeLoading = true;
     const wrap = document.getElementById('noticesWrap');
     wrap.innerHTML = loading();
-    const r = await api.getAnnouncements();
-    if (!r.success) { wrap.innerHTML = emptyState('오류: '+r.error); return; }
-    _allNotices = r.data;
-    renderNoticeList();
+    // 상태 초기화 (필터/페이지네이션 모두 리셋)
+    _allNotices = [];
+    _noticeNextCursor = null;
+    _noticeHasMore = false;
+
+    const t0 = Date.now();
+    try {
+        const r = await _fetchNoticesPage(null, NOTICE_PAGE_SIZE);
+        if (!r || !r.success) {
+            wrap.innerHTML = emptyState('오류: ' + (r?.error || '응답 없음'));
+            return;
+        }
+        _allNotices = Array.isArray(r.items) ? r.items : [];
+        _noticeNextCursor = r.nextCursor || null;
+        _noticeHasMore = !!r.hasMore;
+        console.log('[notices] 1st page loaded in', Date.now() - t0, 'ms', { count: _allNotices.length, hasMore: _noticeHasMore });
+        renderNoticeList();
+    } catch (e) {
+        wrap.innerHTML = emptyState('오류: ' + (e?.message || e));
+    } finally {
+        _noticeLoading = false;
+    }
 }
+
+window.loadMoreNotices = async function() {
+    if (_noticeLoading || !_noticeHasMore || !_noticeNextCursor) return;
+    _noticeLoading = true;
+    const btn = document.getElementById('noticeLoadMoreBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 불러오는 중...'; }
+    try {
+        const r = await _fetchNoticesPage(_noticeNextCursor, NOTICE_PAGE_SIZE);
+        if (r && r.success && Array.isArray(r.items)) {
+            // 중복 방지: 기존 id 집합과 비교
+            const existingIds = new Set(_allNotices.map(n => n.id));
+            for (const item of r.items) {
+                if (!existingIds.has(item.id)) _allNotices.push(item);
+            }
+            _noticeNextCursor = r.nextCursor || null;
+            _noticeHasMore = !!r.hasMore;
+            renderNoticeList();
+        } else {
+            showToast('❌ 추가 로드 실패: ' + (r?.error || '응답 없음'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ 추가 로드 실패: ' + (e?.message || e), 'error');
+    } finally {
+        _noticeLoading = false;
+    }
+};
+
+window.loadAllNotices = async function() {
+    // "전체 보기" 버튼: hasMore가 false 가 될 때까지 반복 로드 (대량일 경우 시간 소요)
+    if (!confirm('전체 공지사항을 불러옵니다. 공지가 많을 경우 시간이 다소 걸릴 수 있습니다. 계속하시겠습니까?')) return;
+    let safety = 200; // 1000건(5*200) 안전장치
+    while (_noticeHasMore && _noticeNextCursor && safety-- > 0) {
+        await loadMoreNotices();
+    }
+    showToast('✅ 모든 공지사항을 불러왔습니다. (총 ' + _allNotices.length + '건)', 'success');
+};
 
 function renderNoticeList() {
     const wrap = document.getElementById('noticesWrap');
@@ -7810,6 +7897,24 @@ function renderNoticeList() {
           </div>
         </div>`;
     }).join('');
+
+    // [FIX 2026-04-30] 더보기 / 전체보기 버튼 (페이지네이션)
+    const totalLoaded = _allNotices.length;
+    const filteredCount = data.length;
+    const filterInfo = _noticeCatFilter
+        ? `<span style="color:#94a3b8;">(필터: ${filteredCount}건 / 전체 로드: ${totalLoaded}건)</span>`
+        : `<span style="color:#94a3b8;">(현재 ${totalLoaded}건 로드됨)</span>`;
+    let footerHtml = `<div style="margin-top:16px;padding:14px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">`;
+    footerHtml += `<div style="font-size:12px;color:#64748b;">${filterInfo}</div>`;
+    footerHtml += `<div style="display:flex;gap:8px;">`;
+    if (_noticeHasMore) {
+        footerHtml += `<button id="noticeLoadMoreBtn" onclick="loadMoreNotices()" style="padding:8px 18px;border-radius:8px;background:#6366f1;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;">⬇️ 더보기 (${NOTICE_PAGE_SIZE}건씩)</button>`;
+        footerHtml += `<button onclick="loadAllNotices()" style="padding:8px 18px;border-radius:8px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;font-size:13px;font-weight:600;cursor:pointer;">📜 전체 보기</button>`;
+    } else {
+        footerHtml += `<span style="font-size:12px;color:#16a34a;font-weight:600;">✅ 모든 공지사항이 로드되었습니다</span>`;
+    }
+    footerHtml += `</div></div>`;
+    wrap.innerHTML += footerHtml;
 }
 
 window.filterNotices = function(cat, btn) {
