@@ -10359,6 +10359,95 @@ app.post('/api/admin/abusing-control/rules', async (c) => {
   }
 });
 
+// [NEW 2026-04-30] 어뷰징 회원 단위 규칙 일괄 등록 (김홍섭 라인 등 다건 처리용)
+// body: { targets: string[], scope?: 'self'|'group', rollup?: 'block'|'allow'|'default', withdraw?: 'block'|'allow'|'default' }
+app.post('/api/admin/abusing-control/rules/bulk', async (c) => {
+  try {
+    const adminToken = await getAdminToken();
+    const body = await c.req.json().catch(() => ({}));
+    const targets: string[] = Array.isArray(body.targets) ? body.targets.map((t: any) => String(t || '').trim()).filter(Boolean) : [];
+    const scope = normalizeAbusingControlScope(body.scope);
+    const rollup = normalizeAbusingControlMode(body.rollup);
+    const withdraw = normalizeAbusingControlMode(body.withdraw);
+    if (!targets.length) return c.json({ success: false, error: '대상 목록(targets)이 비어 있습니다.' }, 400);
+    if (rollup === 'default' && withdraw === 'default') {
+      return c.json({ success: false, error: '롤업이나 출금 중 최소 한 가지 이상의 통제 규칙을 설정해야 합니다.' }, 400);
+    }
+    if (targets.length > 500) return c.json({ success: false, error: '한 번에 최대 500건까지 등록 가능합니다.' }, 400);
+
+    const current = await loadAbusingControlSettings(adminToken);
+    const matched: any[] = [];
+    const notFound: string[] = [];
+
+    // 회원 검색은 병렬 (조회만)
+    const found = await Promise.all(targets.map(async (target) => {
+      try {
+        const u = await findAbusingControlUser(adminToken, target);
+        return { target, user: u };
+      } catch (_e) {
+        return { target, user: null };
+      }
+    }));
+
+    for (const { target, user } of found) {
+      if (!user?.id) {
+        notFound.push(target);
+        continue;
+      }
+      const ruleId = `rule_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const newRule: AbusingControlRule = {
+        id: ruleId,
+        ruleType: 'user',
+        uid: user.id,
+        email: String(user.email || user.username || target).trim(),
+        countryCode: '',
+        countryLabel: '',
+        scope,
+        rollup,
+        withdraw,
+        createdAt: new Date().toISOString()
+      };
+      // 동일 uid+scope 규칙은 덮어쓰기
+      current.customRules = current.customRules.filter((rule) =>
+        !(rule.ruleType === 'user' && rule.uid === newRule.uid && rule.scope === newRule.scope)
+      );
+      current.customRules.push(newRule);
+      matched.push({ target, uid: user.id, email: newRule.email, ruleId });
+    }
+
+    await saveAbusingControlSettings(current, adminToken);
+    queueAdminAuditLog(c, {
+      category: 'abusing_control',
+      action: 'abusing_control_rule_bulk_added',
+      severity: 'high',
+      targetType: 'bulk',
+      targetId: `bulk_${Date.now()}`,
+      metadata: {
+        scope, rollup, withdraw,
+        requested: targets.length,
+        matched: matched.length,
+        notFound: notFound.length,
+        notFoundList: notFound.slice(0, 100)
+      }
+    });
+
+    const data = await buildAbusingControlPayload(adminToken);
+    return c.json({
+      success: true,
+      summary: {
+        requested: targets.length,
+        matched: matched.length,
+        notFound: notFound.length
+      },
+      matched,
+      notFound,
+      data
+    });
+  } catch (e: any) {
+    return c.json({ success: false, error: e.message }, 500);
+  }
+});
+
 app.delete('/api/admin/abusing-control/rules/:ruleId', async (c) => {
   try {
     const adminToken = await getAdminToken();
