@@ -6762,14 +6762,16 @@ app.post('/api/user/withdraw', async (c) => {
     let blockWithdraw = abusingData.globalNoDepositWithdrawBlock && !hasRealDeposit;
     
     const abusingRules = Array.isArray(abusingData.customRules) ? abusingData.customRules : [];
-    
+    const abusingUserRules = abusingRules.filter((r: any) => (r.ruleType || 'user') === 'user');
+    const abusingCountryRules = abusingRules.filter((r: any) => r.ruleType === 'country');
+
     let curr = uid;
     let appliedRule = null;
-    
-    // Resolve rule up the tree
+
+    // 1차: 회원 단위 규칙 — 부모 라인을 따라 올라가며 첫 매칭 룰 적용
     while (curr) {
-        let rSelf = abusingRules.find((r:any) => r.uid === curr && r.scope === 'self' && curr === uid);
-        let rGroup = abusingRules.find((r:any) => r.uid === curr && r.scope === 'group');
+        let rSelf = abusingUserRules.find((r:any) => r.uid === curr && r.scope === 'self' && curr === uid);
+        let rGroup = abusingUserRules.find((r:any) => r.uid === curr && r.scope === 'group');
 
         if (rSelf) { appliedRule = rSelf; break; }
         if (rGroup) { appliedRule = rGroup; break; }
@@ -6779,6 +6781,16 @@ app.post('/api/user/withdraw', async (c) => {
             curr = pDoc.fields.referredBy.stringValue || null;
         } else {
             curr = null;
+        }
+    }
+
+    // 2차: 국가 단위 규칙 (회원 단위 규칙 미존재 시) — 본인 국가코드 매칭
+    if (!appliedRule && abusingCountryRules.length) {
+        const myCountry = String(userObj?.countryCode || userObj?.country || '')
+            .trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+        if (myCountry) {
+            const cRule = abusingCountryRules.find((r: any) => r.countryCode === myCountry);
+            if (cRule) appliedRule = cRule;
         }
     }
 
@@ -9935,8 +9947,12 @@ app.post('/api/admin/settings/countryBonus', async (c) => {
 
 type AbusingControlRule = {
   id: string;
-  uid: string;
-  email: string;
+  // 'user' = 단일 회원(uid 기준), 'country' = 국가코드 기준
+  ruleType: 'user' | 'country';
+  uid: string;          // ruleType==='user' 일 때만 사용
+  email: string;        // ruleType==='user' 일 때만 사용
+  countryCode: string;  // ruleType==='country' 일 때 ISO 국가코드 (예: KR, VN)
+  countryLabel: string; // ruleType==='country' 일 때 표시용 (예: '대한민국')
   scope: 'self' | 'group';
   rollup: 'default' | 'allow' | 'block';
   withdraw: 'default' | 'allow' | 'block';
@@ -9959,15 +9975,47 @@ function normalizeAbusingControlScope(value: any): 'self' | 'group' {
   return value === 'group' ? 'group' : 'self';
 }
 
+function normalizeAbusingControlRuleType(value: any): 'user' | 'country' {
+  return value === 'country' ? 'country' : 'user';
+}
+
+function normalizeCountryCode(value: any): string {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+}
+
 function normalizeAbusingControlRule(rule: any): AbusingControlRule | null {
-  if (!rule || !rule.uid) return null;
+  if (!rule) return null;
+  const ruleType = normalizeAbusingControlRuleType(rule.ruleType);
   const id = String(rule.id || `rule_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`).trim();
+  if (!id) return null;
+
+  if (ruleType === 'country') {
+    const countryCode = normalizeCountryCode(rule.countryCode || rule.country);
+    if (!countryCode) return null;
+    return {
+      id,
+      ruleType,
+      uid: '',
+      email: '',
+      countryCode,
+      countryLabel: String(rule.countryLabel || rule.countryName || countryCode).trim().slice(0, 80),
+      scope: normalizeAbusingControlScope(rule.scope),
+      rollup: normalizeAbusingControlMode(rule.rollup),
+      withdraw: normalizeAbusingControlMode(rule.withdraw),
+      createdAt: String(rule.createdAt || '').trim() || undefined
+    };
+  }
+
+  // ruleType === 'user' (기존 호환)
   const uid = String(rule.uid || '').trim();
-  if (!id || !uid) return null;
+  if (!uid) return null;
   return {
     id,
+    ruleType: 'user',
     uid,
     email: String(rule.email || uid).trim(),
+    countryCode: '',
+    countryLabel: '',
     scope: normalizeAbusingControlScope(rule.scope),
     rollup: normalizeAbusingControlMode(rule.rollup),
     withdraw: normalizeAbusingControlMode(rule.withdraw),
@@ -10004,7 +10052,12 @@ async function saveAbusingControlSettings(settings: any, adminToken: string) {
 
 async function getAbusingControlWalletSummary(adminToken: string, rules: AbusingControlRule[]) {
   const summaries: Record<string, any> = {};
-  const uids = [...new Set(rules.map((rule) => rule.uid).filter(Boolean))].slice(0, 500);
+  const uids = [...new Set(
+    rules
+      .filter((rule) => rule.ruleType === 'user')
+      .map((rule) => rule.uid)
+      .filter(Boolean)
+  )].slice(0, 500);
   await Promise.all(uids.map(async (uid) => {
     const walletDoc = await fsGet(`wallets/${uid}`, adminToken).catch(() => null);
     const wallet = walletDoc?.fields ? firestoreDocToObj(walletDoc) : null;
@@ -10018,10 +10071,34 @@ async function getAbusingControlWalletSummary(adminToken: string, rules: Abusing
   return summaries;
 }
 
+async function getAbusingControlCountrySummary(adminToken: string, rules: AbusingControlRule[]) {
+  // 국가 규칙별 회원 수 집계 (조회 비용 고려: 최대 30개 국가까지)
+  const summaries: Record<string, any> = {};
+  const codes = [...new Set(
+    rules
+      .filter((rule) => rule.ruleType === 'country' && rule.countryCode)
+      .map((rule) => rule.countryCode)
+  )].slice(0, 30);
+  await Promise.all(codes.map(async (code) => {
+    try {
+      const byCountryCode = await fsQuery('users', adminToken, [
+        abusingControlUserFilter('countryCode', code)
+      ], 1000).catch(() => []);
+      summaries[code] = {
+        memberCount: Array.isArray(byCountryCode) ? byCountryCode.length : 0
+      };
+    } catch (_e) {
+      summaries[code] = { memberCount: 0 };
+    }
+  }));
+  return summaries;
+}
+
 async function buildAbusingControlPayload(adminToken: string) {
   const settings = await loadAbusingControlSettings(adminToken);
   const walletDebtByUid = await getAbusingControlWalletSummary(adminToken, settings.customRules);
-  return { ...settings, walletDebtByUid };
+  const countryStatsByCode = await getAbusingControlCountrySummary(adminToken, settings.customRules);
+  return { ...settings, walletDebtByUid, countryStatsByCode };
 }
 
 function abusingControlUserFilter(fieldPath: string, value: string): any {
@@ -10089,28 +10166,81 @@ app.post('/api/admin/abusing-control/rules', async (c) => {
   try {
     const adminToken = await getAdminToken();
     const body = await c.req.json().catch(() => ({}));
-    const target = String(body.email || body.target || '').trim();
+    const ruleType = normalizeAbusingControlRuleType(body.ruleType);
     const rollup = normalizeAbusingControlMode(body.rollup);
     const withdraw = normalizeAbusingControlMode(body.withdraw);
-    if (!target) return c.json({ success: false, error: '대상 이메일 또는 아이디를 입력하세요.' }, 400);
     if (rollup === 'default' && withdraw === 'default') {
       return c.json({ success: false, error: '롤업이나 출금 중 최소 한 가지 이상의 통제 규칙을 설정해야 합니다.' }, 400);
     }
 
+    const current = await loadAbusingControlSettings(adminToken);
+    const ruleId = `rule_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    if (ruleType === 'country') {
+      // [국가 단위 어뷰징 규칙]
+      const countryCode = normalizeCountryCode(body.countryCode || body.country);
+      if (!countryCode) {
+        return c.json({ success: false, error: '국가 코드를 입력하세요. (예: KR, VN, US)' }, 400);
+      }
+      const countryLabel = String(body.countryLabel || body.countryName || countryCode).trim().slice(0, 80);
+      const newRule: AbusingControlRule = {
+        id: ruleId,
+        ruleType: 'country',
+        uid: '',
+        email: '',
+        countryCode,
+        countryLabel,
+        scope: normalizeAbusingControlScope(body.scope),
+        rollup,
+        withdraw,
+        createdAt: new Date().toISOString()
+      };
+      // 동일 국가코드 + 동일 scope 규칙은 덮어쓰기
+      current.customRules = current.customRules.filter((rule) =>
+        !(rule.ruleType === 'country' && rule.countryCode === countryCode && rule.scope === newRule.scope)
+      );
+      current.customRules.push(newRule);
+      await saveAbusingControlSettings(current, adminToken);
+      queueAdminAuditLog(c, {
+        category: 'abusing_control',
+        action: 'abusing_control_rule_added',
+        severity: 'medium',
+        targetType: 'country',
+        targetId: countryCode,
+        metadata: {
+          ruleType: 'country',
+          countryCode,
+          countryLabel,
+          scope: newRule.scope,
+          rollup: newRule.rollup,
+          withdraw: newRule.withdraw
+        }
+      });
+      const data = await buildAbusingControlPayload(adminToken);
+      return c.json({ success: true, data });
+    }
+
+    // [기존 회원 단위 규칙 — ruleType === 'user']
+    const target = String(body.email || body.target || '').trim();
+    if (!target) return c.json({ success: false, error: '대상 이메일 또는 아이디를 입력하세요.' }, 400);
     const user = await findAbusingControlUser(adminToken, target);
     if (!user?.id) return c.json({ success: false, error: '해당 이메일이나 아이디를 가진 회원을 찾을 수 없습니다.' }, 404);
 
-    const current = await loadAbusingControlSettings(adminToken);
     const newRule: AbusingControlRule = {
-      id: `rule_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: ruleId,
+      ruleType: 'user',
       uid: user.id,
       email: String(user.email || target).trim(),
+      countryCode: '',
+      countryLabel: '',
       scope: normalizeAbusingControlScope(body.scope),
       rollup,
       withdraw,
       createdAt: new Date().toISOString()
     };
-    current.customRules = current.customRules.filter((rule) => rule.uid !== newRule.uid || rule.scope !== newRule.scope);
+    current.customRules = current.customRules.filter((rule) =>
+      !(rule.ruleType === 'user' && rule.uid === newRule.uid && rule.scope === newRule.scope)
+    );
     current.customRules.push(newRule);
     await saveAbusingControlSettings(current, adminToken);
     queueAdminAuditLog(c, {
@@ -10120,6 +10250,7 @@ app.post('/api/admin/abusing-control/rules', async (c) => {
       targetType: 'user',
       targetId: user.id,
       metadata: {
+        ruleType: 'user',
         scope: newRule.scope,
         rollup: newRule.rollup,
         withdraw: newRule.withdraw

@@ -3930,12 +3930,20 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
         </div>
       </div>
 
-      <!-- ── 개별 회원 규칙 추가 카드 ── -->
+      <!-- ── 개별 규칙 추가 카드 (회원 / 국가 단위) ── -->
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 22px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.04);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <span style="font-size:16px;font-weight:700;color:#1e293b;">👤 개별 회원 규칙 추가</span>
+          <span style="font-size:16px;font-weight:700;color:#1e293b;">➕ 개별 규칙 추가 (회원 / 국가)</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+
+        <!-- 규칙 타입 선택 탭 -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">
+          <button id="abusingTab_user" onclick="switchAbusingTab('user')" style="background:#6366f1;color:#fff;border:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">👤 회원 단위</button>
+          <button id="abusingTab_country" onclick="switchAbusingTab('country')" style="background:#f1f5f9;color:#64748b;border:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;">🌏 국가 단위</button>
+        </div>
+
+        <!-- 회원 단위 입력 영역 -->
+        <div id="abusingForm_user" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div>
             <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:600;">대상 (이메일 또는 아이디)</label>
             <input type="text" id="abusing_target" placeholder="user@example.com 또는 username" style="width:100%;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
@@ -3947,6 +3955,51 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
               <option value="group">본인 + 산하 그룹 전체 (group)</option>
             </select>
           </div>
+        </div>
+
+        <!-- 국가 단위 입력 영역 -->
+        <div id="abusingForm_country" style="display:none;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:600;">국가 선택</label>
+            <select id="abusing_countryCode" onchange="onAbusingCountryChange()" style="width:100%;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;">
+              <option value="">— 국가를 선택하세요 —</option>
+              <option value="KR">🇰🇷 KR — 대한민국 (South Korea)</option>
+              <option value="VN">🇻🇳 VN — 베트남 (Vietnam)</option>
+              <option value="CN">🇨🇳 CN — 중국 (China)</option>
+              <option value="JP">🇯🇵 JP — 일본 (Japan)</option>
+              <option value="US">🇺🇸 US — 미국 (United States)</option>
+              <option value="TH">🇹🇭 TH — 태국 (Thailand)</option>
+              <option value="PH">🇵🇭 PH — 필리핀 (Philippines)</option>
+              <option value="ID">🇮🇩 ID — 인도네시아 (Indonesia)</option>
+              <option value="MY">🇲🇾 MY — 말레이시아 (Malaysia)</option>
+              <option value="SG">🇸🇬 SG — 싱가포르 (Singapore)</option>
+              <option value="IN">🇮🇳 IN — 인도 (India)</option>
+              <option value="HK">🇭🇰 HK — 홍콩 (Hong Kong)</option>
+              <option value="TW">🇹🇼 TW — 대만 (Taiwan)</option>
+              <option value="MM">🇲🇲 MM — 미얀마 (Myanmar)</option>
+              <option value="KH">🇰🇭 KH — 캄보디아 (Cambodia)</option>
+              <option value="LA">🇱🇦 LA — 라오스 (Laos)</option>
+              <option value="MN">🇲🇳 MN — 몽골 (Mongolia)</option>
+              <option value="RU">🇷🇺 RU — 러시아 (Russia)</option>
+              <option value="DE">🇩🇪 DE — 독일 (Germany)</option>
+              <option value="FR">🇫🇷 FR — 프랑스 (France)</option>
+              <option value="GB">🇬🇧 GB — 영국 (United Kingdom)</option>
+              <option value="NG">🇳🇬 NG — 나이지리아 (Nigeria)</option>
+              <option value="BR">🇧🇷 BR — 브라질 (Brazil)</option>
+              <option value="MX">🇲🇽 MX — 멕시코 (Mexico)</option>
+              <option value="AE">🇦🇪 AE — 아랍에미리트 (UAE)</option>
+              <option value="__custom__">✏️ 직접 입력 (ISO 2~3자리)</option>
+            </select>
+            <input type="text" id="abusing_countryCustom" placeholder="ISO 코드 (예: KR)" maxlength="3" style="display:none;width:100%;margin-top:6px;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;text-transform:uppercase;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:600;">국가 표시 라벨 (선택)</label>
+            <input type="text" id="abusing_countryLabel" placeholder="예: 대한민국" style="width:100%;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;">
+          </div>
+        </div>
+
+        <!-- 공통: 롤업/출금 처리 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div>
             <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:600;">롤업(보너스) 처리</label>
             <select id="abusing_rollup" style="width:100%;padding:9px 11px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;">
@@ -3964,9 +4017,11 @@ npx wrangler pages deploy dist --project-name deedra --branch main</textarea>
             </select>
           </div>
         </div>
+
         <button onclick="addAbusingRule()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;">➕ 규칙 추가</button>
-        <div style="margin-top:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:11px;color:#64748b;">
-          💡 <b>self</b>: 해당 회원 본인의 보너스/출금만 통제 / <b>group</b>: 본인 및 산하 모든 회원에게 적용 (예: 어뷰징 그룹 전체 차단)
+        <div style="margin-top:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:11px;color:#64748b;line-height:1.6;">
+          💡 <b>회원 단위</b>: <b>self</b> = 본인만 / <b>group</b> = 본인+산하 그룹 전체 (예: 어뷰징 그룹 전체 차단)<br>
+          🌏 <b>국가 단위</b>: 해당 국가코드(<code>countryCode</code>)를 가진 모든 회원에게 일괄 적용. 회원 단위 규칙이 우선 적용되고, 미존재 시 국가 규칙이 적용됩니다.
         </div>
       </div>
 
@@ -15091,6 +15146,45 @@ async function _abusingHeaders() {
   return headers;
 }
 
+window._abusingActiveTab = 'user';
+window.switchAbusingTab = function(tab) {
+  window._abusingActiveTab = tab === 'country' ? 'country' : 'user';
+  const userBtn = document.getElementById('abusingTab_user');
+  const countryBtn = document.getElementById('abusingTab_country');
+  const userForm = document.getElementById('abusingForm_user');
+  const countryForm = document.getElementById('abusingForm_country');
+  if (window._abusingActiveTab === 'country') {
+    if (userBtn) { userBtn.style.background = '#f1f5f9'; userBtn.style.color = '#64748b'; }
+    if (countryBtn) { countryBtn.style.background = '#6366f1'; countryBtn.style.color = '#fff'; }
+    if (userForm) userForm.style.display = 'none';
+    if (countryForm) countryForm.style.display = 'grid';
+  } else {
+    if (userBtn) { userBtn.style.background = '#6366f1'; userBtn.style.color = '#fff'; }
+    if (countryBtn) { countryBtn.style.background = '#f1f5f9'; countryBtn.style.color = '#64748b'; }
+    if (userForm) userForm.style.display = 'grid';
+    if (countryForm) countryForm.style.display = 'none';
+  }
+};
+
+window.onAbusingCountryChange = function() {
+  const sel = document.getElementById('abusing_countryCode');
+  const customInput = document.getElementById('abusing_countryCustom');
+  const labelInput = document.getElementById('abusing_countryLabel');
+  if (!sel) return;
+  if (sel.value === '__custom__') {
+    if (customInput) customInput.style.display = 'block';
+    if (labelInput) labelInput.value = '';
+  } else {
+    if (customInput) { customInput.style.display = 'none'; customInput.value = ''; }
+    // 자동 라벨 추출 (옵션 텍스트의 — 뒷부분)
+    if (labelInput && sel.selectedOptions[0]) {
+      const txt = sel.selectedOptions[0].textContent || '';
+      const m = txt.match(/—\s*(.+?)\s*\(/);
+      labelInput.value = m ? m[1].trim() : '';
+    }
+  }
+};
+
 window.loadAbusingControl = async function() {
   const listEl = document.getElementById('abusingRuleList');
   const cntEl = document.getElementById('abusing_ruleCount');
@@ -15110,7 +15204,12 @@ window.loadAbusingControl = async function() {
 
     const rules = Array.isArray(data.customRules) ? data.customRules : [];
     const debt = data.walletDebtByUid || {};
-    if (cntEl) cntEl.textContent = rules.length + '건';
+    const countryStats = data.countryStatsByCode || {};
+    if (cntEl) {
+      const userCount = rules.filter(r => (r.ruleType || 'user') === 'user').length;
+      const countryCount = rules.filter(r => r.ruleType === 'country').length;
+      cntEl.textContent = `${rules.length}건 (회원 ${userCount} · 국가 ${countryCount})`;
+    }
 
     if (!rules.length) {
       listEl.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;">등록된 규칙이 없습니다.</div>';
@@ -15122,26 +15221,66 @@ window.loadAbusingControl = async function() {
       : '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;">기본</span>';
     const scopeLabel = (s) => s === 'group' ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:6px;font-weight:700;">그룹</span>'
       : '<span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:6px;font-weight:700;">본인</span>';
+    const typeLabel = (t) => t === 'country'
+      ? '<span style="background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:6px;font-weight:700;">🌏 국가</span>'
+      : '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:6px;font-weight:700;">👤 회원</span>';
+
+    // 국가 규칙을 위로, 회원 규칙을 아래로 정렬
+    const sorted = [...rules].sort((a, b) => {
+      const ta = a.ruleType === 'country' ? 0 : 1;
+      const tb = b.ruleType === 'country' ? 0 : 1;
+      if (ta !== tb) return ta - tb;
+      return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
 
     let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
-    html += '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;"><th style="padding:10px;text-align:left;">대상</th><th style="padding:10px;text-align:center;">범위</th><th style="padding:10px;text-align:center;">롤업</th><th style="padding:10px;text-align:center;">출금</th><th style="padding:10px;text-align:right;">잔고</th><th style="padding:10px;text-align:left;">등록일</th><th style="padding:10px;text-align:center;">작업</th></tr></thead><tbody>';
-    rules.forEach(r => {
-      const w = debt[r.uid] || {};
-      const bal = Number(w.bonusBalance || 0);
-      const balColor = w.hasDebt ? '#dc2626' : (bal > 0 ? '#16a34a' : '#64748b');
+    html += '<thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">' +
+      '<th style="padding:10px;text-align:center;">유형</th>' +
+      '<th style="padding:10px;text-align:left;">대상</th>' +
+      '<th style="padding:10px;text-align:center;">범위</th>' +
+      '<th style="padding:10px;text-align:center;">롤업</th>' +
+      '<th style="padding:10px;text-align:center;">출금</th>' +
+      '<th style="padding:10px;text-align:right;">잔고/회원수</th>' +
+      '<th style="padding:10px;text-align:left;">등록일</th>' +
+      '<th style="padding:10px;text-align:center;">작업</th></tr></thead><tbody>';
+    sorted.forEach(r => {
+      const rType = r.ruleType || 'user';
       const created = r.createdAt ? new Date(r.createdAt).toLocaleString('ko-KR', { hour12:false }) : '-';
-      html += `<tr style="border-bottom:1px solid #f1f5f9;">
-        <td style="padding:10px;">
+      let targetCell = '';
+      let metricCell = '';
+      let confirmName = '';
+
+      if (rType === 'country') {
+        const code = r.countryCode || '';
+        const label = r.countryLabel || code;
+        const cs = countryStats[code] || {};
+        const memberCount = Number(cs.memberCount || 0);
+        targetCell = `
+          <div style="font-weight:700;color:#9d174d;">🌏 ${(label || code).replace(/</g,'&lt;')}</div>
+          <div style="font-size:11px;color:#94a3b8;font-family:monospace;">${code}</div>`;
+        metricCell = `<span style="color:#9d174d;font-weight:700;font-family:monospace;">${memberCount}명</span>`;
+        confirmName = label || code;
+      } else {
+        const w = debt[r.uid] || {};
+        const bal = Number(w.bonusBalance || 0);
+        const balColor = w.hasDebt ? '#dc2626' : (bal > 0 ? '#16a34a' : '#64748b');
+        targetCell = `
           <div style="font-weight:600;color:#1e293b;">${(r.email || '').replace(/</g,'&lt;')}</div>
-          <div style="font-size:11px;color:#94a3b8;font-family:monospace;">${(r.uid || '').slice(0,18)}…</div>
-        </td>
+          <div style="font-size:11px;color:#94a3b8;font-family:monospace;">${(r.uid || '').slice(0,18)}…</div>`;
+        metricCell = `<span style="color:${balColor};font-weight:700;font-family:monospace;">${bal.toFixed(2)}</span>`;
+        confirmName = r.email || r.uid;
+      }
+
+      html += `<tr style="border-bottom:1px solid #f1f5f9;">
+        <td style="padding:10px;text-align:center;">${typeLabel(rType)}</td>
+        <td style="padding:10px;">${targetCell}</td>
         <td style="padding:10px;text-align:center;">${scopeLabel(r.scope)}</td>
         <td style="padding:10px;text-align:center;">${modeLabel(r.rollup)}</td>
         <td style="padding:10px;text-align:center;">${modeLabel(r.withdraw)}</td>
-        <td style="padding:10px;text-align:right;color:${balColor};font-weight:700;font-family:monospace;">${bal.toFixed(2)}</td>
+        <td style="padding:10px;text-align:right;">${metricCell}</td>
         <td style="padding:10px;color:#64748b;font-size:11px;">${created}</td>
         <td style="padding:10px;text-align:center;">
-          <button onclick="deleteAbusingRule('${r.id}', '${(r.email||'').replace(/'/g,"\\'")}')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">삭제</button>
+          <button onclick="deleteAbusingRule('${r.id}', '${String(confirmName).replace(/'/g,"\\'")}')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;">삭제</button>
         </td>
       </tr>`;
     });
@@ -15173,27 +15312,54 @@ window.saveAbusingGlobal = async function() {
 };
 
 window.addAbusingRule = async function() {
-  const target = document.getElementById('abusing_target')?.value.trim();
-  const scope = document.getElementById('abusing_scope')?.value || 'self';
+  const ruleType = window._abusingActiveTab === 'country' ? 'country' : 'user';
   const rollup = document.getElementById('abusing_rollup')?.value || 'default';
   const withdraw = document.getElementById('abusing_withdraw')?.value || 'default';
-  if (!target) { showToast('⚠️ 대상 이메일/아이디를 입력하세요.', 'error'); return; }
   if (rollup === 'default' && withdraw === 'default') {
     showToast('⚠️ 롤업이나 출금 중 최소 한 가지 이상의 통제를 설정하세요.', 'error');
     return;
   }
+
+  const body = { ruleType, rollup, withdraw };
+
+  if (ruleType === 'country') {
+    const sel = document.getElementById('abusing_countryCode');
+    const customInput = document.getElementById('abusing_countryCustom');
+    const labelInput = document.getElementById('abusing_countryLabel');
+    let code = sel?.value === '__custom__' ? (customInput?.value || '').trim().toUpperCase() : (sel?.value || '').trim().toUpperCase();
+    code = code.replace(/[^A-Z]/g, '').slice(0, 3);
+    if (!code) { showToast('⚠️ 국가 코드를 선택하거나 입력하세요.', 'error'); return; }
+    body.countryCode = code;
+    body.countryLabel = (labelInput?.value || '').trim() || code;
+    // 국가 단위는 항상 group 적용
+    body.scope = 'group';
+  } else {
+    const target = document.getElementById('abusing_target')?.value.trim();
+    const scope = document.getElementById('abusing_scope')?.value || 'self';
+    if (!target) { showToast('⚠️ 대상 이메일/아이디를 입력하세요.', 'error'); return; }
+    body.email = target;
+    body.scope = scope;
+  }
+
   try {
     const headers = await _abusingHeaders();
     const res = await fetch('/api/admin/abusing-control/rules', {
       method: 'POST', headers,
-      body: JSON.stringify({ email: target, scope, rollup, withdraw })
+      body: JSON.stringify(body)
     });
     const json = await res.json();
     if (!res.ok || !json.success) throw new Error(json.error || '추가 실패');
-    showToast('✅ 어뷰징 규칙이 추가되었습니다.', 'success');
-    document.getElementById('abusing_target').value = '';
-    document.getElementById('abusing_rollup').value = 'default';
-    document.getElementById('abusing_withdraw').value = 'default';
+    showToast(ruleType === 'country' ? '✅ 국가 단위 어뷰징 규칙이 추가되었습니다.' : '✅ 어뷰징 규칙이 추가되었습니다.', 'success');
+    // 입력 초기화
+    if (ruleType === 'country') {
+      const sel = document.getElementById('abusing_countryCode'); if (sel) sel.value = '';
+      const customInput = document.getElementById('abusing_countryCustom'); if (customInput) { customInput.style.display = 'none'; customInput.value = ''; }
+      const labelInput = document.getElementById('abusing_countryLabel'); if (labelInput) labelInput.value = '';
+    } else {
+      const t = document.getElementById('abusing_target'); if (t) t.value = '';
+    }
+    const rEl = document.getElementById('abusing_rollup'); if (rEl) rEl.value = 'default';
+    const wEl = document.getElementById('abusing_withdraw'); if (wEl) wEl.value = 'default';
     await loadAbusingControl();
   } catch (e) {
     showToast('❌ 추가 실패: ' + e.message, 'error');

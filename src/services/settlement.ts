@@ -169,6 +169,13 @@ export async function runSettle(c: any, overrideDate?: string | null) {
     ], 100000);
     const realDepositors = new Set(realDepositTxs.map((t: any) => t.userId));
 
+    // [FIX 2026-04-30] uid → countryCode 매핑 (어뷰징 국가 규칙 평가용)
+    const userCountryByUid = new Map<string, string>();
+    for (const u of allUsers) {
+      const code = String(u.countryCode || u.country || '')
+        .trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+      if (code) userCountryByUid.set(u.id, code);
+    }
 
     // NEW LOGIC: memberMap tracking all financials (strict separation of dividend and allowance)
     const memberMap = new Map();
@@ -191,17 +198,21 @@ export async function runSettle(c: any, overrideDate?: string | null) {
 
     // Determine isBlockedFromRollup
     const abusingRules = Array.isArray(abusingData.customRules) ? abusingData.customRules : [];
+    // 회원 단위 / 국가 단위 규칙 분리
+    const abusingUserRules = abusingRules.filter((r: any) => (r.ruleType || 'user') === 'user');
+    const abusingCountryRules = abusingRules.filter((r: any) => r.ruleType === 'country');
     for (const m of memberMap.values()) {
         let isReal = realDepositors.has(m.id);
         let blocked = abusingData.globalNoDepositRollupBlock && !isReal;
 
+        // 1차: 회원 단위 규칙 (기존 로직 유지) — 자기 자신부터 부모 라인 따라 올라가며 첫 매칭 룰 적용
         let curr = m.id;
         const seenRulePath = new Set<string>();
         let appliedRule = null;
         while (curr && !seenRulePath.has(curr)) {
             seenRulePath.add(curr);
-            let rSelf = abusingRules.find((r:any) => r.uid === curr && r.scope === 'self' && curr === m.id);
-            let rGroup = abusingRules.find((r:any) => r.uid === curr && r.scope === 'group');
+            let rSelf = abusingUserRules.find((r:any) => r.uid === curr && r.scope === 'self' && curr === m.id);
+            let rGroup = abusingUserRules.find((r:any) => r.uid === curr && r.scope === 'group');
 
             if (rSelf) { appliedRule = rSelf; break; }
             if (rGroup) { appliedRule = rGroup; break; }
@@ -209,6 +220,15 @@ export async function runSettle(c: any, overrideDate?: string | null) {
             const p = memberMap.get(curr);
             const next = p ? p.parent_member_id : null;
             curr = next && next !== curr ? next : null;
+        }
+
+        // 2차: 국가 단위 규칙 — 본인 국가코드 매칭 (회원 단위 규칙 미존재 시 적용)
+        if (!appliedRule && abusingCountryRules.length) {
+            const myCode = userCountryByUid.get(m.id) || '';
+            if (myCode) {
+                const cRule = abusingCountryRules.find((r: any) => r.countryCode === myCode);
+                if (cRule) appliedRule = cRule;
+            }
         }
 
         if (appliedRule) {
@@ -1102,7 +1122,17 @@ export async function runSettleDryRun(c: any, overrideDate?: string | null, limi
       });
     }
 
+    // [FIX 2026-04-30] uid → countryCode 매핑 (어뷰징 국가 규칙 평가용)
+    const userCountryByUid = new Map<string, string>();
+    for (const u of allUsers) {
+      const code = String(u.countryCode || u.country || '')
+        .trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+      if (code) userCountryByUid.set(u.id, code);
+    }
+
     const abusingRules = Array.isArray(abusingData.customRules) ? abusingData.customRules : [];
+    const abusingUserRules = abusingRules.filter((r: any) => (r.ruleType || 'user') === 'user');
+    const abusingCountryRules = abusingRules.filter((r: any) => r.ruleType === 'country');
     for (const m of memberMap.values()) {
       let blocked = abusingData.globalNoDepositRollupBlock && !realDepositors.has(m.id);
       let curr = m.id;
@@ -1110,13 +1140,21 @@ export async function runSettleDryRun(c: any, overrideDate?: string | null, limi
       let appliedRule = null;
       while (curr && !seenRulePath.has(curr)) {
         seenRulePath.add(curr);
-        const rSelf = abusingRules.find((r: any) => r.uid === curr && r.scope === 'self' && curr === m.id);
-        const rGroup = abusingRules.find((r: any) => r.uid === curr && r.scope === 'group');
+        const rSelf = abusingUserRules.find((r: any) => r.uid === curr && r.scope === 'self' && curr === m.id);
+        const rGroup = abusingUserRules.find((r: any) => r.uid === curr && r.scope === 'group');
         if (rSelf) { appliedRule = rSelf; break; }
         if (rGroup) { appliedRule = rGroup; break; }
         const p = memberMap.get(curr);
         const next = p ? p.parent_member_id : null;
         curr = next && next !== curr ? next : null;
+      }
+      // 2차: 국가 단위 규칙 (회원 단위 규칙 미존재 시)
+      if (!appliedRule && abusingCountryRules.length) {
+        const myCode = userCountryByUid.get(m.id) || '';
+        if (myCode) {
+          const cRule = abusingCountryRules.find((r: any) => r.countryCode === myCode);
+          if (cRule) appliedRule = cRule;
+        }
       }
       if (appliedRule) {
         if (appliedRule.rollup === 'allow') blocked = false;
