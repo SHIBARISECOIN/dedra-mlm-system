@@ -7877,21 +7877,29 @@ function renderNoticeList() {
     const escAttr = (s) => String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
         .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // [FIX 2026-04-30 v4] id 누락 항목도 표시(읽기 전용)하여 절대 빈 화면이 되지 않도록 보장
     wrap.innerHTML = sorted.map(n => {
-        if (!n || !n.id) {
-            console.warn('[notice render] skip item without id:', n);
-            return '';
-        }
+        if (!n) return '';
+        const hasId = !!n.id;
+        if (!hasId) console.warn('[notice render] item missing id, rendering as readonly:', n);
         const cm = catMeta[n.category] || catMeta.general;
         const previewText = (n.content || '').replace(/<[^>]+>/g,'').substring(0,100);
-        const safeId = escAttr(n.id);
+        const safeId = hasId ? escAttr(n.id) : '';
+        const itemAttrs = hasId ? `data-action="view" data-id="${safeId}"` : '';
+        const editBtn = hasId
+            ? `<button type="button" data-action="edit" data-id="${safeId}" style="padding:7px 14px;border-radius:8px;background:#ede9fe;color:#6366f1;border:none;font-size:12px;font-weight:700;cursor:pointer;">✏️ 수정</button>`
+            : `<button type="button" disabled style="padding:7px 14px;border-radius:8px;background:#f1f5f9;color:#94a3b8;border:none;font-size:12px;font-weight:700;cursor:not-allowed;" title="ID 누락">✏️ 수정</button>`;
+        const deleteBtn = hasId
+            ? `<button type="button" data-action="delete" data-id="${safeId}" style="padding:7px 14px;border-radius:8px;background:#fee2e2;color:#ef4444;border:none;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 삭제</button>`
+            : `<button type="button" disabled style="padding:7px 14px;border-radius:8px;background:#f1f5f9;color:#94a3b8;border:none;font-size:12px;font-weight:700;cursor:not-allowed;" title="ID 누락">🗑️ 삭제</button>`;
         return `
-        <div class="notice-item" data-action="view" data-id="${safeId}">
+        <div class="notice-item" ${itemAttrs}>
           <div style="flex:1;min-width:0;">
             <div class="notice-meta">
               ${n.isPinned ? '<span class="notice-pinned">📌 고정</span>' : ''}
               <span class="notice-badge" style="background:${cm.bg};color:${cm.color};">${cm.label}</span>
               ${!n.isActive ? '<span style="background:#f3f4f6;color:#9ca3af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🔒 비공개</span>' : ''}
+              ${!hasId ? '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;">⚠️ ID 누락</span>' : ''}
             </div>
             <div class="notice-title">${n.title || '(제목 없음)'}</div>
             <div class="notice-preview">${previewText}</div>
@@ -7901,10 +7909,8 @@ function renderNoticeList() {
             </div>
           </div>
           <div class="notice-actions">
-            <button type="button" data-action="edit" data-id="${safeId}"
-              style="padding:7px 14px;border-radius:8px;background:#ede9fe;color:#6366f1;border:none;font-size:12px;font-weight:700;cursor:pointer;">✏️ 수정</button>
-            <button type="button" data-action="delete" data-id="${safeId}"
-              style="padding:7px 14px;border-radius:8px;background:#fee2e2;color:#ef4444;border:none;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 삭제</button>
+            ${editBtn}
+            ${deleteBtn}
           </div>
         </div>`;
     }).join('');

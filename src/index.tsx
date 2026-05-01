@@ -9693,7 +9693,8 @@ app.get('/api/admin/settlements-paged', async (c) => {
       const id = docPath.split('/').pop() || ''
       const fields = row.document.fields || {}
       const obj = firestoreDocToObj({ fields })
-      items.push({ id, ...obj })
+      // [FIX 2026-04-30 v3] obj 내부 'id' 필드가 문서 ID를 덮어쓰지 못하게 순서 변경
+      items.push({ ...obj, id })
     }
     // date 필드가 비어 있어 정렬에서 누락된 문서를 안전하게 보강:
     // 만약 첫 페이지인데 결과 수가 적으면 fallback으로 컬렉션 전체 listDocuments 보조 호출.
@@ -9712,7 +9713,7 @@ app.get('/api/admin/settlements-paged', async (c) => {
             const did = dPath.split('/').pop() || ''
             if (!did || seen.has(did)) continue
             const obj = firestoreDocToObj({ fields: d.fields || {} })
-            items.push({ id: did, ...obj })
+            items.push({ ...obj, id: did })
           }
           // date 또는 id (=YYYY-MM-DD) 기준 desc 정렬
           items.sort((a, b) => {
@@ -10373,11 +10374,14 @@ app.get('/api/admin/notices-paged', async (c) => {
       const obj = firestoreDocToObj({ fields });
       const ca = fields.createdAt?.timestampValue;
       const caSec = ca ? Math.floor(new Date(ca).getTime() / 1000) : 0;
-      items.push({
-        id,
+      // [FIX 2026-04-30 v3] obj 안에 'id' 필드가 있을 경우 문서 ID가 덮어써지는 문제 방지.
+      //   순서를 ...obj → id 로 바꾸고, 명시적으로 id 필드 마지막에 할당.
+      const item: any = {
         ...obj,
+        id, // 항상 문서 ID로 덮어쓰기
         createdAt: caSec ? { seconds: caSec, _iso: ca } : (obj.createdAt || null)
-      });
+      };
+      items.push(item);
     }
     // 다음 페이지 커서 = 현재까지 처리된 누적 offset
     const nextOffset = offsetNum + items.length;
