@@ -7871,32 +7871,65 @@ function renderNoticeList() {
         return (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0);
     });
 
+    // [FIX 2026-04-30 v3] 인라인 onclick에 직접 id를 보간하지 않고 data-* 속성으로 전달.
+    //   기존: onclick="editNotice('${n.id}')" → id에 따옴표/특수문자가 있으면 깨져서 잘못된 인자 전달
+    //   변경: data-action / data-id 위임 처리. id 누락 항목은 렌더 단계에서 스킵.
+    const escAttr = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
     wrap.innerHTML = sorted.map(n => {
+        if (!n || !n.id) {
+            console.warn('[notice render] skip item without id:', n);
+            return '';
+        }
         const cm = catMeta[n.category] || catMeta.general;
-        const previewText = n.content?.replace(/<[^>]+>/g,'').substring(0,100) || '';
+        const previewText = (n.content || '').replace(/<[^>]+>/g,'').substring(0,100);
+        const safeId = escAttr(n.id);
         return `
-        <div class="notice-item" onclick="viewNotice('${n.id}')">
+        <div class="notice-item" data-action="view" data-id="${safeId}">
           <div style="flex:1;min-width:0;">
             <div class="notice-meta">
               ${n.isPinned ? '<span class="notice-pinned">📌 고정</span>' : ''}
               <span class="notice-badge" style="background:${cm.bg};color:${cm.color};">${cm.label}</span>
               ${!n.isActive ? '<span style="background:#f3f4f6;color:#9ca3af;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">🔒 비공개</span>' : ''}
             </div>
-            <div class="notice-title">${n.title}</div>
+            <div class="notice-title">${n.title || '(제목 없음)'}</div>
             <div class="notice-preview">${previewText}</div>
             <div style="font-size:11px;color:#94a3b8;margin-top:8px;display:flex;gap:8px;align-items:center;">
               <span>🕐 ${fmtDate(n.createdAt)}</span>
               ${n.updatedAt && n.updatedAt.seconds !== n.createdAt?.seconds ? `<span>✏️ 수정됨</span>` : ''}
             </div>
           </div>
-          <div class="notice-actions" onclick="event.stopPropagation()">
-            <button onclick="editNotice('${n.id}')"
+          <div class="notice-actions">
+            <button type="button" data-action="edit" data-id="${safeId}"
               style="padding:7px 14px;border-radius:8px;background:#ede9fe;color:#6366f1;border:none;font-size:12px;font-weight:700;cursor:pointer;">✏️ 수정</button>
-            <button onclick="deleteNotice('${n.id}')"
+            <button type="button" data-action="delete" data-id="${safeId}"
               style="padding:7px 14px;border-radius:8px;background:#fee2e2;color:#ef4444;border:none;font-size:12px;font-weight:700;cursor:pointer;">🗑️ 삭제</button>
           </div>
         </div>`;
     }).join('');
+
+    // 이벤트 위임: 한 번만 바인딩 (페이지네이션으로 매번 innerHTML 갱신될 때 wrap 자체는 유지됨)
+    if (!wrap.__noticeDelegated) {
+        wrap.addEventListener('click', (ev) => {
+            const target = ev.target.closest('[data-action]');
+            if (!target || !wrap.contains(target)) return;
+            const action = target.getAttribute('data-action');
+            const id = target.getAttribute('data-id');
+            if (!id) {
+                console.warn('[notice click] missing data-id on', target);
+                return;
+            }
+            ev.stopPropagation();
+            if (action === 'edit')   { window.editNotice(id);   return; }
+            if (action === 'delete') { window.deleteNotice(id); return; }
+            if (action === 'view')   {
+                if (typeof window.viewNotice === 'function') window.viewNotice(id);
+                return;
+            }
+        });
+        wrap.__noticeDelegated = true;
+    }
 
     // [FIX 2026-04-30] 더보기 / 전체보기 버튼 (페이지네이션)
     const totalLoaded = _allNotices.length;
